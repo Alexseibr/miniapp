@@ -26,17 +26,21 @@ async function start() {
     
     // 3. Запуск Telegram бота
     console.log('\n🤖 Запуск Telegram бота...');
-    await bot.launch();
-    console.log('✅ Telegram бот запущен и готов к работе!');
-    
-    console.log('\n✨ Все сервисы успешно запущены!\n');
-    console.log('📋 Доступные команды бота:');
-    console.log('   /start - Приветствие');
-    console.log('   /catalog - Каталог товаров');
-    console.log('   /categories - Список категорий');
-    console.log('   /search - Поиск товаров');
-    console.log('   /myorders - Мои заказы');
-    console.log('   /myid - Узнать свой Telegram ID\n');
+    bot.launch().then(() => {
+      console.log('✅ Telegram бот запущен и готов к работе!');
+      
+      console.log('\n✨ Все сервисы успешно запущены!\n');
+      console.log('📋 Доступные команды бота:');
+      console.log('   /start - Приветствие');
+      console.log('   /catalog - Каталог товаров');
+      console.log('   /categories - Список категорий');
+      console.log('   /search - Поиск товаров');
+      console.log('   /myorders - Мои заказы');
+      console.log('   /myid - Узнать свой Telegram ID\n');
+    }).catch(err => {
+      console.error('❌ Ошибка запуска бота:', err);
+      process.exit(1);
+    });
     
     // Graceful shutdown
     const shutdown = async (signal) => {

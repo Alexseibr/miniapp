@@ -10,7 +10,7 @@ if (!BOT_TOKEN) {
 const bot = new Telegraf(BOT_TOKEN);
 
 // API базовый URL (для запросов к нашему Express API)
-const API_URL = process.env.API_BASE_URL || 'http://localhost:3000';
+const API_URL = process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 5000}`;
 
 // === КОМАНДЫ ===
 
