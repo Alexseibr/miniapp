@@ -6,7 +6,11 @@
   "type": "module",
   "scripts": {
     "start": "node index.js",
-    "dev": "NODE_ENV=development nodemon index.js"
+    "dev": "NODE_ENV=development nodemon index.js",
+    "seed": "node scripts/seedCategories.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "express",
