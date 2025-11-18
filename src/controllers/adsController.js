@@ -1,22 +1,30 @@
 import Ad from '../models/Ad.js';
 
+const MAX_LIMIT = 100;
+
 export async function listAds(req, res) {
-  const { limit = 20, tag, search } = req.query;
-  const filters = {};
+  const { limit = 20, categoryId, subcategoryId, seasonCode } = req.query;
+  const filters = { status: 'active' };
 
-  if (tag) {
-    filters.tags = tag;
+  if (categoryId) {
+    filters.categoryId = categoryId;
   }
 
-  if (search) {
-    filters.title = { $regex: search, $options: 'i' };
+  if (subcategoryId) {
+    filters.subcategoryId = subcategoryId;
   }
+
+  if (seasonCode) {
+    filters.seasonCode = seasonCode;
+  }
+
+  const safeLimit = Math.min(Number(limit) || 20, MAX_LIMIT);
 
   const ads = await Ad.find(filters)
     .sort({ createdAt: -1 })
-    .limit(Math.min(Number(limit) || 20, 100));
+    .limit(safeLimit);
 
-  res.json(ads);
+  res.json({ items: ads });
 }
 
 export async function getAd(req, res) {
@@ -28,6 +36,13 @@ export async function getAd(req, res) {
 }
 
 export async function createAd(req, res) {
+  const required = ['title', 'categoryId', 'subcategoryId', 'price', 'sellerTelegramId'];
+  const missing = required.filter((field) => !req.body[field] && req.body[field] !== 0);
+
+  if (missing.length) {
+    return res.status(400).json({ message: `Отсутствуют обязательные поля: ${missing.join(', ')}` });
+  }
+
   const ad = await Ad.create(req.body);
   res.status(201).json(ad);
 }

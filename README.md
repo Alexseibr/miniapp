@@ -28,12 +28,13 @@
 
 - `GET /` — базовая проверка: "API работает. KETMAR Market backend запущен.".
 - `GET /health` — проверка состояния.
-- `GET /api/ads` — список объявлений, опции: `limit`, `tag`, `search` по названию.
-- `GET /api/ads/:id` — получить объявление.
-- `POST /api/ads` — создать (body: `title`, `description`, `price`, `phone`, `tags`).
+- `GET /api/ads` — список активных объявлений. Параметры: `limit` (по умолчанию 20), опционально `categoryId`, `subcategoryId`, `seasonCode`. Ответ `{ items: Ad[] }`.
+- `GET /api/ads/:id` — получить объявление по `_id`.
+- `POST /api/ads` — создать объявление (обязательные поля: `title`, `categoryId`, `subcategoryId`, `price`, `sellerTelegramId`; прочие поля см. модель `Ad`).
 - `PATCH /api/ads/:id` — обновить объявление.
 - `DELETE /api/ads/:id` — удалить объявление.
 - `GET /api/categories` — дерево категорий и подкатегорий (строится по `parentSlug`).
+- `GET /api/seasons` — список сезонов/акций.
 
 ## Telegram-бот
 

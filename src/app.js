@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import adsRouter from './routes/ads.js';
 import categoriesRouter from './routes/categories.js';
+import seasonsRouter from './routes/seasons.js';
 
 export function createApp() {
   const app = express();
@@ -19,6 +20,7 @@ export function createApp() {
 
   app.use('/api/ads', adsRouter);
   app.use('/api/categories', categoriesRouter);
+  app.use('/api/seasons', seasonsRouter);
 
   app.use((err, _req, res, _next) => {
     console.error('[app] Unexpected error', err);
