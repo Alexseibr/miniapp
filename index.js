@@ -1,7 +1,7 @@
-import { createServer } from './api/server.js';
-import { BOT_TOKEN, PORT } from './config/config.js';
-import { startBot } from './bot/bot.js';
-import { connectDB } from './services/db.js';
+const { createServer } = require('./api/server.js');
+const { BOT_TOKEN, PORT } = require('./config/config.js');
+const { startBot } = require('./bot/bot.js');
+const { connectDB } = require('./services/db.js');
 
 async function bootstrap() {
   await connectDB();

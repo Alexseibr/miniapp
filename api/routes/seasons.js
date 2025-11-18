@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import Season from '../../models/Season.js';
+const { Router } = require('express');
+const Season = require('../../models/Season.js');
 
 const router = Router();
 
@@ -12,4 +12,4 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
-export default router;
+module.exports = router;

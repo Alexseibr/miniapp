@@ -1,7 +1,7 @@
-import mongoose from 'mongoose';
-import { MONGO_URL } from '../config/config.js';
-import Category from '../models/Category.js';
-import Season from '../models/Season.js';
+const mongoose = require('mongoose');
+const { MONGO_URL } = require('../config/config.js');
+const Category = require('../models/Category.js');
+const Season = require('../models/Season.js');
 
 const categoriesSeed = [
   // Авто

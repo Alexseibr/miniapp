@@ -1,9 +1,9 @@
-import { Router } from 'express';
+const { Router } = require('express');
 
 const router = Router();
 
 router.get('/', (_req, res) => {
-  res.status(501).json({ message: 'User endpoints are not implemented yet' });
+  res.json([]);
 });
 
-export default router;
+module.exports = router;

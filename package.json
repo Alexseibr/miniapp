@@ -3,14 +3,10 @@
   "version": "1.0.0",
   "description": "Каркас backend и Telegram-бота для маркетплейса",
   "main": "index.js",
-  "type": "module",
   "scripts": {
     "start": "node index.js",
     "dev": "NODE_ENV=development nodemon index.js",
     "seed": "node scripts/seedCategories.js"
-  },
-  "engines": {
-    "node": ">=18"
   },
   "keywords": [
     "express",
@@ -30,5 +26,8 @@
   },
   "devDependencies": {
     "nodemon": "^3.1.7"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

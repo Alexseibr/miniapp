@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import Category from '../../models/Category.js';
+const { Router } = require('express');
+const Category = require('../../models/Category.js');
 
 const router = Router();
 
@@ -49,4 +49,4 @@ router.get('/', async (_req, res, next) => {
   }
 });
 
-export default router;
+module.exports = router;

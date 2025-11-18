@@ -1,7 +1,7 @@
-import { Telegraf } from 'telegraf';
-import { BOT_TOKEN } from '../config/config.js';
+const { Telegraf } = require('telegraf');
+const { BOT_TOKEN } = require('../config/config.js');
 
-export function startBot() {
+function startBot() {
   if (!BOT_TOKEN) {
     console.warn('[bot] BOT_TOKEN не задан, бот не будет запущен');
     return null;
@@ -31,3 +31,5 @@ export function startBot() {
 
   return bot;
 }
+
+module.exports = { startBot };

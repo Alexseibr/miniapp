@@ -1,7 +1,7 @@
-import mongoose from 'mongoose';
-import { MONGO_URL } from '../config/config.js';
+const mongoose = require('mongoose');
+const { MONGO_URL } = require('../config/config.js');
 
-export async function connectDB() {
+async function connectDB() {
   try {
     await mongoose.connect(MONGO_URL, { autoIndex: true });
     console.log('[db] Connected to MongoDB');
@@ -10,3 +10,5 @@ export async function connectDB() {
     process.exit(1);
   }
 }
+
+module.exports = { connectDB };

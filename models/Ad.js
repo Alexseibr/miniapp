@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const locationSchema = new mongoose.Schema(
   {
@@ -12,72 +12,23 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 
 const adSchema = new mongoose.Schema(
   {
-    title: {
-      type: String,
-      required: true,
-      trim: true,
-      minlength: 3,
-      maxlength: 200,
-    },
-    description: {
-      type: String,
-      trim: true,
-      maxlength: 4000,
-    },
-    categoryId: {
-      type: String,
-      required: true,
-      trim: true,
-      lowercase: true,
-    },
-    subcategoryId: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      default: null,
-    },
-    price: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    currency: {
-      type: String,
-      required: true,
-      trim: true,
-      uppercase: true,
-      default: 'BYN',
-    },
-    attributes: {
-      type: mongoose.Schema.Types.Mixed,
-      default: {},
-    },
-    photos: {
-      type: [String],
-      default: [],
-    },
-    sellerTelegramId: {
-      type: Number,
-      required: true,
-      index: true,
-    },
+    title: { type: String, required: true, trim: true, minlength: 3, maxlength: 200 },
+    description: { type: String, trim: true, maxlength: 4000 },
+    categoryId: { type: String, required: true, trim: true, lowercase: true },
+    subcategoryId: { type: String, trim: true, lowercase: true, default: null },
+    price: { type: Number, required: true, min: 0 },
+    currency: { type: String, required: true, trim: true, uppercase: true, default: 'BYN' },
+    attributes: { type: mongoose.Schema.Types.Mixed, default: {} },
+    photos: { type: [String], default: [] },
+    sellerTelegramId: { type: Number, required: true, index: true },
     deliveryType: {
       type: String,
       enum: ['pickup_only', 'delivery_only', 'delivery_and_pickup'],
       default: null,
     },
-    deliveryRadiusKm: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
+    deliveryRadiusKm: { type: Number, min: 0, default: null },
     location: locationSchema,
-    seasonCode: {
-      type: String,
-      trim: true,
-      lowercase: true,
-      default: null,
-    },
+    seasonCode: { type: String, trim: true, lowercase: true, default: null },
     status: {
       type: String,
       enum: ['active', 'expired', 'archived', 'hidden'],
@@ -90,19 +41,9 @@ const adSchema = new mongoose.Schema(
       required: true,
       default: 'pending',
     },
-    lifetimeDays: {
-      type: Number,
-      required: true,
-      min: 1,
-    },
-    validUntil: {
-      type: Date,
-    },
-    isLiveSpot: {
-      type: Boolean,
-      required: true,
-      default: false,
-    },
+    lifetimeDays: { type: Number, required: true, min: 1 },
+    validUntil: { type: Date },
+    isLiveSpot: { type: Boolean, required: true, default: false },
   },
   {
     timestamps: true,
@@ -149,4 +90,4 @@ adSchema.pre('findOneAndUpdate', async function ensureValidUntil(next) {
   next();
 });
 
-export default mongoose.model('Ad', adSchema);
+module.exports = mongoose.model('Ad', adSchema);

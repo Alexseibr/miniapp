@@ -1,6 +1,6 @@
-import { Router } from 'express';
-import Ad from '../../models/Ad.js';
-import Order from '../../models/Order.js';
+const { Router } = require('express');
+const Ad = require('../../models/Ad.js');
+const Order = require('../../models/Order.js');
 
 const router = Router();
 
@@ -80,4 +80,4 @@ router.get(
   })
 );
 
-export default router;
+module.exports = router;

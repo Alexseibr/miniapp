@@ -1,5 +1,5 @@
-import { Router } from 'express';
-import Ad from '../../models/Ad.js';
+const { Router } = require('express');
+const Ad = require('../../models/Ad.js');
 
 const router = Router();
 
@@ -56,4 +56,4 @@ router.post(
   })
 );
 
-export default router;
+module.exports = router;
