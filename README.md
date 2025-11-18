@@ -60,3 +60,9 @@
 - Готовый пример сезона находится в `src/seed/seasons.js`:
   - `code: "march8_tulips"`, `name: "Ярмарка 8 Марта — тюльпаны и подарки"`.
 - Для загрузки используйте `insertMany` или короткий seed-скрипт с массивом `seasonsSeed`.
+
+## Заказы
+
+- Схема в `src/models/Order.js` описывает заказ с полями покупателя (`buyerTelegramId`, имя/username/телефон-копия) и набором позиций.
+- Каждая позиция (`items`) содержит `adId`, `title`, `quantity`, `price` и `sellerTelegramId`; требуется минимум один элемент.
+- Статус заказа: `new`, `sent_to_sellers`, `processed`, `cancelled`. Опционально можно указать `seasonCode` и комментарий.
