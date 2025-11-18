@@ -2,11 +2,12 @@
   "name": "miniapp",
   "version": "1.0.0",
   "description": "Backend и Telegram-бот для маркетплейса объявлений",
-  "main": "src/index.js",
+  "main": "index.js",
   "type": "module",
   "scripts": {
-    "start": "node src/index.js",
-    "dev": "NODE_ENV=development nodemon src/index.js"
+    "start": "node index.js",
+    "dev": "NODE_ENV=development nodemon index.js",
+    "seed": "node scripts/seedCategories.js"
   },
   "keywords": [
     "express",
@@ -17,6 +18,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "axios": "^1.7.7",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
     "express": "^4.19.2",

@@ -1,4 +1,9 @@
-export const categoriesSeed = [
+import mongoose from 'mongoose';
+import { MONGO_URL } from '../config/config.js';
+import Category from '../models/Category.js';
+import Season from '../models/Season.js';
+
+const categoriesSeed = [
   // Авто
   { slug: 'auto', name: 'Авто', parentSlug: null, sortOrder: 1 },
   { slug: 'cars', name: 'Легковые', parentSlug: 'auto', sortOrder: 2 },
@@ -32,3 +37,38 @@ export const categoriesSeed = [
   { slug: 'build', name: 'Строительство и ремонт', parentSlug: 'services', sortOrder: 41 },
   { slug: 'delivery_services', name: 'Доставка и курьеры', parentSlug: 'services', sortOrder: 42 },
 ];
+
+const seasonsSeed = [
+  {
+    code: 'march8_tulips',
+    name: 'Ярмарка 8 Марта — тюльпаны и подарки',
+    description: 'Сезонная подборка тюльпанов, букетов и подарков к 8 Марта.',
+    startDate: new Date('2025-03-01T00:00:00Z'),
+    endDate: new Date('2025-03-10T23:59:59Z'),
+    isActive: true,
+  },
+];
+
+async function seed() {
+  await mongoose.connect(MONGO_URL, { autoIndex: true });
+  console.log('[seed] Connected to MongoDB');
+
+  await Category.deleteMany({});
+  await Season.deleteMany({});
+
+  await Category.insertMany(categoriesSeed);
+  await Season.insertMany(seasonsSeed);
+
+  console.log(`[seed] Inserted ${categoriesSeed.length} categories and ${seasonsSeed.length} seasons`);
+  await mongoose.disconnect();
+}
+
+seed()
+  .then(() => {
+    console.log('[seed] Done');
+    process.exit(0);
+  })
+  .catch((error) => {
+    console.error('[seed] Error', error);
+    process.exit(1);
+  });

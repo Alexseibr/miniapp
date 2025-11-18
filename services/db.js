@@ -1,12 +1,9 @@
 import mongoose from 'mongoose';
+import { MONGO_URL } from '../config/config.js';
 
-const { MONGODB_URI = 'mongodb://localhost:27017/miniapp' } = process.env;
-
-export async function connectToDatabase() {
+export async function connectDB() {
   try {
-    await mongoose.connect(MONGODB_URI, {
-      autoIndex: true,
-    });
+    await mongoose.connect(MONGO_URL, { autoIndex: true });
     console.log('[db] Connected to MongoDB');
   } catch (error) {
     console.error('[db] MongoDB connection error:', error.message);
