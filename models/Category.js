@@ -1,21 +1,35 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
-const categorySchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true,
+const categorySchema = new mongoose.Schema(
+  {
+    slug: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
+    name: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    parentSlug: {
+      type: String,
+      default: null,
+      trim: true,
+    },
+    sortOrder: {
+      type: Number,
+      default: 0,
+    },
   },
-  description: {
-    type: String,
-    trim: true,
-  },
-  icon: {
-    type: String,
-    default: '📦',
-  },
-}, {
-  timestamps: true,
-});
+  {
+    timestamps: true,
+  }
+);
 
-export default mongoose.model('Category', categorySchema);
+categorySchema.index({ slug: 1 });
+categorySchema.index({ parentSlug: 1 });
+
+module.exports = mongoose.model('Category', categorySchema);
