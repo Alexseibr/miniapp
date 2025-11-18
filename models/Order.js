@@ -1,31 +1,37 @@
 const mongoose = require('mongoose');
 
-const orderItemSchema = new mongoose.Schema({
-  adId: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Ad',
-    required: true,
+const orderItemSchema = new mongoose.Schema(
+  {
+    adId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ad',
+      required: true,
+    },
+    title: {
+      type: String,
+      required: true,
+    },
+    quantity: {
+      type: Number,
+      required: true,
+      min: 1,
+    },
+    price: {
+      type: Number,
+      required: true,
+      min: 0,
+    },
+    currency: {
+      type: String,
+      default: 'BYN',
+    },
+    sellerTelegramId: {
+      type: Number,
+      required: true,
+    },
   },
-  title: {
-    type: String,
-    required: true,
-  },
-  quantity: {
-    type: Number,
-    required: true,
-    min: 1,
-    default: 1,
-  },
-  price: {
-    type: Number,
-    required: true,
-    min: 0,
-  },
-  sellerTelegramId: {
-    type: Number,
-    required: true,
-  },
-});
+  { _id: true }
+);
 
 const orderSchema = new mongoose.Schema(
   {
@@ -46,16 +52,31 @@ const orderSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
-    items: [orderItemSchema],
-    status: {
-      type: String,
-      enum: ['pending', 'confirmed', 'processing', 'completed', 'cancelled'],
-      default: 'pending',
+    items: {
+      type: [orderItemSchema],
+      required: true,
+      validate: {
+        validator: function (items) {
+          return items && items.length > 0;
+        },
+        message: 'Заказ должен содержать хотя бы один товар',
+      },
+    },
+    totalPrice: {
+      type: Number,
+      required: true,
+      min: 0,
     },
     seasonCode: {
       type: String,
       trim: true,
       lowercase: true,
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'confirmed', 'processing', 'completed', 'cancelled'],
+      default: 'pending',
+      index: true,
     },
     comment: {
       type: String,
@@ -67,8 +88,18 @@ const orderSchema = new mongoose.Schema(
   }
 );
 
+// Автоматический расчет totalPrice если не указан
+orderSchema.pre('save', function (next) {
+  if (this.isNew && !this.totalPrice && this.items && this.items.length > 0) {
+    this.totalPrice = this.items.reduce(
+      (sum, item) => sum + item.price * item.quantity,
+      0
+    );
+  }
+  next();
+});
+
 orderSchema.index({ buyerTelegramId: 1, createdAt: -1 });
-orderSchema.index({ status: 1 });
-orderSchema.index({ seasonCode: 1 });
+orderSchema.index({ status: 1, createdAt: -1 });
 
 module.exports = mongoose.model('Order', orderSchema);
