@@ -33,6 +33,7 @@
 - `POST /api/ads` — создать (body: `title`, `description`, `price`, `phone`, `tags`).
 - `PATCH /api/ads/:id` — обновить объявление.
 - `DELETE /api/ads/:id` — удалить объявление.
+- `GET /api/categories` — дерево категорий и подкатегорий (строится по `parentSlug`).
 
 ## Telegram-бот
 
