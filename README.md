@@ -26,6 +26,7 @@
 
 ## API
 
+- `GET /` — базовая проверка: "API работает. KETMAR Market backend запущен.".
 - `GET /health` — проверка состояния.
 - `GET /api/ads` — список объявлений, опции: `limit`, `tag`, `search` по названию.
 - `GET /api/ads/:id` — получить объявление.
