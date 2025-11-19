@@ -3,105 +3,96 @@ const router = express.Router();
 const User = require('../../models/User');
 const Ad = require('../../models/Ad');
 
-async function getUserByTelegram(req, res) {
-  const tgId = req.header('X-Telegram-Id');
-
-  if (!tgId) {
-    res.status(401).json({ error: 'X-Telegram-Id header is required' });
+function normalizeTelegramId(value) {
+  const id = Number(value);
+  if (!Number.isFinite(id) || id <= 0) {
     return null;
   }
+  return id;
+}
 
-  const telegramId = Number(tgId);
-  if (!Number.isFinite(telegramId)) {
-    res.status(400).json({ error: 'X-Telegram-Id must be a number' });
-    return null;
-  }
-
-  let user = await User.findOne({ telegramId });
-
-  if (!user) {
-    user = await User.create({ telegramId, role: 'buyer' });
-  }
-
-  return user;
+async function ensureUserExists(telegramId) {
+  return User.findOne({ telegramId });
 }
 
 router.get('/my', async (req, res) => {
   try {
-    const user = await getUserByTelegram(req, res);
-    if (!user) return;
+    const telegramId = normalizeTelegramId(req.query.telegramId);
 
-    await user.populate('favorites.adId');
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId query parameter is required' });
+    }
 
-    const items = (user.favorites || [])
-      .filter((favorite) => Boolean(favorite.adId))
-      .map((favorite) => ({
-        adId: favorite.adId._id,
-        ad: favorite.adId,
-        notifyOnPrice: favorite.notifyOnPrice,
-        notifyOnStatus: favorite.notifyOnStatus,
-        addedAt: favorite.addedAt,
-      }));
+    const user = await User.findOne({ telegramId }).populate('favorites');
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-    res.json({ items });
+    return res.json({ favorites: user.favorites || [] });
   } catch (error) {
     console.error('GET /api/favorites/my error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.post('/:adId', async (req, res) => {
+router.post('/add', async (req, res) => {
   try {
-    const user = await getUserByTelegram(req, res);
-    if (!user) return;
+    const { telegramId: telegramIdRaw, adId } = req.body || {};
+    const telegramId = normalizeTelegramId(telegramIdRaw);
 
-    const { adId } = req.params;
-    const { notifyOnPrice = true, notifyOnStatus = true } = req.body || {};
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and adId are required' });
+    }
+
+    const user = await ensureUserExists(telegramId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
     const ad = await Ad.findById(adId);
     if (!ad) {
       return res.status(404).json({ error: 'Ad not found' });
     }
 
-    const existing = (user.favorites || []).find(
-      (favorite) => favorite.adId && favorite.adId.toString() === adId
+    const alreadyExists = (user.favorites || []).some(
+      (favoriteId) => favoriteId && favoriteId.toString() === adId
     );
 
-    if (existing) {
-      existing.notifyOnPrice = notifyOnPrice;
-      existing.notifyOnStatus = notifyOnStatus;
-    } else {
-      user.favorites.push({
-        adId,
-        notifyOnPrice,
-        notifyOnStatus,
-      });
+    if (!alreadyExists) {
+      user.favorites.push(ad._id);
+      await user.save();
     }
 
-    await user.save();
-
-    res.json({ ok: true });
+    res.json({ ok: true, favorites: user.favorites });
   } catch (error) {
-    console.error('POST /api/favorites/:adId error:', error);
+    console.error('POST /api/favorites/add error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.delete('/:adId', async (req, res) => {
+router.post('/remove', async (req, res) => {
   try {
-    const user = await getUserByTelegram(req, res);
-    if (!user) return;
+    const { telegramId: telegramIdRaw, adId } = req.body || {};
+    const telegramId = normalizeTelegramId(telegramIdRaw);
 
-    const { adId } = req.params;
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and adId are required' });
+    }
+
+    const user = await ensureUserExists(telegramId);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
     user.favorites = (user.favorites || []).filter(
-      (favorite) => favorite.adId && favorite.adId.toString() !== adId
+      (favoriteId) => favoriteId && favoriteId.toString() !== adId
     );
 
     await user.save();
 
-    res.json({ ok: true });
+    res.json({ ok: true, favorites: user.favorites });
   } catch (error) {
-    console.error('DELETE /api/favorites/:adId error:', error);
+    console.error('POST /api/favorites/remove error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });

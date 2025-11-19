@@ -67,14 +67,7 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    favorites: [
-      {
-        adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', required: true },
-        notifyOnPrice: { type: Boolean, default: true },
-        notifyOnStatus: { type: Boolean, default: true },
-        addedAt: { type: Date, default: Date.now },
-      },
-    ],
+    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],
   },
   {
     timestamps: true,

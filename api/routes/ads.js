@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
-const { notifyFavoritesOnAdChange } = require('../../services/notifications');
+const { notifySubscribers } = require('../../services/notifications');
 
 const router = Router();
 
@@ -631,7 +631,30 @@ router.post('/:id/live-spot', async (req, res, next) => {
 
     await ad.save();
 
-    notifyFavoritesOnAdChange(before, ad.toObject());
+    const after = ad.toObject();
+
+    const priceChanged =
+      typeof before.price === 'number' &&
+      typeof after.price === 'number' &&
+      before.price !== after.price;
+    const statusChanged =
+      typeof before.status === 'string' &&
+      typeof after.status === 'string' &&
+      before.status !== after.status;
+
+    if (priceChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Цена объявления "${after.title}" изменилась: ${before.price} → ${after.price}`
+      );
+    }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
 
     res.json(ad);
   } catch (error) {
