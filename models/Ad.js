@@ -84,6 +84,12 @@ const adSchema = new mongoose.Schema(
       default: 'active',
       index: true,
     },
+    moderationStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'approved',
+      index: true,
+    },
     deliveryOptions: [{
       type: String,
       enum: ['pickup', 'delivery', 'shipping'],
