@@ -30,19 +30,21 @@ router.get('/active', async (_req, res, next) => {
 router.get('/:code/ads', async (req, res, next) => {
   try {
     const { code } = req.params;
-    const { limit = 20, offset = 0 } = req.query;
+    const { limit = 20, offset = 0, sort = 'newest' } = req.query;
 
+    const seasonCode = String(code).toLowerCase();
     const limitNumber = Number(limit);
     const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
-
     const offsetNumber = Number(offset);
     const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
 
-    const items = await Ad.find({
-      seasonCode: code.toLowerCase(),
-      status: 'active',
-    })
-      .sort({ createdAt: -1 })
+    let sortObj = { createdAt: -1 };
+    if (sort === 'cheapest') {
+      sortObj = { price: 1 };
+    }
+
+    const items = await Ad.find({ seasonCode, status: 'active' })
+      .sort(sortObj)
       .skip(finalOffset)
       .limit(finalLimit);
 
@@ -55,17 +57,17 @@ router.get('/:code/ads', async (req, res, next) => {
 router.get('/:code/live-spots', async (req, res, next) => {
   try {
     const { code } = req.params;
-    const { lat, lng, radiusKm = 5, limit = 50 } = req.query;
+    const { lat, lng, radiusKm = 5, limit = 20 } = req.query;
 
     if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ error: 'lat и lng обязательны' });
+      return res.status(400).json({ message: 'lat и lng обязательны для поиска живых точек' });
     }
 
     const latNumber = Number(lat);
     const lngNumber = Number(lng);
 
     if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ error: 'lat и lng должны быть числами' });
+      return res.status(400).json({ message: 'lat и lng должны быть числами' });
     }
 
     const radiusNumber = Number(radiusKm);
@@ -73,13 +75,9 @@ router.get('/:code/live-spots', async (req, res, next) => {
     const maxDistance = finalRadiusKm * 1000;
 
     const limitNumber = Number(limit);
-    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 50;
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
 
-    const match = {
-      status: 'active',
-      seasonCode: code.toLowerCase(),
-      isLiveSpot: true,
-    };
+    const seasonCode = String(code).toLowerCase();
 
     const ads = await Ad.aggregate([
       {
@@ -88,7 +86,11 @@ router.get('/:code/live-spots', async (req, res, next) => {
           distanceField: 'distanceMeters',
           maxDistance,
           spherical: true,
-          query: match,
+          query: {
+            seasonCode,
+            status: 'active',
+            isLiveSpot: true,
+          },
         },
       },
       { $sort: { distanceMeters: 1, createdAt: -1 } },
