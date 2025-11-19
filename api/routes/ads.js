@@ -25,6 +25,14 @@ function extractAdCoordinates(ad) {
     };
   }
 
+  if (ad?.location?.geo?.coordinates && ad.location.geo.coordinates.length === 2) {
+    const [lng, lat] = ad.location.geo.coordinates;
+    return {
+      lat: Number(lat),
+      lng: Number(lng),
+    };
+  }
+
   if (ad?.geo?.coordinates && ad.geo.coordinates.length === 2) {
     const [lng, lat] = ad.geo.coordinates;
     return {
@@ -64,6 +72,35 @@ function projectAdsWithinRadius(ads, { latNumber, lngNumber, radiusKm }) {
   }
 
   return projected;
+}
+
+async function aggregateNearbyAds({ latNumber, lngNumber, radiusKm, limit, baseFilter }) {
+  const finalRadiusKm = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : 5;
+  const finalLimit = Number.isFinite(limit) && limit > 0 ? Math.min(limit, 200) : 20;
+
+  const pipeline = [
+    {
+      $geoNear: {
+        near: {
+          type: 'Point',
+          coordinates: [lngNumber, latNumber],
+        },
+        distanceField: 'distanceMeters',
+        maxDistance: finalRadiusKm * 1000,
+        spherical: true,
+        query: baseFilter,
+        key: 'location.geo',
+      },
+    },
+    { $limit: finalLimit },
+  ];
+
+  const items = await Ad.aggregate(pipeline);
+
+  return items.map((item) => ({
+    ...item,
+    distanceKm: Number(((item.distanceMeters || 0) / 1000).toFixed(2)),
+  }));
 }
 
 router.get('/', async (req, res, next) => {
@@ -174,6 +211,51 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/near', async (req, res) => {
+  try {
+    const {
+      lat,
+      lng,
+      radiusKm = 5,
+      categoryId,
+      subcategoryId,
+      seasonCode,
+      limit = 20,
+    } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat and lng are required' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat and lng must be valid numbers' });
+    }
+
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+
+    const baseFilter = { status: 'active' };
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+    if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
+
+    const items = await aggregateNearbyAds({
+      latNumber,
+      lngNumber,
+      radiusKm: Number(radiusKm),
+      limit: Number(limit),
+      baseFilter,
+    });
+
+    return res.json({ items });
+  } catch (error) {
+    console.error('GET /api/ads/near error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/ads/nearby
 router.get('/nearby', async (req, res) => {
   try {
@@ -198,14 +280,6 @@ router.get('/nearby', async (req, res) => {
       return res.status(400).json({ error: 'lat and lng must be valid numbers' });
     }
 
-    const limitNumber = Number(limit);
-    const finalLimit =
-      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 20;
-
-    const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
-    const radiusMeters = finalRadiusKm * 1000;
-
     const normalizedSeason = normalizeSeasonCode(seasonCode);
 
     const baseFilter = { status: 'active' };
@@ -213,30 +287,15 @@ router.get('/nearby', async (req, res) => {
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
     if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
 
-    const pipeline = [
-      {
-        $geoNear: {
-          near: {
-            type: 'Point',
-            coordinates: [lngNumber, latNumber],
-          },
-          distanceField: 'distanceMeters',
-          maxDistance: radiusMeters,
-          spherical: true,
-          query: baseFilter,
-        },
-      },
-      { $limit: finalLimit },
-    ];
+    const items = await aggregateNearbyAds({
+      latNumber,
+      lngNumber,
+      radiusKm: Number(radiusKm),
+      limit: Number(limit),
+      baseFilter,
+    });
 
-    const items = await Ad.aggregate(pipeline);
-
-    const withDistance = items.map((item) => ({
-      ...item,
-      distanceKm: Number(((item.distanceMeters || 0) / 1000).toFixed(2)),
-    }));
-
-    return res.json({ items: withDistance });
+    return res.json({ items });
   } catch (error) {
     console.error('GET /api/ads/nearby error:', error);
     res.status(500).json({ error: 'Server error' });

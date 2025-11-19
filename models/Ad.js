@@ -1,14 +1,6 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 
-const LocationSchema = new mongoose.Schema(
-  {
-    lat: { type: Number },
-    lng: { type: Number },
-  },
-  { _id: false }
-);
-
 const GeoPointSchema = new mongoose.Schema(
   {
     type: {
@@ -18,9 +10,17 @@ const GeoPointSchema = new mongoose.Schema(
     },
     coordinates: {
       type: [Number],
-      index: '2dsphere',
       default: undefined,
     },
+  },
+  { _id: false }
+);
+
+const LocationSchema = new mongoose.Schema(
+  {
+    lat: { type: Number },
+    lng: { type: Number },
+    geo: { type: GeoPointSchema, default: undefined },
   },
   { _id: false }
 );
@@ -110,7 +110,6 @@ const adSchema = new mongoose.Schema(
       default: 0,
     },
     location: LocationSchema,
-    geo: GeoPointSchema,
     watchers: {
       type: [
         {
@@ -125,20 +124,7 @@ const adSchema = new mongoose.Schema(
   }
 );
 
-adSchema.pre('validate', function (next) {
-  if (
-    this.location &&
-    typeof this.location.lat === 'number' &&
-    typeof this.location.lng === 'number'
-  ) {
-    this.location = {
-      type: 'Point',
-      coordinates: [this.location.lng, this.location.lat],
-    };
-  }
-
-  next();
-});
+adSchema.index({ 'location.geo': '2dsphere' });
 
 // Автоматический расчет validUntil при создании
 adSchema.pre('save', function (next) {
@@ -154,27 +140,48 @@ adSchema.pre('save', function (next) {
     this.location.lng != null;
 
   const hasGeoCoordinates =
-    this.geo &&
-    Array.isArray(this.geo.coordinates) &&
-    this.geo.coordinates.length === 2 &&
-    this.geo.coordinates.every((value) => value != null);
+    this.location &&
+    this.location.geo &&
+    Array.isArray(this.location.geo.coordinates) &&
+    this.location.geo.coordinates.length === 2 &&
+    this.location.geo.coordinates.every((value) => value != null);
 
   if (hasLocation && !hasGeoCoordinates) {
-    this.geo = {
+    if (!this.location) {
+      this.location = {};
+    }
+
+    this.location.geo = {
       type: 'Point',
-      coordinates: [this.location.lng, this.location.lat],
+      coordinates: [Number(this.location.lng), Number(this.location.lat)],
     };
   }
 
   if (
     hasGeoCoordinates &&
-    (!this.location || this.location.lat == null || this.location.lng == null)
+    (!hasLocation || this.location.lat == null || this.location.lng == null)
   ) {
-    const [lng, lat] = this.geo.coordinates;
+    const [lng, lat] = this.location.geo.coordinates;
     this.location = {
+      ...(this.location || {}),
       lat,
       lng,
+      geo: this.location.geo,
     };
+  }
+
+  if (!hasGeoCoordinates && this.geo && Array.isArray(this.geo.coordinates)) {
+    const [lng, lat] = this.geo.coordinates;
+    this.location = {
+      ...(this.location || {}),
+      lat: this.location?.lat != null ? this.location.lat : lat,
+      lng: this.location?.lng != null ? this.location.lng : lng,
+      geo: {
+        type: 'Point',
+        coordinates: [lng, lat],
+      },
+    };
+    this.set('geo', undefined, { strict: false });
   }
   next();
 });
