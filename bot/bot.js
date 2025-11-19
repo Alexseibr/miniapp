@@ -8,6 +8,430 @@ bot.use(session());
 
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
+const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL || 'https://t.me/ketmar_market_bot/app';
+
+function escapeMarkdown(text = '') {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
+  return text.replace(/([_*\[\]()~`>#+=|{}.!\\-])/g, '\\$1');
+}
+
+async function fetchAdDetails(adId) {
+  const response = await fetch(`${API_URL}/api/ads/${adId}`);
+
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.message || 'Не удалось загрузить объявление');
+  }
+
+  return response.json();
+}
+
+function formatAdDetails(ad) {
+  const seasonBadge = ad.seasonCode ? `\n🌟 Сезон: ${ad.seasonCode}` : '';
+  const attributes = ad.attributes && typeof ad.attributes === 'object'
+    ? Object.entries(ad.attributes)
+        .filter(([_, value]) => Boolean(value))
+        .map(([key, value]) => `• ${key}: ${value}`)
+    : [];
+
+  const attributesBlock = attributes.length
+    ? `\n\n🔎 Характеристики:\n${attributes.join('\n')}`
+    : '';
+
+  const delivery = ad.deliveryOptions && ad.deliveryOptions.length
+    ? `\n🚚 Доставка: ${ad.deliveryOptions.join(', ')}`
+    : '';
+
+  return (
+    `**${ad.title}**\n\n` +
+    `${ad.description || 'Без описания'}\n\n` +
+    `💰 Цена: **${ad.price} ${ad.currency || 'BYN'}**\n` +
+    `📂 Категория: ${ad.categoryId} — ${ad.subcategoryId}\n` +
+    `👤 Продавец ID: ${ad.sellerTelegramId}` +
+    seasonBadge +
+    delivery +
+    attributesBlock
+  );
+}
+
+function truncateText(text, maxLength = 160) {
+  if (!text) {
+    return '';
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+const MARKET_PAGE_SIZE = 5;
+
+function buildMiniAppUrl(params = {}) {
+  if (!MINIAPP_URL) {
+    return '';
+  }
+
+  const filteredParams = Object.entries(params).filter(([, value]) => value !== undefined && value !== null && value !== '');
+
+  if (!filteredParams.length) {
+    return MINIAPP_URL;
+  }
+
+  try {
+    const url = new URL(MINIAPP_URL);
+    filteredParams.forEach(([key, value]) => url.searchParams.set(key, value));
+    return url.toString();
+  } catch (error) {
+    const query = new URLSearchParams(filteredParams).toString();
+    const separator = MINIAPP_URL.includes('?') ? '&' : '?';
+    return query ? `${MINIAPP_URL}${separator}${query}` : MINIAPP_URL;
+  }
+}
+
+function getMiniAppKeyboard() {
+  if (!MINIAPP_URL) {
+    return undefined;
+  }
+
+  return {
+    keyboard: [
+      [{ text: 'Открыть KETMAR Market', web_app: { url: buildMiniAppUrl() } }],
+      [{ text: 'Фермеры', web_app: { url: buildMiniAppUrl({ niche: 'farm' }) } }],
+      [{ text: 'Ремесленники', web_app: { url: buildMiniAppUrl({ niche: 'craft' }) } }],
+      [{ text: '8 марта — тюльпаны', web_app: { url: buildMiniAppUrl({ season: 'march8_tulips' }) } }],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
+  };
+}
+
+async function fetchCategoriesTree() {
+  const response = await axios.get(`${API_URL}/api/categories`);
+  return response.data;
+}
+
+function buildMarketCategoryKeyboard(categories) {
+  return categories.map((category) => [
+    Markup.button.callback(category.name, `market_cat:${category.slug}`),
+  ]);
+}
+
+function buildMarketSubcategoryKeyboard(category) {
+  const keyboard = [
+    [Markup.button.callback('Все подкатегории', 'market_subcat:__all__')],
+  ];
+
+  (category.subcategories || []).forEach((sub) => {
+    keyboard.push([
+      Markup.button.callback(sub.name, `market_subcat:${sub.slug}`),
+    ]);
+  });
+
+  return keyboard;
+}
+
+function buildMarketAdsMessage(ads, marketData) {
+  const categoryLabel = marketData.categoryName || marketData.categoryId || '—';
+  const subcategoryLabel = marketData.subcategoryId
+    ? (marketData.subcategoryName || marketData.subcategoryId)
+    : 'Все подкатегории';
+
+  const headerLines = [
+    '🛒 Лента объявлений',
+    `Категория: ${categoryLabel}`,
+  ];
+
+  if (marketData.categoryId) {
+    headerLines.push(`Подкатегория: ${subcategoryLabel}`);
+  }
+
+  headerLines.push(`Страница: ${marketData.page + 1}`);
+
+  if (!ads.length) {
+    return `${headerLines.join('\n')}\n\nВ этой категории пока нет активных объявлений.`;
+  }
+
+  const startIndex = marketData.page * MARKET_PAGE_SIZE + 1;
+  const blocks = ads.map((ad, index) => {
+    const shortId = ad._id ? String(ad._id).slice(-6) : '—';
+    const price = `${ad.price} ${ad.currency || 'BYN'}`;
+    const description = truncateText(ad.description || 'Без описания', 160);
+
+    return (
+      `${startIndex + index}. ${ad.title}\n` +
+      `   Цена: ${price}\n` +
+      `   Описание: ${description}\n` +
+      `   ID: ${shortId}`
+    );
+  });
+
+  return `${headerLines.join('\n')}\n\n${blocks.join('\n\n')}`;
+}
+
+async function fetchMarketAdsList(marketData) {
+  if (!marketData.categoryId) {
+    throw new Error('Не выбрана категория для показа объявлений');
+  }
+
+  const params = {
+    categoryId: marketData.categoryId,
+    limit: MARKET_PAGE_SIZE,
+    offset: (marketData.page || 0) * MARKET_PAGE_SIZE,
+  };
+
+  if (marketData.subcategoryId) {
+    params.subcategoryId = marketData.subcategoryId;
+  }
+
+  const response = await axios.get(`${API_URL}/api/ads`, { params });
+  return response.data.items || [];
+}
+
+async function renderMarketAds(ctx, presetAds) {
+  const marketSession = ctx.session?.market;
+  if (!marketSession) {
+    throw new Error('Сессия /market не найдена');
+  }
+
+  const ads = Array.isArray(presetAds) ? presetAds : await fetchMarketAdsList(marketSession.data);
+  const message = buildMarketAdsMessage(ads, marketSession.data);
+
+  const keyboard = [
+    [
+      Markup.button.callback('⬅️ Назад', 'market_back'),
+      Markup.button.callback('🔄 Ещё', 'market_more'),
+    ],
+  ];
+
+  await ctx.editMessageText(message, {
+    reply_markup: { inline_keyboard: keyboard },
+  });
+
+  return ads.length;
+}
+
+async function renderMarketCategories(ctx, { edit = false } = {}) {
+  const marketSession = ctx.session?.market;
+  if (!marketSession?.categories?.length) {
+    throw new Error('Категории не найдены для /market');
+  }
+
+  const keyboard = buildMarketCategoryKeyboard(marketSession.categories);
+  const text = '🛒 Выбор категории для просмотра объявлений:\nВыберите раздел:';
+
+  if (edit) {
+    await ctx.editMessageText(text, { reply_markup: { inline_keyboard: keyboard } });
+  } else {
+    await ctx.reply(text, { reply_markup: { inline_keyboard: keyboard } });
+  }
+}
+
+async function renderMarketSubcategories(ctx, category) {
+  const keyboard = buildMarketSubcategoryKeyboard(category);
+  await ctx.editMessageText(
+    `Категория: ${category.name}\n\nВыбери подкатегорию:`,
+    { reply_markup: { inline_keyboard: keyboard } }
+  );
+}
+
+function formatValidUntil(date) {
+  if (!date) {
+    return '—';
+  }
+
+  try {
+    const parsed = new Date(date);
+    return parsed.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+  } catch (error) {
+    return String(date);
+  }
+}
+
+function formatSellerAdCard(ad = {}) {
+  const statusEmoji = {
+    active: '✅',
+    draft: '📝',
+    sold: '🔒',
+    archived: '📦',
+    hidden: '🙈',
+    expired: '⌛️',
+  }[ad.status] || '📌';
+
+  const currency = ad.currency || 'BYN';
+  const photosCount = Array.isArray(ad.photos) ? ad.photos.length : 0;
+
+  return (
+    `${statusEmoji} *${escapeMarkdown(ad.title || 'Без названия')}*\n` +
+    `💰 ${ad.price} ${currency}\n` +
+    `📂 ${escapeMarkdown(ad.categoryId || '—')} / ${escapeMarkdown(ad.subcategoryId || '—')}\n` +
+    `🆔 \`${ad._id}\`\n` +
+    `📸 Фото: ${photosCount}\n` +
+    `⏳ Активно до: ${formatValidUntil(ad.validUntil)}\n` +
+    `📍 LiveSpot: ${ad.isLiveSpot ? 'Включён' : 'Выключен'}\n` +
+    `Статус: ${ad.status || '—'}`
+  );
+}
+
+function buildSellerAdKeyboard(ad = {}) {
+  const hideAction = ad.status === 'hidden' ? 'show' : 'hide';
+  const hideLabel = ad.status === 'hidden' ? '👁 Показать' : '🙈 Скрыть';
+  const liveAction = ad.isLiveSpot ? 'off' : 'on';
+  const liveLabel = ad.isLiveSpot ? '📍 LiveSpot OFF' : '📍 LiveSpot ON';
+
+  return {
+    inline_keyboard: [
+      [
+        Markup.button.callback('💰 Изменить цену', `myads_price:${ad._id}`),
+        Markup.button.callback('🖼 Обновить фото', `myads_photos:${ad._id}`),
+      ],
+      [
+        Markup.button.callback('⏳ Продлить', `myads_extend:${ad._id}`),
+        Markup.button.callback(hideLabel, `myads_hide:${ad._id}:${hideAction}`),
+      ],
+      [Markup.button.callback(liveLabel, `myads_live:${ad._id}:${liveAction}`)],
+    ],
+  };
+}
+
+function parsePhotoInput(text) {
+  if (!text) {
+    return [];
+  }
+
+  return text
+    .split(/[\s,\n]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function pickAdFromResponse(data) {
+  if (!data) {
+    return null;
+  }
+
+  if (data.item) {
+    return data.item;
+  }
+
+  if (data.ad) {
+    return data.ad;
+  }
+
+  return data;
+}
+
+async function updateSellerAdMessageFromCallback(ctx, ad) {
+  if (!ad || !ctx?.callbackQuery?.message) {
+    return;
+  }
+
+  try {
+    await ctx.editMessageText(formatSellerAdCard(ad), {
+      parse_mode: 'Markdown',
+      reply_markup: buildSellerAdKeyboard(ad),
+    });
+  } catch (error) {
+    console.error('Не удалось обновить карточку объявления', error.response?.data || error.message);
+  }
+}
+
+async function updateSellerAdMessageByIds(telegram, chatId, messageId, ad) {
+  if (!telegram || !chatId || !messageId || !ad) {
+    return;
+  }
+
+  try {
+    await telegram.editMessageText(chatId, messageId, undefined, formatSellerAdCard(ad), {
+      parse_mode: 'Markdown',
+      reply_markup: buildSellerAdKeyboard(ad),
+    });
+  } catch (error) {
+    console.error('Не удалось обновить сообщение продавца', error.response?.data || error.message);
+  }
+}
+
+function ensureBotSession(ctx) {
+  if (!ctx.session) {
+    ctx.session = {};
+  }
+}
+
+async function handleManageFlowInput(ctx, text) {
+  const manage = ctx.session?.manageAd;
+
+  if (!manage) {
+    return;
+  }
+
+  const adId = manage.adId;
+
+  try {
+    if (manage.mode === 'price') {
+      const normalized = Number(String(text).replace(',', '.'));
+
+      if (!Number.isFinite(normalized) || normalized <= 0) {
+        await ctx.reply('⚠️ Введи корректную цену, например `12.5`', { parse_mode: 'Markdown' });
+        return;
+      }
+
+      const response = await axios.patch(`${API_URL}/api/ads/${adId}/price`, {
+        sellerTelegramId: ctx.from.id,
+        price: normalized,
+      });
+
+      const ad = pickAdFromResponse(response.data);
+      await updateSellerAdMessageByIds(
+        ctx.telegram,
+        manage.chatId || ctx.chat.id,
+        manage.messageId,
+        ad
+      );
+
+      await ctx.reply(`💰 Цена обновлена до ${normalized}.`);
+      ctx.session.manageAd = null;
+      return;
+    }
+
+    if (manage.mode === 'photos') {
+      const photos = parsePhotoInput(text);
+
+      if (!photos.length) {
+        await ctx.reply('⚠️ Пришли хотя бы одну ссылку на фото или введи /cancel.');
+        return;
+      }
+
+      const response = await axios.patch(`${API_URL}/api/ads/${adId}/photos`, {
+        sellerTelegramId: ctx.from.id,
+        photos,
+      });
+
+      const ad = pickAdFromResponse(response.data);
+      await updateSellerAdMessageByIds(
+        ctx.telegram,
+        manage.chatId || ctx.chat.id,
+        manage.messageId,
+        ad
+      );
+
+      await ctx.reply(`🖼 Фото обновлены (${photos.length}).`);
+      ctx.session.manageAd = null;
+      return;
+    }
+  } catch (error) {
+    console.error('handleManageFlowInput error:', error.response?.data || error.message);
+    await ctx.reply('❌ Не удалось обновить объявление. Попробуй позже.');
+    ctx.session.manageAd = null;
+  }
+
+  if (ctx.session?.manageAd) {
+    ctx.session.manageAd = null;
+  }
+}
 
 function escapeMarkdown(text = '') {
   if (typeof text !== 'string') {
@@ -412,12 +836,14 @@ async function getActiveSeason() {
 // /start - приветствие
 bot.command('start', async (ctx) => {
   const firstName = ctx.from.first_name || 'друг';
-  
+
   const activeSeason = await getActiveSeason();
-  const seasonText = activeSeason 
+  const seasonText = activeSeason
     ? `\n\n🌟 Сейчас активна: **${activeSeason.name}**!`
     : '';
-  
+
+  const startKeyboard = getMiniAppKeyboard();
+
   await ctx.reply(
     `👋 Привет, ${firstName}!\n\n` +
     `Добро пожаловать в **KETMAR Market**! 🛍️${seasonText}\n\n` +
@@ -431,8 +857,12 @@ bot.command('start', async (ctx) => {
     `/search <запрос> - 🔍 Поиск объявлений\n` +
     `/myorders - 📋 Мои заказы\n` +
     `/myid - 🆔 Узнать свой Telegram ID\n` +
-    `/new_test_ad - ➕ Создать тестовое объявление`,
-    { parse_mode: 'Markdown' }
+    `/new_test_ad - ➕ Создать тестовое объявление` +
+    (startKeyboard ? '\n\n🔗 Используйте кнопки ниже, чтобы открыть мини-приложение.' : ''),
+    {
+      parse_mode: 'Markdown',
+      ...(startKeyboard ? { reply_markup: startKeyboard } : {}),
+    }
   );
 });
 
