@@ -28,6 +28,7 @@ async function start() {
     // 3. Запуск Telegram бота
     console.log('\n🤖 Запуск Telegram бота...');
     await bot.launch();
+    app.set('bot', bot);
     console.log('✅ Telegram бот запущен и готов к работе!');
 
     const runFavoritesCheck = () => {
