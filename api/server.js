@@ -3,6 +3,7 @@ const adsRoutes = require('./routes/ads.js');
 const categoriesRoutes = require('./routes/categories.js');
 const seasonsRoutes = require('./routes/seasons.js');
 const ordersRoutes = require('./routes/orders.js');
+const favoritesRoutes = require('./routes/favorites.js');
 
 const app = express();
 
@@ -36,6 +37,7 @@ app.use('/api/ads', adsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', ordersRoutes);
+app.use('/api/favorites', favoritesRoutes);
 
 // 404 обработчик
 app.use((_req, res) => {
