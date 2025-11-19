@@ -9,16 +9,6 @@ const LocationSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const FavoriteSchema = new mongoose.Schema(
-  {
-    adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', required: true },
-    addedAt: { type: Date, default: Date.now },
-    lastKnownPrice: { type: Number },
-    lastKnownStatus: { type: String },
-  },
-  { _id: false }
-);
-
 const userSchema = new mongoose.Schema(
   {
     telegramId: {
@@ -77,10 +67,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    favorites: {
-      type: [FavoriteSchema],
-      default: [],
-    },
+    favorites: [
+      {
+        adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', required: true },
+        notifyOnPrice: { type: Boolean, default: true },
+        notifyOnStatus: { type: Boolean, default: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,

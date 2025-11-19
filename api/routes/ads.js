@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const Ad = require('../../models/Ad.js');
 const { getDistanceKm } = require('../../utils/distance');
-const { notifyUsersAboutAdChange } = require('../../services/notifications');
+const { notifyFavoritesOnAdChange } = require('../../services/notifications');
 
 const router = Router();
 
@@ -304,6 +304,56 @@ router.get('/season/:code/live', async (req, res, next) => {
   }
 });
 
+router.get('/season/:code/live', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ message: 'lat и lng должны быть числами' });
+    }
+
+    const seasonCode = normalizeSeasonCode(code);
+    if (!seasonCode) {
+      return res.status(400).json({ message: 'Некорректный код сезона' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+
+    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const items = filterAdsByGeo(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: finalRadiusKm,
+      offset: finalOffset,
+      limit: finalLimit,
+      sortByDistance: true,
+    });
+
+    return res.json({ items });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/ads/nearby
 router.get('/nearby', async (req, res) => {
   try {
@@ -478,65 +528,39 @@ router.post('/:id/live-spot', async (req, res, next) => {
 
 router.patch('/:id', async (req, res, next) => {
   try {
-    const { id } = req.params;
-    const updates = req.body;
+    const ad = await Ad.findById(req.params.id);
+    if (!ad) {
+      return res.status(404).json({ error: 'Ad not found' });
+    }
+
+    const before = ad.toObject();
 
     const allowedFields = [
-      'title',
-      'description',
       'price',
       'currency',
       'photos',
-      'attributes',
-      'seasonCode',
+      'deliveryType',
+      'deliveryRadiusKm',
       'status',
-      'deliveryOptions',
       'isLiveSpot',
-      'location',
+      'lifetimeDays',
+      'validUntil',
     ];
 
-    const filteredUpdates = {};
     for (const field of allowedFields) {
-      if (updates[field] !== undefined) {
-        filteredUpdates[field] = updates[field];
+      if (Object.prototype.hasOwnProperty.call(req.body, field)) {
+        ad[field] = req.body[field];
       }
     }
 
-    if (filteredUpdates.seasonCode) {
-      filteredUpdates.seasonCode = normalizeSeasonCode(filteredUpdates.seasonCode);
-    }
-
-    const ad = await Ad.findById(id);
-
-    if (!ad) {
-      return res.status(404).json({ message: 'Объявление не найдено' });
-    }
-
-    const changedFields = {};
-
-    if (filteredUpdates.price !== undefined && filteredUpdates.price !== ad.price) {
-      changedFields.price = { old: ad.price, new: filteredUpdates.price };
-    }
-
-    if (filteredUpdates.status && filteredUpdates.status !== ad.status) {
-      changedFields.status = { old: ad.status, new: filteredUpdates.status };
-    }
-
-    Object.assign(ad, filteredUpdates);
     await ad.save();
 
-    if (Object.keys(changedFields).length) {
-      notifyUsersAboutAdChange(ad, changedFields).catch((error) => {
-        console.error('Не удалось отправить уведомление об изменении объявления', {
-          adId: ad._id,
-          error,
-        });
-      });
-    }
+    notifyFavoritesOnAdChange(before, ad.toObject());
 
     res.json(ad);
   } catch (error) {
-    next(error);
+    console.error('PATCH /api/ads/:id error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

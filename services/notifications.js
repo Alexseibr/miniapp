@@ -1,65 +1,43 @@
 const User = require('../models/User');
-const { sendMessageToTelegramId } = require('../bot/messenger');
 
-function formatChangedFields(ad, changedFields) {
-  const parts = [];
+async function notifyFavoritesOnAdChange(adBefore, adAfter) {
+  try {
+    if (!adBefore || !adAfter) {
+      return;
+    }
 
-  if (changedFields.price) {
-    const { old, new: next } = changedFields.price;
-    parts.push(`• Цена: ${old} → ${next} ${ad.currency || 'BYN'}`);
+    const adId = adAfter._id || adBefore._id;
+    if (!adId) {
+      return;
+    }
+
+    const priceChanged =
+      typeof adBefore.price === 'number' &&
+      typeof adAfter.price === 'number' &&
+      adBefore.price !== adAfter.price;
+
+    const statusChanged =
+      typeof adBefore.status === 'string' &&
+      typeof adAfter.status === 'string' &&
+      adBefore.status !== adAfter.status;
+
+    if (!priceChanged && !statusChanged) {
+      return;
+    }
+
+    const users = await User.find({ 'favorites.adId': adId });
+    if (!users.length) {
+      return;
+    }
+
+    console.log(
+      `ℹ️ Ad ${adId} changed. Notifying ${users.length} users (пока только лог в консоль).`
+    );
+  } catch (error) {
+    console.error('notifyFavoritesOnAdChange error:', error);
   }
-
-  if (changedFields.status) {
-    const { old, new: next } = changedFields.status;
-    parts.push(`• Статус: ${old} → ${next}`);
-  }
-
-  return parts.join('\n');
-}
-
-async function notifyUsersAboutAdChange(ad, changedFields = {}) {
-  if (!ad?._id) {
-    return;
-  }
-
-  const fieldNames = Object.keys(changedFields || {});
-  if (!fieldNames.length) {
-    return;
-  }
-
-  const messageBody = formatChangedFields(ad, changedFields);
-  if (!messageBody) {
-    return;
-  }
-
-  const watchers = await User.find({ favorites: ad._id })
-    .select('telegramId')
-    .lean();
-
-  if (!watchers.length) {
-    return;
-  }
-
-  const header = `🔔 Объявление обновлено\n«${ad.title}»`;
-  const footer = '\n\nЧтобы посмотреть детали, открой приложение KETMAR Market или команду /market.';
-  const text = `${header}\n\n${messageBody}${footer}`;
-
-  await Promise.all(
-    watchers.map(async (user) => {
-      if (!user.telegramId) return;
-      try {
-        await sendMessageToTelegramId(user.telegramId, text);
-      } catch (error) {
-        console.error('Не удалось отправить уведомление пользователю', {
-          telegramId: user.telegramId,
-          adId: ad._id,
-          error,
-        });
-      }
-    })
-  );
 }
 
 module.exports = {
-  notifyUsersAboutAdChange,
+  notifyFavoritesOnAdChange,
 };
