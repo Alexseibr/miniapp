@@ -3,34 +3,114 @@ const Ad = require('../../models/Ad.js');
 
 const router = Router();
 
+// Геопоиск:
+// GET /api/ads?lat=52.1&lng=23.7&radiusKm=2
+// GET /api/ads?lat=52.1&lng=23.7&radiusKm=50&categoryId=country_base
 router.get('/', async (req, res, next) => {
   try {
-    const { limit, categoryId, subcategoryId, seasonCode, sellerTelegramId } = req.query;
-    
+    const {
+      categoryId,
+      subcategoryId,
+      seasonCode,
+      sellerTelegramId,
+      limit = 20,
+      offset = 0,
+      q,
+      minPrice,
+      maxPrice,
+      sort = 'newest',
+      lat,
+      lng,
+      radiusKm = 5,
+    } = req.query;
+
     const query = { status: 'active' };
-    
-    if (categoryId) {
-      query.categoryId = categoryId;
+
+    if (categoryId) query.categoryId = categoryId;
+    if (subcategoryId) query.subcategoryId = subcategoryId;
+    if (seasonCode) query.seasonCode = seasonCode;
+
+    if (sellerTelegramId !== undefined) {
+      const sellerIdNumber = Number(sellerTelegramId);
+      if (!Number.isNaN(sellerIdNumber)) {
+        query.sellerTelegramId = sellerIdNumber;
+      }
     }
-    
-    if (subcategoryId) {
-      query.subcategoryId = subcategoryId;
+
+    if (q) {
+      const regex = new RegExp(q, 'i');
+      query.$or = [{ title: regex }, { description: regex }];
     }
-    
-    if (seasonCode) {
-      query.seasonCode = seasonCode;
+
+    if (minPrice !== undefined) {
+      const minPriceNumber = Number(minPrice);
+      if (!Number.isNaN(minPriceNumber)) {
+        query.price = { ...(query.price || {}), $gte: minPriceNumber };
+      }
     }
-    
-    if (sellerTelegramId) {
-      query.sellerTelegramId = parseInt(sellerTelegramId, 10);
+
+    if (maxPrice !== undefined) {
+      const maxPriceNumber = Number(maxPrice);
+      if (!Number.isNaN(maxPriceNumber)) {
+        query.price = { ...(query.price || {}), $lte: maxPriceNumber };
+      }
     }
-    
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
-    
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+
+    if (hasGeoQuery) {
+      const radiusNumber = Number(radiusKm);
+      const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+      const maxDistance = finalRadiusKm * 1000;
+
+      const pipeline = [
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+            distanceField: 'distanceMeters',
+            maxDistance,
+            spherical: true,
+            query,
+          },
+        },
+      ];
+
+      if (finalOffset > 0) {
+        pipeline.push({ $skip: finalOffset });
+      }
+
+      pipeline.push({ $limit: finalLimit });
+
+      const geoItems = await Ad.aggregate(pipeline);
+      const items = geoItems.map((item) => ({
+        ...item,
+        distanceKm:
+          typeof item.distanceMeters === 'number'
+            ? item.distanceMeters / 1000
+            : null,
+      }));
+
+      return res.json({ items });
+    }
+
+    let sortObj = { createdAt: -1 };
+    if (sort === 'cheapest') {
+      sortObj = { price: 1 };
+    }
+
     const items = await Ad.find(query)
-      .sort({ createdAt: -1 })
-      .limit(parsedLimit);
-    
+      .sort(sortObj)
+      .skip(finalOffset)
+      .limit(finalLimit);
+
     res.json({ items });
   } catch (error) {
     next(error);
@@ -72,6 +152,8 @@ router.post('/', async (req, res, next) => {
       deliveryOptions,
       lifetimeDays,
       isLiveSpot,
+      location,
+      geo,
     } = req.body;
 
     if (!title || !categoryId || !subcategoryId || price == null || !sellerTelegramId) {
@@ -94,6 +176,8 @@ router.post('/', async (req, res, next) => {
       deliveryOptions,
       lifetimeDays,
       isLiveSpot,
+      location,
+      geo,
       status: 'active',
     });
 
@@ -119,6 +203,8 @@ router.patch('/:id', async (req, res, next) => {
       'status',
       'deliveryOptions',
       'isLiveSpot',
+      'location',
+      'geo',
     ];
 
     const filteredUpdates = {};
