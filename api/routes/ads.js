@@ -351,6 +351,62 @@ router.get('/season/:code/live', async (req, res, next) => {
   }
 });
 
+// GET /api/ads/nearby
+router.get('/nearby', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 5, categoryId, subcategoryId, limit = 20 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadius = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const baseQuery = { status: 'active' };
+    if (categoryId) baseQuery.categoryId = categoryId;
+    if (subcategoryId) baseQuery.subcategoryId = subcategoryId;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+    const ads = await Ad.find(baseQuery)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const mapped = [];
+    for (const ad of ads) {
+      if (!ad.location || ad.location.lat == null || ad.location.lng == null) {
+        continue;
+      }
+
+      const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+      if (distanceKm == null || distanceKm > finalRadius) {
+        continue;
+      }
+
+      const adObject = ad.toObject();
+      adObject.distanceKm = distanceKm;
+      mapped.push(adObject);
+    }
+
+    mapped.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return res.json({ items: mapped.slice(0, finalLimit) });
+  } catch (error) {
+    console.error('GET /api/ads/nearby error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -431,7 +487,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
