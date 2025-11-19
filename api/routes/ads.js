@@ -514,7 +514,7 @@ router.get('/nearby', async (req, res) => {
       categoryId,
       subcategoryId,
       seasonCode,
-      limit = 20,
+      limit = 50,
     } = req.query;
 
     if (lat === undefined || lng === undefined) {
@@ -535,29 +535,23 @@ router.get('/nearby', async (req, res) => {
     if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
 
     const radiusNumber = Number(radiusKm);
-    const geoStage = {
-      $geoNear: {
-        near: { type: 'Point', coordinates: [lngNumber, latNumber] },
-        distanceField: 'distanceMeters',
-        spherical: true,
-        query: baseFilter,
-        key: 'geo',
-      },
-    };
-
-    if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
-      geoStage.$geoNear.maxDistance = radiusNumber * 1000;
-    }
+    const radiusMeters = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber * 1000 : 5000;
 
     const limitNumber = Number(limit);
     const finalLimit =
-      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
 
-    const items = await Ad.aggregate([
-      geoStage,
-      { $sort: { distanceMeters: 1 } },
-      { $limit: finalLimit },
-    ]);
+    const geoFilter = {
+      ...baseFilter,
+      geo: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          $maxDistance: radiusMeters,
+        },
+      },
+    };
+
+    const items = await Ad.find(geoFilter).limit(finalLimit);
 
     return res.json({ items });
   } catch (error) {
@@ -684,9 +678,6 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
     next(error);
   }
 });
@@ -759,6 +750,9 @@ router.get('/my', async (req, res, next) => {
 
     return res.json({ items: ads });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -1126,6 +1120,22 @@ router.post('/:id/live-spot', async (req, res, next) => {
         ad._id,
         `Цена объявления "${after.title}" изменилась: ${before.price} → ${after.price}`
       );
+    }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    try {
+      const notifications = await findUsersToNotifyOnAdChange(before, after);
+      if (notifications.length) {
+        await sendPriceStatusChangeNotifications(notifications);
+      }
+    } catch (notifyError) {
+      console.error('Favorites notification calculation error:', notifyError);
     }
 
     if (statusChanged) {

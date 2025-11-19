@@ -99,6 +99,11 @@ workspace/
 - `POST /api/ads` — создать объявление
   - Обязательные поля: `title`, `categoryId`, `subcategoryId`, `price`, `sellerTelegramId`
 
+### Геопоиск
+- `GET /api/ads/nearby?lat=...&lng=...&radiusKm=...` — объявления рядом с указанной точкой (только `status=active` и `moderationStatus=approved`).
+  - Пример: `curl "http://localhost:3000/api/ads/nearby?lat=52.1&lng=23.7&radiusKm=5&categoryId=farm"`
+  - При отсутствии `lat` или `lng` возвращает `400` с описанием ошибки.
+
 ### Заказы
 - `POST /api/orders` — создать заказ
 - `GET /api/orders/:buyerTelegramId` — список заказов покупателя
