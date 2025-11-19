@@ -1,43 +1,35 @@
 const User = require('../models/User');
+const { sendMessageToTelegramId } = require('../bot/messenger');
 
-async function notifyFavoritesOnAdChange(adBefore, adAfter) {
+async function notifySubscribers(adId, message) {
+  if (!adId || !message) {
+    return;
+  }
+
   try {
-    if (!adBefore || !adAfter) {
-      return;
-    }
+    const users = await User.find({ favorites: adId }).select('telegramId');
 
-    const adId = adAfter._id || adBefore._id;
-    if (!adId) {
-      return;
-    }
-
-    const priceChanged =
-      typeof adBefore.price === 'number' &&
-      typeof adAfter.price === 'number' &&
-      adBefore.price !== adAfter.price;
-
-    const statusChanged =
-      typeof adBefore.status === 'string' &&
-      typeof adAfter.status === 'string' &&
-      adBefore.status !== adAfter.status;
-
-    if (!priceChanged && !statusChanged) {
-      return;
-    }
-
-    const users = await User.find({ 'favorites.adId': adId });
     if (!users.length) {
       return;
     }
 
-    console.log(
-      `ℹ️ Ad ${adId} changed. Notifying ${users.length} users (пока только лог в консоль).`
-    );
+    for (const user of users) {
+      const telegramId = Number(user.telegramId);
+      if (!Number.isFinite(telegramId)) {
+        continue;
+      }
+
+      try {
+        await sendMessageToTelegramId(telegramId, message);
+      } catch (error) {
+        console.error('Failed to send notification', { telegramId, adId, error });
+      }
+    }
   } catch (error) {
-    console.error('notifyFavoritesOnAdChange error:', error);
+    console.error('notifySubscribers error:', error);
   }
 }
 
 module.exports = {
-  notifyFavoritesOnAdChange,
+  notifySubscribers,
 };
