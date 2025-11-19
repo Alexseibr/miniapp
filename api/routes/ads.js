@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const Ad = require('../../models/Ad.js');
-const { getDistanceKm } = require('../../utils/distance');
+const { haversineDistanceKm } = require('../../utils/distance');
 const { notifyFavoritesOnAdChange } = require('../../services/notifications');
 
 const router = Router();
@@ -17,34 +17,33 @@ function normalizeSeasonCode(code) {
   return code.trim().toLowerCase();
 }
 
-function filterAdsByGeo(ads, { latNumber, lngNumber, radiusKm, offset = 0, limit = ads.length, sortByDistance = false }) {
-  const filtered = [];
+function projectAdsWithinRadius(ads, { latNumber, lngNumber, radiusKm }) {
+  const radiusLimit = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : null;
+  const projected = [];
 
   for (const ad of ads) {
-    const hasLocation = ad?.location && ad.location.lat != null && ad.location.lng != null;
-    if (!hasLocation) {
+    if (!ad?.location || ad.location.lat == null || ad.location.lng == null) {
       continue;
     }
 
-    const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+    const distanceKm = haversineDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
     if (distanceKm == null) {
       continue;
     }
 
-    if (radiusKm && distanceKm > radiusKm) {
+    if (radiusLimit && distanceKm > radiusLimit) {
       continue;
     }
 
-    const adObject = typeof ad.toObject === 'function' ? ad.toObject() : { ...ad };
-    adObject.distanceKm = distanceKm;
-    filtered.push(adObject);
+    const plain =
+      typeof ad.toObject === 'function'
+        ? ad.toObject({ getters: true, virtuals: false })
+        : { ...ad };
+    plain.distanceKm = Number(distanceKm.toFixed(2));
+    projected.push(plain);
   }
 
-  if (sortByDistance) {
-    filtered.sort((a, b) => a.distanceKm - b.distanceKm);
-  }
-
-  return filtered.slice(offset, offset + limit);
+  return projected;
 }
 
 router.get('/', async (req, res, next) => {
@@ -106,37 +105,50 @@ router.get('/', async (req, res, next) => {
 
     const latNumber = Number(lat);
     const lngNumber = Number(lng);
-    const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
-
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+    const hasGeoQuery =
+      Number.isFinite(latNumber) &&
+      Number.isFinite(lngNumber) &&
+      Number.isFinite(radiusNumber) &&
+      radiusNumber > 0;
 
     let sortObj = { createdAt: -1 };
-    if (sort === 'cheapest') {
+    if (!hasGeoQuery && sort === 'cheapest') {
       sortObj = { price: 1 };
     }
 
-    const fetchLimit = hasGeoQuery ? finalLimit + finalOffset : finalLimit;
-
-    const baseItems = await Ad.find(query)
-      .sort(sortObj)
-      .skip(hasGeoQuery ? 0 : finalOffset)
-      .limit(fetchLimit > 0 ? fetchLimit : finalLimit);
+    let baseItems;
 
     if (hasGeoQuery) {
-      const items = filterAdsByGeo(baseItems, {
-        latNumber,
-        lngNumber,
-        radiusKm: finalRadiusKm,
-        offset: finalOffset,
-        limit: finalLimit,
-        sortByDistance: sort === 'distance',
-      });
-
-      return res.json({ items });
+      baseItems = await Ad.find(query)
+        .sort({ createdAt: -1 })
+        .limit(500);
+    } else {
+      baseItems = await Ad.find(query)
+        .sort(sortObj)
+        .skip(finalOffset)
+        .limit(finalLimit);
     }
 
-    res.json({ items: baseItems });
+    if (!hasGeoQuery) {
+      return res.json({ items: baseItems });
+    }
+
+    const itemsWithDistance = projectAdsWithinRadius(baseItems, {
+      latNumber,
+      lngNumber,
+      radiusKm: radiusNumber,
+    });
+
+    if (sort === 'distance') {
+      itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+    } else {
+      itemsWithDistance.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
   } catch (error) {
     next(error);
   }
@@ -186,16 +198,17 @@ router.get('/nearby', async (req, res) => {
       .sort({ createdAt: -1 })
       .limit(fetchLimit);
 
-    const items = filterAdsByGeo(ads, {
+    const itemsWithDistance = projectAdsWithinRadius(ads, {
       latNumber,
       lngNumber,
       radiusKm: finalRadiusKm,
-      offset: finalOffset,
-      limit: finalLimit,
-      sortByDistance: true,
     });
 
-    return res.json({ items });
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
   } catch (error) {
     console.error('GET /api/ads/nearby error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -219,36 +232,46 @@ router.get('/season/:code', async (req, res, next) => {
 
     const latNumber = Number(lat);
     const lngNumber = Number(lng);
-    const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+    const hasGeoQuery =
+      Number.isFinite(latNumber) &&
+      Number.isFinite(lngNumber) &&
+      Number.isFinite(radiusNumber) &&
+      radiusNumber > 0;
 
     let sortObj = { createdAt: -1 };
-    if (sort === 'cheapest') {
+    if (!hasGeoQuery && sort === 'cheapest') {
       sortObj = { price: 1 };
     }
 
-    const fetchLimit = hasGeoQuery ? finalLimit + finalOffset : finalLimit;
-
-    const itemsBase = await Ad.find({ seasonCode, status: 'active' })
-      .sort(sortObj)
-      .skip(hasGeoQuery ? 0 : finalOffset)
-      .limit(fetchLimit);
-
-    if (hasGeoQuery) {
-      const items = filterAdsByGeo(itemsBase, {
-        latNumber,
-        lngNumber,
-        radiusKm: finalRadiusKm,
-        offset: finalOffset,
-        limit: finalLimit,
-        sortByDistance: sort === 'distance',
-      });
+    if (!hasGeoQuery) {
+      const items = await Ad.find({ seasonCode, status: 'active' })
+        .sort(sortObj)
+        .skip(finalOffset)
+        .limit(finalLimit);
 
       return res.json({ items });
     }
 
-    return res.json({ items: itemsBase });
+    const baseAds = await Ad.find({ seasonCode, status: 'active' })
+      .sort({ createdAt: -1 })
+      .limit(500);
+
+    const itemsWithDistance = projectAdsWithinRadius(baseAds, {
+      latNumber,
+      lngNumber,
+      radiusKm: radiusNumber,
+    });
+
+    if (sort === 'distance') {
+      itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+    } else {
+      itemsWithDistance.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    }
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
   } catch (error) {
     next(error);
   }
@@ -289,16 +312,17 @@ router.get('/season/:code/live', async (req, res, next) => {
       .sort({ createdAt: -1 })
       .limit(fetchLimit);
 
-    const items = filterAdsByGeo(ads, {
+    const itemsWithDistance = projectAdsWithinRadius(ads, {
       latNumber,
       lngNumber,
       radiusKm: finalRadiusKm,
-      offset: finalOffset,
-      limit: finalLimit,
-      sortByDistance: true,
     });
 
-    return res.json({ items });
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
   } catch (error) {
     next(error);
   }
@@ -491,42 +515,6 @@ router.post('/', async (req, res, next) => {
 });
 
 router.post('/:id/live-spot', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { sellerTelegramId, isLiveSpot } = req.body;
-
-    if (typeof isLiveSpot !== 'boolean') {
-      return res.status(400).json({ message: 'isLiveSpot должен быть true/false' });
-    }
-
-    if (sellerTelegramId === undefined) {
-      return res.status(400).json({ message: 'Необходимо указать sellerTelegramId' });
-    }
-
-    const sellerIdNumber = Number(sellerTelegramId);
-    if (!Number.isFinite(sellerIdNumber)) {
-      return res.status(400).json({ message: 'sellerTelegramId должен быть числом' });
-    }
-
-    const ad = await Ad.findById(id);
-    if (!ad) {
-      return res.status(404).json({ message: 'Объявление не найдено' });
-    }
-
-    if (ad.sellerTelegramId !== sellerIdNumber) {
-      return res.status(403).json({ message: 'Можно менять только свои объявления' });
-    }
-
-    ad.isLiveSpot = isLiveSpot;
-    await ad.save();
-
-    return res.json({ ok: true, ad });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.patch('/:id', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {

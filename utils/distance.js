@@ -1,16 +1,18 @@
-const EARTH_RADIUS_KM = 6371;
+const EARTH_RADIUS_KM = 6371; // радиус Земли в км
 
 function deg2rad(deg) {
   return (deg * Math.PI) / 180;
 }
 
-function getDistanceKm(lat1, lng1, lat2, lng2) {
-  if (
-    lat1 == null ||
-    lng1 == null ||
-    lat2 == null ||
-    lng2 == null
-  ) {
+/**
+ * Расстояние между двумя точками в км
+ * lat1, lng1 — точка пользователя
+ * lat2, lng2 — точка объявления
+ */
+function haversineDistanceKm(lat1, lng1, lat2, lng2) {
+  const values = [lat1, lng1, lat2, lng2];
+
+  if (!values.every((value) => typeof value === 'number' && Number.isFinite(value))) {
     return null;
   }
 
@@ -30,5 +32,5 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 }
 
 module.exports = {
-  getDistanceKm,
+  haversineDistanceKm,
 };

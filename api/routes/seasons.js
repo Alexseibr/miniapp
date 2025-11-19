@@ -1,7 +1,7 @@
 const { Router } = require('express');
 const Season = require('../../models/Season.js');
 const Ad = require('../../models/Ad.js');
-const { getDistanceKm } = require('../../utils/distance');
+const { haversineDistanceKm } = require('../../utils/distance');
 
 const router = Router();
 
@@ -94,13 +94,13 @@ router.get('/:code/live-spots', async (req, res, next) => {
         continue;
       }
 
-      const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+      const distanceKm = haversineDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
       if (distanceKm == null || distanceKm > finalRadiusKm) {
         continue;
       }
 
-      const obj = ad.toObject();
-      obj.distanceKm = distanceKm;
+      const obj = ad.toObject({ getters: true, virtuals: false });
+      obj.distanceKm = Number(distanceKm.toFixed(2));
       mapped.push(obj);
     }
 
