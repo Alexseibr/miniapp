@@ -2,10 +2,13 @@ const config = require('./config/config.js');
 const connectDB = require('./services/db.js');
 const app = require('./api/server.js');
 const bot = require('./bot/bot.js');
+const { checkFavoritesForChanges } = require('./notifications/watcher');
 
 const PORT = config.port;
 
 // Главная функция запуска приложения
+let favoritesInterval;
+
 async function start() {
   try {
     console.log('🚀 Запуск KETMAR Market...\n');
@@ -25,7 +28,17 @@ async function start() {
     // 3. Запуск Telegram бота
     console.log('\n🤖 Запуск Telegram бота...');
     await bot.launch();
+    app.set('bot', bot);
     console.log('✅ Telegram бот запущен и готов к работе!');
+
+    const runFavoritesCheck = () => {
+      checkFavoritesForChanges().catch((error) =>
+        console.error('favoritesNotifier runtime error:', error)
+      );
+    };
+
+    runFavoritesCheck();
+    favoritesInterval = setInterval(runFavoritesCheck, 2 * 60 * 1000);
     
     console.log('\n✨ Все сервисы успешно запущены!\n');
     console.log('📋 Доступные команды бота:');
@@ -38,6 +51,11 @@ async function start() {
     const shutdown = async (signal) => {
       console.log(`\n⚠️  Получен сигнал ${signal}. Завершение работы...`);
       
+      if (favoritesInterval) {
+        clearInterval(favoritesInterval);
+        favoritesInterval = null;
+      }
+
       bot.stop(signal);
       console.log('✅ Telegram бот остановлен');
       
