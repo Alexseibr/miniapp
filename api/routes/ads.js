@@ -3,6 +3,7 @@ const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
 const { buildAdQuery } = require('../../utils/queryBuilder');
 const { notifySubscribers } = require('../../services/notifications');
+const { validateCreateAd } = require('../../middleware/validateCreateAd');
 
 const router = Router();
 
@@ -427,136 +428,6 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.patch('/:id/photos', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-    const photos = req.body?.photos;
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    if (!Array.isArray(photos)) {
-      return res.status(400).json({ message: 'photos must be an array' });
-    }
-
-    const sanitized = photos
-      .map((photo) => (typeof photo === 'string' ? photo.trim() : ''))
-      .filter(Boolean);
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-    ad.photos = sanitized;
-    await ad.save();
-
-    return res.json({ item: ad, photosCount: sanitized.length });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/:id/extend', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-    const extensionDays = resolveExtensionDays(ad);
-    extendAdLifetime(ad, extensionDays);
-    await ad.save();
-
-    return res.json({ item: ad, extendedByDays: extensionDays, validUntil: ad.validUntil });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/:id/liveSpot/on', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-    await applyLiveSpotStatus(ad, true);
-
-    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/:id/liveSpot/off', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-    await applyLiveSpotStatus(ad, false);
-
-    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/:id/hide', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-    const hidden = req.body?.hidden;
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    if (hidden !== undefined && typeof hidden !== 'boolean') {
-      return res.status(400).json({ message: 'hidden must be a boolean value' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-
-    if (hidden === false) {
-      if (ad.status === 'hidden') {
-        ad.status = 'active';
-      }
-    } else {
-      ad.status = 'hidden';
-      ad.isLiveSpot = false;
-    }
-
-    await ad.save();
-
-    return res.json({ item: ad, hidden: ad.status === 'hidden' });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
     next(error);
   }
 });
@@ -751,6 +622,111 @@ router.post('/:id/liveSpot/off', async (req, res, next) => {
   }
 });
 
+router.post('/bulk/update-status', async (req, res) => {
+  try {
+    const { adIds, status } = req.body || {};
+    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
+
+    if (!Array.isArray(adIds) || adIds.length === 0) {
+      return res.status(400).json({ error: 'adIds must be a non-empty array' });
+    }
+
+    if (typeof status !== 'string' || !allowedStatuses.has(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    const historyEntry = {
+      date: new Date(),
+      status,
+      moderationStatus: undefined,
+      comment: 'Bulk status update',
+    };
+
+    const result = await Ad.updateMany(
+      { _id: { $in: adIds } },
+      {
+        $set: { status },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
+    console.log(`[BULK UPDATE] update-status — ${updated} ads updated`);
+
+    return res.json({ updated, status });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/update-status error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/bulk/extend', async (req, res) => {
+  try {
+    const { adIds, extendDays, sellerTelegramId } = req.body || {};
+
+    if (!Array.isArray(adIds) || adIds.length === 0) {
+      return res.status(400).json({ error: 'adIds must be a non-empty array' });
+    }
+
+    const extendNumber = Number(extendDays);
+    if (!Number.isFinite(extendNumber) || extendNumber <= 0) {
+      return res.status(400).json({ error: 'extendDays must be a positive number' });
+    }
+
+    const sellerId = parseSellerId(sellerTelegramId);
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId is required' });
+    }
+
+    const ads = await Ad.find({ _id: { $in: adIds }, sellerTelegramId: sellerId });
+    let updated = 0;
+
+    for (const ad of ads) {
+      const now = new Date();
+      const base = ad.validUntil && ad.validUntil > now ? new Date(ad.validUntil) : now;
+      base.setDate(base.getDate() + extendNumber);
+      ad.validUntil = base;
+      ad.lifetimeDays = extendNumber;
+      await ad.save();
+      updated += 1;
+    }
+
+    console.log(`[BULK UPDATE] extend — ${updated} ads updated`);
+    return res.json({ updated, extendDays: extendNumber });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/extend error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/bulk/hide-expired', async (req, res) => {
+  try {
+    const now = new Date();
+    const historyEntry = {
+      date: now,
+      status: 'expired',
+      moderationStatus: undefined,
+      comment: 'Auto hide expired',
+    };
+
+    const result = await Ad.updateMany(
+      { status: 'active', validUntil: { $lt: now } },
+      {
+        $set: { status: 'expired' },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
+    console.log(`[BULK UPDATE] hide-expired — ${updated} ads updated`);
+
+    return res.json({ updated, status: 'expired' });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/hide-expired error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.post('/:id/hide', async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
@@ -807,59 +783,11 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', validateCreateAd, async (req, res, next) => {
   try {
-    const {
-      title,
-      description,
-      categoryId,
-      subcategoryId,
-      price,
-      currency,
-      photos,
-      attributes,
-      sellerTelegramId,
-      seasonCode,
-      deliveryOptions,
-      lifetimeDays,
-      isLiveSpot,
-      location,
-    } = req.body;
+    const payload = req.validatedAdPayload;
 
-    if (!title || !categoryId || !subcategoryId || price == null || !sellerTelegramId) {
-      return res.status(400).json({
-        message: 'Необходимо указать: title, categoryId, subcategoryId, price, sellerTelegramId',
-      });
+    if (!payload) {
+      return res.status(400).json({ error: 'Некорректные данные объявления' });
     }
-
-    const normalizedSeason = normalizeSeasonCode(seasonCode);
-
-    const payload = {
-      title,
-      description,
-      categoryId,
-      subcategoryId,
-      price,
-      currency,
-      photos,
-      attributes,
-      sellerTelegramId,
-      seasonCode: normalizedSeason,
-      deliveryOptions,
-      lifetimeDays,
-      isLiveSpot,
-      location,
-      status: 'active',
-      moderationStatus: 'pending',
-    };
-
-    if (
-      (payload.lifetimeDays == null || payload.lifetimeDays <= 0) &&
-      normalizedSeason &&
-      SEASON_SHORT_LIFETIME[normalizedSeason]
-    ) {
-      payload.lifetimeDays = SEASON_SHORT_LIFETIME[normalizedSeason];
-    }
-
-    const ad = await Ad.create(payload);
 
     const ad = await Ad.create(payload);
     res.status(201).json(ad);
@@ -987,6 +915,51 @@ router.delete('/:id', async (req, res, next) => {
     res.json({ message: 'Объявление архивировано', ad });
   } catch (error) {
     next(error);
+  }
+});
+
+// PATCH /api/ads/:id/status — обновление статуса объявления
+router.patch('/:id/status', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, moderationStatus, comment } = req.body || {};
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+
+    const historyEntry = {
+      date: new Date(),
+      status: status || ad.status,
+      moderationStatus: moderationStatus || ad.moderationStatus,
+      comment: comment || null,
+    };
+
+    if (status) {
+      ad.status = status;
+    }
+
+    if (moderationStatus) {
+      ad.moderationStatus = moderationStatus;
+      if (moderationStatus === 'rejected' && comment) {
+        ad.moderationComment = comment;
+      }
+    }
+
+    if (!Array.isArray(ad.statusHistory)) {
+      ad.statusHistory = [];
+    }
+    ad.statusHistory.push(historyEntry);
+
+    await ad.save();
+
+    return res.json({
+      message: 'Статус обновлён',
+      ad,
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Ошибка при обновлении статуса', details: error.message });
   }
 });
 

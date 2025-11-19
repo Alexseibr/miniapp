@@ -1,6 +1,19 @@
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
+function parseBoolean(value) {
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    return ['true', '1', 'yes', 'on'].includes(normalized);
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  return Boolean(value);
+}
+
 function normalizeSeasonCode(code) {
   if (typeof code !== 'string') {
     return undefined;
@@ -16,7 +29,7 @@ function parseNumber(value) {
 }
 
 function buildAdQuery(query = {}) {
-  const filters = { status: 'active', moderationStatus: 'approved' };
+  const filters = { moderationStatus: 'approved' };
   const sort = {};
   let sortBy = 'date_desc';
 
@@ -34,7 +47,15 @@ function buildAdQuery(query = {}) {
     sort: legacySort,
     page: pageRaw,
     limit: limitRaw,
+    includeExpired,
   } = query;
+
+  const includeExpiredFlag = parseBoolean(includeExpired);
+  if (includeExpiredFlag) {
+    filters.status = { $in: ['active', 'expired'] };
+  } else {
+    filters.status = 'active';
+  }
 
   if (categoryId) {
     filters.categoryId = categoryId;
