@@ -24,7 +24,7 @@ router.get('/', async (req, res, next) => {
       radiusKm = 5,
     } = req.query;
 
-    const query = { status: 'active' };
+    const query = { status: 'active', moderationStatus: 'approved' };
 
     if (categoryId) query.categoryId = categoryId;
     if (subcategoryId) query.subcategoryId = subcategoryId;
@@ -117,6 +117,53 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/nearby', async (req, res, next) => {
+  try {
+    const { lat, lng, radiusKm = 5, categoryId, subcategoryId, limit = 20 } = req.query;
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+    const maxDistance = finalRadiusKm * 1000;
+
+    const match = { status: 'active', moderationStatus: 'approved' };
+    if (categoryId) match.categoryId = categoryId;
+    if (subcategoryId) match.subcategoryId = subcategoryId;
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+
+    const ads = await Ad.aggregate([
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          maxDistance,
+          query: match,
+          spherical: true,
+        },
+      },
+      { $sort: { distanceMeters: 1, createdAt: -1 } },
+      { $limit: finalLimit },
+    ]);
+
+    return res.json({
+      items: ads.map((ad) => ({
+        ...ad,
+        distanceKm: typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
+      })),
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -153,7 +200,6 @@ router.post('/', async (req, res, next) => {
       lifetimeDays,
       isLiveSpot,
       location,
-      geo,
     } = req.body;
 
     if (!title || !categoryId || !subcategoryId || price == null || !sellerTelegramId) {
@@ -177,7 +223,6 @@ router.post('/', async (req, res, next) => {
       lifetimeDays,
       isLiveSpot,
       location,
-      geo,
       status: 'active',
     });
 
@@ -204,7 +249,7 @@ router.patch('/:id', async (req, res, next) => {
       'deliveryOptions',
       'isLiveSpot',
       'location',
-      'geo',
+      'moderationStatus',
     ];
 
     const filteredUpdates = {};
