@@ -1,0 +1,69 @@
+Шаг 3. Обработчик выбора категории (callback_query)
+
+Теперь нужно обработать нажатия по кнопкам вида sell_cat:<slug> и вывести подкатегории.
+
+Сразу после команды /sell (и до обработчика bot.on("text", ...)) вставь:
+
+  // Обработка выбора категории (callback sell_cat:<slug>)
+  bot.action(/sell_cat:(.+)/, async (ctx) => {
+    try {
+      const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:3000";
+      const slug = ctx.match[1];
+
+      // убеждаемся, что мы в режиме sell
+      if (!ctx.session || !ctx.session.sell) {
+        return ctx.answerCbQuery("Диалог создания объявления не активен. Введи /sell.");
+      }
+
+      ctx.session.sell.data.categoryId = slug;
+
+      // забираем дерево категорий
+      const res = await axios.get(`${API_BASE_URL}/api/categories`);
+      const categories = res.data || [];
+
+      // находим выбранную корневую категорию
+      const rootCat = categories.find((c) => c.slug === slug);
+      if (!rootCat) {
+        return ctx.answerCbQuery("Категория не найдена.");
+      }
+
+      const subcats = rootCat.subcategories || [];
+      if (!subcats.length) {
+        // если нет подкатегорий — сразу переходим к заголовку
+        ctx.session.sell.data.subcategoryId = null;
+        ctx.session.sell.step = "title";
+
+        await ctx.editMessageText(
+          `Категория: ${rootCat.name}\n\n` +
+          "Шаг 2/5 — введи заголовок объявления (например: «Свежая малина»)."
+        );
+        return;
+      }
+
+      // есть подкатегории — показываем их
+      ctx.session.sell.step = "choose_subcategory";
+
+      const keyboard = subcats.map((sub) => [
+        {
+          text: sub.name,
+          callback_data: `sell_subcat:${sub.slug}`,
+        },
+      ]);
+
+      await ctx.editMessageText(
+        `Категория: ${rootCat.name}\n\n` +
+        "🧩 Шаг 2/5 — выбери подкатегорию:",
+        {
+          reply_markup: {
+            inline_keyboard: keyboard,
+          },
+        }
+      );
+    } catch (err) {
+      console.error("sell_cat error:", err.response?.data || err.message);
+      ctx.reply("⚠️ Ошибка при обработке категории. Попробуй ещё раз /sell.");
+    }
+  });
+
+
+Сохрани.

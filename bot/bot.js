@@ -1,5 +1,6 @@
 const { Telegraf, Markup, session } = require('telegraf');
 const config = require('../config/config.js');
+const axios = require('axios');
 
 const bot = new Telegraf(config.botToken);
 
@@ -393,28 +394,25 @@ bot.command('new_test_ad', async (ctx) => {
   }
 });
 
-// /sell - мастер создания объявления: выбор категории, подкатегории, затем поля
-bot.command('sell', async (ctx) => {
+// /sell — мастер создания объявления: выбор категории, подкатегории, затем поля
+bot.command("sell", async (ctx) => {
   try {
+    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
+
     // забираем дерево категорий
-    const response = await fetch(`${API_URL}/api/categories`);
-    
-    if (!response.ok) {
-      throw new Error('Ошибка получения категорий');
-    }
-    
-    const categories = await response.json();
+    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const categories = res.data || [];
 
     // фильтруем только корневые категории (parentSlug == null)
     const rootCats = categories.filter((c) => !c.parentSlug);
 
     if (!rootCats.length) {
-      return ctx.reply('Категории пока не настроены. Обратитесь к администратору.');
+      return ctx.reply("Категории пока не настроены. Обратитесь к администратору.");
     }
 
     // сохраняем в сессию, что мы в режиме создания объявления
     ctx.session.sell = {
-      step: 'choose_category',
+      step: "choose_category",
       data: {},
     };
 
@@ -427,7 +425,7 @@ bot.command('sell', async (ctx) => {
     ]);
 
     await ctx.reply(
-      '🧩 Шаг 1/5 — выбери категорию:',
+      "🧩 Шаг 1/5 — выбери категорию:",
       {
         reply_markup: {
           inline_keyboard: keyboard,
@@ -435,8 +433,8 @@ bot.command('sell', async (ctx) => {
       }
     );
   } catch (err) {
-    console.error('/sell error:', err);
-    ctx.reply('⚠️ Ошибка при подготовке категорий. Попробуй позже.');
+    console.error("/sell error:", err.response?.data || err.message);
+    ctx.reply("⚠️ Ошибка при подготовке категорий. Попробуй позже.");
   }
 });
 
