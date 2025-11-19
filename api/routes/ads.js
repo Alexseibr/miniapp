@@ -24,7 +24,7 @@ router.get('/', async (req, res, next) => {
       radiusKm = 5,
     } = req.query;
 
-    const query = { status: 'active', moderationStatus: 'approved' };
+    const query = { status: 'active' };
 
     if (categoryId) query.categoryId = categoryId;
     if (subcategoryId) query.subcategoryId = subcategoryId;
@@ -81,6 +81,7 @@ router.get('/', async (req, res, next) => {
             query,
           },
         },
+        { $sort: { distanceMeters: 1, createdAt: -1 } },
       ];
 
       if (finalOffset > 0) {
@@ -117,27 +118,39 @@ router.get('/', async (req, res, next) => {
   }
 });
 
-router.get('/nearby', async (req, res, next) => {
+// GET /api/ads/nearby
+router.get('/nearby', async (req, res) => {
   try {
-    const { lat, lng, radiusKm = 5, categoryId, subcategoryId, limit = 20 } = req.query;
+    const {
+      lat,
+      lng,
+      radiusKm = 5,
+      categoryId,
+      subcategoryId,
+      limit = 20,
+    } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
 
     const latNumber = Number(lat);
     const lngNumber = Number(lng);
 
     if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ error: 'lat и lng обязательны' });
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
     }
 
     const radiusNumber = Number(radiusKm);
     const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
     const maxDistance = finalRadiusKm * 1000;
 
-    const match = { status: 'active', moderationStatus: 'approved' };
-    if (categoryId) match.categoryId = categoryId;
-    if (subcategoryId) match.subcategoryId = subcategoryId;
-
     const limitNumber = Number(limit);
     const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+
+    const geoQuery = { status: 'active' };
+    if (categoryId) geoQuery.categoryId = categoryId;
+    if (subcategoryId) geoQuery.subcategoryId = subcategoryId;
 
     const ads = await Ad.aggregate([
       {
@@ -145,8 +158,8 @@ router.get('/nearby', async (req, res, next) => {
           near: { type: 'Point', coordinates: [lngNumber, latNumber] },
           distanceField: 'distanceMeters',
           maxDistance,
-          query: match,
           spherical: true,
+          query: geoQuery,
         },
       },
       { $sort: { distanceMeters: 1, createdAt: -1 } },
@@ -156,9 +169,52 @@ router.get('/nearby', async (req, res, next) => {
     return res.json({
       items: ads.map((ad) => ({
         ...ad,
-        distanceKm: typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
+        distanceKm:
+          typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
       })),
     });
+  } catch (error) {
+    console.error('GET /api/ads/nearby error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:id/live-spot', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, isLiveSpot } = req.body;
+
+    if (sellerTelegramId === undefined) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+
+    const sellerIdNumber = Number(sellerTelegramId);
+    if (!Number.isFinite(sellerIdNumber)) {
+      return res.status(400).json({ error: 'sellerTelegramId должен быть числом' });
+    }
+
+    if (typeof isLiveSpot === 'undefined') {
+      return res.status(400).json({ error: 'isLiveSpot обязателен' });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+
+    if (ad.sellerTelegramId !== sellerIdNumber) {
+      return res.status(403).json({ error: 'Нет прав для обновления этого объявления' });
+    }
+
+    const normalizedLiveSpot =
+      typeof isLiveSpot === 'string'
+        ? isLiveSpot === 'true' || isLiveSpot === '1'
+        : Boolean(isLiveSpot);
+
+    ad.isLiveSpot = normalizedLiveSpot;
+    await ad.save();
+
+    res.json({ ok: true, ad });
   } catch (error) {
     next(error);
   }
@@ -249,7 +305,6 @@ router.patch('/:id', async (req, res, next) => {
       'deliveryOptions',
       'isLiveSpot',
       'location',
-      'moderationStatus',
     ];
 
     const filteredUpdates = {};
