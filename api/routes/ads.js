@@ -1,12 +1,52 @@
 const { Router } = require('express');
 const Ad = require('../../models/Ad.js');
 const { getDistanceKm } = require('../../utils/distance');
+const { notifyUsersAboutAdChange } = require('../../services/notifications');
 
 const router = Router();
 
-// Геопоиск:
-// GET /api/ads?lat=52.1&lng=23.7&radiusKm=2
-// GET /api/ads?lat=52.1&lng=23.7&radiusKm=50&categoryId=country_base
+const SEASON_SHORT_LIFETIME = {
+  march8_tulips: 3,
+};
+
+function normalizeSeasonCode(code) {
+  if (typeof code !== 'string') {
+    return undefined;
+  }
+
+  return code.trim().toLowerCase();
+}
+
+function filterAdsByGeo(ads, { latNumber, lngNumber, radiusKm, offset = 0, limit = ads.length, sortByDistance = false }) {
+  const filtered = [];
+
+  for (const ad of ads) {
+    const hasLocation = ad?.location && ad.location.lat != null && ad.location.lng != null;
+    if (!hasLocation) {
+      continue;
+    }
+
+    const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+    if (distanceKm == null) {
+      continue;
+    }
+
+    if (radiusKm && distanceKm > radiusKm) {
+      continue;
+    }
+
+    const adObject = typeof ad.toObject === 'function' ? ad.toObject() : { ...ad };
+    adObject.distanceKm = distanceKm;
+    filtered.push(adObject);
+  }
+
+  if (sortByDistance) {
+    filtered.sort((a, b) => a.distanceKm - b.distanceKm);
+  }
+
+  return filtered.slice(offset, offset + limit);
+}
+
 router.get('/', async (req, res, next) => {
   try {
     const {
@@ -29,7 +69,8 @@ router.get('/', async (req, res, next) => {
 
     if (categoryId) query.categoryId = categoryId;
     if (subcategoryId) query.subcategoryId = subcategoryId;
-    if (seasonCode) query.seasonCode = seasonCode;
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+    if (normalizedSeason) query.seasonCode = normalizedSeason;
 
     if (sellerTelegramId !== undefined) {
       const sellerIdNumber = Number(sellerTelegramId);
@@ -68,7 +109,7 @@ router.get('/', async (req, res, next) => {
     const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
 
     const radiusNumber = Number(radiusKm);
-    const finalRadius = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
 
     let sortObj = { createdAt: -1 };
     if (sort === 'cheapest') {
@@ -83,35 +124,181 @@ router.get('/', async (req, res, next) => {
       .limit(fetchLimit > 0 ? fetchLimit : finalLimit);
 
     if (hasGeoQuery) {
-      const mapped = [];
-      for (const ad of baseItems) {
-        if (!ad.location || ad.location.lat == null || ad.location.lng == null) {
-          continue;
-        }
+      const items = filterAdsByGeo(baseItems, {
+        latNumber,
+        lngNumber,
+        radiusKm: finalRadiusKm,
+        offset: finalOffset,
+        limit: finalLimit,
+        sortByDistance: sort === 'distance',
+      });
 
-        const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
-        if (distanceKm == null) {
-          continue;
-        }
-
-        if (finalRadius && distanceKm > finalRadius) {
-          continue;
-        }
-
-        const adObject = ad.toObject();
-        adObject.distanceKm = distanceKm;
-        mapped.push(adObject);
-      }
-
-      if (sort === 'distance') {
-        mapped.sort((a, b) => a.distanceKm - b.distanceKm);
-      }
-
-      const paginated = mapped.slice(finalOffset, finalOffset + finalLimit);
-      return res.json({ items: paginated });
+      return res.json({ items });
     }
 
     res.json({ items: baseItems });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// GET /api/ads/nearby
+router.get('/nearby', async (req, res) => {
+  try {
+    const {
+      lat,
+      lng,
+      radiusKm = 5,
+      categoryId,
+      subcategoryId,
+      limit = 20,
+      offset = 0,
+      seasonCode,
+    } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const baseQuery = { status: 'active' };
+    if (categoryId) baseQuery.categoryId = categoryId;
+    if (subcategoryId) baseQuery.subcategoryId = subcategoryId;
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+    if (normalizedSeason) baseQuery.seasonCode = normalizedSeason;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+    const ads = await Ad.find(baseQuery)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const items = filterAdsByGeo(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: finalRadiusKm,
+      offset: finalOffset,
+      limit: finalLimit,
+      sortByDistance: true,
+    });
+
+    return res.json({ items });
+  } catch (error) {
+    console.error('GET /api/ads/nearby error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/season/:code', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { limit = 20, offset = 0, sort = 'newest', lat, lng, radiusKm } = req.query;
+
+    const seasonCode = normalizeSeasonCode(code);
+    if (!seasonCode) {
+      return res.status(400).json({ message: 'Некорректный код сезона' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+
+    let sortObj = { createdAt: -1 };
+    if (sort === 'cheapest') {
+      sortObj = { price: 1 };
+    }
+
+    const fetchLimit = hasGeoQuery ? finalLimit + finalOffset : finalLimit;
+
+    const itemsBase = await Ad.find({ seasonCode, status: 'active' })
+      .sort(sortObj)
+      .skip(hasGeoQuery ? 0 : finalOffset)
+      .limit(fetchLimit);
+
+    if (hasGeoQuery) {
+      const items = filterAdsByGeo(itemsBase, {
+        latNumber,
+        lngNumber,
+        radiusKm: finalRadiusKm,
+        offset: finalOffset,
+        limit: finalLimit,
+        sortByDistance: sort === 'distance',
+      });
+
+      return res.json({ items });
+    }
+
+    return res.json({ items: itemsBase });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/season/:code/live', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ message: 'lat и lng должны быть числами' });
+    }
+
+    const seasonCode = normalizeSeasonCode(code);
+    if (!seasonCode) {
+      return res.status(400).json({ message: 'Некорректный код сезона' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+
+    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const items = filterAdsByGeo(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: finalRadiusKm,
+      offset: finalOffset,
+      limit: finalLimit,
+      sortByDistance: true,
+    });
+
+    return res.json({ items });
   } catch (error) {
     next(error);
   }
@@ -217,7 +404,9 @@ router.post('/', async (req, res, next) => {
       });
     }
 
-    const ad = await Ad.create({
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+
+    const payload = {
       title,
       description,
       categoryId,
@@ -227,13 +416,23 @@ router.post('/', async (req, res, next) => {
       photos,
       attributes,
       sellerTelegramId,
-      seasonCode,
+      seasonCode: normalizedSeason,
       deliveryOptions,
       lifetimeDays,
       isLiveSpot,
       location,
       status: 'active',
-    });
+    };
+
+    if (
+      (payload.lifetimeDays == null || payload.lifetimeDays <= 0) &&
+      normalizedSeason &&
+      SEASON_SHORT_LIFETIME[normalizedSeason]
+    ) {
+      payload.lifetimeDays = SEASON_SHORT_LIFETIME[normalizedSeason];
+    }
+
+    const ad = await Ad.create(payload);
 
     res.status(201).json(ad);
   } catch (error) {
@@ -303,14 +502,72 @@ router.patch('/:id', async (req, res, next) => {
       }
     }
 
-    const ad = await Ad.findByIdAndUpdate(id, filteredUpdates, {
-      new: true,
-      runValidators: true,
-    });
+    if (filteredUpdates.seasonCode) {
+      filteredUpdates.seasonCode = normalizeSeasonCode(filteredUpdates.seasonCode);
+    }
+
+    const ad = await Ad.findById(id);
 
     if (!ad) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
+
+    const changedFields = {};
+
+    if (filteredUpdates.price !== undefined && filteredUpdates.price !== ad.price) {
+      changedFields.price = { old: ad.price, new: filteredUpdates.price };
+    }
+
+    if (filteredUpdates.status && filteredUpdates.status !== ad.status) {
+      changedFields.status = { old: ad.status, new: filteredUpdates.status };
+    }
+
+    Object.assign(ad, filteredUpdates);
+    await ad.save();
+
+    if (Object.keys(changedFields).length) {
+      notifyUsersAboutAdChange(ad, changedFields).catch((error) => {
+        console.error('Не удалось отправить уведомление об изменении объявления', {
+          adId: ad._id,
+          error,
+        });
+      });
+    }
+
+    res.json(ad);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/live-spot', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { isLiveSpot, sellerTelegramId } = req.body || {};
+
+    if (typeof isLiveSpot !== 'boolean') {
+      return res.status(400).json({ message: 'Поле isLiveSpot обязательно и должно быть boolean' });
+    }
+
+    const sellerIdNumber = Number(sellerTelegramId);
+    if (!Number.isFinite(sellerIdNumber)) {
+      return res
+        .status(400)
+        .json({ message: 'Необходимо указать корректный sellerTelegramId для проверки прав' });
+    }
+
+    const ad = await Ad.findById(id);
+
+    if (!ad) {
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
+
+    if (ad.sellerTelegramId !== sellerIdNumber) {
+      return res.status(403).json({ message: 'Вы не можете изменять live-spot для этого объявления' });
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
