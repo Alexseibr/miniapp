@@ -829,24 +829,6 @@ router.post('/:id/live-spot', async (req, res, next) => {
       );
     }
 
-    if (statusChanged) {
-      await notifySubscribers(
-        ad._id,
-        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
-      );
-    }
-
-    if (statusChanged) {
-      await notifySubscribers(
-        ad._id,
-        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
-      );
-    }
-
-    if (ad.sellerTelegramId !== sellerIdNumber) {
-      return res.status(403).json({ message: 'Вы не можете изменять live-spot для этого объявления' });
-    }
-
     ad.isLiveSpot = isLiveSpot;
     await ad.save();
 
