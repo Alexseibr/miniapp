@@ -7,7 +7,7 @@ async function notifySubscribers(adId, message) {
   }
 
   try {
-    const users = await User.find({ favorites: adId }).select('telegramId');
+    const users = await User.find({ 'favorites.adId': adId }).select('telegramId');
 
     if (!users.length) {
       return;

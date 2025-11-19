@@ -1,107 +1,149 @@
 const express = require('express');
-const router = express.Router();
 const mongoose = require('mongoose');
+const router = express.Router();
+const User = require('../../models/User');
 const Ad = require('../../models/Ad');
-const Favorite = require('../../models/Favorite');
 
-function parseTelegramId(value) {
-  const id = Number(value);
+function parseTelegramId(raw) {
+  const id = Number(raw);
   if (!Number.isFinite(id) || id <= 0) {
     return null;
   }
   return id;
 }
 
-function formatFavorite(favorite) {
-  return {
-    ad: favorite.adId || null,
-    lastKnownPrice: favorite.lastKnownPrice ?? null,
-    lastKnownStatus: favorite.lastKnownStatus ?? null,
-    createdAt: favorite.createdAt,
-    updatedAt: favorite.updatedAt,
-  };
+async function getOrCreateUser(telegramId) {
+  let user = await User.findOne({ telegramId });
+  if (!user) {
+    user = await User.create({ telegramId });
+  }
+  return user;
 }
 
-// GET /api/favorites?userTelegramId=123
+function normalizeAdId(value) {
+  if (!value) {
+    return null;
+  }
+  if (mongoose.Types.ObjectId.isValid(value)) {
+    return new mongoose.Types.ObjectId(value);
+  }
+  return null;
+}
+
+function serializeFavorites(favorites = []) {
+  return favorites
+    .filter((fav) => fav && fav.adId)
+    .map((fav) => {
+      const ad = fav.adId;
+      return {
+        adId: ad?._id || fav.adId,
+        ad: ad && typeof ad.toObject === 'function' ? ad.toObject() : ad,
+        createdAt: fav.createdAt,
+        lastKnownPrice: fav.lastKnownPrice ?? null,
+        lastKnownStatus: fav.lastKnownStatus ?? null,
+      };
+    });
+}
+
 router.get('/', async (req, res) => {
   try {
-    const userTelegramId = parseTelegramId(req.query.userTelegramId);
+    const telegramId =
+      parseTelegramId(req.query.telegramId) || parseTelegramId(req.query.userTelegramId);
 
-    if (!userTelegramId) {
-      return res.status(400).json({ error: 'userTelegramId query parameter is required' });
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId query parameter is required' });
     }
 
-    const favorites = await Favorite.find({ userTelegramId })
-      .sort({ createdAt: -1 })
-      .populate('adId');
+    const user = await User.findOne({ telegramId }).populate('favorites.adId');
 
-    return res.json({ items: favorites.map(formatFavorite) });
+    if (!user) {
+      return res.json({ items: [] });
+    }
+
+    return res.json({ items: serializeFavorites(user.favorites) });
   } catch (error) {
     console.error('GET /api/favorites error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// POST /api/favorites
-router.post('/', async (req, res) => {
+router.post('/:adId', async (req, res) => {
   try {
-    const { userTelegramId: telegramRaw, adId } = req.body || {};
-    const userTelegramId = parseTelegramId(telegramRaw);
+    const telegramId = parseTelegramId(req.body?.telegramId);
+    const adId = normalizeAdId(req.params.adId);
 
-    if (!userTelegramId || !adId || !mongoose.Types.ObjectId.isValid(adId)) {
-      return res.status(400).json({ error: 'userTelegramId and valid adId are required' });
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and valid adId are required' });
     }
 
-    const adObjectId = new mongoose.Types.ObjectId(adId);
-
-    const ad = await Ad.findById(adObjectId);
+    const ad = await Ad.findById(adId);
     if (!ad) {
       return res.status(404).json({ error: 'Ad not found' });
     }
 
-    let favorite = await Favorite.findOne({ userTelegramId, adId: adObjectId });
-    let created = false;
+    const user = await getOrCreateUser(telegramId);
 
-    if (!favorite) {
-      favorite = await Favorite.create({
-        userTelegramId,
-        adId: adObjectId,
+    const favorites = user.favorites || [];
+    const existing = favorites.find((fav) => {
+      const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
+      return currentId && currentId.toString() === adId.toString();
+    });
+
+    if (existing) {
+      existing.lastKnownPrice = ad.price;
+      existing.lastKnownStatus = ad.status;
+    } else {
+      favorites.push({
+        adId,
+        createdAt: new Date(),
         lastKnownPrice: ad.price,
         lastKnownStatus: ad.status,
       });
-      created = true;
     }
 
-    await favorite.populate('adId');
+    user.favorites = favorites;
+    await user.save();
+    await user.populate('favorites.adId');
 
-    return res.status(created ? 201 : 200).json({
-      item: formatFavorite(favorite),
-      created,
-    });
+    const items = serializeFavorites(user.favorites);
+    return res.status(existing ? 200 : 201).json({ ok: true, items });
   } catch (error) {
-    if (error.code === 11000) {
-      return res.status(200).json({ message: 'Already in favorites' });
-    }
-    console.error('POST /api/favorites error:', error);
+    console.error('POST /api/favorites/:adId error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-// DELETE /api/favorites/:adId?userTelegramId=123
 router.delete('/:adId', async (req, res) => {
   try {
-    const userTelegramId = parseTelegramId(req.query.userTelegramId);
-    const { adId } = req.params;
+    const telegramId =
+      parseTelegramId(req.body?.telegramId) || parseTelegramId(req.query.telegramId);
+    const adId = normalizeAdId(req.params.adId);
 
-    if (!userTelegramId || !adId || !mongoose.Types.ObjectId.isValid(adId)) {
-      return res.status(400).json({ error: 'userTelegramId and valid adId are required' });
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and valid adId are required' });
     }
 
-    const adObjectId = new mongoose.Types.ObjectId(adId);
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.json({ ok: true, items: [] });
+    }
 
-    const result = await Favorite.deleteOne({ userTelegramId, adId: adObjectId });
+    const beforeLength = user.favorites.length;
+    user.favorites = (user.favorites || []).filter((fav) => {
+      const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
+      return !currentId || currentId.toString() !== adId.toString();
+    });
 
-    return res.json({ deletedCount: result.deletedCount || 0 });
+    if (user.isModified('favorites')) {
+      await user.save();
+      await user.populate('favorites.adId');
+    }
+
+    return res.json({
+      ok: true,
+      removed: beforeLength - user.favorites.length,
+      items: serializeFavorites(user.favorites),
+    });
   } catch (error) {
     console.error('DELETE /api/favorites/:adId error:', error);
     res.status(500).json({ error: 'Server error' });

@@ -361,7 +361,7 @@ router.get('/nearby', async (req, res) => {
     const {
       lat,
       lng,
-      radiusKm = 10,
+      radiusKm = 5,
       categoryId,
       subcategoryId,
       seasonCode,
@@ -380,21 +380,29 @@ router.get('/nearby', async (req, res) => {
     }
 
     const normalizedSeason = normalizeSeasonCode(seasonCode);
-
     const baseFilter = { status: 'active', moderationStatus: 'approved' };
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
     if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
 
-    const items = await aggregateNearbyAds({
+    const fetchLimit = 500;
+    const baseAds = await Ad.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const itemsWithDistance = projectAdsWithinRadius(baseAds, {
       latNumber,
       lngNumber,
       radiusKm: Number(radiusKm),
-      limit: Number(limit),
-      baseFilter,
     });
 
-    return res.json({ items });
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const limitNumber = Number(limit);
+    const finalLimit =
+      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+
+    return res.json({ items: itemsWithDistance.slice(0, finalLimit) });
   } catch (error) {
     console.error('GET /api/ads/nearby error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -688,229 +696,6 @@ router.post('/:id/hide', async (req, res, next) => {
   }
 });
 
-router.post('/:id/hide', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-    const hidden = req.body?.hidden;
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    if (hidden !== undefined && typeof hidden !== 'boolean') {
-      return res.status(400).json({ message: 'hidden must be a boolean value' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-
-    if (hidden === false) {
-      if (ad.status === 'hidden') {
-        ad.status = 'active';
-      }
-    } else {
-      ad.status = 'hidden';
-      ad.isLiveSpot = false;
-    }
-
-    await ad.save();
-
-    return res.json({ item: ad, hidden: ad.status === 'hidden' });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/:id/hide', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-    const hidden = req.body?.hidden;
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    if (hidden !== undefined && typeof hidden !== 'boolean') {
-      return res.status(400).json({ message: 'hidden must be a boolean value' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-
-    if (hidden === false) {
-      if (ad.status === 'hidden') {
-        ad.status = 'active';
-      }
-    } else {
-      ad.status = 'hidden';
-      ad.isLiveSpot = false;
-    }
-
-    await ad.save();
-
-    return res.json({ item: ad, hidden: ad.status === 'hidden' });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.get('/season/:code/live', async (req, res, next) => {
-  try {
-    const { code } = req.params;
-    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
-
-    if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
-    }
-
-    const latNumber = Number(lat);
-    const lngNumber = Number(lng);
-
-    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ message: 'lat и lng должны быть числами' });
-    }
-
-    const seasonCode = normalizeSeasonCode(code);
-    if (!seasonCode) {
-      return res.status(400).json({ message: 'Некорректный код сезона' });
-    }
-
-    const limitNumber = Number(limit);
-    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
-    const offsetNumber = Number(offset);
-    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
-
-    const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
-
-    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
-
-    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
-
-    const itemsWithDistance = projectAdsWithinRadius(ads, {
-      latNumber,
-      lngNumber,
-      radiusKm: finalRadiusKm,
-    });
-
-    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-
-    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
-
-    return res.json({ items: finalItems });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/season/:code/live', async (req, res, next) => {
-  try {
-    const { code } = req.params;
-    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
-
-    if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
-    }
-
-    const latNumber = Number(lat);
-    const lngNumber = Number(lng);
-
-    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ message: 'lat и lng должны быть числами' });
-    }
-
-    const seasonCode = normalizeSeasonCode(code);
-    if (!seasonCode) {
-      return res.status(400).json({ message: 'Некорректный код сезона' });
-    }
-
-    const limitNumber = Number(limit);
-    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
-    const offsetNumber = Number(offset);
-    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
-
-    const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
-
-    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
-
-    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
-
-    const itemsWithDistance = projectAdsWithinRadius(ads, {
-      latNumber,
-      lngNumber,
-      radiusKm: finalRadiusKm,
-    });
-
-    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-
-    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
-
-    return res.json({ items: finalItems });
-  } catch (error) {
-    next(error);
-  }
-});
-
-router.get('/season/:code/live', async (req, res, next) => {
-  try {
-    const { code } = req.params;
-    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
-
-    if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
-    }
-
-    const latNumber = Number(lat);
-    const lngNumber = Number(lng);
-
-    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ message: 'lat и lng должны быть числами' });
-    }
-
-    const seasonCode = normalizeSeasonCode(code);
-    if (!seasonCode) {
-      return res.status(400).json({ message: 'Некорректный код сезона' });
-    }
-
-    const limitNumber = Number(limit);
-    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
-    const offsetNumber = Number(offset);
-    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
-
-    const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
-
-    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
-
-    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
-
-    const itemsWithDistance = projectAdsWithinRadius(ads, {
-      latNumber,
-      lngNumber,
-      radiusKm: finalRadiusKm,
-    });
-
-    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-
-    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
-
-    return res.json({ items: finalItems });
-  } catch (error) {
-    next(error);
-  }
-});
-
 // GET /api/ads/nearby
 router.get('/nearby', async (req, res) => {
   try {
@@ -1092,6 +877,13 @@ router.post('/:id/live-spot', async (req, res, next) => {
       await notifySubscribers(
         ad._id,
         `Цена объявления "${after.title}" изменилась: ${before.price} → ${after.price}`
+      );
+    }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
       );
     }
 
