@@ -60,6 +60,12 @@ const adSchema = new mongoose.Schema(
       default: 'active',
       index: true,
     },
+    moderationStatus: {
+      type: String,
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'approved',
+      index: true,
+    },
     deliveryOptions: [{
       type: String,
       enum: ['pickup', 'delivery', 'shipping'],
@@ -96,6 +102,21 @@ const adSchema = new mongoose.Schema(
     timestamps: true,
   }
 );
+
+adSchema.pre('validate', function (next) {
+  if (
+    this.location &&
+    typeof this.location.lat === 'number' &&
+    typeof this.location.lng === 'number'
+  ) {
+    this.location = {
+      type: 'Point',
+      coordinates: [this.location.lng, this.location.lat],
+    };
+  }
+
+  next();
+});
 
 // Автоматический расчет validUntil при создании
 adSchema.pre('save', function (next) {
