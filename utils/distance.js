@@ -28,3 +28,10 @@ function getDistanceKm(lat1, lng1, lat2, lng2) {
 }
 
 module.exports = { getDistanceKm };
+
+  return EARTH_RADIUS_KM * c;
+}
+
+module.exports = {
+  getDistanceKm,
+};
