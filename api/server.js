@@ -20,6 +20,7 @@ app.get('/', (_req, res) => {
       seasons: '/api/seasons',
       ads: '/api/ads',
       orders: '/api/orders',
+      favorites: '/api/favorites',
       health: '/health',
     },
   });
