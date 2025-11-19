@@ -522,6 +522,92 @@ bot.action(/sell_subcat:(.+)/, async (ctx) => {
   }
 });
 
+// Обработка текстовых сообщений в процессе /sell
+bot.on("text", async (ctx) => {
+  if (!ctx.session || !ctx.session.sell) {
+    // нет активного мастера — игнорируем, пусть другие хендлеры сработают
+    return;
+  }
+
+  const sell = ctx.session.sell;
+  const text = ctx.message.text.trim();
+
+  // Шаг: заголовок
+  if (sell.step === "title") {
+    sell.data.title = text;
+    sell.step = "description";
+
+    await ctx.reply(
+      "📝 Шаг 4/5 — введи описание объявления.\n" +
+      "Например: «Домашняя малина, собираю каждое утро, без химии»."
+    );
+    return;
+  }
+
+  // Шаг: описание
+  if (sell.step === "description") {
+    sell.data.description = text;
+    sell.step = "price";
+
+    await ctx.reply(
+      "💰 Шаг 5/5 — введи цену (только число).\n" +
+      "Например: 10"
+    );
+    return;
+  }
+
+  // Шаг: цена
+  if (sell.step === "price") {
+    const priceNumber = Number(text.replace(",", "."));
+    if (Number.isNaN(priceNumber) || priceNumber <= 0) {
+      await ctx.reply("Цена должна быть положительным числом. Попробуй ещё раз, например: 10");
+      return;
+    }
+
+    sell.data.price = priceNumber;
+
+    // формируем payload
+    const payload = {
+      title: sell.data.title,
+      description: sell.data.description,
+      categoryId: sell.data.categoryId,
+      subcategoryId: sell.data.subcategoryId,
+      price: sell.data.price,
+      currency: "BYN",
+      attributes: {},
+      photos: [],
+      sellerTelegramId: ctx.from.id,
+      deliveryType: "pickup_only",
+      deliveryRadiusKm: null,
+      location: null,
+      seasonCode: null,
+      lifetimeDays: 7,
+    };
+
+    try {
+      const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
+      const res = await axios.post(`${API_BASE_URL}/api/ads`, payload);
+      const ad = res.data;
+
+      // очищаем мастер
+      ctx.session.sell = null;
+
+      await ctx.reply(
+        "✅ Объявление создано!\n\n" +
+        `Заголовок: ${ad.title}\n` +
+        `Цена: ${ad.price} ${ad.currency || "BYN"}\n\n` +
+        "Посмотреть свои объявления: /my_ads"
+      );
+    } catch (err) {
+      console.error("Ошибка при создании объявления через /sell:", err.response?.data || err.message);
+      ctx.session.sell = null;
+      await ctx.reply("⚠️ Произошла ошибка при создании объявления. Попробуй позже.");
+    }
+
+    return;
+  }
+});
+
 // Обработка callback кнопок
 bot.on('callback_query', async (ctx) => {
   const data = ctx.callbackQuery.data;
