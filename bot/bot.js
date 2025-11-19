@@ -48,6 +48,149 @@ function formatAdDetails(ad) {
   );
 }
 
+function truncateText(text, maxLength = 160) {
+  if (!text) {
+    return '';
+  }
+
+  if (text.length <= maxLength) {
+    return text;
+  }
+
+  return `${text.slice(0, maxLength - 1)}…`;
+}
+
+const MARKET_PAGE_SIZE = 5;
+
+async function fetchCategoriesTree() {
+  const response = await axios.get(`${API_URL}/api/categories`);
+  return response.data;
+}
+
+function buildMarketCategoryKeyboard(categories) {
+  return categories.map((category) => [
+    Markup.button.callback(category.name, `market_cat:${category.slug}`),
+  ]);
+}
+
+function buildMarketSubcategoryKeyboard(category) {
+  const keyboard = [
+    [Markup.button.callback('Все подкатегории', 'market_subcat:__all__')],
+  ];
+
+  (category.subcategories || []).forEach((sub) => {
+    keyboard.push([
+      Markup.button.callback(sub.name, `market_subcat:${sub.slug}`),
+    ]);
+  });
+
+  return keyboard;
+}
+
+function buildMarketAdsMessage(ads, marketData) {
+  const categoryLabel = marketData.categoryName || marketData.categoryId || '—';
+  const subcategoryLabel = marketData.subcategoryId
+    ? (marketData.subcategoryName || marketData.subcategoryId)
+    : 'Все подкатегории';
+
+  const headerLines = [
+    '🛒 Лента объявлений',
+    `Категория: ${categoryLabel}`,
+  ];
+
+  if (marketData.categoryId) {
+    headerLines.push(`Подкатегория: ${subcategoryLabel}`);
+  }
+
+  headerLines.push(`Страница: ${marketData.page + 1}`);
+
+  if (!ads.length) {
+    return `${headerLines.join('\n')}\n\nВ этой категории пока нет активных объявлений.`;
+  }
+
+  const startIndex = marketData.page * MARKET_PAGE_SIZE + 1;
+  const blocks = ads.map((ad, index) => {
+    const shortId = ad._id ? String(ad._id).slice(-6) : '—';
+    const price = `${ad.price} ${ad.currency || 'BYN'}`;
+    const description = truncateText(ad.description || 'Без описания', 160);
+
+    return (
+      `${startIndex + index}. ${ad.title}\n` +
+      `   Цена: ${price}\n` +
+      `   Описание: ${description}\n` +
+      `   ID: ${shortId}`
+    );
+  });
+
+  return `${headerLines.join('\n')}\n\n${blocks.join('\n\n')}`;
+}
+
+async function fetchMarketAdsList(marketData) {
+  if (!marketData.categoryId) {
+    throw new Error('Не выбрана категория для показа объявлений');
+  }
+
+  const params = {
+    categoryId: marketData.categoryId,
+    limit: MARKET_PAGE_SIZE,
+    offset: (marketData.page || 0) * MARKET_PAGE_SIZE,
+  };
+
+  if (marketData.subcategoryId) {
+    params.subcategoryId = marketData.subcategoryId;
+  }
+
+  const response = await axios.get(`${API_URL}/api/ads`, { params });
+  return response.data.items || [];
+}
+
+async function renderMarketAds(ctx, presetAds) {
+  const marketSession = ctx.session?.market;
+  if (!marketSession) {
+    throw new Error('Сессия /market не найдена');
+  }
+
+  const ads = Array.isArray(presetAds) ? presetAds : await fetchMarketAdsList(marketSession.data);
+  const message = buildMarketAdsMessage(ads, marketSession.data);
+
+  const keyboard = [
+    [
+      Markup.button.callback('⬅️ Назад', 'market_back'),
+      Markup.button.callback('🔄 Ещё', 'market_more'),
+    ],
+  ];
+
+  await ctx.editMessageText(message, {
+    reply_markup: { inline_keyboard: keyboard },
+  });
+
+  return ads.length;
+}
+
+async function renderMarketCategories(ctx, { edit = false } = {}) {
+  const marketSession = ctx.session?.market;
+  if (!marketSession?.categories?.length) {
+    throw new Error('Категории не найдены для /market');
+  }
+
+  const keyboard = buildMarketCategoryKeyboard(marketSession.categories);
+  const text = '🛒 Выбор категории для просмотра объявлений:\nВыберите раздел:';
+
+  if (edit) {
+    await ctx.editMessageText(text, { reply_markup: { inline_keyboard: keyboard } });
+  } else {
+    await ctx.reply(text, { reply_markup: { inline_keyboard: keyboard } });
+  }
+}
+
+async function renderMarketSubcategories(ctx, category) {
+  const keyboard = buildMarketSubcategoryKeyboard(category);
+  await ctx.editMessageText(
+    `Категория: ${category.name}\n\nВыбери подкатегорию:`,
+    { reply_markup: { inline_keyboard: keyboard } }
+  );
+}
+
 // Хелпер для получения активных сезонов
 async function getActiveSeason() {
   try {
@@ -80,6 +223,7 @@ bot.command('start', async (ctx) => {
     `/sell - 🏪 Создать объявление\n` +
     `/my_ads - 📋 Мои объявления\n` +
     `/catalog - 📦 Каталог объявлений\n` +
+    `/market - 🛒 Лента объявлений для покупателей\n` +
     `/season - 🌟 Сезонные предложения\n` +
     `/categories - 📂 Категории товаров\n` +
     `/search <запрос> - 🔍 Поиск объявлений\n` +
@@ -106,19 +250,19 @@ bot.command('myid', async (ctx) => {
 bot.command('categories', async (ctx) => {
   try {
     const response = await fetch(`${API_URL}/api/categories`);
-    
+
     if (!response.ok) {
       throw new Error('Ошибка получения категорий');
     }
-    
+
     const categories = await response.json();
-    
+
     if (categories.length === 0) {
       return ctx.reply('📂 Категории пока не добавлены.\n\nВыполните `npm run seed` для заполнения базы данных.');
     }
-    
+
     let message = '📂 **Доступные категории:**\n\n';
-    
+
     categories.forEach((cat) => {
       message += `📁 **${cat.name}** (${cat.slug})\n`;
       if (cat.subcategories && cat.subcategories.length > 0) {
@@ -128,11 +272,246 @@ bot.command('categories', async (ctx) => {
       }
       message += '\n';
     });
-    
+
     await ctx.reply(message, { parse_mode: 'Markdown' });
   } catch (error) {
     console.error('Ошибка в /categories:', error);
     await ctx.reply('❌ Произошла ошибка при загрузке категорий.');
+  }
+});
+
+// /market - лента объявлений для покупателей
+bot.command('market', async (ctx) => {
+  try {
+    const categories = await fetchCategoriesTree();
+
+    if (!categories.length) {
+      return ctx.reply('Категории пока не настроены. Попробуйте позже.');
+    }
+
+    ctx.session.market = {
+      step: 'choose_category',
+      categories,
+      data: {
+        categoryId: null,
+        categoryName: null,
+        subcategoryId: null,
+        subcategoryName: null,
+        page: 0,
+      },
+    };
+
+    await renderMarketCategories(ctx, { edit: false });
+  } catch (error) {
+    console.error('Ошибка в /market:', error);
+    await ctx.reply('❌ Не удалось загрузить ленту объявлений. Попробуйте позже.');
+  }
+});
+
+bot.action(/market_cat:(.+)/, async (ctx) => {
+  try {
+    const slug = ctx.match[1];
+    const marketSession = ctx.session?.market;
+
+    if (!marketSession?.categories) {
+      await ctx.answerCbQuery('Сначала запустите /market', { show_alert: true });
+      return;
+    }
+
+    const category = marketSession.categories.find((cat) => cat.slug === slug);
+    if (!category) {
+      await ctx.answerCbQuery('Категория не найдена. Обновите список через /market', { show_alert: true });
+      return;
+    }
+
+    marketSession.data.categoryId = category.slug;
+    marketSession.data.categoryName = category.name;
+    marketSession.data.subcategoryId = null;
+    marketSession.data.subcategoryName = null;
+    marketSession.data.page = 0;
+
+    if (!category.subcategories || !category.subcategories.length) {
+      marketSession.step = 'list_ads';
+      await ctx.answerCbQuery(`Категория: ${category.name}`);
+      await renderMarketAds(ctx);
+      return;
+    }
+
+    marketSession.step = 'choose_subcategory';
+    await ctx.answerCbQuery(`Категория: ${category.name}`);
+    await renderMarketSubcategories(ctx, category);
+  } catch (error) {
+    console.error('Ошибка обработки market_cat:', error);
+    await ctx.answerCbQuery('Не удалось выбрать категорию', { show_alert: true });
+  }
+});
+
+bot.action(/market_subcat:(.+)/, async (ctx) => {
+  try {
+    const slug = ctx.match[1];
+    const marketSession = ctx.session?.market;
+
+    if (!marketSession?.data?.categoryId) {
+      await ctx.answerCbQuery('Сначала выберите категорию через /market', { show_alert: true });
+      return;
+    }
+
+    const category = (marketSession.categories || []).find(
+      (cat) => cat.slug === marketSession.data.categoryId,
+    );
+
+    if (!category) {
+      await ctx.answerCbQuery('Категория недоступна. Обновите список через /market', { show_alert: true });
+      return;
+    }
+
+    if (slug === '__all__') {
+      marketSession.data.subcategoryId = null;
+      marketSession.data.subcategoryName = null;
+    } else {
+      const subcategory = (category.subcategories || []).find((sub) => sub.slug === slug);
+      if (!subcategory) {
+        await ctx.answerCbQuery('Подкатегория не найдена', { show_alert: true });
+        return;
+      }
+      marketSession.data.subcategoryId = subcategory.slug;
+      marketSession.data.subcategoryName = subcategory.name;
+    }
+
+    marketSession.data.page = 0;
+    marketSession.step = 'list_ads';
+
+    await ctx.answerCbQuery('Показываю объявления…');
+    await renderMarketAds(ctx);
+  } catch (error) {
+    console.error('Ошибка обработки market_subcat:', error);
+    await ctx.answerCbQuery('Не удалось выбрать подкатегорию', { show_alert: true });
+  }
+});
+
+bot.action('market_more', async (ctx) => {
+  try {
+    const marketSession = ctx.session?.market;
+
+    if (!marketSession || marketSession.step !== 'list_ads') {
+      await ctx.answerCbQuery('Сначала выберите категорию через /market', { show_alert: true });
+      return;
+    }
+
+    marketSession.data.page += 1;
+    const ads = await fetchMarketAdsList(marketSession.data);
+
+    if (!ads.length) {
+      marketSession.data.page = Math.max(0, marketSession.data.page - 1);
+      await ctx.answerCbQuery('Больше объявлений нет', { show_alert: true });
+      return;
+    }
+
+    await ctx.answerCbQuery('Загружаю ещё объявления…');
+    await renderMarketAds(ctx, ads);
+  } catch (error) {
+    console.error('Ошибка обработки market_more:', error);
+    await ctx.answerCbQuery('Не удалось загрузить ещё объявления', { show_alert: true });
+  }
+});
+
+bot.action('market_back', async (ctx) => {
+  try {
+    const marketSession = ctx.session?.market;
+
+    if (!marketSession) {
+      await ctx.answerCbQuery('Сначала запустите /market', { show_alert: true });
+      return;
+    }
+
+    const category = (marketSession.categories || []).find(
+      (cat) => cat.slug === marketSession.data?.categoryId,
+    );
+
+    if (marketSession.data?.subcategoryId && category) {
+      marketSession.step = 'choose_subcategory';
+      marketSession.data.subcategoryId = null;
+      marketSession.data.subcategoryName = null;
+      marketSession.data.page = 0;
+
+      await ctx.answerCbQuery('Выберите подкатегорию');
+      await renderMarketSubcategories(ctx, category);
+      return;
+    }
+
+    marketSession.step = 'choose_category';
+    marketSession.data = {
+      categoryId: null,
+      categoryName: null,
+      subcategoryId: null,
+      subcategoryName: null,
+      page: 0,
+    };
+
+    await ctx.answerCbQuery('Выберите категорию');
+    await renderMarketCategories(ctx, { edit: true });
+  } catch (error) {
+    console.error('Ошибка обработки market_back:', error);
+    await ctx.answerCbQuery('Не удалось вернуться назад', { show_alert: true });
+  }
+});
+
+bot.action(/order_(.+)/, async (ctx) => {
+  try {
+    const adId = ctx.match[1];
+
+    if (ctx.session?.sell) {
+      await ctx.answerCbQuery('Заверши создание объявления или отправь /cancel', { show_alert: true });
+      return;
+    }
+
+    await ctx.answerCbQuery('🛒 Оформление заказа');
+    const ad = await fetchAdDetails(adId);
+
+    ctx.session.orderFlow = {
+      step: 'quantity',
+      ad: {
+        id: ad._id,
+        title: ad.title,
+        price: ad.price,
+        currency: ad.currency || 'BYN',
+        seasonCode: ad.seasonCode || null,
+      },
+    };
+
+    await ctx.reply(
+      `🛒 Вы выбрали *${ad.title}* за ${ad.price} ${ad.currency || 'BYN'}.\n\n` +
+        'Введите количество (1–50). Для отмены используйте /cancel.',
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error) {
+    console.error('Ошибка запуска оформления заказа:', error);
+    await ctx.answerCbQuery('Не удалось начать оформление', { show_alert: true });
+  }
+});
+
+bot.action(/view_(.+)/, async (ctx) => {
+  try {
+    const adId = ctx.match[1];
+    await ctx.answerCbQuery('Загружаю детали...');
+    const ad = await fetchAdDetails(adId);
+    const message = formatAdDetails(ad);
+    const keyboard = Markup.inlineKeyboard([
+      [Markup.button.callback('🛒 Заказать', `order_${ad._id}`)],
+    ]);
+
+    if (ad.photos && ad.photos.length > 0) {
+      await ctx.replyWithPhoto(ad.photos[0], {
+        caption: message,
+        parse_mode: 'Markdown',
+        ...keyboard,
+      });
+    } else {
+      await ctx.reply(message, { parse_mode: 'Markdown', ...keyboard });
+    }
+  } catch (error) {
+    console.error('Ошибка просмотра объявления:', error);
+    await ctx.answerCbQuery('Не удалось показать объявление', { show_alert: true });
   }
 });
 
@@ -622,12 +1001,59 @@ bot.on("text", async (ctx) => {
   const normalized = text.toLowerCase();
   const hasSellFlow = Boolean(ctx.session?.sell);
   const hasOrderFlow = Boolean(ctx.session?.orderFlow);
+  const hasMarketFlow = Boolean(ctx.session?.market);
+
+  const isCancelCommand = normalized === "/cancel" || normalized === "отмена";
+
+  if (!hasSellFlow && !hasOrderFlow && !(hasMarketFlow && isCancelCommand)) {
 
   if (!hasSellFlow && !hasOrderFlow) {
     // нет активного мастера — игнорируем, пусть другие хендлеры сработают
     return;
   }
 
+  if (isCancelCommand) {
+    const wasSell = Boolean(ctx.session?.sell);
+    const wasOrder = Boolean(ctx.session?.orderFlow);
+    const wasMarket = Boolean(ctx.session?.market);
+    ctx.session.sell = null;
+    ctx.session.orderFlow = null;
+    ctx.session.market = null;
+
+    if (wasSell || wasOrder || wasMarket) {
+      await ctx.reply("Диалог отменён. Можно начать заново в любое время.");
+      return;
+    }
+  }
+
+  // Позволяем другим командам Telegraf обрабатывать сообщения, кроме /cancel
+  if (text.startsWith("/") && !isCancelCommand) {
+    return;
+  }
+
+  if (hasSellFlow) {
+    const sell = ctx.session.sell;
+
+    // Шаг: заголовок
+    if (sell.step === "title") {
+      sell.data.title = text;
+      sell.step = "description";
+
+      await ctx.reply(
+        "📝 Шаг 4/5 — введи описание объявления.\n" +
+        "Например: «Домашняя малина, собираю каждое утро, без химии»."
+      );
+      return;
+    }
+
+    // Шаг: описание
+    if (sell.step === "description") {
+      sell.data.description = text;
+      sell.step = "price";
+
+      await ctx.reply(
+        "💰 Шаг 5/5 — введи цену (только число).\n" +
+        "Например: 10"
   const isCancelCommand = normalized === "/cancel" || normalized === "отмена";
 
   if (isCancelCommand) {
@@ -661,6 +1087,34 @@ bot.on("text", async (ctx) => {
       );
       return;
     }
+
+    // Шаг: цена
+    if (sell.step === "price") {
+      const priceNumber = Number(text.replace(",", "."));
+      if (Number.isNaN(priceNumber) || priceNumber <= 0) {
+        await ctx.reply("Цена должна быть положительным числом. Попробуй ещё раз, например: 10");
+        return;
+      }
+
+      sell.data.price = priceNumber;
+
+      // формируем payload
+      const payload = {
+        title: sell.data.title,
+        description: sell.data.description,
+        categoryId: sell.data.categoryId,
+        subcategoryId: sell.data.subcategoryId,
+        price: sell.data.price,
+        currency: "BYN",
+        attributes: {},
+        photos: [],
+        sellerTelegramId: ctx.from.id,
+        deliveryType: "pickup_only",
+        deliveryRadiusKm: null,
+        location: null,
+        seasonCode: null,
+        lifetimeDays: 7,
+      };
 
     // Шаг: описание
     if (sell.step === "description") {
@@ -730,6 +1184,30 @@ bot.on("text", async (ctx) => {
     const orderFlow = ctx.session.orderFlow;
     const API_BASE_URL = API_URL;
 
+
+        // очищаем мастер
+        ctx.session.sell = null;
+
+        await ctx.reply(
+          "✅ Объявление создано!\n\n" +
+          `Заголовок: ${ad.title}\n` +
+          `Цена: ${ad.price} ${ad.currency || "BYN"}\n\n` +
+          "Посмотреть свои объявления: /my_ads"
+        );
+      } catch (err) {
+        console.error("Ошибка при создании объявления через /sell:", err.response?.data || err.message);
+        ctx.session.sell = null;
+        await ctx.reply("⚠️ Произошла ошибка при создании объявления. Попробуй позже.");
+      }
+
+      return;
+    }
+  }
+
+  if (hasOrderFlow) {
+    const orderFlow = ctx.session.orderFlow;
+    const API_BASE_URL = API_URL;
+
     if (orderFlow.step === "quantity") {
       const quantity = parseInt(text, 10);
 
@@ -749,6 +1227,58 @@ bot.on("text", async (ctx) => {
 
     if (orderFlow.step === "comment") {
       const comment = normalized === "-" || normalized === "нет" ? "" : text;
+
+      const payload = {
+        buyerTelegramId: ctx.from.id,
+        buyerName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ") || undefined,
+        buyerUsername: ctx.from.username || undefined,
+        items: [
+          {
+            adId: orderFlow.ad.id,
+            quantity: orderFlow.quantity,
+          },
+        ],
+        comment: comment || undefined,
+        seasonCode: orderFlow.ad.seasonCode || undefined,
+      };
+
+      try {
+        await ctx.reply("⏳ Создаю заказ...");
+        const response = await fetch(`${API_BASE_URL}/api/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || "Не удалось создать заказ");
+        }
+
+        const order = await response.json();
+        const item = order.items[0];
+        const currency = item?.currency || "BYN";
+
+        ctx.session.orderFlow = null;
+
+        await ctx.reply(
+          `🧾 Заказ оформлен!\n\n` +
+            `Товар: ${item.title} × ${item.quantity}\n` +
+            `Итого: ${order.totalPrice} ${currency}\n` +
+            `Статус: ${order.status}\n\n` +
+            `Отслеживать: /myorders`,
+          { parse_mode: "Markdown" }
+        );
+      } catch (error) {
+        console.error("Ошибка оформления заказа:", error);
+        ctx.session.orderFlow = null;
+        await ctx.reply(
+          "⚠️ Не удалось оформить заказ. Попробуй позже или свяжись с продавцом напрямую."
+        );
+      }
+
+      return;
+    }
 
       const payload = {
         buyerTelegramId: ctx.from.id,
@@ -868,6 +1398,7 @@ bot.on('callback_query', async (ctx) => {
     await ctx.answerCbQuery();
   }
 });
+
 
 // Обработка ошибок
 bot.catch((err, ctx) => {

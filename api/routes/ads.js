@@ -5,32 +5,67 @@ const router = Router();
 
 router.get('/', async (req, res, next) => {
   try {
-    const { limit, categoryId, subcategoryId, seasonCode, sellerTelegramId } = req.query;
-    
+    const {
+      categoryId,
+      subcategoryId,
+      seasonCode,
+      sellerTelegramId,
+      limit = 20,
+      offset = 0,
+      q,
+      minPrice,
+      maxPrice,
+      sort = 'newest',
+    } = req.query;
+
     const query = { status: 'active' };
-    
-    if (categoryId) {
-      query.categoryId = categoryId;
+
+    if (categoryId) query.categoryId = categoryId;
+    if (subcategoryId) query.subcategoryId = subcategoryId;
+    if (seasonCode) query.seasonCode = seasonCode;
+
+    if (sellerTelegramId !== undefined) {
+      const sellerIdNumber = Number(sellerTelegramId);
+      if (!Number.isNaN(sellerIdNumber)) {
+        query.sellerTelegramId = sellerIdNumber;
+      }
     }
-    
-    if (subcategoryId) {
-      query.subcategoryId = subcategoryId;
+
+    if (q) {
+      const regex = new RegExp(q, 'i');
+      query.$or = [{ title: regex }, { description: regex }];
     }
-    
-    if (seasonCode) {
-      query.seasonCode = seasonCode;
+
+    if (minPrice !== undefined) {
+      const minPriceNumber = Number(minPrice);
+      if (!Number.isNaN(minPriceNumber)) {
+        query.price = { ...(query.price || {}), $gte: minPriceNumber };
+      }
     }
-    
-    if (sellerTelegramId) {
-      query.sellerTelegramId = parseInt(sellerTelegramId, 10);
+
+    if (maxPrice !== undefined) {
+      const maxPriceNumber = Number(maxPrice);
+      if (!Number.isNaN(maxPriceNumber)) {
+        query.price = { ...(query.price || {}), $lte: maxPriceNumber };
+      }
     }
-    
-    const parsedLimit = limit ? parseInt(limit, 10) : 50;
-    
+
+    let sortObj = { createdAt: -1 };
+    if (sort === 'cheapest') {
+      sortObj = { price: 1 };
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
     const items = await Ad.find(query)
-      .sort({ createdAt: -1 })
-      .limit(parsedLimit);
-    
+      .sort(sortObj)
+      .skip(finalOffset)
+      .limit(finalLimit);
+
     res.json({ items });
   } catch (error) {
     next(error);
