@@ -575,41 +575,6 @@ router.post('/:id/live-spot', async (req, res, next) => {
   }
 });
 
-router.post('/:id/live-spot', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { isLiveSpot, sellerTelegramId } = req.body || {};
-
-    if (typeof isLiveSpot !== 'boolean') {
-      return res.status(400).json({ message: 'Поле isLiveSpot обязательно и должно быть boolean' });
-    }
-
-    const sellerIdNumber = Number(sellerTelegramId);
-    if (!Number.isFinite(sellerIdNumber)) {
-      return res
-        .status(400)
-        .json({ message: 'Необходимо указать корректный sellerTelegramId для проверки прав' });
-    }
-
-    const ad = await Ad.findById(id);
-
-    if (!ad) {
-      return res.status(404).json({ message: 'Объявление не найдено' });
-    }
-
-    if (ad.sellerTelegramId !== sellerIdNumber) {
-      return res.status(403).json({ message: 'Вы не можете изменять live-spot для этого объявления' });
-    }
-
-    ad.isLiveSpot = isLiveSpot;
-    await ad.save();
-
-    res.json(ad);
-  } catch (error) {
-    next(error);
-  }
-});
-
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
