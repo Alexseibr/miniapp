@@ -9,12 +9,111 @@ const SEASON_SHORT_LIFETIME = {
   march8_tulips: 3,
 };
 
+const CATEGORY_LIFETIME_RULES = {
+  berries: 3,
+  berries_fresh: 3,
+  flowers: 3,
+  flowers_tulips: 3,
+  tulips_single: 3,
+  tulips_bouquets: 3,
+  farm: 3,
+  craft: 7,
+  cakes: 7,
+  bakery: 7,
+  eclairs: 7,
+  artisans: 7,
+  services: 14,
+  service: 14,
+  real_estate: 30,
+  apartments: 30,
+  housing: 30,
+  auto: 30,
+  cars: 30,
+};
+
+const DEFAULT_EXTENSION_DAYS = 7;
+
 function normalizeSeasonCode(code) {
   if (typeof code !== 'string') {
     return undefined;
   }
 
   return code.trim().toLowerCase();
+}
+
+function parseSellerId(raw) {
+  const sellerId = Number(raw);
+  if (!Number.isFinite(sellerId) || sellerId <= 0) {
+    return null;
+  }
+
+  return sellerId;
+}
+
+function getSellerIdFromRequest(req) {
+  return (
+    parseSellerId(req?.body?.sellerTelegramId) ||
+    parseSellerId(req?.query?.sellerTelegramId)
+  );
+}
+
+async function findAdOwnedBySeller(adId, sellerId) {
+  const ad = await Ad.findById(adId);
+
+  if (!ad) {
+    const error = new Error('Объявление не найдено');
+    error.status = 404;
+    throw error;
+  }
+
+  if (ad.sellerTelegramId !== sellerId) {
+    const error = new Error('Недостаточно прав для управления этим объявлением');
+    error.status = 403;
+    throw error;
+  }
+
+  return ad;
+}
+
+function resolveExtensionDays(ad) {
+  const subKey = ad?.subcategoryId ? ad.subcategoryId.toLowerCase() : null;
+  if (subKey && CATEGORY_LIFETIME_RULES[subKey]) {
+    return CATEGORY_LIFETIME_RULES[subKey];
+  }
+
+  const catKey = ad?.categoryId ? ad.categoryId.toLowerCase() : null;
+  if (catKey && CATEGORY_LIFETIME_RULES[catKey]) {
+    return CATEGORY_LIFETIME_RULES[catKey];
+  }
+
+  if (ad?.seasonCode) {
+    const normalizedSeason = normalizeSeasonCode(ad.seasonCode);
+    if (normalizedSeason && SEASON_SHORT_LIFETIME[normalizedSeason]) {
+      return SEASON_SHORT_LIFETIME[normalizedSeason];
+    }
+  }
+
+  if (Number.isFinite(ad?.lifetimeDays) && ad.lifetimeDays > 0) {
+    return ad.lifetimeDays;
+  }
+
+  return DEFAULT_EXTENSION_DAYS;
+}
+
+function extendAdLifetime(ad, extensionDays) {
+  const now = new Date();
+  const base = ad.validUntil && ad.validUntil > now ? new Date(ad.validUntil) : now;
+  const extended = new Date(base);
+  extended.setDate(extended.getDate() + extensionDays);
+
+  ad.validUntil = extended;
+  ad.lifetimeDays = extensionDays;
+}
+
+async function applyLiveSpotStatus(ad, isLiveSpot) {
+  ad.isLiveSpot = Boolean(isLiveSpot);
+  await ad.save();
+  return ad;
 }
 
 function extractAdCoordinates(ad) {
@@ -415,6 +514,231 @@ router.get('/season/:code/live', async (req, res, next) => {
   }
 });
 
+router.get('/my', async (req, res, next) => {
+  try {
+    const sellerId = parseSellerId(req.query?.sellerTelegramId);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId query parameter is required' });
+    }
+
+    const limitNumber = Number(req.query?.limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 50;
+
+    const ads = await Ad.find({ sellerTelegramId: sellerId })
+      .sort({ createdAt: -1 })
+      .limit(finalLimit);
+
+    return res.json({ items: ads });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/:id/price', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const newPrice = Number(req.body?.price);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (!Number.isFinite(newPrice) || newPrice <= 0) {
+      return res.status(400).json({ message: 'price must be a positive number' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    ad.price = newPrice;
+    await ad.save();
+
+    return res.json({ item: ad });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.patch('/:id/photos', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const photos = req.body?.photos;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (!Array.isArray(photos)) {
+      return res.status(400).json({ message: 'photos must be an array' });
+    }
+
+    const sanitized = photos
+      .map((photo) => (typeof photo === 'string' ? photo.trim() : ''))
+      .filter(Boolean);
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    ad.photos = sanitized;
+    await ad.save();
+
+    return res.json({ item: ad, photosCount: sanitized.length });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/extend', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    const extensionDays = resolveExtensionDays(ad);
+    extendAdLifetime(ad, extensionDays);
+    await ad.save();
+
+    return res.json({ item: ad, extendedByDays: extensionDays, validUntil: ad.validUntil });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/liveSpot/on', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    await applyLiveSpotStatus(ad, true);
+
+    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/liveSpot/off', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    await applyLiveSpotStatus(ad, false);
+
+    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.get('/season/:code/live', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ message: 'lat и lng должны быть числами' });
+    }
+
+    const seasonCode = normalizeSeasonCode(code);
+    if (!seasonCode) {
+      return res.status(400).json({ message: 'Некорректный код сезона' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+
+    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const itemsWithDistance = projectAdsWithinRadius(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: finalRadiusKm,
+    });
+
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/season/:code/live', async (req, res, next) => {
   try {
     const { code } = req.params;
@@ -707,6 +1031,13 @@ router.post('/:id/live-spot', async (req, res, next) => {
       );
     }
 
+    if (ad.sellerTelegramId !== sellerIdNumber) {
+      return res.status(403).json({ message: 'Вы не можете изменять live-spot для этого объявления' });
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
+
     res.json(ad);
   } catch (error) {
     console.error('PATCH /api/ads/:id error:', error);
@@ -717,33 +1048,23 @@ router.post('/:id/live-spot', async (req, res, next) => {
 router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { isLiveSpot, sellerTelegramId } = req.body || {};
+    const { isLiveSpot } = req.body || {};
+    const sellerId = getSellerIdFromRequest(req);
 
     if (typeof isLiveSpot !== 'boolean') {
       return res.status(400).json({ message: 'Поле isLiveSpot обязательно и должно быть boolean' });
     }
 
-    const sellerIdNumber = Number(sellerTelegramId);
-    if (!Number.isFinite(sellerIdNumber)) {
+    if (!sellerId) {
       return res
         .status(400)
         .json({ message: 'Необходимо указать корректный sellerTelegramId для проверки прав' });
     }
 
-    const ad = await Ad.findById(id);
+    const ad = await findAdOwnedBySeller(id, sellerId);
+    await applyLiveSpotStatus(ad, isLiveSpot);
 
-    if (!ad) {
-      return res.status(404).json({ message: 'Объявление не найдено' });
-    }
-
-    if (ad.sellerTelegramId !== sellerIdNumber) {
-      return res.status(403).json({ message: 'Вы не можете изменять live-spot для этого объявления' });
-    }
-
-    ad.isLiveSpot = isLiveSpot;
-    await ad.save();
-
-    res.json(ad);
+    res.json({ item: ad });
   } catch (error) {
     next(error);
   }
