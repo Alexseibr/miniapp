@@ -1,9 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../../models/User');
+const mongoose = require('mongoose');
 const Ad = require('../../models/Ad');
+const Favorite = require('../../models/Favorite');
 
-function normalizeTelegramId(value) {
+function parseTelegramId(value) {
   const id = Number(value);
   if (!Number.isFinite(id) || id <= 0) {
     return null;
@@ -11,88 +12,98 @@ function normalizeTelegramId(value) {
   return id;
 }
 
-async function ensureUserExists(telegramId) {
-  return User.findOne({ telegramId });
+function formatFavorite(favorite) {
+  return {
+    ad: favorite.adId || null,
+    lastKnownPrice: favorite.lastKnownPrice ?? null,
+    lastKnownStatus: favorite.lastKnownStatus ?? null,
+    createdAt: favorite.createdAt,
+    updatedAt: favorite.updatedAt,
+  };
 }
 
-router.get('/my', async (req, res) => {
+// GET /api/favorites?userTelegramId=123
+router.get('/', async (req, res) => {
   try {
-    const telegramId = normalizeTelegramId(req.query.telegramId);
+    const userTelegramId = parseTelegramId(req.query.userTelegramId);
 
-    if (!telegramId) {
-      return res.status(400).json({ error: 'telegramId query parameter is required' });
+    if (!userTelegramId) {
+      return res.status(400).json({ error: 'userTelegramId query parameter is required' });
     }
 
-    const user = await User.findOne({ telegramId }).populate('favorites');
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const favorites = await Favorite.find({ userTelegramId })
+      .sort({ createdAt: -1 })
+      .populate('adId');
 
-    return res.json({ favorites: user.favorites || [] });
+    return res.json({ items: favorites.map(formatFavorite) });
   } catch (error) {
-    console.error('GET /api/favorites/my error:', error);
+    console.error('GET /api/favorites error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.post('/add', async (req, res) => {
+// POST /api/favorites
+router.post('/', async (req, res) => {
   try {
-    const { telegramId: telegramIdRaw, adId } = req.body || {};
-    const telegramId = normalizeTelegramId(telegramIdRaw);
+    const { userTelegramId: telegramRaw, adId } = req.body || {};
+    const userTelegramId = parseTelegramId(telegramRaw);
 
-    if (!telegramId || !adId) {
-      return res.status(400).json({ error: 'telegramId and adId are required' });
+    if (!userTelegramId || !adId || !mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'userTelegramId and valid adId are required' });
     }
 
-    const user = await ensureUserExists(telegramId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const adObjectId = new mongoose.Types.ObjectId(adId);
 
-    const ad = await Ad.findById(adId);
+    const ad = await Ad.findById(adObjectId);
     if (!ad) {
       return res.status(404).json({ error: 'Ad not found' });
     }
 
-    const alreadyExists = (user.favorites || []).some(
-      (favoriteId) => favoriteId && favoriteId.toString() === adId
-    );
+    let favorite = await Favorite.findOne({ userTelegramId, adId: adObjectId });
+    let created = false;
 
-    if (!alreadyExists) {
-      user.favorites.push(ad._id);
-      await user.save();
+    if (!favorite) {
+      favorite = await Favorite.create({
+        userTelegramId,
+        adId: adObjectId,
+        lastKnownPrice: ad.price,
+        lastKnownStatus: ad.status,
+      });
+      created = true;
     }
 
-    res.json({ ok: true, favorites: user.favorites });
+    await favorite.populate('adId');
+
+    return res.status(created ? 201 : 200).json({
+      item: formatFavorite(favorite),
+      created,
+    });
   } catch (error) {
-    console.error('POST /api/favorites/add error:', error);
+    if (error.code === 11000) {
+      return res.status(200).json({ message: 'Already in favorites' });
+    }
+    console.error('POST /api/favorites error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
 
-router.post('/remove', async (req, res) => {
+// DELETE /api/favorites/:adId?userTelegramId=123
+router.delete('/:adId', async (req, res) => {
   try {
-    const { telegramId: telegramIdRaw, adId } = req.body || {};
-    const telegramId = normalizeTelegramId(telegramIdRaw);
+    const userTelegramId = parseTelegramId(req.query.userTelegramId);
+    const { adId } = req.params;
 
-    if (!telegramId || !adId) {
-      return res.status(400).json({ error: 'telegramId and adId are required' });
+    if (!userTelegramId || !adId || !mongoose.Types.ObjectId.isValid(adId)) {
+      return res.status(400).json({ error: 'userTelegramId and valid adId are required' });
     }
 
-    const user = await ensureUserExists(telegramId);
-    if (!user) {
-      return res.status(404).json({ error: 'User not found' });
-    }
+    const adObjectId = new mongoose.Types.ObjectId(adId);
 
-    user.favorites = (user.favorites || []).filter(
-      (favoriteId) => favoriteId && favoriteId.toString() !== adId
-    );
+    const result = await Favorite.deleteOne({ userTelegramId, adId: adObjectId });
 
-    await user.save();
-
-    res.json({ ok: true, favorites: user.favorites });
+    return res.json({ deletedCount: result.deletedCount || 0 });
   } catch (error) {
-    console.error('POST /api/favorites/remove error:', error);
+    console.error('DELETE /api/favorites/:adId error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
