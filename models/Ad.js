@@ -1,4 +1,29 @@
 const mongoose = require('mongoose');
+const NotificationEvent = require('./NotificationEvent');
+
+const LocationSchema = new mongoose.Schema(
+  {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
+  { _id: false }
+);
+
+const GeoPointSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      index: '2dsphere',
+      default: undefined,
+    },
+  },
+  { _id: false }
+);
 
 const adSchema = new mongoose.Schema(
   {
@@ -78,6 +103,16 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    location: LocationSchema,
+    geo: GeoPointSchema,
+    watchers: {
+      type: [
+        {
+          type: Number,
+        },
+      ],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -91,11 +126,93 @@ adSchema.pre('save', function (next) {
     validUntil.setDate(validUntil.getDate() + (this.lifetimeDays || 30));
     this.validUntil = validUntil;
   }
+
+  const hasLocation =
+    this.location &&
+    this.location.lat != null &&
+    this.location.lng != null;
+
+  const hasGeoCoordinates =
+    this.geo &&
+    Array.isArray(this.geo.coordinates) &&
+    this.geo.coordinates.length === 2 &&
+    this.geo.coordinates.every((value) => value != null);
+
+  if (hasLocation && !hasGeoCoordinates) {
+    this.geo = {
+      type: 'Point',
+      coordinates: [this.location.lng, this.location.lat],
+    };
+  }
+
+  if (
+    hasGeoCoordinates &&
+    (!this.location || this.location.lat == null || this.location.lng == null)
+  ) {
+    const [lng, lat] = this.geo.coordinates;
+    this.location = {
+      lat,
+      lng,
+    };
+  }
   next();
+});
+
+adSchema.pre('save', async function (next) {
+  if (this.isNew) {
+    return next();
+  }
+
+  const priceChanged = this.isModified('price');
+  const statusChanged = this.isModified('status');
+
+  if (!priceChanged && !statusChanged) {
+    return next();
+  }
+
+  try {
+    const previous = await this.constructor.findById(this._id).select('price status');
+
+    if (!previous) {
+      return next();
+    }
+
+    const events = [];
+
+    if (priceChanged) {
+      events.push({
+        adId: this._id,
+        type: 'price_change',
+        oldValue: previous.price,
+        newValue: this.price,
+        watchers: Array.isArray(this.watchers) ? this.watchers : [],
+      });
+    }
+
+    if (statusChanged) {
+      events.push({
+        adId: this._id,
+        type: 'status_change',
+        oldValue: previous.status,
+        newValue: this.status,
+        watchers: Array.isArray(this.watchers) ? this.watchers : [],
+      });
+    }
+
+    if (events.length) {
+      await NotificationEvent.insertMany(events);
+    }
+
+    next();
+  } catch (error) {
+    next(error);
+  }
 });
 
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
+adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
+adSchema.index({ geo: '2dsphere' });
 
 module.exports = mongoose.model('Ad', adSchema);
