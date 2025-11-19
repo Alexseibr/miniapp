@@ -1,5 +1,14 @@
 const mongoose = require('mongoose');
 
+const LocationSchema = new mongoose.Schema(
+  {
+    lat: Number,
+    lng: Number,
+    updatedAt: Date,
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     telegramId: {
@@ -49,14 +58,7 @@ const userSchema = new mongoose.Schema(
         default: true,
       },
     },
-    location: {
-      city: String,
-      region: String,
-      coordinates: {
-        lat: Number,
-        lng: Number,
-      },
-    },
+    location: LocationSchema,
     isActive: {
       type: Boolean,
       default: true,
@@ -65,6 +67,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    favorites: [
+      {
+        adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', required: true },
+        notifyOnPrice: { type: Boolean, default: true },
+        notifyOnStatus: { type: Boolean, default: true },
+        addedAt: { type: Date, default: Date.now },
+      },
+    ],
   },
   {
     timestamps: true,
