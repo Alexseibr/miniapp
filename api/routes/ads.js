@@ -658,6 +658,70 @@ router.get('/season/:code/live', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    console.error('POST /api/ads/bulk/extend error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/bulk/hide-expired', async (req, res) => {
+  try {
+    const now = new Date();
+    const historyEntry = {
+      date: now,
+      status: 'expired',
+      moderationStatus: undefined,
+      comment: 'Auto hide expired',
+    };
+
+    const result = await Ad.updateMany(
+      { status: 'active', validUntil: { $lt: now } },
+      {
+        $set: { status: 'expired' },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
+    console.log(`[BULK UPDATE] hide-expired — ${updated} ads updated`);
+
+    return res.json({ updated, status: 'expired' });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/hide-expired error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -1001,7 +1065,7 @@ router.post('/', validateCreateAd, async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -1063,6 +1127,16 @@ router.patch('/:id', async (req, res, next) => {
     } catch (notifyError) {
       console.error('Favorites notification calculation error:', notifyError);
     }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
