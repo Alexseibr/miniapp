@@ -691,7 +691,7 @@ router.post('/', validateCreateAd, async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -744,6 +744,16 @@ router.patch('/:id', async (req, res, next) => {
         `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
       );
     }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
