@@ -4,6 +4,9 @@ const { getDistanceKm } = require('../../utils/distance');
 
 const router = Router();
 
+// Геопоиск:
+// GET /api/ads?lat=52.1&lng=23.7&radiusKm=2
+// GET /api/ads?lat=52.1&lng=23.7&radiusKm=50&categoryId=country_base
 router.get('/', async (req, res, next) => {
   try {
     const {
@@ -254,6 +257,42 @@ router.post('/', async (req, res, next) => {
     });
 
     res.status(201).json(ad);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/live-spot', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, isLiveSpot } = req.body;
+
+    if (typeof isLiveSpot !== 'boolean') {
+      return res.status(400).json({ message: 'isLiveSpot должен быть true/false' });
+    }
+
+    if (sellerTelegramId === undefined) {
+      return res.status(400).json({ message: 'Необходимо указать sellerTelegramId' });
+    }
+
+    const sellerIdNumber = Number(sellerTelegramId);
+    if (!Number.isFinite(sellerIdNumber)) {
+      return res.status(400).json({ message: 'sellerTelegramId должен быть числом' });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
+
+    if (ad.sellerTelegramId !== sellerIdNumber) {
+      return res.status(403).json({ message: 'Можно менять только свои объявления' });
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
+
+    return res.json({ ok: true, ad });
   } catch (error) {
     next(error);
   }
