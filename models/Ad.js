@@ -1,6 +1,32 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 
+const GeoSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
+const LocationSchema = new mongoose.Schema(
+  {
+    lat: { type: Number },
+    lng: { type: Number },
+    city: { type: String, trim: true },
+    region: { type: String, trim: true },
+    address: { type: String, trim: true },
+  },
+  { _id: false }
+);
+
 const adSchema = new mongoose.Schema(
   {
     title: {
@@ -79,6 +105,7 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    location: LocationSchema,
     watchers: {
       type: [
         {
@@ -86,6 +113,10 @@ const adSchema = new mongoose.Schema(
         },
       ],
       default: [],
+    },
+    geo: {
+      type: GeoSchema,
+      index: '2dsphere',
     },
   },
   {
@@ -100,6 +131,22 @@ adSchema.pre('save', function (next) {
     validUntil.setDate(validUntil.getDate() + (this.lifetimeDays || 30));
     this.validUntil = validUntil;
   }
+  next();
+});
+
+adSchema.pre('save', function (next) {
+  if (
+    !this.geo &&
+    this.location &&
+    typeof this.location.lng === 'number' &&
+    typeof this.location.lat === 'number'
+  ) {
+    this.geo = {
+      type: 'Point',
+      coordinates: [this.location.lng, this.location.lat],
+    };
+  }
+
   next();
 });
 
