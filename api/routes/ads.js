@@ -3,7 +3,6 @@ const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
 const { buildAdQuery } = require('../../utils/queryBuilder');
 const { notifySubscribers } = require('../../services/notifications');
-const { validateCreateAd } = require('../../middleware/validateCreateAd');
 
 const router = Router();
 
@@ -428,6 +427,136 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.patch('/:id/photos', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const photos = req.body?.photos;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (!Array.isArray(photos)) {
+      return res.status(400).json({ message: 'photos must be an array' });
+    }
+
+    const sanitized = photos
+      .map((photo) => (typeof photo === 'string' ? photo.trim() : ''))
+      .filter(Boolean);
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    ad.photos = sanitized;
+    await ad.save();
+
+    return res.json({ item: ad, photosCount: sanitized.length });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/extend', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    const extensionDays = resolveExtensionDays(ad);
+    extendAdLifetime(ad, extensionDays);
+    await ad.save();
+
+    return res.json({ item: ad, extendedByDays: extensionDays, validUntil: ad.validUntil });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/liveSpot/on', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    await applyLiveSpotStatus(ad, true);
+
+    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/liveSpot/off', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    await applyLiveSpotStatus(ad, false);
+
+    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -678,11 +807,59 @@ router.get('/:id', async (req, res, next) => {
 
 router.post('/', validateCreateAd, async (req, res, next) => {
   try {
-    const payload = req.validatedAdPayload;
+    const {
+      title,
+      description,
+      categoryId,
+      subcategoryId,
+      price,
+      currency,
+      photos,
+      attributes,
+      sellerTelegramId,
+      seasonCode,
+      deliveryOptions,
+      lifetimeDays,
+      isLiveSpot,
+      location,
+    } = req.body;
 
-    if (!payload) {
-      return res.status(400).json({ error: 'Некорректные данные объявления' });
+    if (!title || !categoryId || !subcategoryId || price == null || !sellerTelegramId) {
+      return res.status(400).json({
+        message: 'Необходимо указать: title, categoryId, subcategoryId, price, sellerTelegramId',
+      });
     }
+
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+
+    const payload = {
+      title,
+      description,
+      categoryId,
+      subcategoryId,
+      price,
+      currency,
+      photos,
+      attributes,
+      sellerTelegramId,
+      seasonCode: normalizedSeason,
+      deliveryOptions,
+      lifetimeDays,
+      isLiveSpot,
+      location,
+      status: 'active',
+      moderationStatus: 'pending',
+    };
+
+    if (
+      (payload.lifetimeDays == null || payload.lifetimeDays <= 0) &&
+      normalizedSeason &&
+      SEASON_SHORT_LIFETIME[normalizedSeason]
+    ) {
+      payload.lifetimeDays = SEASON_SHORT_LIFETIME[normalizedSeason];
+    }
+
+    const ad = await Ad.create(payload);
 
     const ad = await Ad.create(payload);
     res.status(201).json(ad);
@@ -735,6 +912,13 @@ router.post('/:id/live-spot', async (req, res, next) => {
       await notifySubscribers(
         ad._id,
         `Цена объявления "${after.title}" изменилась: ${before.price} → ${after.price}`
+      );
+    }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
       );
     }
 
