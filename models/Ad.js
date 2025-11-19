@@ -9,21 +9,6 @@ const LocationSchema = new mongoose.Schema(
   { _id: false }
 );
 
-const GeoPointSchema = new mongoose.Schema(
-  {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point',
-    },
-    coordinates: {
-      type: [Number],
-      required: true,
-    },
-  },
-  { _id: false }
-);
-
 const adSchema = new mongoose.Schema(
   {
     title: {
@@ -110,8 +95,15 @@ const adSchema = new mongoose.Schema(
     },
     location: LocationSchema,
     geo: {
-      type: GeoPointSchema,
-      index: '2dsphere',
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number],
+        index: '2dsphere',
+      },
     },
     watchers: {
       type: [
@@ -151,7 +143,6 @@ adSchema.pre('save', function (next) {
   }
 
   if (
-    !this.geo &&
     this.location &&
     this.location.lat != null &&
     this.location.lng != null
