@@ -59,11 +59,20 @@ export interface AdPreview {
   attributes?: Record<string, string | number>;
   deliveryOptions?: DeliveryOption[];
   isLiveSpot?: boolean;
+  deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup' | null;
+  deliveryRadiusKm?: number | null;
   location?: {
     lat?: number;
     lng?: number;
   } | null;
   createdAt?: string;
+}
+
+export interface Ad extends AdPreview {
+  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  lifetimeDays: number;
+  validUntil?: string;
+  updatedAt?: string;
 }
 
 export interface FavoriteItem {
