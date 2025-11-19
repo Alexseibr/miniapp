@@ -1,7 +1,9 @@
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf, Markup, session } = require('telegraf');
 const config = require('../config/config.js');
 
 const bot = new Telegraf(config.botToken);
+
+bot.use(session());
 
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
