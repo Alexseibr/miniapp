@@ -2,6 +2,7 @@ const { Router } = require('express');
 const Season = require('../../models/Season.js');
 const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
+const asyncHandler = require('../middleware/asyncHandler.js');
 
 const router = Router();
 
@@ -9,17 +10,17 @@ const TULIP_SUBCATEGORIES = ['flowers', 'flowers_tulips', 'tulips_single', 'tuli
 const CRAFT_SUBCATEGORIES = ['craft', 'cakes', 'eclairs', 'bakery'];
 const FARM_SUBCATEGORIES = ['farm', 'berries', 'vegetables', 'fruits'];
 
-router.get('/', async (_req, res, next) => {
-  try {
+router.get(
+  '/',
+  asyncHandler(async (_req, res) => {
     const seasons = await Season.find().sort({ startDate: -1 });
     res.json(seasons);
-  } catch (error) {
-    next(error);
-  }
-});
+  })
+);
 
-router.get('/active', async (_req, res, next) => {
-  try {
+router.get(
+  '/active',
+  asyncHandler(async (_req, res) => {
     const now = new Date();
     const seasons = await Season.find({
       isActive: true,
@@ -27,13 +28,12 @@ router.get('/active', async (_req, res, next) => {
       endDate: { $gte: now },
     }).sort({ startDate: -1 });
     res.json(seasons);
-  } catch (error) {
-    next(error);
-  }
-});
+  })
+);
 
-router.get('/:code/ads', async (req, res, next) => {
-  try {
+router.get(
+  '/:code/ads',
+  asyncHandler(async (req, res) => {
     const { code } = req.params;
     const {
       limit = 20,
@@ -135,13 +135,12 @@ router.get('/:code/ads', async (req, res, next) => {
     mapped.sort((a, b) => a.distanceKm - b.distanceKm);
 
     return res.json({ items: mapped.slice(0, finalLimit) });
-  } catch (error) {
-    next(error);
-  }
-});
+  })
+);
 
-router.get('/:code/live-spots', async (req, res, next) => {
-  try {
+router.get(
+  '/:code/live-spots',
+  asyncHandler(async (req, res) => {
     const { code } = req.params;
     const { lat, lng, radiusKm = 5, limit = 20 } = req.query;
 
@@ -192,9 +191,7 @@ router.get('/:code/live-spots', async (req, res, next) => {
     mapped.sort((a, b) => a.distanceKm - b.distanceKm);
 
     return res.json({ items: mapped.slice(0, finalLimit) });
-  } catch (error) {
-    next(error);
-  }
-});
+  })
+);
 
 module.exports = router;

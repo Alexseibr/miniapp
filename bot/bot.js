@@ -1279,10 +1279,8 @@ bot.command('new_test_ad', async (ctx) => {
 // /sell — мастер создания объявления: выбор категории, подкатегории, затем поля
 bot.command("sell", async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
-
     // забираем дерево категорий
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await axios.get(`${API_URL}/api/categories`);
     const categories = res.data || [];
 
     // фильтруем только корневые категории (parentSlug == null)
@@ -1471,7 +1469,6 @@ bot.action(/myads_live:([^:]+):(on|off)/, async (ctx) => {
 // Обработка выбора категории (callback sell_cat:<slug>)
 bot.action(/sell_cat:(.+)/, async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
     const slug = ctx.match[1];
 
     // убеждаемся, что мы в режиме sell
@@ -1482,7 +1479,7 @@ bot.action(/sell_cat:(.+)/, async (ctx) => {
     ctx.session.sell.data.categoryId = slug;
 
     // забираем дерево категорий
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await axios.get(`${API_URL}/api/categories`);
     const categories = res.data || [];
 
     // находим выбранную корневую категорию
@@ -1646,12 +1643,11 @@ bot.on("text", async (ctx) => {
         deliveryRadiusKm: null,
         location: null,
         seasonCode: null,
-        lifetimeDays: 7,
-      };
+      lifetimeDays: 7,
+    };
 
-      try {
-        const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
-        const res = await axios.post(`${API_BASE_URL}/api/ads`, payload);
+    try {
+        const res = await axios.post(`${API_URL}/api/ads`, payload);
         const ad = res.data;
 
         // очищаем мастер

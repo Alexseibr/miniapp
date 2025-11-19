@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const Category = require('../../models/Category.js');
+const asyncHandler = require('../middleware/asyncHandler.js');
 
 const router = Router();
 
@@ -39,14 +40,13 @@ function buildTree(categories) {
   return roots.map(stripInternal);
 }
 
-router.get('/', async (_req, res, next) => {
-  try {
+router.get(
+  '/',
+  asyncHandler(async (_req, res) => {
     const categories = await Category.find().sort({ sortOrder: 1, slug: 1 });
     const tree = buildTree(categories);
     res.json(tree);
-  } catch (error) {
-    next(error);
-  }
-});
+  })
+);
 
 module.exports = router;
