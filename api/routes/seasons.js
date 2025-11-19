@@ -37,12 +37,12 @@ router.get(
     const { code } = req.params;
     const {
       limit = 20,
-      offset = 0,
-      sort = 'newest',
-      live,
+      page = 1,
+      categoryId,
+      subcategoryId,
       lat,
       lng,
-      radiusKm = 5,
+      radiusKm,
     } = req.query;
 
     const seasonCode = String(code).toLowerCase();
@@ -55,86 +55,84 @@ router.get(
     const limitNumber = Number(limit);
     const finalLimit =
       Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
-    const offsetNumber = Number(offset);
-    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+    const pageNumber = Number(page);
+    const finalPage = Number.isFinite(pageNumber) && pageNumber > 0 ? pageNumber : 1;
+    const skip = (finalPage - 1) * finalLimit;
 
-    const query = { seasonCode, status: 'active', moderationStatus: 'approved' };
-    const filters = season.specialFilters || {};
-    const orConditions = [];
+    const baseFilter = {
+      seasonCode,
+      status: 'active',
+      moderationStatus: 'approved',
+    };
 
-    if (filters.enableTulips) {
-      orConditions.push({ subcategoryId: { $in: TULIP_SUBCATEGORIES } });
-    }
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
 
-    if (filters.enableCraft) {
-      orConditions.push({ subcategoryId: { $in: CRAFT_SUBCATEGORIES } });
-    }
-
-    if (filters.enableFarm) {
-      orConditions.push({ subcategoryId: { $in: FARM_SUBCATEGORIES } });
-      orConditions.push({ categoryId: { $in: FARM_SUBCATEGORIES } });
-    }
-
-    if (orConditions.length === 1) {
-      Object.assign(query, orConditions[0]);
-    } else if (orConditions.length > 1) {
-      query.$or = orConditions;
-    }
-
-    const liveOnly = live === '1' || live === 'true';
-    if (liveOnly) {
-      query.isLiveSpot = true;
-      query['location.lat'] = { $ne: null };
-      query['location.lng'] = { $ne: null };
-    }
-
-    const sortObj = sort === 'cheapest' ? { price: 1 } : { createdAt: -1 };
-    const fetchLimit = liveOnly ? Math.max(finalLimit * 3, finalLimit) : finalLimit;
-
-    const ads = await Ad.find(query)
-      .sort(sortObj)
-      .skip(finalOffset)
-      .limit(fetchLimit);
-
+    const radiusNumber = Number(radiusKm || season.defaultRadiusKm);
     const latNumber = Number(lat);
     const lngNumber = Number(lng);
-    const radiusNumber = Number(radiusKm);
     const hasGeo =
-      liveOnly &&
-      Number.isFinite(latNumber) &&
-      Number.isFinite(lngNumber) &&
-      Number.isFinite(radiusNumber) &&
-      radiusNumber > 0;
+      season.isGeoFocused && Number.isFinite(latNumber) && Number.isFinite(lngNumber);
 
-    if (!hasGeo) {
-      return res.json({ items: ads });
-    }
+    if (hasGeo) {
+      const geoStage = {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          spherical: true,
+          key: 'geo',
+          query: baseFilter,
+        },
+      };
 
-    const mapped = [];
-    for (const ad of ads) {
-      if (!ad.location || ad.location.lat == null || ad.location.lng == null) {
-        continue;
+      if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
+        geoStage.$geoNear.maxDistance = radiusNumber * 1000;
       }
 
-      const distanceKm = haversineDistanceKm(
-        latNumber,
-        lngNumber,
-        ad.location.lat,
-        ad.location.lng
-      );
+      const pipeline = [
+        geoStage,
+        { $sort: { distanceMeters: 1, createdAt: -1 } },
+        {
+          $facet: {
+            items: [{ $skip: skip }, { $limit: finalLimit }],
+            total: [{ $count: 'count' }],
+          },
+        },
+      ];
 
-      if (distanceKm == null || distanceKm > radiusNumber) {
-        continue;
-      }
+      const [result = {}] = await Ad.aggregate(pipeline);
+      const total = result.total?.[0]?.count || 0;
+      const items = (result.items || []).map((item) => ({
+        ...item,
+        distanceMeters: item.distanceMeters,
+      }));
 
-      const plain = ad.toObject({ getters: true, virtuals: false });
-      plain.distanceKm = Number(distanceKm.toFixed(2));
-      mapped.push(plain);
+      return res.json({
+        season,
+        items,
+        page: finalPage,
+        limit: finalLimit,
+        total,
+        totalPages: total === 0 ? 0 : Math.ceil(total / finalLimit),
+      });
     }
 
-    mapped.sort((a, b) => a.distanceKm - b.distanceKm);
+    const [items, total] = await Promise.all([
+      Ad.find(baseFilter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(finalLimit),
+      Ad.countDocuments(baseFilter),
+    ]);
 
-    return res.json({ items: mapped.slice(0, finalLimit) });
+    return res.json({
+      season,
+      items,
+      page: finalPage,
+      limit: finalLimit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / finalLimit),
+    });
   })
 );
 

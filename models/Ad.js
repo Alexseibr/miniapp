@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
+const AdChange = require('./AdChange');
 
 const GeoPointSchema = new mongoose.Schema(
   {
@@ -133,6 +134,10 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    geo: {
+      type: GeoPointSchema,
+      default: undefined,
+    },
     statusHistory: [
       {
         date: { type: Date, default: Date.now },
@@ -150,6 +155,11 @@ const adSchema = new mongoose.Schema(
       ],
       default: [],
     },
+    lastNotificationSnapshot: {
+      price: { type: Number },
+      status: { type: String },
+      updatedAt: { type: Date },
+    },
   },
   {
     timestamps: true,
@@ -166,55 +176,47 @@ adSchema.pre('save', function (next) {
     this.validUntil = validUntil;
   }
 
-  const hasLocation =
-    this.location &&
-    this.location.lat != null &&
-    this.location.lng != null;
+  const coordsFromLocation = resolveCoordinatesFromLocation(this.location);
+  const coordsFromGeo =
+    this.geo &&
+    Array.isArray(this.geo.coordinates) &&
+    this.geo.coordinates.length === 2
+      ? { lat: Number(this.geo.coordinates[1]), lng: Number(this.geo.coordinates[0]) }
+      : null;
 
-  const hasGeoCoordinates =
-    this.location &&
-    this.location.geo &&
-    Array.isArray(this.location.geo.coordinates) &&
-    this.location.geo.coordinates.length === 2 &&
-    this.location.geo.coordinates.every((value) => value != null);
-
-  if (hasLocation && !hasGeoCoordinates) {
-    if (!this.location) {
-      this.location = {};
-    }
-
-    this.location.geo = {
+  // Sync location -> geo
+  if (coordsFromLocation) {
+    this.geo = {
       type: 'Point',
-      coordinates: [Number(this.location.lng), Number(this.location.lat)],
+      coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
     };
-  }
 
-  if (
-    hasGeoCoordinates &&
-    (!hasLocation || this.location.lat == null || this.location.lng == null)
-  ) {
-    const [lng, lat] = this.location.geo.coordinates;
     this.location = {
       ...(this.location || {}),
-      lat,
-      lng,
-      geo: this.location.geo,
-    };
-  }
-
-  if (!hasGeoCoordinates && this.geo && Array.isArray(this.geo.coordinates)) {
-    const [lng, lat] = this.geo.coordinates;
-    this.location = {
-      ...(this.location || {}),
-      lat: this.location?.lat != null ? this.location.lat : lat,
-      lng: this.location?.lng != null ? this.location.lng : lng,
+      lat: coordsFromLocation.lat,
+      lng: coordsFromLocation.lng,
       geo: {
         type: 'Point',
-        coordinates: [lng, lat],
+        coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
       },
     };
-    this.set('geo', undefined, { strict: false });
+  } else if (coordsFromGeo) {
+    // Sync geo -> location when only geo is present
+    this.location = {
+      ...(this.location || {}),
+      lat: this.location?.lat != null ? this.location.lat : coordsFromGeo.lat,
+      lng: this.location?.lng != null ? this.location.lng : coordsFromGeo.lng,
+      geo: {
+        type: 'Point',
+        coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
+      },
+    };
+    this.geo = {
+      type: 'Point',
+      coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
+    };
   }
+
   next();
 });
 
@@ -226,18 +228,28 @@ adSchema.pre('save', async function (next) {
   const priceChanged = this.isModified('price');
   const statusChanged = this.isModified('status');
 
+  this._previousNotificationState = this._previousNotificationState || {};
+
   if (!priceChanged && !statusChanged) {
     return next();
   }
 
   try {
-    const previous = await this.constructor.findById(this._id).select('price status');
+    const previous = await this.constructor
+      .findById(this._id)
+      .select('price status lastNotificationSnapshot');
 
     if (!previous) {
       return next();
     }
 
     const events = [];
+
+    if (previous) {
+      this._previousNotificationState.price = previous.price;
+      this._previousNotificationState.status = previous.status;
+      this._previousNotificationState.snapshot = previous.lastNotificationSnapshot;
+    }
 
     if (priceChanged) {
       events.push({
@@ -269,10 +281,78 @@ adSchema.pre('save', async function (next) {
   }
 });
 
+adSchema.post('save', async function (doc, next) {
+  try {
+    if (doc.isNew) {
+      return next();
+    }
+
+    const previousPrice = doc._previousNotificationState?.price;
+    const previousStatus = doc._previousNotificationState?.status;
+
+    const priceChanged = typeof previousPrice === 'number' && previousPrice !== doc.price;
+    const statusChanged =
+      typeof previousStatus === 'string' && previousStatus !== doc.status;
+
+    if (!priceChanged && !statusChanged) {
+      return next();
+    }
+
+    await AdChange.create({
+      adId: doc._id,
+      oldPrice: priceChanged ? previousPrice : undefined,
+      newPrice: priceChanged ? doc.price : undefined,
+      oldStatus: statusChanged ? previousStatus : undefined,
+      newStatus: statusChanged ? doc.status : undefined,
+    });
+
+    await doc.constructor.updateOne(
+      { _id: doc._id },
+      {
+        lastNotificationSnapshot: {
+          price: doc.price,
+          status: doc.status,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    return next();
+  } catch (error) {
+    return next(error);
+  }
+});
+
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
+
+function resolveCoordinatesFromLocation(location) {
+  if (!location) return null;
+
+  if (
+    location.lat != null &&
+    location.lng != null &&
+    Number.isFinite(Number(location.lat)) &&
+    Number.isFinite(Number(location.lng))
+  ) {
+    return { lat: Number(location.lat), lng: Number(location.lng) };
+  }
+
+  if (
+    location.geo &&
+    Array.isArray(location.geo.coordinates) &&
+    location.geo.coordinates.length === 2
+  ) {
+    const [lng, lat] = location.geo.coordinates;
+    if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
+      return { lat: Number(lat), lng: Number(lng) };
+    }
+  }
+
+  return null;
+}
 
 module.exports = mongoose.model('Ad', adSchema);

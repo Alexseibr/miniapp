@@ -10,7 +10,8 @@
     "db:push": "drizzle-kit push",
     "marketplace": "PORT=5000 node index.js",
     "seed": "node scripts/seedCategories.js",
-    "check:favorites": "node scripts/checkFavoritesChanges.js"
+    "check:favorites": "node scripts/checkFavoritesChanges.js",
+    "process:notifications": "node scripts/processNotifications.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

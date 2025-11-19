@@ -7,6 +7,7 @@ const seasonsRoutes = require('./routes/seasons.js');
 const ordersRoutes = require('./routes/orders.js');
 const favoritesRoutes = require('./routes/favorites.js');
 const alertsRoutes = require('./routes/alerts.js');
+const notificationsRoutes = require('./routes/notifications.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
 const internalNotificationsRoutes = require('./routes/internalNotifications.js');
@@ -30,6 +31,7 @@ app.get('/', (_req, res) => {
       orders: '/api/orders',
       favorites: '/api/favorites',
       alerts: '/api/alerts',
+      notifications: '/api/notifications',
       moderation: '/api/mod',
       auth: '/auth/telegram',
       health: '/health',
@@ -48,6 +50,7 @@ app.get('/api', (_req, res) => {
       orders: '/api/orders',
       favorites: '/api/favorites',
       alerts: '/api/alerts',
+      notifications: '/api/notifications',
       moderation: '/api/mod',
       auth: '/auth/telegram',
       health: '/health',
@@ -70,6 +73,7 @@ app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/alerts', alertsRoutes);
+app.use('/api/notifications', notificationsRoutes);
 app.use('/api/mod', moderationRoutes);
 app.use('/api/internal', internalNotificationsRoutes);
 app.use('/auth', authRoutes);

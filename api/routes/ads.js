@@ -214,16 +214,46 @@ router.get('/', async (req, res, next) => {
     const latNumber = Number(req.query.lat);
     const lngNumber = Number(req.query.lng);
     const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
-    const maxDistanceInput = req.query.maxDistanceKm ?? req.query.radiusKm;
-    const radiusNumber = Number(maxDistanceInput);
-    const maxDistanceKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+    const radiusInput = req.query.radiusKm ?? req.query.maxDistanceKm;
+    const radiusNumber = Number(radiusInput);
+    const maxDistanceKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
 
-    if (!hasGeoQuery) {
-      const total = await Ad.countDocuments(filters);
-      const items = await Ad.find(filters)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit);
+    if (hasGeoQuery) {
+      const geoStage = {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          spherical: true,
+          query: filters,
+          key: 'geo',
+        },
+      };
+
+      if (maxDistanceKm) {
+        geoStage.$geoNear.maxDistance = maxDistanceKm * 1000;
+      }
+
+      const sortStage =
+        sortBy === 'distance' || req.query.sort === 'distance_asc'
+          ? { $sort: { distanceMeters: 1 } }
+          : { $sort: sort };
+
+      const pipeline = [geoStage, sortStage, {
+        $facet: {
+          items: [
+            { $skip: skip },
+            { $limit: limit },
+          ],
+          total: [{ $count: 'count' }],
+        },
+      }];
+
+      const [result = {}] = await Ad.aggregate(pipeline);
+      const total = result.total?.[0]?.count || 0;
+      const items = (result.items || []).map((item) => ({
+        ...item,
+        distanceMeters: item.distanceMeters,
+      }));
 
       return res.json({
         page,
@@ -234,39 +264,18 @@ router.get('/', async (req, res, next) => {
       });
     }
 
-    const baseLimit = Math.min(Math.max(limit * 5, 100), 500);
-    const baseItems = await Ad.find(filters)
+    const total = await Ad.countDocuments(filters);
+    const items = await Ad.find(filters)
       .sort(sort)
-      .limit(baseLimit);
-
-    let itemsWithDistance = projectAdsWithinRadius(baseItems, {
-      latNumber,
-      lngNumber,
-      radiusKm: maxDistanceKm,
-    });
-
-    const [sortField, sortDirection] = Object.entries(sort)[0] || ['createdAt', -1];
-
-    if (sortBy === 'distance') {
-      itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-    } else if (sortField === 'price') {
-      itemsWithDistance.sort((a, b) => (a.price - b.price) * sortDirection);
-    } else {
-      itemsWithDistance.sort(
-        (a, b) => (new Date(a.createdAt) - new Date(b.createdAt)) * sortDirection
-      );
-    }
-
-    const total = itemsWithDistance.length;
-    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
-    const pagedItems = itemsWithDistance.slice(skip, skip + limit);
+      .skip(skip)
+      .limit(limit);
 
     return res.json({
       page,
       limit,
       total,
-      totalPages,
-      items: pagedItems,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      items,
     });
   } catch (error) {
     next(error);
@@ -525,26 +534,94 @@ router.get('/nearby', async (req, res) => {
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
     if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
 
-    const fetchLimit = 500;
-    const baseAds = await Ad.find(baseFilter)
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
+    const radiusNumber = Number(radiusKm);
+    const geoStage = {
+      $geoNear: {
+        near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+        distanceField: 'distanceMeters',
+        spherical: true,
+        query: baseFilter,
+        key: 'geo',
+      },
+    };
 
-    const itemsWithDistance = projectAdsWithinRadius(baseAds, {
-      latNumber,
-      lngNumber,
-      radiusKm: Number(radiusKm),
-    });
-
-    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+    if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
+      geoStage.$geoNear.maxDistance = radiusNumber * 1000;
+    }
 
     const limitNumber = Number(limit);
     const finalLimit =
       Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
 
-    return res.json({ items: itemsWithDistance.slice(0, finalLimit) });
+    const items = await Ad.aggregate([
+      geoStage,
+      { $sort: { distanceMeters: 1 } },
+      { $limit: finalLimit },
+    ]);
+
+    return res.json({ items });
   } catch (error) {
     console.error('GET /api/ads/nearby error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// GET /api/ads/live-spots — geo search for live locations
+router.get('/live-spots', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 5, seasonCode, categoryId, subcategoryId, limit = 200 } =
+      req.query;
+
+    const filter = {
+      isLiveSpot: true,
+      status: 'active',
+      moderationStatus: 'approved',
+    };
+
+    if (seasonCode) filter.seasonCode = normalizeSeasonCode(seasonCode);
+    if (categoryId) filter.categoryId = categoryId;
+    if (subcategoryId) filter.subcategoryId = subcategoryId;
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const radiusNumber = Number(radiusKm);
+
+    const hasGeo = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+
+    if (hasGeo) {
+      const geoStage = {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          spherical: true,
+          key: 'geo',
+          query: filter,
+        },
+      };
+
+      if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
+        geoStage.$geoNear.maxDistance = radiusNumber * 1000;
+      }
+
+      const items = await Ad.aggregate([
+        geoStage,
+        { $sort: { distanceMeters: 1 } },
+        { $limit: finalLimit },
+      ]);
+
+      return res.json({ items });
+    }
+
+    const items = await Ad.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(finalLimit);
+
+    return res.json({ items });
+  } catch (error) {
+    console.error('GET /api/ads/live-spots error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -607,6 +684,9 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -658,9 +738,6 @@ router.get('/season/:code/live', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
     next(error);
   }
 });
