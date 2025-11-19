@@ -410,6 +410,11 @@ bot.command("sell", async (ctx) => {
       return ctx.reply("Категории пока не настроены. Обратитесь к администратору.");
     }
 
+    // инициализируем сессию, если её нет
+    if (!ctx.session) {
+      ctx.session = {};
+    }
+
     // сохраняем в сессию, что мы в режиме создания объявления
     ctx.session.sell = {
       step: "choose_category",
