@@ -964,322 +964,6 @@ bot.action(/view_(.+)/, async (ctx) => {
   }
 });
 
-// /market - лента объявлений для покупателей
-bot.command('market', async (ctx) => {
-  try {
-    const categories = await fetchCategoriesTree();
-
-    if (!categories.length) {
-      return ctx.reply('Категории пока не настроены. Попробуйте позже.');
-    }
-
-    ctx.session.market = {
-      step: 'choose_category',
-      categories,
-      data: {
-        categoryId: null,
-        categoryName: null,
-        subcategoryId: null,
-        subcategoryName: null,
-        page: 0,
-      },
-    };
-
-    await renderMarketCategories(ctx, { edit: false });
-  } catch (error) {
-    console.error('Ошибка в /market:', error);
-    await ctx.reply('❌ Не удалось загрузить ленту объявлений. Попробуйте позже.');
-  }
-});
-
-bot.command('mod_pending', async (ctx) => {
-  try {
-    const response = await axios.get(`${API_URL}/api/mod/pending`, {
-      params: { telegramId: ctx.from.id },
-    });
-
-    const ads = response.data?.items || [];
-
-    if (!ads.length) {
-      await ctx.reply('Нет объявлений на модерации!');
-      return;
-    }
-
-    let text = '⏳ Объявления на модерации:\n\n';
-
-    ads.forEach((ad) => {
-      const title = escapeMarkdown(ad.title || 'Без названия');
-      text += `ID: \`${ad._id}\`\n`;
-      text += `Название: *${title}*\n`;
-      text += `/mod_approve_${ad._id}\n`;
-      text += `/mod_reject_${ad._id}\n\n`;
-    });
-
-    await ctx.reply(text, { parse_mode: 'Markdown' });
-  } catch (error) {
-    if (error.response?.status === 403) {
-      await ctx.reply('🚫 У вас нет прав модератора.');
-      return;
-    }
-
-    const message = error.response?.data?.error || 'Не удалось получить объявления на модерации';
-    console.error('mod_pending error:', error.response?.data || error.message);
-    await ctx.reply(`⚠️ ${message}`);
-  }
-});
-
-bot.hears(/^\/mod_approve_(.+)/, async (ctx) => {
-  const adId = ctx.match[1];
-
-  try {
-    await axios.post(`${API_URL}/api/mod/approve`, {
-      telegramId: ctx.from.id,
-      adId,
-    });
-
-    await ctx.reply('✅ Объявление одобрено!');
-  } catch (error) {
-    if (error.response?.status === 403) {
-      await ctx.reply('🚫 У вас нет прав модератора.');
-      return;
-    }
-
-    const message = error.response?.data?.error || 'Не удалось одобрить объявление';
-    console.error('mod_approve error:', error.response?.data || error.message);
-    await ctx.reply(`⚠️ ${message}`);
-  }
-});
-
-bot.hears(/^\/mod_reject_(.+)/, async (ctx) => {
-  const adId = ctx.match[1];
-
-  try {
-    await axios.post(`${API_URL}/api/mod/reject`, {
-      telegramId: ctx.from.id,
-      adId,
-      comment: 'Отклонено модератором',
-    });
-
-    await ctx.reply('ℹ️ Объявление отклонено.');
-  } catch (error) {
-    if (error.response?.status === 403) {
-      await ctx.reply('🚫 У вас нет прав модератора.');
-      return;
-    }
-
-    const message = error.response?.data?.error || 'Не удалось отклонить объявление';
-    console.error('mod_reject error:', error.response?.data || error.message);
-    await ctx.reply(`⚠️ ${message}`);
-  }
-});
-
-bot.action(/market_cat:(.+)/, async (ctx) => {
-  try {
-    const slug = ctx.match[1];
-    const marketSession = ctx.session?.market;
-
-    if (!marketSession?.categories) {
-      await ctx.answerCbQuery('Сначала запустите /market', { show_alert: true });
-      return;
-    }
-
-    const category = marketSession.categories.find((cat) => cat.slug === slug);
-    if (!category) {
-      await ctx.answerCbQuery('Категория не найдена. Обновите список через /market', { show_alert: true });
-      return;
-    }
-
-    marketSession.data.categoryId = category.slug;
-    marketSession.data.categoryName = category.name;
-    marketSession.data.subcategoryId = null;
-    marketSession.data.subcategoryName = null;
-    marketSession.data.page = 0;
-
-    if (!category.subcategories || !category.subcategories.length) {
-      marketSession.step = 'list_ads';
-      await ctx.answerCbQuery(`Категория: ${category.name}`);
-      await renderMarketAds(ctx);
-      return;
-    }
-
-    marketSession.step = 'choose_subcategory';
-    await ctx.answerCbQuery(`Категория: ${category.name}`);
-    await renderMarketSubcategories(ctx, category);
-  } catch (error) {
-    console.error('Ошибка обработки market_cat:', error);
-    await ctx.answerCbQuery('Не удалось выбрать категорию', { show_alert: true });
-  }
-});
-
-bot.action(/market_subcat:(.+)/, async (ctx) => {
-  try {
-    const slug = ctx.match[1];
-    const marketSession = ctx.session?.market;
-
-    if (!marketSession?.data?.categoryId) {
-      await ctx.answerCbQuery('Сначала выберите категорию через /market', { show_alert: true });
-      return;
-    }
-
-    const category = (marketSession.categories || []).find(
-      (cat) => cat.slug === marketSession.data.categoryId,
-    );
-
-    if (!category) {
-      await ctx.answerCbQuery('Категория недоступна. Обновите список через /market', { show_alert: true });
-      return;
-    }
-
-    if (slug === '__all__') {
-      marketSession.data.subcategoryId = null;
-      marketSession.data.subcategoryName = null;
-    } else {
-      const subcategory = (category.subcategories || []).find((sub) => sub.slug === slug);
-      if (!subcategory) {
-        await ctx.answerCbQuery('Подкатегория не найдена', { show_alert: true });
-        return;
-      }
-      marketSession.data.subcategoryId = subcategory.slug;
-      marketSession.data.subcategoryName = subcategory.name;
-    }
-
-    marketSession.data.page = 0;
-    marketSession.step = 'list_ads';
-
-    await ctx.answerCbQuery('Показываю объявления…');
-    await renderMarketAds(ctx);
-  } catch (error) {
-    console.error('Ошибка обработки market_subcat:', error);
-    await ctx.answerCbQuery('Не удалось выбрать подкатегорию', { show_alert: true });
-  }
-});
-
-bot.action('market_more', async (ctx) => {
-  try {
-    const marketSession = ctx.session?.market;
-
-    if (!marketSession || marketSession.step !== 'list_ads') {
-      await ctx.answerCbQuery('Сначала выберите категорию через /market', { show_alert: true });
-      return;
-    }
-
-    marketSession.data.page += 1;
-    const ads = await fetchMarketAdsList(marketSession.data);
-
-    if (!ads.length) {
-      marketSession.data.page = Math.max(0, marketSession.data.page - 1);
-      await ctx.answerCbQuery('Больше объявлений нет', { show_alert: true });
-      return;
-    }
-
-    await ctx.answerCbQuery('Загружаю ещё объявления…');
-    await renderMarketAds(ctx, ads);
-  } catch (error) {
-    console.error('Ошибка обработки market_more:', error);
-    await ctx.answerCbQuery('Не удалось загрузить ещё объявления', { show_alert: true });
-  }
-});
-
-bot.action('market_back', async (ctx) => {
-  try {
-    const marketSession = ctx.session?.market;
-
-    if (!marketSession) {
-      await ctx.answerCbQuery('Сначала запустите /market', { show_alert: true });
-      return;
-    }
-
-    const category = (marketSession.categories || []).find(
-      (cat) => cat.slug === marketSession.data?.categoryId,
-    );
-
-    if (marketSession.data?.subcategoryId && category) {
-      marketSession.step = 'choose_subcategory';
-      marketSession.data.subcategoryId = null;
-      marketSession.data.subcategoryName = null;
-      marketSession.data.page = 0;
-
-      await ctx.answerCbQuery('Выберите подкатегорию');
-      await renderMarketSubcategories(ctx, category);
-      return;
-    }
-
-    marketSession.step = 'choose_category';
-    marketSession.data = {
-      categoryId: null,
-      categoryName: null,
-      subcategoryId: null,
-      subcategoryName: null,
-      page: 0,
-    };
-
-    await ctx.answerCbQuery('Выберите категорию');
-    await renderMarketCategories(ctx, { edit: true });
-  } catch (error) {
-    console.error('Ошибка обработки market_back:', error);
-    await ctx.answerCbQuery('Не удалось вернуться назад', { show_alert: true });
-  }
-});
-
-bot.action(/order_(.+)/, async (ctx) => {
-  try {
-    const adId = ctx.match[1];
-
-    if (ctx.session?.sell) {
-      await ctx.answerCbQuery('Заверши создание объявления или отправь /cancel', { show_alert: true });
-      return;
-    }
-
-    await ctx.answerCbQuery('🛒 Оформление заказа');
-    const ad = await fetchAdDetails(adId);
-
-    ctx.session.orderFlow = {
-      step: 'quantity',
-      ad: {
-        id: ad._id,
-        title: ad.title,
-        price: ad.price,
-        currency: ad.currency || 'BYN',
-        seasonCode: ad.seasonCode || null,
-      },
-    };
-
-    await ctx.reply(
-      `🛒 Вы выбрали *${ad.title}* за ${ad.price} ${ad.currency || 'BYN'}.\n\n` +
-        'Введите количество (1–50). Для отмены используйте /cancel.',
-      { parse_mode: 'Markdown' }
-    );
-  } catch (error) {
-    console.error('Ошибка запуска оформления заказа:', error);
-    await ctx.answerCbQuery('Не удалось начать оформление', { show_alert: true });
-  }
-});
-
-bot.action(/view_(.+)/, async (ctx) => {
-  try {
-    const adId = ctx.match[1];
-    await ctx.answerCbQuery('Загружаю детали...');
-    const ad = await fetchAdDetails(adId);
-    const message = formatAdDetails(ad);
-    const keyboard = Markup.inlineKeyboard([
-      [Markup.button.callback('🛒 Заказать', `order_${ad._id}`)],
-    ]);
-
-    if (ad.photos && ad.photos.length > 0) {
-      await ctx.replyWithPhoto(ad.photos[0], {
-        caption: message,
-        parse_mode: 'Markdown',
-        ...keyboard,
-      });
-    } else {
-      await ctx.reply(message, { parse_mode: 'Markdown', ...keyboard });
-    }
-  } catch (error) {
-    console.error('Ошибка просмотра объявления:', error);
-    await ctx.answerCbQuery('Не удалось показать объявление', { show_alert: true });
-  }
-});
-
 // /season - показать сезонные предложения
 bot.command('season', async (ctx) => {
   try {
@@ -1595,10 +1279,8 @@ bot.command('new_test_ad', async (ctx) => {
 // /sell — мастер создания объявления: выбор категории, подкатегории, затем поля
 bot.command("sell", async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
-
     // забираем дерево категорий
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await axios.get(`${API_URL}/api/categories`);
     const categories = res.data || [];
 
     // фильтруем только корневые категории (parentSlug == null)
@@ -1787,7 +1469,6 @@ bot.action(/myads_live:([^:]+):(on|off)/, async (ctx) => {
 // Обработка выбора категории (callback sell_cat:<slug>)
 bot.action(/sell_cat:(.+)/, async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
     const slug = ctx.match[1];
 
     // убеждаемся, что мы в режиме sell
@@ -1798,7 +1479,7 @@ bot.action(/sell_cat:(.+)/, async (ctx) => {
     ctx.session.sell.data.categoryId = slug;
 
     // забираем дерево категорий
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await axios.get(`${API_URL}/api/categories`);
     const categories = res.data || [];
 
     // находим выбранную корневую категорию
@@ -1962,12 +1643,11 @@ bot.on("text", async (ctx) => {
         deliveryRadiusKm: null,
         location: null,
         seasonCode: null,
-        lifetimeDays: 7,
-      };
+      lifetimeDays: 7,
+    };
 
-      try {
-        const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
-        const res = await axios.post(`${API_BASE_URL}/api/ads`, payload);
+    try {
+        const res = await axios.post(`${API_URL}/api/ads`, payload);
         const ad = res.data;
 
         // очищаем мастер
