@@ -1,5 +1,5 @@
 import http from './http';
-import { AdPreview, AdsResponse } from '@/types';
+import { Ad, AdPreview, AdsResponse } from '@/types';
 
 export interface ListAdsParams {
   categoryId?: string;
@@ -20,7 +20,7 @@ export async function listAds(params: ListAdsParams = {}): Promise<AdsResponse> 
   return response.data;
 }
 
-export async function getAd(id: string): Promise<AdPreview> {
+export async function getAd(id: string): Promise<Ad> {
   const response = await http.get(`/api/ads/${id}`);
   return response.data;
 }

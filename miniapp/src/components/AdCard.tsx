@@ -1,3 +1,4 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
 import FavoriteButton from './FavoriteButton';
 import { AdPreview } from '@/types';
@@ -7,10 +8,12 @@ import { useCartStore } from '@/store/cart';
 
 interface Props {
   ad: AdPreview;
+  onSelect?: (ad: AdPreview) => void;
 }
 
-export default function AdCard({ ad }: Props) {
+export default function AdCard({ ad, onSelect }: Props) {
   const addItem = useCartStore((state) => state.addItem);
+
   const handleAddToCart = () => {
     addItem({
       adId: ad._id,
@@ -22,11 +25,18 @@ export default function AdCard({ ad }: Props) {
     });
   };
 
+  const handleDetails = (event: React.MouseEvent) => {
+    if (onSelect) {
+      event.preventDefault();
+      onSelect(ad);
+    }
+  };
+
   return (
     <article className="card" style={{ display: 'flex', gap: 12 }}>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Link to={`/ads/${ad._id}`} style={{ fontWeight: 600 }}>
+          <Link to={`/ads/${ad._id}`} onClick={handleDetails} style={{ fontWeight: 600 }}>
             {ad.title}
           </Link>
           <FavoriteButton adId={ad._id} />
@@ -35,7 +45,10 @@ export default function AdCard({ ad }: Props) {
           {ad.categoryId}
           {ad.subcategoryId ? ` / ${ad.subcategoryId}` : ''}
         </p>
-        <p style={{ margin: '8px 0', color: '#475467' }}>{ad.description || 'Описание появится позже'}</p>
+        <p style={{ margin: '8px 0', color: '#475467' }}>
+          {(ad.description || 'Описание появится позже').slice(0, 140)}
+          {ad.description && ad.description.length > 140 ? '…' : ''}
+        </p>
         <p style={{ margin: '4px 0 0', fontSize: '1.1rem', fontWeight: 600 }}>
           {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
         </p>
@@ -49,9 +62,24 @@ export default function AdCard({ ad }: Props) {
             Опубликовано {formatRelativeTime(ad.createdAt)}
           </p>
         )}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+          {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
+            <span className="badge" style={{ background: '#ecfeff', color: '#0ea5e9' }}>
+              🚚 Доставка
+            </span>
+          )}
+          {ad.isLiveSpot && (
+            <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>
+              📍 На ярмарке
+            </span>
+          )}
+        </div>
+        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           <button type="button" className="secondary" onClick={handleAddToCart}>
             Добавить в корзину
+          </button>
+          <button type="button" className="secondary" onClick={handleDetails}>
+            Подробнее
           </button>
           <a
             className="secondary"
