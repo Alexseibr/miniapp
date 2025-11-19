@@ -3,7 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Header from '@/components/Header';
 import BottomTabs from '@/components/BottomTabs';
 import HomePage from '@/pages/HomePage';
-import FeedPage from '@/pages/FeedPage';
+import AdsListPage from '@/pages/AdsListPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import ProfilePage from '@/pages/ProfilePage';
 import AdPage from '@/pages/AdPage';
@@ -38,7 +38,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/feed" element={<FeedPage />} />
+          <Route path="/ads" element={<AdsListPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/profile" element={<ProfilePage />} />
           <Route path="/ads/:id" element={<AdPage />} />
