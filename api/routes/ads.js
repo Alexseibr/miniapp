@@ -220,7 +220,7 @@ router.get('/', async (req, res, next) => {
       radiusKm,
     } = req.query;
 
-    const query = { status: 'active' };
+    const query = { status: 'active', moderationStatus: 'approved' };
 
     if (categoryId) query.categoryId = categoryId;
     if (subcategoryId) query.subcategoryId = subcategoryId;
@@ -335,7 +335,7 @@ router.get('/near', async (req, res) => {
 
     const normalizedSeason = normalizeSeasonCode(seasonCode);
 
-    const baseFilter = { status: 'active' };
+    const baseFilter = { status: 'active', moderationStatus: 'approved' };
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
     if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
@@ -381,7 +381,7 @@ router.get('/nearby', async (req, res) => {
 
     const normalizedSeason = normalizeSeasonCode(seasonCode);
 
-    const baseFilter = { status: 'active' };
+    const baseFilter = { status: 'active', moderationStatus: 'approved' };
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
     if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
@@ -431,7 +431,7 @@ router.get('/season/:code', async (req, res, next) => {
     }
 
     if (!hasGeoQuery) {
-      const items = await Ad.find({ seasonCode, status: 'active' })
+      const items = await Ad.find({ seasonCode, status: 'active', moderationStatus: 'approved' })
         .sort(sortObj)
         .skip(finalOffset)
         .limit(finalLimit);
@@ -439,7 +439,7 @@ router.get('/season/:code', async (req, res, next) => {
       return res.json({ items });
     }
 
-    const baseAds = await Ad.find({ seasonCode, status: 'active' })
+    const baseAds = await Ad.find({ seasonCode, status: 'active', moderationStatus: 'approved' })
       .sort({ createdAt: -1 })
       .limit(500);
 
@@ -494,7 +494,7 @@ router.get('/season/:code/live', async (req, res, next) => {
 
     const fetchLimit = Math.max(finalLimit * 3, finalLimit);
 
-    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+    const ads = await Ad.find({ seasonCode, status: 'active', moderationStatus: 'approved', isLiveSpot: true })
       .sort({ createdAt: -1 })
       .limit(fetchLimit);
 
@@ -645,6 +645,41 @@ router.post('/:id/liveSpot/off', async (req, res, next) => {
     await applyLiveSpotStatus(ad, false);
 
     return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
   } catch (error) {
     if (error.status) {
       return res.status(error.status).json({ message: error.message });
@@ -994,6 +1029,7 @@ router.post('/', async (req, res, next) => {
       isLiveSpot,
       location,
       status: 'active',
+      moderationStatus: 'pending',
     };
 
     if (

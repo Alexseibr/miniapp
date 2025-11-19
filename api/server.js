@@ -4,6 +4,7 @@ const categoriesRoutes = require('./routes/categories.js');
 const seasonsRoutes = require('./routes/seasons.js');
 const ordersRoutes = require('./routes/orders.js');
 const favoritesRoutes = require('./routes/favorites.js');
+const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
 
 const app = express();
@@ -22,6 +23,7 @@ app.get('/', (_req, res) => {
       ads: '/api/ads',
       orders: '/api/orders',
       favorites: '/api/favorites',
+      moderation: '/api/mod',
       auth: '/auth/telegram',
       health: '/health',
     },
@@ -41,6 +43,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', ordersRoutes);
 app.use('/api/favorites', favoritesRoutes);
+app.use('/api/mod', moderationRoutes);
 app.use('/auth', authRoutes);
 
 // 404 обработчик
