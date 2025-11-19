@@ -72,6 +72,16 @@ const adSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    deliveryType: {
+      type: String,
+      enum: ['pickup_only', 'delivery_only', 'delivery_and_pickup'],
+      default: undefined,
+    },
+    deliveryRadiusKm: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     seasonCode: {
       type: String,
       trim: true,
