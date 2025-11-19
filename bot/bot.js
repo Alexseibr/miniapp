@@ -1006,6 +1006,8 @@ bot.on("text", async (ctx) => {
   const isCancelCommand = normalized === "/cancel" || normalized === "отмена";
 
   if (!hasSellFlow && !hasOrderFlow && !(hasMarketFlow && isCancelCommand)) {
+
+  if (!hasSellFlow && !hasOrderFlow) {
     // нет активного мастера — игнорируем, пусть другие хендлеры сработают
     return;
   }
@@ -1052,6 +1054,76 @@ bot.on("text", async (ctx) => {
       await ctx.reply(
         "💰 Шаг 5/5 — введи цену (только число).\n" +
         "Например: 10"
+  const isCancelCommand = normalized === "/cancel" || normalized === "отмена";
+
+  if (isCancelCommand) {
+    const wasSell = Boolean(ctx.session?.sell);
+    const wasOrder = Boolean(ctx.session?.orderFlow);
+    ctx.session.sell = null;
+    ctx.session.orderFlow = null;
+
+    if (wasSell || wasOrder) {
+      await ctx.reply("Диалог отменён. Можно начать заново в любое время.");
+      return;
+    }
+  }
+
+  // Позволяем другим командам Telegraf обрабатывать сообщения, кроме /cancel
+  if (text.startsWith("/") && !isCancelCommand) {
+    return;
+  }
+
+  if (hasSellFlow) {
+    const sell = ctx.session.sell;
+
+    // Шаг: заголовок
+    if (sell.step === "title") {
+      sell.data.title = text;
+      sell.step = "description";
+
+      await ctx.reply(
+        "📝 Шаг 4/5 — введи описание объявления.\n" +
+        "Например: «Домашняя малина, собираю каждое утро, без химии»."
+      );
+      return;
+    }
+
+    // Шаг: цена
+    if (sell.step === "price") {
+      const priceNumber = Number(text.replace(",", "."));
+      if (Number.isNaN(priceNumber) || priceNumber <= 0) {
+        await ctx.reply("Цена должна быть положительным числом. Попробуй ещё раз, например: 10");
+        return;
+      }
+
+      sell.data.price = priceNumber;
+
+      // формируем payload
+      const payload = {
+        title: sell.data.title,
+        description: sell.data.description,
+        categoryId: sell.data.categoryId,
+        subcategoryId: sell.data.subcategoryId,
+        price: sell.data.price,
+        currency: "BYN",
+        attributes: {},
+        photos: [],
+        sellerTelegramId: ctx.from.id,
+        deliveryType: "pickup_only",
+        deliveryRadiusKm: null,
+        location: null,
+        seasonCode: null,
+        lifetimeDays: 7,
+      };
+
+    // Шаг: описание
+    if (sell.step === "description") {
+      sell.data.description = text;
+      sell.step = "price";
+
+      await ctx.reply(
+        "💰 Шаг 5/5 — введи цену (только число).\n" +
+        "Например: 10"
       );
       return;
     }
@@ -1088,6 +1160,30 @@ bot.on("text", async (ctx) => {
         const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
         const res = await axios.post(`${API_BASE_URL}/api/ads`, payload);
         const ad = res.data;
+
+        // очищаем мастер
+        ctx.session.sell = null;
+
+        await ctx.reply(
+          "✅ Объявление создано!\n\n" +
+          `Заголовок: ${ad.title}\n` +
+          `Цена: ${ad.price} ${ad.currency || "BYN"}\n\n` +
+          "Посмотреть свои объявления: /my_ads"
+        );
+      } catch (err) {
+        console.error("Ошибка при создании объявления через /sell:", err.response?.data || err.message);
+        ctx.session.sell = null;
+        await ctx.reply("⚠️ Произошла ошибка при создании объявления. Попробуй позже.");
+      }
+
+      return;
+    }
+  }
+
+  if (hasOrderFlow) {
+    const orderFlow = ctx.session.orderFlow;
+    const API_BASE_URL = API_URL;
+
 
         // очищаем мастер
         ctx.session.sell = null;
@@ -1183,6 +1279,123 @@ bot.on("text", async (ctx) => {
 
       return;
     }
+
+      const payload = {
+        buyerTelegramId: ctx.from.id,
+        buyerName: [ctx.from.first_name, ctx.from.last_name].filter(Boolean).join(" ") || undefined,
+        buyerUsername: ctx.from.username || undefined,
+        items: [
+          {
+            adId: orderFlow.ad.id,
+            quantity: orderFlow.quantity,
+          },
+        ],
+        comment: comment || undefined,
+        seasonCode: orderFlow.ad.seasonCode || undefined,
+      };
+
+      try {
+        await ctx.reply("⏳ Создаю заказ...");
+        const response = await fetch(`${API_BASE_URL}/api/orders`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+
+        if (!response.ok) {
+          const error = await response.json().catch(() => ({}));
+          throw new Error(error.message || "Не удалось создать заказ");
+        }
+
+        const order = await response.json();
+        const item = order.items[0];
+        const currency = item?.currency || "BYN";
+
+        ctx.session.orderFlow = null;
+
+        await ctx.reply(
+          `🧾 Заказ оформлен!\n\n` +
+            `Товар: ${item.title} × ${item.quantity}\n` +
+            `Итого: ${order.totalPrice} ${currency}\n` +
+            `Статус: ${order.status}\n\n` +
+            `Отслеживать: /myorders`,
+          { parse_mode: "Markdown" }
+        );
+      } catch (error) {
+        console.error("Ошибка оформления заказа:", error);
+        ctx.session.orderFlow = null;
+        await ctx.reply(
+          "⚠️ Не удалось оформить заказ. Попробуй позже или свяжись с продавцом напрямую."
+        );
+      }
+
+      return;
+    }
+  }
+});
+
+// Обработка callback кнопок
+bot.on('callback_query', async (ctx) => {
+  const data = ctx.callbackQuery.data;
+
+  if (data.startsWith('order_')) {
+    const adId = data.replace('order_', '');
+
+    if (ctx.session?.sell) {
+      await ctx.answerCbQuery('Заверши создание объявления или отправь /cancel', { show_alert: true });
+      return;
+    }
+
+    try {
+      await ctx.answerCbQuery('🛒 Оформление заказа');
+      const ad = await fetchAdDetails(adId);
+
+      ctx.session.orderFlow = {
+        step: 'quantity',
+        ad: {
+          id: ad._id,
+          title: ad.title,
+          price: ad.price,
+          currency: ad.currency || 'BYN',
+          seasonCode: ad.seasonCode || null,
+        },
+      };
+
+      await ctx.reply(
+        `🛒 Вы выбрали *${ad.title}* за ${ad.price} ${ad.currency || 'BYN'}.\n\n` +
+          'Введите количество (1–50). Для отмены используйте /cancel.',
+        { parse_mode: 'Markdown' }
+      );
+    } catch (error) {
+      console.error('Ошибка запуска оформления заказа:', error);
+      await ctx.answerCbQuery('Не удалось начать оформление', { show_alert: true });
+    }
+  } else if (data.startsWith('view_')) {
+    const adId = data.replace('view_', '');
+
+    try {
+      await ctx.answerCbQuery('Загружаю детали...');
+      const ad = await fetchAdDetails(adId);
+      const message = formatAdDetails(ad);
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback('🛒 Заказать', `order_${ad._id}`)],
+      ]);
+
+      if (ad.photos && ad.photos.length > 0) {
+        await ctx.replyWithPhoto(ad.photos[0], {
+          caption: message,
+          parse_mode: 'Markdown',
+          ...keyboard,
+        });
+      } else {
+        await ctx.reply(message, { parse_mode: 'Markdown', ...keyboard });
+      }
+    } catch (error) {
+      console.error('Ошибка просмотра объявления:', error);
+      await ctx.answerCbQuery('Не удалось показать объявление', { show_alert: true });
+    }
+  } else {
+    await ctx.answerCbQuery();
   }
 });
 
