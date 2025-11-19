@@ -1,6 +1,7 @@
 const { Telegraf, Markup, session } = require('telegraf');
 const config = require('../config/config.js');
 const axios = require('axios');
+const registerSeasonHandlers = require('./seasonHandlers');
 
 const bot = new Telegraf(config.botToken);
 
@@ -9,6 +10,8 @@ bot.use(session());
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
 const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL || 'https://t.me/ketmar_market_bot/app';
+
+registerSeasonHandlers(bot, { apiUrl: API_URL });
 
 function escapeMarkdown(text = '') {
   if (typeof text !== 'string') {

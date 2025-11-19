@@ -31,6 +31,11 @@ const seasonSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    specialFilters: {
+      enableTulips: { type: Boolean, default: false },
+      enableCraft: { type: Boolean, default: false },
+      enableFarm: { type: Boolean, default: false },
+    },
   },
   {
     timestamps: true,
