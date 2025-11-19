@@ -8,6 +8,7 @@ const favoritesRoutes = require('./routes/favorites.js');
 const alertsRoutes = require('./routes/alerts.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
+const internalNotificationsRoutes = require('./routes/internalNotifications.js');
 
 const app = express();
 
@@ -49,6 +50,7 @@ app.use('/api/orders', ordersRoutes);
 app.use('/api/favorites', favoritesRoutes);
 app.use('/api/alerts', alertsRoutes);
 app.use('/api/mod', moderationRoutes);
+app.use('/api/internal', internalNotificationsRoutes);
 app.use('/auth', authRoutes);
 
 // 404 обработчик

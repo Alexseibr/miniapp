@@ -61,7 +61,11 @@ async function findUsersToNotifyOnAdChange(adBefore, adAfter) {
     }
 
     if (shouldNotify) {
-      notifications.push({ user, changes: { ...changeSummary } });
+      notifications.push({
+        user,
+        ad: { _id: adAfter._id, title: adAfter.title },
+        changes: { ...changeSummary },
+      });
     }
   }
 

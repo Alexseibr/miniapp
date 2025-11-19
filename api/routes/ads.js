@@ -658,85 +658,6 @@ router.get('/season/:code/live', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/bulk/update-status', async (req, res) => {
-  try {
-    const { adIds, status } = req.body || {};
-    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
-
-    if (!Array.isArray(adIds) || adIds.length === 0) {
-      return res.status(400).json({ error: 'adIds must be a non-empty array' });
-    }
-
-    if (typeof status !== 'string' || !allowedStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
-    }
-
-    const historyEntry = {
-      date: new Date(),
-      status,
-      moderationStatus: undefined,
-      comment: 'Bulk status update',
-    };
-
-    const result = await Ad.updateMany(
-      { _id: { $in: adIds } },
-      {
-        $set: { status },
-        $push: { statusHistory: historyEntry },
-      }
-    );
-
-    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
-    console.log(`[BULK UPDATE] update-status — ${updated} ads updated`);
-
-    return res.json({ updated, status });
-  } catch (error) {
-    console.error('POST /api/ads/bulk/update-status error:', error);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/bulk/extend', async (req, res) => {
-  try {
-    const { adIds, extendDays, sellerTelegramId } = req.body || {};
-
-    if (!Array.isArray(adIds) || adIds.length === 0) {
-      return res.status(400).json({ error: 'adIds must be a non-empty array' });
-    }
-
-    const extendNumber = Number(extendDays);
-    if (!Number.isFinite(extendNumber) || extendNumber <= 0) {
-      return res.status(400).json({ error: 'extendDays must be a positive number' });
-    }
-
-    const sellerId = parseSellerId(sellerTelegramId);
-    if (!sellerId) {
-      return res.status(400).json({ error: 'sellerTelegramId is required' });
-    }
-
-    const ads = await Ad.find({ _id: { $in: adIds }, sellerTelegramId: sellerId });
-    let updated = 0;
-
-    for (const ad of ads) {
-      const now = new Date();
-      const base = ad.validUntil && ad.validUntil > now ? new Date(ad.validUntil) : now;
-      base.setDate(base.getDate() + extendNumber);
-      ad.validUntil = base;
-      ad.lifetimeDays = extendNumber;
-      await ad.save();
-      updated += 1;
-    }
-
-    console.log(`[BULK UPDATE] extend — ${updated} ads updated`);
-    return res.json({ updated, extendDays: extendNumber });
-  } catch (error) {
     console.error('POST /api/ads/bulk/extend error:', error);
     return res.status(500).json({ error: 'Server error' });
   }
@@ -1205,13 +1126,6 @@ router.post('/:id/live-spot', async (req, res, next) => {
       }
     } catch (notifyError) {
       console.error('Favorites notification calculation error:', notifyError);
-    }
-
-    if (statusChanged) {
-      await notifySubscribers(
-        ad._id,
-        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
-      );
     }
 
     if (statusChanged) {

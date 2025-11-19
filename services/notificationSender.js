@@ -1,19 +1,31 @@
+const bot = require('../bot/bot');
+
 async function sendPriceStatusChangeNotifications(notifications = []) {
   if (!Array.isArray(notifications) || notifications.length === 0) {
     return;
   }
 
-  const summary = notifications.map((entry) => ({
-    telegramId: entry.user?.telegramId,
-    priceChanged: entry.changes?.priceChanged || false,
-    statusChanged: entry.changes?.statusChanged || false,
-    oldPrice: entry.changes?.oldPrice,
-    newPrice: entry.changes?.newPrice,
-    oldStatus: entry.changes?.oldStatus,
-    newStatus: entry.changes?.newStatus,
-  }));
+  for (const entry of notifications) {
+    const telegramId = entry.user?.telegramId;
+    if (!telegramId) {
+      continue;
+    }
 
-  console.log('Stub notifications to send:', summary);
+    const payload = {
+      adId: entry.ad?._id,
+      title: entry.ad?.title,
+      oldPrice: entry.changes?.oldPrice,
+      newPrice: entry.changes?.newPrice,
+      oldStatus: entry.changes?.oldStatus,
+      newStatus: entry.changes?.newStatus,
+    };
+
+    if (typeof bot.sendFavoriteUpdateNotification === 'function') {
+      await bot.sendFavoriteUpdateNotification(telegramId, payload);
+    } else {
+      console.log('Stub notification', { telegramId, ...payload });
+    }
+  }
 }
 
 module.exports = {
