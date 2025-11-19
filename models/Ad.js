@@ -9,6 +9,22 @@ const LocationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const GeoPointSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      index: '2dsphere',
+      default: undefined,
+    },
+  },
+  { _id: false }
+);
+
 const adSchema = new mongoose.Schema(
   {
     title: {
@@ -94,17 +110,7 @@ const adSchema = new mongoose.Schema(
       default: 0,
     },
     location: LocationSchema,
-    geo: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number],
-        index: '2dsphere',
-      },
-    },
+    geo: GeoPointSchema,
     watchers: {
       type: [
         {
@@ -142,11 +148,18 @@ adSchema.pre('save', function (next) {
     this.validUntil = validUntil;
   }
 
-  if (
+  const hasLocation =
     this.location &&
     this.location.lat != null &&
-    this.location.lng != null
-  ) {
+    this.location.lng != null;
+
+  const hasGeoCoordinates =
+    this.geo &&
+    Array.isArray(this.geo.coordinates) &&
+    this.geo.coordinates.length === 2 &&
+    this.geo.coordinates.every((value) => value != null);
+
+  if (hasLocation && !hasGeoCoordinates) {
     this.geo = {
       type: 'Point',
       coordinates: [this.location.lng, this.location.lat],
@@ -154,9 +167,7 @@ adSchema.pre('save', function (next) {
   }
 
   if (
-    this.geo &&
-    Array.isArray(this.geo.coordinates) &&
-    this.geo.coordinates.length === 2 &&
+    hasGeoCoordinates &&
     (!this.location || this.location.lat == null || this.location.lng == null)
   ) {
     const [lng, lat] = this.geo.coordinates;
