@@ -14,3 +14,7 @@ export function formatRelativeTime(dateInput?: string | Date) {
   const diffDays = Math.floor(diffHours / 24);
   return `${diffDays} дн назад`;
 }
+
+export function formatDistanceToNow(dateInput?: string | Date) {
+  return formatRelativeTime(dateInput);
+}

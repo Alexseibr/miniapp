@@ -124,3 +124,21 @@ export interface OrderPayload {
     quantity: number;
   }[];
 }
+
+export type OrderStatus = 'new' | 'processed' | 'completed' | 'cancelled' | 'expired' | 'archived';
+
+export interface OrderItemSummary {
+  adId: string;
+  title?: string;
+  quantity?: number;
+  price?: number;
+  sellerTelegramId?: number;
+}
+
+export interface OrderSummary {
+  _id: string;
+  status: OrderStatus;
+  createdAt?: string;
+  seasonCode?: string | null;
+  items: OrderItemSummary[];
+}
