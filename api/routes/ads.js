@@ -750,6 +750,42 @@ router.get('/my', async (req, res, next) => {
 
     return res.json({ items: ads });
   } catch (error) {
+    console.error('POST /api/ads/bulk/hide-expired error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -1072,7 +1108,7 @@ router.post('/', validateCreateAd, async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -1134,6 +1170,25 @@ router.patch('/:id', async (req, res, next) => {
     } catch (notifyError) {
       console.error('Favorites notification calculation error:', notifyError);
     }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    try {
+      const notifications = await findUsersToNotifyOnAdChange(before, after);
+      if (notifications.length) {
+        await sendPriceStatusChangeNotifications(notifications);
+      }
+    } catch (notifyError) {
+      console.error('Favorites notification calculation error:', notifyError);
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
