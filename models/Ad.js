@@ -133,6 +133,14 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: null,
     },
+    statusHistory: [
+      {
+        date: { type: Date, default: Date.now },
+        status: { type: String },
+        moderationStatus: { type: String },
+        comment: { type: String },
+      },
+    ],
     location: LocationSchema,
     watchers: {
       type: [
