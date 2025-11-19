@@ -79,6 +79,63 @@ router.get('/', async (req, res, next) => {
 
     if (hasGeoQuery) {
       const radiusNumber = Number(radiusKm);
+      const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+
+      const geoQuery = {
+        ...query,
+        'location.lat': { $ne: null },
+        'location.lng': { $ne: null },
+      };
+
+      const ads = await Ad.find(geoQuery);
+      const itemsWithDistance = [];
+
+      for (const ad of ads) {
+        if (!ad.location || ad.location.lat == null || ad.location.lng == null) {
+          continue;
+        }
+
+        const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+
+        if (distanceKm == null) {
+          continue;
+        }
+
+        if (finalRadiusKm && distanceKm > finalRadiusKm) {
+          continue;
+        }
+
+        const adObject = ad.toObject();
+        adObject.distanceKm = distanceKm;
+        itemsWithDistance.push(adObject);
+      }
+
+      const sortedItems = itemsWithDistance.slice();
+
+      if (sort === 'distance') {
+        sortedItems.sort((a, b) => a.distanceKm - b.distanceKm);
+      } else if (sort === 'cheapest') {
+        sortedItems.sort((a, b) => (a.price || 0) - (b.price || 0));
+      } else {
+        sortedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      }
+
+      const pagedItems = sortedItems.slice(finalOffset, finalOffset + finalLimit);
+
+      return res.json({ items: pagedItems });
+    }
+
+    let sortObj = { createdAt: -1 };
+    if (sort === 'cheapest') {
+      sortObj = { price: 1 };
+    }
+
+    const items = await Ad.find(query)
+      .sort(sortObj)
+      .skip(finalOffset)
+      .limit(finalLimit);
+
+    res.json({ items });
       const finalRadiusKm =
         Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
 
@@ -191,6 +248,16 @@ router.get('/nearby', async (req, res, next) => {
 });
 
 // GET /api/ads/nearby
+router.get('/nearby', async (req, res, next) => {
+  try {
+    const {
+      lat,
+      lng,
+      radiusKm = 5,
+      categoryId,
+      subcategoryId,
+      limit = 20,
+    } = req.query;
 router.get('/nearby', async (req, res) => {
   try {
     const { lat, lng, radiusKm = 5, categoryId, subcategoryId, limit = 20 } = req.query;
@@ -210,6 +277,20 @@ router.get('/nearby', async (req, res) => {
     const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
 
     const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+
+    const query = {
+      status: 'active',
+      'location.lat': { $ne: null },
+      'location.lng': { $ne: null },
+    };
+
+    if (categoryId) query.categoryId = categoryId;
+    if (subcategoryId) query.subcategoryId = subcategoryId;
+
+    const ads = await Ad.find(query);
+    const itemsWithDistance = [];
+
     const finalRadius = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
 
     const geoQuery = { status: 'active' };
@@ -225,12 +306,26 @@ router.get('/nearby', async (req, res) => {
       }
 
       const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+
+      if (distanceKm == null) {
+        continue;
+      }
+
+      if (finalRadiusKm && distanceKm > finalRadiusKm) {
       if (distanceKm == null || distanceKm > finalRadius) {
         continue;
       }
 
       const adObject = ad.toObject();
       adObject.distanceKm = distanceKm;
+      itemsWithDistance.push(adObject);
+    }
+
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return res.json({ items: itemsWithDistance.slice(0, finalLimit) });
+  } catch (error) {
+    next(error);
       mapped.push(adObject);
     }
 

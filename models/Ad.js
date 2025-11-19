@@ -97,6 +97,14 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    location: {
+      lat: {
+        type: Number,
+      },
+      lng: {
+        type: Number,
+      },
+    },
     location: LocationSchema,
     watchers: {
       type: [
