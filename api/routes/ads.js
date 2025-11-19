@@ -427,6 +427,44 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -737,7 +775,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -790,6 +828,27 @@ router.patch('/:id', async (req, res, next) => {
         `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
       );
     }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    if (ad.sellerTelegramId !== sellerIdNumber) {
+      return res.status(403).json({ message: 'Вы не можете изменять live-spot для этого объявления' });
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
