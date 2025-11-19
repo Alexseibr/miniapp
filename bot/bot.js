@@ -474,7 +474,7 @@ bot.command('start', async (ctx) => {
     `/season - 🌟 Сезонные предложения\n` +
     `/categories - 📂 Категории товаров\n` +
     `/search <запрос> - 🔍 Поиск объявлений\n` +
-    `/myorders - 📋 Мои заказы\n` +
+    `/my_orders - 📋 Мои заказы\n` +
     `/myid - 🆔 Узнать свой Telegram ID\n` +
     `/new_test_ad - ➕ Создать тестовое объявление` +
     (startKeyboard ? '\n\n🔗 Используйте кнопки ниже, чтобы открыть мини-приложение.' : ''),
@@ -1038,54 +1038,68 @@ bot.command('search', async (ctx) => {
   }
 });
 
-// /myorders - мои заказы
-bot.command('myorders', async (ctx) => {
+async function handleMyOrdersCommand(ctx) {
   try {
     const telegramId = ctx.from.id;
-    const response = await fetch(`${API_URL}/api/orders/${telegramId}`);
-    
+    const url = new URL(`${API_URL}/api/orders/my`);
+    url.searchParams.set('buyerTelegramId', telegramId);
+
+    const response = await fetch(url);
+
     if (!response.ok) {
       throw new Error('Ошибка получения заказов');
     }
-    
-    const orders = await response.json();
-    
+
+    const payload = await response.json();
+    const orders = Array.isArray(payload) ? payload : payload.items || [];
+
     if (orders.length === 0) {
       return ctx.reply('📋 У вас пока нет заказов.');
     }
-    
+
     await ctx.reply(`📋 **Ваши заказы** (${orders.length}):`, { parse_mode: 'Markdown' });
-    
+
+    const statusEmoji = {
+      new: '🆕',
+      processed: '⚙️',
+      completed: '✅',
+      cancelled: '❌',
+    };
+
     for (const order of orders) {
-      const statusEmoji = {
-        pending: '⏳',
-        confirmed: '✅',
-        processing: '🔄',
-        completed: '🎉',
-        cancelled: '❌',
-      };
-      
       const itemsList = order.items
-        .map((item) => `  • ${item.title} × ${item.quantity} = ${item.price * item.quantity} ${item.currency || 'BYN'}`)
+        .map((item) => {
+          const currency = item.currency || 'BYN';
+          const total = item.price * item.quantity;
+          return `  • ${item.title} × ${item.quantity} = ${total} ${currency}`;
+        })
         .join('\n');
-      
-      const totalPrice = order.items.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-      
-      const message = 
-        `**Заказ #${order._id.slice(-6)}**\n\n` +
+
+      const totalPrice = order.totalPrice || order.items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+      const totalCurrency = order.items[0]?.currency || 'BYN';
+      const orderIdShort = (order._id?.toString() || '').slice(-6) || '000000';
+
+      const message =
+        `**Заказ #${orderIdShort}**\n\n` +
         `${itemsList}\n\n` +
-        `💰 Итого: **${totalPrice} BYN**\n` +
+        `💰 Итого: **${totalPrice} ${totalCurrency}**\n` +
         `📊 Статус: ${statusEmoji[order.status] || '❓'} ${order.status}\n` +
         `📅 Дата: ${new Date(order.createdAt).toLocaleDateString('ru-RU')}` +
         (order.comment ? `\n💬 Комментарий: ${order.comment}` : '');
-      
+
       await ctx.reply(message, { parse_mode: 'Markdown' });
     }
   } catch (error) {
-    console.error('Ошибка в /myorders:', error);
+    console.error('Ошибка в /my_orders:', error);
     await ctx.reply('❌ Произошла ошибка при загрузке заказов.');
   }
-});
+}
+
+bot.command('my_orders', handleMyOrdersCommand);
+bot.command('myorders', handleMyOrdersCommand);
 
 // /new_test_ad - создать тестовое объявление
 bot.command('new_test_ad', async (ctx) => {
