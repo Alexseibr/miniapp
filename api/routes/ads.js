@@ -180,11 +180,11 @@ router.get('/nearby', async (req, res) => {
     const {
       lat,
       lng,
-      radiusKm = 5,
+      radiusKm = 10,
       categoryId,
       subcategoryId,
       seasonCode,
-      limit = 50,
+      limit = 20,
     } = req.query;
 
     if (lat === undefined || lng === undefined) {
@@ -199,39 +199,44 @@ router.get('/nearby', async (req, res) => {
     }
 
     const limitNumber = Number(limit);
-    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
+    const finalLimit =
+      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 20;
 
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
     const radiusMeters = finalRadiusKm * 1000;
 
     const normalizedSeason = normalizeSeasonCode(seasonCode);
 
-    const filter = { status: 'active' };
-    if (categoryId) filter.categoryId = categoryId;
-    if (subcategoryId) filter.subcategoryId = subcategoryId;
-    if (normalizedSeason) filter.seasonCode = normalizedSeason;
+    const baseFilter = { status: 'active' };
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+    if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
 
-    const ads = await Ad.find({
-      ...filter,
-      geo: {
-        $near: {
-          $geometry: {
+    const pipeline = [
+      {
+        $geoNear: {
+          near: {
             type: 'Point',
             coordinates: [lngNumber, latNumber],
           },
-          $maxDistance: radiusMeters,
+          distanceField: 'distanceMeters',
+          maxDistance: radiusMeters,
+          spherical: true,
+          query: baseFilter,
         },
       },
-    }).limit(finalLimit);
+      { $limit: finalLimit },
+    ];
 
-    const itemsWithDistance = projectAdsWithinRadius(ads, {
-      latNumber,
-      lngNumber,
-      radiusKm: finalRadiusKm,
-    });
+    const items = await Ad.aggregate(pipeline);
 
-    return res.json({ items: itemsWithDistance });
+    const withDistance = items.map((item) => ({
+      ...item,
+      distanceKm: Number(((item.distanceMeters || 0) / 1000).toFixed(2)),
+    }));
+
+    return res.json({ items: withDistance });
   } catch (error) {
     console.error('GET /api/ads/nearby error:', error);
     res.status(500).json({ error: 'Server error' });
@@ -291,6 +296,57 @@ router.get('/season/:code', async (req, res, next) => {
     } else {
       itemsWithDistance.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/season/:code/live', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ message: 'lat и lng должны быть числами' });
+    }
+
+    const seasonCode = normalizeSeasonCode(code);
+    if (!seasonCode) {
+      return res.status(400).json({ message: 'Некорректный код сезона' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+
+    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const itemsWithDistance = projectAdsWithinRadius(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: finalRadiusKm,
+    });
+
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
 
     const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
 
