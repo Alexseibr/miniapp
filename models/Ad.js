@@ -1,21 +1,6 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 
-const LocationSchema = new mongoose.Schema(
-  {
-    type: {
-      type: String,
-      enum: ['Point'],
-      default: 'Point',
-    },
-    coordinates: {
-      type: [Number], // [lng, lat]
-      required: true,
-    },
-  },
-  { _id: false }
-);
-
 const adSchema = new mongoose.Schema(
   {
     title: {
@@ -101,8 +86,8 @@ const adSchema = new mongoose.Schema(
       default: 0,
     },
     location: {
-      type: LocationSchema,
-      index: '2dsphere',
+      lat: { type: Number },
+      lng: { type: Number },
     },
     watchers: {
       type: [
@@ -197,5 +182,6 @@ adSchema.pre('save', async function (next) {
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
+adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 
 module.exports = mongoose.model('Ad', adSchema);
