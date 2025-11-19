@@ -24,7 +24,7 @@ router.get('/', async (req, res) => {
 
     return res.json({
       ok: true,
-      favorites: user?.favorites || [],
+      items: user?.favorites || [],
     });
   } catch (error) {
     console.error('Failed to load favorites', error);

@@ -80,7 +80,11 @@ const adSchema = new mongoose.Schema(
       default: 0,
     },
     watchers: {
-      type: [Number],
+      type: [
+        {
+          type: Number,
+        },
+      ],
       default: [],
     },
   },
