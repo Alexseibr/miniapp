@@ -1,18 +1,6 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 
-const LocationSchema = new mongoose.Schema(
-  {
-    lat: {
-      type: Number,
-    },
-    lng: {
-      type: Number,
-    },
-  },
-  { _id: false }
-);
-
 const adSchema = new mongoose.Schema(
   {
     title: {
@@ -98,14 +86,9 @@ const adSchema = new mongoose.Schema(
       default: 0,
     },
     location: {
-      lat: {
-        type: Number,
-      },
-      lng: {
-        type: Number,
-      },
+      lat: { type: Number },
+      lng: { type: Number },
     },
-    location: LocationSchema,
     watchers: {
       type: [
         {

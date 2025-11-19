@@ -63,201 +63,61 @@ router.get('/', async (req, res, next) => {
     const offsetNumber = Number(offset);
     const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
 
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadius = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+
     let sortObj = { createdAt: -1 };
     if (sort === 'cheapest') {
       sortObj = { price: 1 };
     }
 
-    const docs = await Ad.find(query)
-      .sort(sortObj)
-      .skip(finalOffset)
-      .limit(finalLimit);
+    const fetchLimit = hasGeoQuery ? finalLimit + finalOffset : finalLimit;
 
-    const latNumber = Number(lat);
-    const lngNumber = Number(lng);
-    const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+    const baseItems = await Ad.find(query)
+      .sort(sortObj)
+      .skip(hasGeoQuery ? 0 : finalOffset)
+      .limit(fetchLimit > 0 ? fetchLimit : finalLimit);
 
     if (hasGeoQuery) {
-      const radiusNumber = Number(radiusKm);
-      const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
-
-      const geoQuery = {
-        ...query,
-        'location.lat': { $ne: null },
-        'location.lng': { $ne: null },
-      };
-
-      const ads = await Ad.find(geoQuery);
-      const itemsWithDistance = [];
-
-      for (const ad of ads) {
+      const mapped = [];
+      for (const ad of baseItems) {
         if (!ad.location || ad.location.lat == null || ad.location.lng == null) {
           continue;
         }
 
         const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
-
         if (distanceKm == null) {
           continue;
         }
 
-        if (finalRadiusKm && distanceKm > finalRadiusKm) {
+        if (finalRadius && distanceKm > finalRadius) {
           continue;
         }
 
         const adObject = ad.toObject();
         adObject.distanceKm = distanceKm;
-        itemsWithDistance.push(adObject);
-      }
-
-      const sortedItems = itemsWithDistance.slice();
-
-      if (sort === 'distance') {
-        sortedItems.sort((a, b) => a.distanceKm - b.distanceKm);
-      } else if (sort === 'cheapest') {
-        sortedItems.sort((a, b) => (a.price || 0) - (b.price || 0));
-      } else {
-        sortedItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-      }
-
-      const pagedItems = sortedItems.slice(finalOffset, finalOffset + finalLimit);
-
-      return res.json({ items: pagedItems });
-    }
-
-    let sortObj = { createdAt: -1 };
-    if (sort === 'cheapest') {
-      sortObj = { price: 1 };
-    }
-
-    const items = await Ad.find(query)
-      .sort(sortObj)
-      .skip(finalOffset)
-      .limit(finalLimit);
-
-    res.json({ items });
-      const finalRadiusKm =
-        Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
-
-      const geoItems = [];
-      for (const doc of docs) {
-        const locationLat = doc?.location?.lat;
-        const locationLng = doc?.location?.lng;
-        if (!Number.isFinite(locationLat) || !Number.isFinite(locationLng)) {
-          continue;
-        }
-
-        const distanceKm = getDistanceKm(
-          latNumber,
-          lngNumber,
-          locationLat,
-          locationLng
-        );
-
-        if (Number.isFinite(finalRadiusKm) && distanceKm > finalRadiusKm) {
-          continue;
-        }
-
-        const obj = doc.toObject();
-        obj.distanceKm = distanceKm;
-        geoItems.push(obj);
+        mapped.push(adObject);
       }
 
       if (sort === 'distance') {
-        geoItems.sort((a, b) => a.distanceKm - b.distanceKm);
+        mapped.sort((a, b) => a.distanceKm - b.distanceKm);
       }
 
-      return res.json({ items: geoItems });
+      const paginated = mapped.slice(finalOffset, finalOffset + finalLimit);
+      return res.json({ items: paginated });
     }
 
-    res.json({ items: docs });
+    res.json({ items: baseItems });
   } catch (error) {
     next(error);
   }
 });
 
 // GET /api/ads/nearby
-router.get('/nearby', async (req, res, next) => {
-  try {
-    const {
-      lat,
-      lng,
-      radiusKm = 5,
-      categoryId,
-      subcategoryId,
-      limit = 20,
-    } = req.query;
-
-    if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ error: 'lat и lng обязательны' });
-    }
-
-    const latNumber = Number(lat);
-    const lngNumber = Number(lng);
-
-    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ error: 'lat и lng должны быть числами' });
-    }
-
-    const radiusNumber = Number(radiusKm);
-    const finalRadiusKm =
-      Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
-
-    const limitNumber = Number(limit);
-    const finalLimit =
-      Number.isFinite(limitNumber) && limitNumber > 0
-        ? Math.min(limitNumber, 100)
-        : 20;
-
-    const query = { status: 'active' };
-    if (categoryId) query.categoryId = categoryId;
-    if (subcategoryId) query.subcategoryId = subcategoryId;
-
-    const docs = await Ad.find(query);
-
-    const items = [];
-    for (const doc of docs) {
-      const locationLat = doc?.location?.lat;
-      const locationLng = doc?.location?.lng;
-      if (!Number.isFinite(locationLat) || !Number.isFinite(locationLng)) {
-        continue;
-      }
-
-      const distanceKm = getDistanceKm(
-        latNumber,
-        lngNumber,
-        locationLat,
-        locationLng
-      );
-
-      if (Number.isFinite(finalRadiusKm) && distanceKm > finalRadiusKm) {
-        continue;
-      }
-
-      const obj = doc.toObject();
-      obj.distanceKm = distanceKm;
-      items.push(obj);
-    }
-
-    items.sort((a, b) => a.distanceKm - b.distanceKm);
-
-    return res.json({ items: items.slice(0, finalLimit) });
-  } catch (error) {
-    next(error);
-  }
-});
-
-// GET /api/ads/nearby
-router.get('/nearby', async (req, res, next) => {
-  try {
-    const {
-      lat,
-      lng,
-      radiusKm = 5,
-      categoryId,
-      subcategoryId,
-      limit = 20,
-    } = req.query;
 router.get('/nearby', async (req, res) => {
   try {
     const { lat, lng, radiusKm = 5, categoryId, subcategoryId, limit = 20 } = req.query;
@@ -277,27 +137,16 @@ router.get('/nearby', async (req, res) => {
     const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
 
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
-
-    const query = {
-      status: 'active',
-      'location.lat': { $ne: null },
-      'location.lng': { $ne: null },
-    };
-
-    if (categoryId) query.categoryId = categoryId;
-    if (subcategoryId) query.subcategoryId = subcategoryId;
-
-    const ads = await Ad.find(query);
-    const itemsWithDistance = [];
-
     const finalRadius = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
 
-    const geoQuery = { status: 'active' };
-    if (categoryId) geoQuery.categoryId = categoryId;
-    if (subcategoryId) geoQuery.subcategoryId = subcategoryId;
+    const baseQuery = { status: 'active' };
+    if (categoryId) baseQuery.categoryId = categoryId;
+    if (subcategoryId) baseQuery.subcategoryId = subcategoryId;
 
-    const ads = await Ad.find(geoQuery).sort({ createdAt: -1 });
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+    const ads = await Ad.find(baseQuery)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
 
     const mapped = [];
     for (const ad of ads) {
@@ -306,26 +155,12 @@ router.get('/nearby', async (req, res) => {
       }
 
       const distanceKm = getDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
-
-      if (distanceKm == null) {
-        continue;
-      }
-
-      if (finalRadiusKm && distanceKm > finalRadiusKm) {
       if (distanceKm == null || distanceKm > finalRadius) {
         continue;
       }
 
       const adObject = ad.toObject();
       adObject.distanceKm = distanceKm;
-      itemsWithDistance.push(adObject);
-    }
-
-    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-
-    return res.json({ items: itemsWithDistance.slice(0, finalLimit) });
-  } catch (error) {
-    next(error);
       mapped.push(adObject);
     }
 
