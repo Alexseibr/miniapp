@@ -1138,22 +1138,6 @@ router.post('/:id/live-spot', async (req, res, next) => {
       console.error('Favorites notification calculation error:', notifyError);
     }
 
-    if (statusChanged) {
-      await notifySubscribers(
-        ad._id,
-        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
-      );
-    }
-
-    try {
-      const notifications = await findUsersToNotifyOnAdChange(before, after);
-      if (notifications.length) {
-        await sendPriceStatusChangeNotifications(notifications);
-      }
-    } catch (notifyError) {
-      console.error('Favorites notification calculation error:', notifyError);
-    }
-
     ad.isLiveSpot = isLiveSpot;
     await ad.save();
 
