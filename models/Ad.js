@@ -1,6 +1,29 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 
+const LocationSchema = new mongoose.Schema(
+  {
+    lat: { type: Number },
+    lng: { type: Number },
+  },
+  { _id: false }
+);
+
+const GeoPointSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+    },
+  },
+  { _id: false }
+);
+
 const adSchema = new mongoose.Schema(
   {
     title: {
@@ -85,9 +108,10 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    location: {
-      lat: { type: Number },
-      lng: { type: Number },
+    location: LocationSchema,
+    geo: {
+      type: GeoPointSchema,
+      index: '2dsphere',
     },
     watchers: {
       type: [
@@ -124,6 +148,31 @@ adSchema.pre('save', function (next) {
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + (this.lifetimeDays || 30));
     this.validUntil = validUntil;
+  }
+
+  if (
+    !this.geo &&
+    this.location &&
+    this.location.lat != null &&
+    this.location.lng != null
+  ) {
+    this.geo = {
+      type: 'Point',
+      coordinates: [this.location.lng, this.location.lat],
+    };
+  }
+
+  if (
+    this.geo &&
+    Array.isArray(this.geo.coordinates) &&
+    this.geo.coordinates.length === 2 &&
+    (!this.location || this.location.lat == null || this.location.lng == null)
+  ) {
+    const [lng, lat] = this.geo.coordinates;
+    this.location = {
+      lat,
+      lng,
+    };
   }
   next();
 });
@@ -183,5 +232,6 @@ adSchema.pre('save', async function (next) {
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
+adSchema.index({ geo: '2dsphere' });
 
 module.exports = mongoose.model('Ad', adSchema);

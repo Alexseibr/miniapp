@@ -17,16 +17,36 @@ function normalizeSeasonCode(code) {
   return code.trim().toLowerCase();
 }
 
+function extractAdCoordinates(ad) {
+  if (ad?.location && ad.location.lat != null && ad.location.lng != null) {
+    return {
+      lat: Number(ad.location.lat),
+      lng: Number(ad.location.lng),
+    };
+  }
+
+  if (ad?.geo?.coordinates && ad.geo.coordinates.length === 2) {
+    const [lng, lat] = ad.geo.coordinates;
+    return {
+      lat: Number(lat),
+      lng: Number(lng),
+    };
+  }
+
+  return null;
+}
+
 function projectAdsWithinRadius(ads, { latNumber, lngNumber, radiusKm }) {
   const radiusLimit = Number.isFinite(radiusKm) && radiusKm > 0 ? radiusKm : null;
   const projected = [];
 
   for (const ad of ads) {
-    if (!ad?.location || ad.location.lat == null || ad.location.lng == null) {
+    const coordinates = extractAdCoordinates(ad);
+    if (!coordinates) {
       continue;
     }
 
-    const distanceKm = haversineDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+    const distanceKm = haversineDistanceKm(latNumber, lngNumber, coordinates.lat, coordinates.lng);
     if (distanceKm == null) {
       continue;
     }
@@ -154,6 +174,73 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/near', async (req, res) => {
+  try {
+    const {
+      lat,
+      lng,
+      radiusKm = 5,
+      categoryId,
+      subcategoryId,
+      seasonCode,
+      limit = 50,
+    } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
+    }
+
+    const radiusNumber = Number(radiusKm);
+    const radiusMeters = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber * 1000 : 5000;
+
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+
+    const baseFilter = {
+      status: 'active',
+    };
+
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+    if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
+
+    const query = {
+      ...baseFilter,
+      geo: {
+        $near: {
+          $geometry: {
+            type: 'Point',
+            coordinates: [lngNumber, latNumber],
+          },
+          $maxDistance: radiusMeters,
+        },
+      },
+    };
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
+
+    const ads = await Ad.find(query).limit(finalLimit);
+
+    const itemsWithDistance = projectAdsWithinRadius(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: Number(radiusKm),
+    });
+
+    return res.json({ items: itemsWithDistance });
+  } catch (error) {
+    console.error('GET /api/ads/near error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 // GET /api/ads/nearby
 router.get('/nearby', async (req, res) => {
   try {
@@ -268,6 +355,57 @@ router.get('/season/:code', async (req, res, next) => {
     } else {
       itemsWithDistance.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     }
+
+    const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
+
+    return res.json({ items: finalItems });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/season/:code/live', async (req, res, next) => {
+  try {
+    const { code } = req.params;
+    const { lat, lng, radiusKm = 5, limit = 20, offset = 0 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ message: 'lat и lng обязательны для live-точек' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ message: 'lat и lng должны быть числами' });
+    }
+
+    const seasonCode = normalizeSeasonCode(code);
+    if (!seasonCode) {
+      return res.status(400).json({ message: 'Некорректный код сезона' });
+    }
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const offsetNumber = Number(offset);
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+
+    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const itemsWithDistance = projectAdsWithinRadius(ads, {
+      latNumber,
+      lngNumber,
+      radiusKm: finalRadiusKm,
+    });
+
+    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
 
     const finalItems = itemsWithDistance.slice(finalOffset, finalOffset + finalLimit);
 
