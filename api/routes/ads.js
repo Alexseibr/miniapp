@@ -427,6 +427,136 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.patch('/:id/photos', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const photos = req.body?.photos;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (!Array.isArray(photos)) {
+      return res.status(400).json({ message: 'photos must be an array' });
+    }
+
+    const sanitized = photos
+      .map((photo) => (typeof photo === 'string' ? photo.trim() : ''))
+      .filter(Boolean);
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    ad.photos = sanitized;
+    await ad.save();
+
+    return res.json({ item: ad, photosCount: sanitized.length });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/extend', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    const extensionDays = resolveExtensionDays(ad);
+    extendAdLifetime(ad, extensionDays);
+    await ad.save();
+
+    return res.json({ item: ad, extendedByDays: extensionDays, validUntil: ad.validUntil });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/liveSpot/on', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    await applyLiveSpotStatus(ad, true);
+
+    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/liveSpot/off', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+    await applyLiveSpotStatus(ad, false);
+
+    return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -675,7 +805,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', async (req, res, next) => {
+router.post('/', validateCreateAd, async (req, res, next) => {
   try {
     const {
       title,
@@ -731,13 +861,14 @@ router.post('/', async (req, res, next) => {
 
     const ad = await Ad.create(payload);
 
+    const ad = await Ad.create(payload);
     res.status(201).json(ad);
   } catch (error) {
     next(error);
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -790,6 +921,23 @@ router.patch('/:id', async (req, res, next) => {
         `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
       );
     }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    if (statusChanged) {
+      await notifySubscribers(
+        ad._id,
+        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
+      );
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
