@@ -9,6 +9,14 @@ bot.use(session());
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
 
+function escapeMarkdown(text = '') {
+  if (typeof text !== 'string') {
+    return '';
+  }
+
+  return text.replace(/([_*\[\]()~`>#+=|{}.!\\-])/g, '\\$1');
+}
+
 async function fetchAdDetails(adId) {
   const response = await fetch(`${API_URL}/api/ads/${adId}`);
 
@@ -189,6 +197,200 @@ async function renderMarketSubcategories(ctx, category) {
     `Категория: ${category.name}\n\nВыбери подкатегорию:`,
     { reply_markup: { inline_keyboard: keyboard } }
   );
+}
+
+function formatValidUntil(date) {
+  if (!date) {
+    return '—';
+  }
+
+  try {
+    const parsed = new Date(date);
+    return parsed.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+  } catch (error) {
+    return String(date);
+  }
+}
+
+function formatSellerAdCard(ad = {}) {
+  const statusEmoji = {
+    active: '✅',
+    draft: '📝',
+    sold: '🔒',
+    archived: '📦',
+    hidden: '🙈',
+    expired: '⌛️',
+  }[ad.status] || '📌';
+
+  const currency = ad.currency || 'BYN';
+  const photosCount = Array.isArray(ad.photos) ? ad.photos.length : 0;
+
+  return (
+    `${statusEmoji} *${escapeMarkdown(ad.title || 'Без названия')}*\n` +
+    `💰 ${ad.price} ${currency}\n` +
+    `📂 ${escapeMarkdown(ad.categoryId || '—')} / ${escapeMarkdown(ad.subcategoryId || '—')}\n` +
+    `🆔 \`${ad._id}\`\n` +
+    `📸 Фото: ${photosCount}\n` +
+    `⏳ Активно до: ${formatValidUntil(ad.validUntil)}\n` +
+    `📍 LiveSpot: ${ad.isLiveSpot ? 'Включён' : 'Выключен'}\n` +
+    `Статус: ${ad.status || '—'}`
+  );
+}
+
+function buildSellerAdKeyboard(ad = {}) {
+  const hideAction = ad.status === 'hidden' ? 'show' : 'hide';
+  const hideLabel = ad.status === 'hidden' ? '👁 Показать' : '🙈 Скрыть';
+  const liveAction = ad.isLiveSpot ? 'off' : 'on';
+  const liveLabel = ad.isLiveSpot ? '📍 LiveSpot OFF' : '📍 LiveSpot ON';
+
+  return {
+    inline_keyboard: [
+      [
+        Markup.button.callback('💰 Изменить цену', `myads_price:${ad._id}`),
+        Markup.button.callback('🖼 Обновить фото', `myads_photos:${ad._id}`),
+      ],
+      [
+        Markup.button.callback('⏳ Продлить', `myads_extend:${ad._id}`),
+        Markup.button.callback(hideLabel, `myads_hide:${ad._id}:${hideAction}`),
+      ],
+      [Markup.button.callback(liveLabel, `myads_live:${ad._id}:${liveAction}`)],
+    ],
+  };
+}
+
+function parsePhotoInput(text) {
+  if (!text) {
+    return [];
+  }
+
+  return text
+    .split(/[\s,\n]+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+}
+
+function pickAdFromResponse(data) {
+  if (!data) {
+    return null;
+  }
+
+  if (data.item) {
+    return data.item;
+  }
+
+  if (data.ad) {
+    return data.ad;
+  }
+
+  return data;
+}
+
+async function updateSellerAdMessageFromCallback(ctx, ad) {
+  if (!ad || !ctx?.callbackQuery?.message) {
+    return;
+  }
+
+  try {
+    await ctx.editMessageText(formatSellerAdCard(ad), {
+      parse_mode: 'Markdown',
+      reply_markup: buildSellerAdKeyboard(ad),
+    });
+  } catch (error) {
+    console.error('Не удалось обновить карточку объявления', error.response?.data || error.message);
+  }
+}
+
+async function updateSellerAdMessageByIds(telegram, chatId, messageId, ad) {
+  if (!telegram || !chatId || !messageId || !ad) {
+    return;
+  }
+
+  try {
+    await telegram.editMessageText(chatId, messageId, undefined, formatSellerAdCard(ad), {
+      parse_mode: 'Markdown',
+      reply_markup: buildSellerAdKeyboard(ad),
+    });
+  } catch (error) {
+    console.error('Не удалось обновить сообщение продавца', error.response?.data || error.message);
+  }
+}
+
+function ensureBotSession(ctx) {
+  if (!ctx.session) {
+    ctx.session = {};
+  }
+}
+
+async function handleManageFlowInput(ctx, text) {
+  const manage = ctx.session?.manageAd;
+
+  if (!manage) {
+    return;
+  }
+
+  const adId = manage.adId;
+
+  try {
+    if (manage.mode === 'price') {
+      const normalized = Number(String(text).replace(',', '.'));
+
+      if (!Number.isFinite(normalized) || normalized <= 0) {
+        await ctx.reply('⚠️ Введи корректную цену, например `12.5`', { parse_mode: 'Markdown' });
+        return;
+      }
+
+      const response = await axios.patch(`${API_URL}/api/ads/${adId}/price`, {
+        sellerTelegramId: ctx.from.id,
+        price: normalized,
+      });
+
+      const ad = pickAdFromResponse(response.data);
+      await updateSellerAdMessageByIds(
+        ctx.telegram,
+        manage.chatId || ctx.chat.id,
+        manage.messageId,
+        ad
+      );
+
+      await ctx.reply(`💰 Цена обновлена до ${normalized}.`);
+      ctx.session.manageAd = null;
+      return;
+    }
+
+    if (manage.mode === 'photos') {
+      const photos = parsePhotoInput(text);
+
+      if (!photos.length) {
+        await ctx.reply('⚠️ Пришли хотя бы одну ссылку на фото или введи /cancel.');
+        return;
+      }
+
+      const response = await axios.patch(`${API_URL}/api/ads/${adId}/photos`, {
+        sellerTelegramId: ctx.from.id,
+        photos,
+      });
+
+      const ad = pickAdFromResponse(response.data);
+      await updateSellerAdMessageByIds(
+        ctx.telegram,
+        manage.chatId || ctx.chat.id,
+        manage.messageId,
+        ad
+      );
+
+      await ctx.reply(`🖼 Фото обновлены (${photos.length}).`);
+      ctx.session.manageAd = null;
+      return;
+    }
+  } catch (error) {
+    console.error('handleManageFlowInput error:', error.response?.data || error.message);
+    await ctx.reply('❌ Не удалось обновить объявление. Попробуй позже.');
+    ctx.session.manageAd = null;
+  }
+
+  if (ctx.session?.manageAd) {
+    ctx.session.manageAd = null;
+  }
 }
 
 // Хелпер для получения активных сезонов
@@ -865,12 +1067,12 @@ bot.command("sell", async (ctx) => {
 // /my_ads - показать мои объявления
 bot.command("my_ads", async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
+    ensureBotSession(ctx);
     const telegramId = ctx.from.id;
+    const limit = Number(process.env.MY_ADS_LIMIT || 10);
 
-    // получаем объявления пользователя
-    const res = await axios.get(`${API_BASE_URL}/api/ads`, {
-      params: { sellerTelegramId: telegramId, limit: 20 },
+    const res = await axios.get(`${API_URL}/api/ads/my`, {
+      params: { sellerTelegramId: telegramId, limit },
     });
 
     const ads = res.data.items || [];
@@ -878,36 +1080,130 @@ bot.command("my_ads", async (ctx) => {
     if (!ads.length) {
       return ctx.reply(
         "📭 У тебя пока нет объявлений.\n\n" +
-        "Создай своё первое объявление командой /sell"
+          "Создай своё первое объявление командой /sell"
       );
     }
 
-    const adsList = ads
-      .map((ad, index) => {
-        const statusEmoji = {
-          active: "✅",
-          draft: "📝",
-          sold: "🔒",
-          archived: "📦",
-        };
-        const emoji = statusEmoji[ad.status] || "❓";
-        return (
-          `${index + 1}. ${emoji} **${ad.title}**\n` +
-          `   💰 ${ad.price} ${ad.currency || "BYN"}\n` +
-          `   📂 ${ad.categoryId} / ${ad.subcategoryId}\n` +
-          `   🆔 \`${ad._id}\``
-        );
-      })
-      .join("\n\n");
-
     await ctx.reply(
-      `📋 **Твои объявления** (${ads.length}):\n\n${adsList}\n\n` +
-      `Создать новое: /sell`,
-      { parse_mode: "Markdown" }
+      `📋 Найдено ${ads.length} объявлений.\nВыбери действие под нужной карточкой.\n\n` +
+        "Чтобы отменить любое действие, введи /cancel",
+      { disable_web_page_preview: true }
     );
+
+    for (const ad of ads) {
+      await ctx.reply(formatSellerAdCard(ad), {
+        parse_mode: 'Markdown',
+        reply_markup: buildSellerAdKeyboard(ad),
+        disable_web_page_preview: true,
+      });
+    }
   } catch (err) {
     console.error("/my_ads error:", err.response?.data || err.message);
     ctx.reply("⚠️ Ошибка при загрузке объявлений. Попробуй позже.");
+  }
+});
+
+bot.action(/myads_price:(.+)/, async (ctx) => {
+  try {
+    ensureBotSession(ctx);
+    const adId = ctx.match[1];
+    ctx.session.manageAd = {
+      mode: 'price',
+      adId,
+      chatId: ctx.callbackQuery?.message?.chat?.id,
+      messageId: ctx.callbackQuery?.message?.message_id,
+    };
+
+    await ctx.answerCbQuery('Введи новую цену');
+    await ctx.reply(
+      `💰 Введи новую цену для объявления \`${adId}\` (в BYN).\n` +
+        'Используй точку для копеек. Отмена — /cancel',
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error) {
+    console.error('myads_price error:', error.response?.data || error.message);
+    await ctx.answerCbQuery('Ошибка запуска редактирования', { show_alert: true });
+  }
+});
+
+bot.action(/myads_photos:(.+)/, async (ctx) => {
+  try {
+    ensureBotSession(ctx);
+    const adId = ctx.match[1];
+    ctx.session.manageAd = {
+      mode: 'photos',
+      adId,
+      chatId: ctx.callbackQuery?.message?.chat?.id,
+      messageId: ctx.callbackQuery?.message?.message_id,
+    };
+
+    await ctx.answerCbQuery('Пришли ссылки на фото');
+    await ctx.reply(
+      `🖼 Пришли ссылки на новые фото для \`${adId}\`.\n` +
+        'Разделяй их пробелом или переводом строки. Отмена — /cancel',
+      { parse_mode: 'Markdown' }
+    );
+  } catch (error) {
+    console.error('myads_photos error:', error.response?.data || error.message);
+    await ctx.answerCbQuery('Ошибка подготовки редактирования', { show_alert: true });
+  }
+});
+
+bot.action(/myads_extend:(.+)/, async (ctx) => {
+  const adId = ctx.match[1];
+
+  try {
+    const response = await axios.post(`${API_URL}/api/ads/${adId}/extend`, {
+      sellerTelegramId: ctx.from.id,
+    });
+
+    const ad = pickAdFromResponse(response.data);
+    await updateSellerAdMessageFromCallback(ctx, ad);
+
+    await ctx.answerCbQuery(`Продлено до ${formatValidUntil(ad?.validUntil)}`);
+  } catch (error) {
+    console.error('myads_extend error:', error.response?.data || error.message);
+    await ctx.answerCbQuery('Не удалось продлить объявление', { show_alert: true });
+  }
+});
+
+bot.action(/myads_hide:([^:]+):(hide|show)/, async (ctx) => {
+  const adId = ctx.match[1];
+  const action = ctx.match[2];
+
+  try {
+    const response = await axios.post(`${API_URL}/api/ads/${adId}/hide`, {
+      sellerTelegramId: ctx.from.id,
+      hidden: action === 'hide',
+    });
+
+    const ad = pickAdFromResponse(response.data);
+    await updateSellerAdMessageFromCallback(ctx, ad);
+
+    await ctx.answerCbQuery(action === 'hide' ? 'Объявление скрыто' : 'Объявление показано');
+  } catch (error) {
+    console.error('myads_hide error:', error.response?.data || error.message);
+    await ctx.answerCbQuery('Не удалось обновить статус', { show_alert: true });
+  }
+});
+
+bot.action(/myads_live:([^:]+):(on|off)/, async (ctx) => {
+  const adId = ctx.match[1];
+  const action = ctx.match[2];
+  const endpoint = action === 'on' ? 'on' : 'off';
+
+  try {
+    const response = await axios.post(`${API_URL}/api/ads/${adId}/liveSpot/${endpoint}`, {
+      sellerTelegramId: ctx.from.id,
+    });
+
+    const ad = pickAdFromResponse(response.data);
+    await updateSellerAdMessageFromCallback(ctx, ad);
+
+    await ctx.answerCbQuery(action === 'on' ? 'LiveSpot включён' : 'LiveSpot выключен');
+  } catch (error) {
+    console.error('myads_live error:', error.response?.data || error.message);
+    await ctx.answerCbQuery('Не удалось обновить LiveSpot', { show_alert: true });
   }
 });
 
@@ -1001,11 +1297,12 @@ bot.on("text", async (ctx) => {
   const normalized = text.toLowerCase();
   const hasSellFlow = Boolean(ctx.session?.sell);
   const hasOrderFlow = Boolean(ctx.session?.orderFlow);
+  const hasManageFlow = Boolean(ctx.session?.manageAd);
   const hasMarketFlow = Boolean(ctx.session?.market);
 
   const isCancelCommand = normalized === "/cancel" || normalized === "отмена";
 
-  if (!hasSellFlow && !hasOrderFlow && !(hasMarketFlow && isCancelCommand)) {
+  if (!hasSellFlow && !hasOrderFlow && !hasManageFlow && !(hasMarketFlow && isCancelCommand)) {
     // нет активного мастера — игнорируем, пусть другие хендлеры сработают
     return;
   }
@@ -1013,12 +1310,14 @@ bot.on("text", async (ctx) => {
   if (isCancelCommand) {
     const wasSell = Boolean(ctx.session?.sell);
     const wasOrder = Boolean(ctx.session?.orderFlow);
+    const wasManage = Boolean(ctx.session?.manageAd);
     const wasMarket = Boolean(ctx.session?.market);
     ctx.session.sell = null;
     ctx.session.orderFlow = null;
+    ctx.session.manageAd = null;
     ctx.session.market = null;
 
-    if (wasSell || wasOrder || wasMarket) {
+    if (wasSell || wasOrder || wasMarket || wasManage) {
       await ctx.reply("Диалог отменён. Можно начать заново в любое время.");
       return;
     }
@@ -1026,6 +1325,11 @@ bot.on("text", async (ctx) => {
 
   // Позволяем другим командам Telegraf обрабатывать сообщения, кроме /cancel
   if (text.startsWith("/") && !isCancelCommand) {
+    return;
+  }
+
+  if (hasManageFlow) {
+    await handleManageFlowInput(ctx, text);
     return;
   }
 

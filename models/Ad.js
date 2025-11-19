@@ -80,7 +80,7 @@ const adSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'active', 'sold', 'archived'],
+      enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired'],
       default: 'active',
       index: true,
     },
