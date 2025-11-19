@@ -1,32 +1,38 @@
 require('dotenv').config();
 
-// Поддержка обоих вариантов переменных окружения
-const config = {
-  // MongoDB - поддержка MONGO_URL и MONGODB_URI
-  mongoUrl: process.env.MONGO_URL || process.env.MONGODB_URI,
-  
-  // Telegram Bot - поддержка BOT_TOKEN и TELEGRAM_BOT_TOKEN
-  botToken: process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN,
-  
-  // Порт API
-  port: process.env.PORT || 3000,
-  
-  // Базовый URL API для бота
-  apiBaseUrl: process.env.API_BASE_URL || `http://localhost:${process.env.PORT || 3000}`,
-  
-  // Node environment
-  nodeEnv: process.env.NODE_ENV || 'development',
+const warn = (message) => {
+  if (process.env.NODE_ENV !== 'test') {
+    console.warn(message);
+  }
 };
 
-// Валидация обязательных переменных
-if (!config.mongoUrl) {
+const port = process.env.PORT || 3000;
+const mongoUrl = process.env.MONGO_URL || process.env.MONGODB_URI;
+const botToken = process.env.BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN;
+const miniAppUrl = process.env.MINIAPP_URL || process.env.TELEGRAM_MINIAPP_URL;
+const apiBaseUrl = process.env.API_BASE_URL || `http://localhost:${port}`;
+const adminTelegramId = process.env.ADMIN_TELEGRAM_ID || process.env.TELEGRAM_ADMIN_ID || null;
+
+if (!mongoUrl) {
   console.error('❌ MONGO_URL или MONGODB_URI не найден в переменных окружения!');
   process.exit(1);
 }
 
-if (!config.botToken) {
+if (!botToken) {
   console.error('❌ BOT_TOKEN или TELEGRAM_BOT_TOKEN не найден в переменных окружения!');
   process.exit(1);
 }
 
-module.exports = config;
+if (!miniAppUrl) {
+  warn('ℹ️ MINIAPP_URL не задан — кнопки WebApp будут вести на значение по умолчанию.');
+}
+
+module.exports = {
+  mongoUrl,
+  botToken,
+  miniAppUrl,
+  port,
+  apiBaseUrl,
+  adminTelegramId,
+  nodeEnv: process.env.NODE_ENV || 'development',
+};
