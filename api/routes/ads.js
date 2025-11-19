@@ -684,6 +684,9 @@ router.get('/season/:code', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -1078,7 +1081,7 @@ router.post('/', validateCreateAd, async (req, res, next) => {
   }
 });
 
-router.patch('/:id', async (req, res, next) => {
+router.post('/:id/live-spot', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -1140,6 +1143,9 @@ router.patch('/:id', async (req, res, next) => {
     } catch (notifyError) {
       console.error('Favorites notification calculation error:', notifyError);
     }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
