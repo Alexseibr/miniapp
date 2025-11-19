@@ -1,5 +1,5 @@
 import http from './http';
-import { CartItem } from '@/types';
+import { CartItem, OrderSummary } from '@/types';
 
 export interface SubmitOrderPayload {
   buyerTelegramId: number;
@@ -17,7 +17,7 @@ export async function fetchOrders(buyerTelegramId: number) {
   const response = await http.get('/api/orders/my', {
     params: { buyerTelegramId },
   });
-  return response.data;
+  return response.data as { items?: OrderSummary[] };
 }
 
 export function mapCartToPayload(items: CartItem[]): SubmitOrderPayload['items'] {
