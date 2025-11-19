@@ -3,6 +3,8 @@ const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
 const { buildAdQuery } = require('../../utils/queryBuilder');
 const { notifySubscribers } = require('../../services/notifications');
+const { findUsersToNotifyOnAdChange } = require('../../services/favoritesNotifications');
+const { sendPriceStatusChangeNotifications } = require('../../services/notificationSender');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 
 const router = Router();
@@ -271,6 +273,183 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/search', async (req, res, next) => {
+  try {
+    const {
+      q,
+      categoryId,
+      subcategoryId,
+      priceMin,
+      priceMax,
+      deliveryType,
+      deliveryAvailable,
+      buyerLat,
+      buyerLng,
+      maxDistanceKm,
+      seasonCode,
+      limit = 20,
+      offset = 0,
+    } = req.query;
+
+    const baseFilter = {
+      status: 'active',
+      moderationStatus: 'approved',
+    };
+
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+
+    const normalizedSeason = normalizeSeasonCode(seasonCode);
+    if (normalizedSeason) {
+      baseFilter.seasonCode = normalizedSeason;
+    }
+
+    const minPrice = Number(priceMin);
+    const maxPrice = Number(priceMax);
+    if (Number.isFinite(minPrice)) {
+      baseFilter.price = { ...(baseFilter.price || {}), $gte: minPrice };
+    }
+    if (Number.isFinite(maxPrice)) {
+      baseFilter.price = { ...(baseFilter.price || {}), $lte: maxPrice };
+    }
+
+    if (deliveryType) {
+      baseFilter.deliveryType = deliveryType;
+    }
+
+    const regex = q ? new RegExp(q, 'i') : null;
+    const includeDeliveryDistanceCheck =
+      String(deliveryAvailable).toLowerCase() === 'true' || deliveryAvailable === true;
+
+    const limitNumber = Number(limit);
+    const offsetNumber = Number(offset);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+    const finalOffset = Number.isFinite(offsetNumber) && offsetNumber >= 0 ? offsetNumber : 0;
+
+    const latNumber = Number(buyerLat);
+    const lngNumber = Number(buyerLng);
+    const distanceNumber = Number(maxDistanceKm);
+    const hasGeo = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+
+    if (includeDeliveryDistanceCheck && !hasGeo) {
+      return res.status(400).json({ error: 'deliveryAvailable требует координаты buyerLat/buyerLng' });
+    }
+
+    const pipeline = [];
+
+    if (hasGeo) {
+      const geoStage = {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distance',
+          spherical: true,
+          query: baseFilter,
+          key: 'location.geo',
+        },
+      };
+
+      if (Number.isFinite(distanceNumber) && distanceNumber > 0) {
+        geoStage.$geoNear.maxDistance = distanceNumber * 1000;
+      }
+
+      pipeline.push(geoStage);
+    } else {
+      pipeline.push({ $match: baseFilter });
+    }
+
+    pipeline.push({
+      $addFields: {
+        attributeValues: {
+          $map: {
+            input: { $objectToArray: { $ifNull: ['$attributes', {}] } },
+            as: 'attr',
+            in: '$$attr.v',
+          },
+        },
+      },
+    });
+
+    const matchClauses = [];
+
+    if (regex) {
+      matchClauses.push({ title: regex }, { description: regex }, { attributeValues: { $elemMatch: { $regex: regex } } });
+    }
+
+    if (Number.isFinite(minPrice) || Number.isFinite(maxPrice)) {
+      const priceMatch = {};
+      if (Number.isFinite(minPrice)) priceMatch.$gte = minPrice;
+      if (Number.isFinite(maxPrice)) priceMatch.$lte = maxPrice;
+      if (Object.keys(priceMatch).length) {
+        matchClauses.push({ price: priceMatch });
+      }
+    }
+
+    if (deliveryType) {
+      matchClauses.push({ deliveryType });
+    }
+
+    if (includeDeliveryDistanceCheck && hasGeo) {
+      matchClauses.push({
+        $expr: {
+          $and: [
+            {
+              $in: [
+                '$deliveryType',
+                ['delivery_only', 'delivery_and_pickup'],
+              ],
+            },
+            {
+              $or: [
+                { $not: ['$deliveryRadiusKm'] },
+                { $gte: ['$deliveryRadiusKm', { $divide: ['$distance', 1000] }] },
+              ],
+            },
+          ],
+        },
+      });
+    }
+
+    if (matchClauses.length) {
+      pipeline.push({ $match: { $and: matchClauses } });
+    }
+
+    if (hasGeo) {
+      pipeline.push({
+        $addFields: {
+          distance: { $ifNull: ['$distance', null] },
+          distanceKm: {
+            $cond: [{ $ifNull: ['$distance', false] }, { $divide: ['$distance', 1000] }, null],
+          },
+        },
+      });
+    }
+
+    pipeline.push({ $sort: hasGeo ? { distance: 1, createdAt: -1 } : { createdAt: -1 } });
+
+    pipeline.push({
+      $facet: {
+        items: [
+          { $skip: finalOffset },
+          { $limit: finalLimit },
+        ],
+        totalCount: [{ $count: 'count' }],
+      },
+    });
+
+    const [result] = await Ad.aggregate(pipeline);
+    const total = (result?.totalCount?.[0]?.count) || 0;
+    const items = result?.items || [];
+
+    return res.json({
+      items,
+      total,
+      hasMore: finalOffset + items.length < total,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/near', async (req, res) => {
   try {
     const {
@@ -479,6 +658,149 @@ router.get('/season/:code/live', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/bulk/update-status', async (req, res) => {
+  try {
+    const { adIds, status } = req.body || {};
+    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
+
+    if (!Array.isArray(adIds) || adIds.length === 0) {
+      return res.status(400).json({ error: 'adIds must be a non-empty array' });
+    }
+
+    if (typeof status !== 'string' || !allowedStatuses.has(status)) {
+      return res.status(400).json({ error: 'Invalid status value' });
+    }
+
+    const historyEntry = {
+      date: new Date(),
+      status,
+      moderationStatus: undefined,
+      comment: 'Bulk status update',
+    };
+
+    const result = await Ad.updateMany(
+      { _id: { $in: adIds } },
+      {
+        $set: { status },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
+    console.log(`[BULK UPDATE] update-status — ${updated} ads updated`);
+
+    return res.json({ updated, status });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/update-status error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/bulk/extend', async (req, res) => {
+  try {
+    const { adIds, extendDays, sellerTelegramId } = req.body || {};
+
+    if (!Array.isArray(adIds) || adIds.length === 0) {
+      return res.status(400).json({ error: 'adIds must be a non-empty array' });
+    }
+
+    const extendNumber = Number(extendDays);
+    if (!Number.isFinite(extendNumber) || extendNumber <= 0) {
+      return res.status(400).json({ error: 'extendDays must be a positive number' });
+    }
+
+    const sellerId = parseSellerId(sellerTelegramId);
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId is required' });
+    }
+
+    const ads = await Ad.find({ _id: { $in: adIds }, sellerTelegramId: sellerId });
+    let updated = 0;
+
+    for (const ad of ads) {
+      const now = new Date();
+      const base = ad.validUntil && ad.validUntil > now ? new Date(ad.validUntil) : now;
+      base.setDate(base.getDate() + extendNumber);
+      ad.validUntil = base;
+      ad.lifetimeDays = extendNumber;
+      await ad.save();
+      updated += 1;
+    }
+
+    console.log(`[BULK UPDATE] extend — ${updated} ads updated`);
+    return res.json({ updated, extendDays: extendNumber });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/extend error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/bulk/hide-expired', async (req, res) => {
+  try {
+    const now = new Date();
+    const historyEntry = {
+      date: now,
+      status: 'expired',
+      moderationStatus: undefined,
+      comment: 'Auto hide expired',
+    };
+
+    const result = await Ad.updateMany(
+      { status: 'active', validUntil: { $lt: now } },
+      {
+        $set: { status: 'expired' },
+        $push: { statusHistory: historyEntry },
+      }
+    );
+
+    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
+    console.log(`[BULK UPDATE] hide-expired — ${updated} ads updated`);
+
+    return res.json({ updated, status: 'expired' });
+  } catch (error) {
+    console.error('POST /api/ads/bulk/hide-expired error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/:id/hide', async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+    const hidden = req.body?.hidden;
+
+    if (!sellerId) {
+      return res.status(400).json({ message: 'sellerTelegramId is required' });
+    }
+
+    if (hidden !== undefined && typeof hidden !== 'boolean') {
+      return res.status(400).json({ message: 'hidden must be a boolean value' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    if (hidden === false) {
+      if (ad.status === 'hidden') {
+        ad.status = 'active';
+      }
+    } else {
+      ad.status = 'hidden';
+      ad.isLiveSpot = false;
+    }
+
+    await ad.save();
+
+    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+  } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -762,6 +1084,32 @@ router.post('/:id/hide', async (req, res, next) => {
   }
 });
 
+router.post('/:id/debug-notify-favorites', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { oldPrice, oldStatus } = req.body || {};
+
+    const adAfter = await Ad.findById(id);
+    if (!adAfter) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+
+    const adBefore = {
+      _id: adAfter._id,
+      price: oldPrice != null ? Number(oldPrice) : adAfter.price,
+      status: oldStatus || adAfter.status,
+    };
+
+    const notifications = await findUsersToNotifyOnAdChange(adBefore, adAfter.toObject());
+    await sendPriceStatusChangeNotifications(notifications);
+
+    return res.json({ notifications });
+  } catch (error) {
+    console.error('debug-notify-favorites error:', error);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -850,6 +1198,15 @@ router.post('/:id/live-spot', async (req, res, next) => {
       );
     }
 
+    try {
+      const notifications = await findUsersToNotifyOnAdChange(before, after);
+      if (notifications.length) {
+        await sendPriceStatusChangeNotifications(notifications);
+      }
+    } catch (notifyError) {
+      console.error('Favorites notification calculation error:', notifyError);
+    }
+
     if (statusChanged) {
       await notifySubscribers(
         ad._id,
@@ -929,6 +1286,7 @@ router.patch('/:id/status', async (req, res) => {
       return res.status(404).json({ error: 'Объявление не найдено' });
     }
 
+    const adBefore = ad.toObject();
     const historyEntry = {
       date: new Date(),
       status: status || ad.status,
@@ -953,6 +1311,16 @@ router.patch('/:id/status', async (req, res) => {
     ad.statusHistory.push(historyEntry);
 
     await ad.save();
+    const adAfter = ad.toObject();
+
+    try {
+      const notifications = await findUsersToNotifyOnAdChange(adBefore, adAfter);
+      if (notifications.length) {
+        await sendPriceStatusChangeNotifications(notifications);
+      }
+    } catch (notifyError) {
+      console.error('Favorites notification calculation error (status):', notifyError);
+    }
 
     return res.json({
       message: 'Статус обновлён',
