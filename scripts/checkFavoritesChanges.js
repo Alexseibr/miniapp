@@ -1,7 +1,7 @@
 require('dotenv').config();
 const mongoose = require('mongoose');
 const connectDB = require('../services/db');
-const { checkFavoritesForChanges } = require('../services/favoritesNotifier');
+const { checkFavoritesForChanges } = require('../notifications/watcher');
 
 async function main() {
   await connectDB();

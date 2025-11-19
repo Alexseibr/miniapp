@@ -1,4 +1,5 @@
 const express = require('express');
+const adsSearchRoutes = require('./routes/search.js');
 const adsRoutes = require('./routes/ads.js');
 const categoriesRoutes = require('./routes/categories.js');
 const seasonsRoutes = require('./routes/seasons.js');
@@ -38,6 +39,7 @@ app.get('/health', (_req, res) => {
 });
 
 // API маршруты
+app.use('/api/ads', adsSearchRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);

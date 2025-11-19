@@ -114,6 +114,15 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    favoritesCount: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    distance: {
+      type: Number,
+      default: null,
+    },
     location: LocationSchema,
     watchers: {
       type: [

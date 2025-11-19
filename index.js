@@ -2,7 +2,7 @@ const config = require('./config/config.js');
 const connectDB = require('./services/db.js');
 const app = require('./api/server.js');
 const bot = require('./bot/bot.js');
-const { checkFavoritesForChanges } = require('./services/favoritesNotifier');
+const { checkFavoritesForChanges } = require('./notifications/watcher');
 
 const PORT = config.port;
 
@@ -37,7 +37,7 @@ async function start() {
     };
 
     runFavoritesCheck();
-    favoritesInterval = setInterval(runFavoritesCheck, 5 * 60 * 1000);
+    favoritesInterval = setInterval(runFavoritesCheck, 2 * 60 * 1000);
     
     console.log('\n✨ Все сервисы успешно запущены!\n');
     console.log('📋 Доступные команды бота:');
