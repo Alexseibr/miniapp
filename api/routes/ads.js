@@ -179,47 +179,6 @@ router.get('/nearby', async (req, res) => {
   }
 });
 
-router.post('/:id/live-spot', async (req, res, next) => {
-  try {
-    const { id } = req.params;
-    const { sellerTelegramId, isLiveSpot } = req.body;
-
-    if (sellerTelegramId === undefined) {
-      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
-    }
-
-    const sellerIdNumber = Number(sellerTelegramId);
-    if (!Number.isFinite(sellerIdNumber)) {
-      return res.status(400).json({ error: 'sellerTelegramId должен быть числом' });
-    }
-
-    if (typeof isLiveSpot === 'undefined') {
-      return res.status(400).json({ error: 'isLiveSpot обязателен' });
-    }
-
-    const ad = await Ad.findById(id);
-    if (!ad) {
-      return res.status(404).json({ error: 'Объявление не найдено' });
-    }
-
-    if (ad.sellerTelegramId !== sellerIdNumber) {
-      return res.status(403).json({ error: 'Нет прав для обновления этого объявления' });
-    }
-
-    const normalizedLiveSpot =
-      typeof isLiveSpot === 'string'
-        ? isLiveSpot === 'true' || isLiveSpot === '1'
-        : Boolean(isLiveSpot);
-
-    ad.isLiveSpot = normalizedLiveSpot;
-    await ad.save();
-
-    res.json({ ok: true, ad });
-  } catch (error) {
-    next(error);
-  }
-});
-
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
@@ -283,6 +242,42 @@ router.post('/', async (req, res, next) => {
     });
 
     res.status(201).json(ad);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/:id/live-spot', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, isLiveSpot } = req.body;
+
+    if (typeof isLiveSpot !== 'boolean') {
+      return res.status(400).json({ message: 'isLiveSpot должен быть true/false' });
+    }
+
+    if (sellerTelegramId === undefined) {
+      return res.status(400).json({ message: 'Необходимо указать sellerTelegramId' });
+    }
+
+    const sellerIdNumber = Number(sellerTelegramId);
+    if (!Number.isFinite(sellerIdNumber)) {
+      return res.status(400).json({ message: 'sellerTelegramId должен быть числом' });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
+
+    if (ad.sellerTelegramId !== sellerIdNumber) {
+      return res.status(403).json({ message: 'Можно менять только свои объявления' });
+    }
+
+    ad.isLiveSpot = isLiveSpot;
+    await ad.save();
+
+    return res.json({ ok: true, ad });
   } catch (error) {
     next(error);
   }
