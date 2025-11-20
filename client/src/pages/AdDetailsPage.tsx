@@ -1,35 +1,17 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { api } from "@/api/client";
 import { useAuth } from "@/context/AuthContext";
-import type { Ad } from "@/types/ad";
+import { useAdDetails } from "@/hooks/useAdsData";
 
 export default function AdDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { currentUser, token } = useAuth();
-  const [ad, setAd] = useState<Ad | null>(null);
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [startingChat, setStartingChat] = useState(false);
 
-  useEffect(() => {
-    const loadAd = async () => {
-      if (!id) return;
-      setLoading(true);
-      setError(null);
-      try {
-        const { data } = await api.get(`/ads/${id}`);
-        setAd(data?.ad || data);
-      } catch (requestError) {
-        console.error(requestError);
-        setError("Не удалось загрузить объявление");
-      } finally {
-        setLoading(false);
-      }
-    };
-    void loadAd();
-  }, [id]);
+  const { data: ad, isLoading } = useAdDetails(id);
 
   const handleStartChat = async () => {
     if (!ad || !id) return;
@@ -55,8 +37,10 @@ export default function AdDetailsPage() {
     }
   };
 
-  if (loading) return <div className="loader">Загрузка…</div>;
-  if (!ad) return <div className="error">{error || "Объявление не найдено"}</div>;
+  const loadError = !ad && !isLoading ? "Объявление не найдено" : null;
+
+  if (isLoading) return <div className="loader">Загрузка…</div>;
+  if (!ad) return <div className="error">{error || loadError}</div>;
 
   const isOwner = ad.owner && currentUser && (ad.owner._id === currentUser._id || ad.owner.id === currentUser._id);
 
@@ -91,7 +75,7 @@ export default function AdDetailsPage() {
           </button>
         )}
         {isOwner && <p className="muted">Это ваше объявление</p>}
-        {error && <div className="error">{error}</div>}
+        {(error || loadError) && <div className="error">{error || loadError}</div>}
       </div>
     </div>
   );

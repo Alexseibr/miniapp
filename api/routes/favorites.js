@@ -2,13 +2,36 @@ const express = require('express');
 const Favorite = require('../../models/Favorite');
 const Ad = require('../../models/Ad');
 const { auth } = require('../../middleware/auth');
+const { cacheMiddleware, cacheClient } = require('../middleware/cache');
 
 const router = express.Router();
 
+const FAVORITES_CACHE_PREFIX = 'favorites:';
+
 router.use(auth);
 
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    res.on('finish', () => {
+      if (res.statusCode < 500) {
+        cacheClient.flushPrefix(FAVORITES_CACHE_PREFIX);
+      }
+    });
+  }
+  next();
+});
+
 // GET /api/favorites/my
-router.get('/my', async (req, res, next) => {
+router.get(
+  '/my',
+  cacheMiddleware(
+    (req) =>
+      req.currentUser?._id
+        ? `${FAVORITES_CACHE_PREFIX}my:${req.currentUser._id.toString()}`
+        : null,
+    20,
+  ),
+  async (req, res, next) => {
   try {
     const favorites = await Favorite.find({ user: req.currentUser._id })
       .populate({

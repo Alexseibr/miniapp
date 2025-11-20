@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import { Heart } from "lucide-react";
 import type { FC } from "react";
 import type { Ad } from "@/types/ad";
+import { buildCdnUrl } from "@/lib/cdn";
 
 interface AdCardProps {
   ad: Ad;
@@ -11,7 +12,7 @@ interface AdCardProps {
 
 const AdCard: FC<AdCardProps> = ({ ad, isFavorite, onToggleFavorite }) => {
   const navigate = useNavigate();
-  const previewImage = ad.images?.[0] || ad.photos?.[0];
+  const previewImage = buildCdnUrl(ad.images?.[0] || ad.photos?.[0]);
 
   const handleCardClick = () => {
     navigate(`/ads/${ad._id}`);

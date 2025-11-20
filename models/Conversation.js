@@ -25,6 +25,6 @@ conversationSchema.pre('validate', function ensureParticipantsOrder(next) {
   next();
 });
 
-conversationSchema.index({ ad: 1, participants: 1 }, { unique: true });
+conversationSchema.index({ participants: 1, ad: 1 }, { unique: true });
 
 module.exports = mongoose.model('Conversation', conversationSchema);
