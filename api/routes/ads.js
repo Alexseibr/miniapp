@@ -219,7 +219,8 @@ router.get('/', async (req, res, next) => {
   try {
     const { filters, sort, page, limit, sortBy } = buildAdQuery(req.query);
     const skip = (page - 1) * limit;
-    const includeModerationDrafts = req.query.includeModerationDrafts === 'true';
+    filters.status = 'active';
+    filters.moderationStatus = 'approved';
 
     const latNumber = Number(req.query.lat);
     const lngNumber = Number(req.query.lng);
@@ -265,10 +266,6 @@ router.get('/', async (req, res, next) => {
         distanceMeters: item.distanceMeters,
       }));
 
-      if (!includeModerationDrafts) {
-        items = items.filter(isAdVisibleForPublic);
-      }
-
       return res.json({
         page,
         limit,
@@ -283,10 +280,6 @@ router.get('/', async (req, res, next) => {
       .sort(sort)
       .skip(skip)
       .limit(limit);
-
-    if (!includeModerationDrafts) {
-      items = items.filter(isAdVisibleForPublic);
-    }
 
     return res.json({
       page,
@@ -1077,13 +1070,11 @@ router.get('/:id', async (req, res, next) => {
     const { id } = req.params;
     const ad = await Ad.findById(id);
 
-    const includeModerationDrafts = req.query.includeModerationDrafts === 'true';
-
     if (!ad) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
 
-    if (!includeModerationDrafts && !isAdVisibleForPublic(ad)) {
+    if (!isAdVisibleForPublic(ad)) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
 

@@ -1,44 +1,34 @@
 const express = require('express');
 const Ad = require('../../models/Ad');
+const adminAuth = require('../middleware/adminAuth');
 
 const router = express.Router();
 
-function parsePagination(query = {}) {
-  const rawPage = Number.parseInt(query.page, 10);
-  const rawLimit = Number.parseInt(query.limit, 10);
+router.use(adminAuth);
 
-  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
-  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
-  const skip = (page - 1) * limit;
-
-  return { page, limit, skip };
-}
-
-router.get('/pending-ads', async (req, res, next) => {
+router.get('/ads/pending', async (req, res, next) => {
   try {
-    const { page, limit, skip } = parsePagination(req.query);
+    const limit = Math.min(Number.parseInt(req.query.limit, 10) || 20, 100);
+    const offset = Math.max(Number.parseInt(req.query.offset, 10) || 0, 0);
 
     const [items, total] = await Promise.all([
       Ad.find({ moderationStatus: 'pending' })
         .sort({ createdAt: 1 })
-        .skip(skip)
-        .limit(limit),
+        .skip(offset)
+        .limit(limit)
+        .select(
+          'title categoryId subcategoryId price sellerTelegramId createdAt moderationStatus'
+        ),
       Ad.countDocuments({ moderationStatus: 'pending' }),
     ]);
 
-    return res.json({
-      page,
-      limit,
-      total,
-      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
-      items,
-    });
+    return res.json({ items, total, limit, offset });
   } catch (error) {
     next(error);
   }
 });
 
-router.get('/ad/:id', async (req, res, next) => {
+router.get('/ads/:id', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
 
@@ -52,24 +42,22 @@ router.get('/ad/:id', async (req, res, next) => {
   }
 });
 
-router.post('/ad/:id/approve', async (req, res, next) => {
+router.post('/ads/:id/approve', async (req, res, next) => {
   try {
-    const moderator = (req.body?.moderator || '').trim();
-
-    if (!moderator) {
-      return res.status(400).json({ message: 'Поле moderator обязательно' });
-    }
-
     const ad = await Ad.findById(req.params.id);
 
     if (!ad) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
 
+    const reason = typeof req.body?.reason === 'string' ? req.body.reason : '';
+
     ad.moderationStatus = 'approved';
-    ad.moderationComment = null;
-    ad.moderatedAt = new Date();
-    ad.moderatedBy = moderator;
+    ad.moderation = {
+      lastActionBy: req.admin?.id,
+      lastActionAt: new Date(),
+      lastReason: reason,
+    };
 
     await ad.save();
 
@@ -79,13 +67,11 @@ router.post('/ad/:id/approve', async (req, res, next) => {
   }
 });
 
-router.post('/ad/:id/reject', async (req, res, next) => {
+router.post('/ads/:id/reject', async (req, res, next) => {
   try {
-    const moderator = (req.body?.moderator || '').trim();
-    const comment = (req.body?.comment || '').trim();
-
-    if (!moderator || !comment) {
-      return res.status(400).json({ message: 'moderator и comment обязательны' });
+    const reason = (req.body?.reason || '').trim();
+    if (!reason) {
+      return res.status(400).json({ message: 'Поле reason обязательно' });
     }
 
     const ad = await Ad.findById(req.params.id);
@@ -95,9 +81,12 @@ router.post('/ad/:id/reject', async (req, res, next) => {
     }
 
     ad.moderationStatus = 'rejected';
-    ad.moderationComment = comment;
-    ad.moderatedAt = new Date();
-    ad.moderatedBy = moderator;
+    ad.status = 'hidden';
+    ad.moderation = {
+      lastActionBy: req.admin?.id,
+      lastActionAt: new Date(),
+      lastReason: reason,
+    };
 
     await ad.save();
 
