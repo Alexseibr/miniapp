@@ -2,6 +2,7 @@ export type AdLocation = {
   lat?: number;
   lng?: number;
   address?: string;
+  coordinates?: [number, number];
 };
 
 export type Ad = {
@@ -19,4 +20,5 @@ export type Ad = {
   status?: string;
   createdAt?: string;
   updatedAt?: string;
+  owner?: any;
 };

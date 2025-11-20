@@ -1,15 +1,12 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { AUTH_TOKEN_KEY } from "@/lib/auth";
-import { useAuth } from "@/features/auth/AuthContext";
+import { useAuth } from "@/context/AuthContext";
 
 export default function Header() {
   const navigate = useNavigate();
-  const { currentUser, isLoading, token, logout } = useAuth();
-  const hasToken = Boolean(token);
+  const { currentUser, token, logout, loadingUser } = useAuth();
+  const isAdmin = currentUser?.role === "admin";
 
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
     logout();
     navigate("/");
   };
@@ -32,7 +29,7 @@ export default function Header() {
         <Link to="/account" className="app-nav__link">
           Личный кабинет
         </Link>
-        {currentUser?.role === "admin" && (
+        {isAdmin && (
           <Link to="/admin" className="app-nav__link">
             Админка
           </Link>
@@ -40,20 +37,20 @@ export default function Header() {
       </nav>
 
       <div className="app-header__actions">
-        {isLoading ? (
+        {loadingUser ? (
           <span className="app-nav__link muted">Загрузка…</span>
-        ) : currentUser ? (
+        ) : token && currentUser ? (
           <div className="app-user">
             <div className="app-user__info">
               <span className="app-user__name">{currentUser.name || currentUser.username}</span>
               {currentUser.phone && <span className="app-user__meta">{currentUser.phone}</span>}
             </div>
-            <Button variant="outline" size="sm" onClick={handleLogout}>
+            <button className="app-button" onClick={handleLogout}>
               Выход
-            </Button>
+            </button>
           </div>
         ) : (
-          <Button size="sm" onClick={() => navigate("/login")}>Войти</Button>
+          <button className="app-button" onClick={() => navigate("/login")}>Войти</button>
         )}
       </div>
     </header>
