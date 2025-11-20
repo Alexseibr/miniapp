@@ -1,10 +1,12 @@
-name: Deploy Template
+name: CI
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main, master]
+  pull_request:
 
 jobs:
-  deploy:
+  build-and-test:
     runs-on: ubuntu-latest
 
     steps:
@@ -29,5 +31,5 @@ jobs:
       - name: Build Workspaces
         run: pnpm -r --if-present build
 
-      - name: Deploy placeholder
-        run: echo "TODO: добавить шаги деплоя"
+      - name: Test Workspaces
+        run: pnpm -r --if-present test

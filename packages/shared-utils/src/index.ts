@@ -1,3 +1,3 @@
-export function formatPrice(x: number) {
-  return `${x} BYN`;
+export function formatPrice(value: number) {
+  return `${value} BYN`;
 }
