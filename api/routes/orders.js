@@ -10,6 +10,8 @@ const normalizeTelegramId = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const getAuthenticatedTelegramId = (req) => normalizeTelegramId(req.telegramAuth?.user?.id);
+
 /**
  * POST /api/orders
  * Пример:
@@ -28,7 +30,6 @@ const normalizeTelegramId = (value) => {
 router.post('/', async (req, res, next) => {
   try {
     const {
-      buyerTelegramId,
       buyerName,
       buyerUsername,
       buyerPhone,
@@ -37,10 +38,10 @@ router.post('/', async (req, res, next) => {
       comment,
     } = req.body || {};
 
-    const normalizedBuyerId = normalizeTelegramId(buyerTelegramId);
+    const normalizedBuyerId = getAuthenticatedTelegramId(req);
 
     if (!normalizedBuyerId) {
-      return res.status(400).json({ message: 'buyerTelegramId обязателен' });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
     if (!Array.isArray(items) || items.length === 0) {

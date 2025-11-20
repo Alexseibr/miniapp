@@ -11,20 +11,16 @@ function parseTelegramId(value) {
   return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
 }
 
-function extractTelegramId(req) {
-  return (
-    parseTelegramId(req.body?.telegramId) ||
-    parseTelegramId(req.query?.telegramId) ||
-    parseTelegramId(req.headers['x-telegram-id'])
-  );
+function getAuthenticatedTelegramId(req) {
+  return parseTelegramId(req.telegramAuth?.user?.id);
 }
 
 async function checkModerator(req, res, next) {
   try {
-    const telegramId = extractTelegramId(req);
+    const telegramId = getAuthenticatedTelegramId(req);
 
     if (!telegramId) {
-      return res.status(400).json({ error: 'telegramId обязателен' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const user = await User.findOne({ telegramId });
