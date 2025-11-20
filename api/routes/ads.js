@@ -870,10 +870,15 @@ router.post('/', validateCreateAd, async (req, res, next) => {
 
 router.post('/:id/live-spot', async (req, res, next) => {
   try {
-    const ad = await Ad.findById(req.params.id);
-    if (!ad) {
-      return res.status(404).json({ error: 'Ad not found' });
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res
+        .status(400)
+        .json({ message: 'Необходимо указать корректный sellerTelegramId для проверки прав' });
     }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
 
     const before = ad.toObject();
 
