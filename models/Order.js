@@ -62,6 +62,10 @@ const orderSchema = new mongoose.Schema(
         message: 'Заказ должен содержать хотя бы один товар',
       },
     },
+    acceptedSellerIds: {
+      type: [Number],
+      default: [],
+    },
     totalPrice: {
       type: Number,
       required: true,
