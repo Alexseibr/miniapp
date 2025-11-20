@@ -1,0 +1,18 @@
+Привет! Я подготовил набор исправлений и рекомендаций для PR #109:
+
+Что сделано / предлагается:
+- Скрипт для безопасного ребейза и локальной полной проверки: scripts/rebase-and-checks.sh
+- Пример unit-тестов для validation helpers: tests/validation/tulipSchema.test.ts
+- Пример валидации параметров для geo endpoints (лимиты/radius)
+- Документ checklist для PR: docs/PR_CHECKLIST.md
+
+Дальнейшие шаги:
+1) Выполнить ./scripts/rebase-and-checks.sh codex/implement-seasonal-functionality-for-marketplace
+2) Если ребейз пройдёт успешно и проверки зелёные, выполнить:
+   git push --force-with-lease origin codex/implement-seasonal-functionality-for-marketplace
+3) После пуша убедиться, что CI зелёный. Если появляются ошибки типов/линта — исправить согласно логам.
+4) Я могу далее подготовить конкретные патчи для файлов в PR (validation, handlers, тесты). Укажите, хотите ли:
+   A) чтобы я автоматически создал ветку с исправлениями и закинул туда файлы (требует разрешение на запись в репо), или
+   B) чтобы я прислал diff/patches сюда, и вы примените их локально.
+
+С уважением.
