@@ -489,6 +489,27 @@ async function getActiveSeason() {
 
 // /start - приветствие
 bot.command('start', async (ctx) => {
+  const payload = ctx.message?.text?.split(' ')[1];
+
+  if (payload && payload.startsWith('login_')) {
+    const loginToken = payload.replace('login_', '');
+    if (ctx.session) {
+      ctx.session.loginToken = loginToken;
+    }
+
+    await ctx.reply(
+      'Для входа в маркетплейс через Telegram нужно подтвердить номер телефона и согласиться на передачу данных (номер и никнейм).',
+      {
+        reply_markup: {
+          keyboard: [[{ text: '✅ Поделиться номером телефона', request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }
+    );
+    return;
+  }
+
   const firstName = ctx.from.first_name || 'друг';
 
   const activeSeason = await getActiveSeason();
@@ -518,6 +539,44 @@ bot.command('start', async (ctx) => {
       ...(startKeyboard ? { reply_markup: startKeyboard } : {}),
     }
   );
+});
+
+bot.on('contact', async (ctx) => {
+  const contact = ctx.message.contact;
+  const from = ctx.from;
+
+  const loginToken = ctx.session?.loginToken;
+  if (!loginToken) {
+    return ctx.reply('Не найден токен авторизации. Перейдите заново по ссылке с сайта.');
+  }
+
+  const payload = {
+    token: loginToken,
+    telegramId: String(from.id),
+    username: from.username || null,
+    firstName: from.first_name || null,
+    lastName: from.last_name || null,
+    phone: contact.phone_number,
+  };
+
+  try {
+    await axios.post(`${API_URL}/api/auth/telegram/confirm`, payload, {
+      headers: {
+        'X-Internal-Secret': process.env.INTERNAL_AUTH_SECRET,
+      },
+    });
+
+    await ctx.reply('✅ Номер подтверждён. Вернитесь на сайт — вход будет завершён.', {
+      reply_markup: { remove_keyboard: true },
+    });
+
+    if (ctx.session) {
+      ctx.session.loginToken = null;
+    }
+  } catch (error) {
+    console.error(error);
+    await ctx.reply('❌ Ошибка при подтверждении. Попробуйте позже.');
+  }
 });
 
 // /myid - показать Telegram ID

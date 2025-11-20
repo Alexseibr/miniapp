@@ -1,30 +1,10 @@
 const express = require('express');
 const authMiddleware = require('../middleware/auth');
+const { formatUser } = require('../utils/formatUser');
 
 const router = express.Router();
 
 router.use(authMiddleware);
-
-function formatUser(user) {
-  if (!user) return null;
-
-  return {
-    id: user._id,
-    _id: user._id,
-    telegramId: user.telegramId,
-    username: user.username,
-    name: user.name || user.firstName,
-    firstName: user.firstName,
-    lastName: user.lastName,
-    email: user.email,
-    avatar: user.avatar,
-    phone: user.phone,
-    role: user.role,
-    location: user.location || null,
-    favoritesCount: user.favoritesCount || 0,
-    ordersCount: user.ordersCount || 0,
-  };
-}
 
 router.get('/me', (req, res) => {
   return res.json(formatUser(req.currentUser));
@@ -32,7 +12,7 @@ router.get('/me', (req, res) => {
 
 router.put('/me', async (req, res) => {
   try {
-    const { name, email, avatar, phone } = req.body || {};
+    const { name, firstName, lastName, email, avatar, phone } = req.body || {};
 
     if (phone && phone !== req.currentUser.phone) {
       return res.status(400).json({ message: 'Номер телефона нельзя изменить' });
@@ -42,6 +22,15 @@ router.put('/me', async (req, res) => {
 
     if (name !== undefined) {
       updates.name = String(name).trim();
+      updates.firstName = updates.firstName || updates.name;
+    }
+
+    if (firstName !== undefined) {
+      updates.firstName = String(firstName).trim();
+    }
+
+    if (lastName !== undefined) {
+      updates.lastName = String(lastName).trim();
     }
 
     if (email !== undefined) {

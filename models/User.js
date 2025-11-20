@@ -21,12 +21,6 @@ const FavoriteSchema = new mongoose.Schema(
 
 const userSchema = new mongoose.Schema(
   {
-    telegramId: {
-      type: Number,
-      unique: true,
-      sparse: true,
-      index: true,
-    },
     phone: {
       type: String,
       trim: true,
@@ -34,7 +28,21 @@ const userSchema = new mongoose.Schema(
       sparse: true,
       index: true,
     },
-    name: {
+    telegramId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    telegramUsername: {
+      type: String,
+      trim: true,
+    },
+    firstName: {
+      type: String,
+      trim: true,
+    },
+    lastName: {
       type: String,
       trim: true,
     },
@@ -47,6 +55,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    role: {
+      type: String,
+      enum: ['user', 'admin'],
+      default: 'user',
+    },
+    // Legacy fields to preserve existing functionality in the marketplace
+    name: {
+      type: String,
+      trim: true,
+    },
+    username: {
+      type: String,
+      trim: true,
+    },
     favoritesCount: {
       type: Number,
       default: 0,
@@ -55,26 +77,9 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
-    username: {
-      type: String,
-      trim: true,
-    },
-    firstName: {
-      type: String,
-      trim: true,
-    },
-    lastName: {
-      type: String,
-      trim: true,
-    },
     phoneVerified: {
       type: Boolean,
       default: false,
-    },
-    role: {
-      type: String,
-      enum: ['user', 'moderator', 'admin', 'seller'],
-      default: 'user',
     },
     isModerator: {
       type: Boolean,
