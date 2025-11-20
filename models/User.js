@@ -129,4 +129,12 @@ userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });
 
-module.exports = mongoose.model('User', userSchema);
+const User = mongoose.model('User', userSchema);
+
+async function initUserIndexes() {
+  // Используем syncIndexes для применения unique/sparse индексов даже при обновлении схемы
+  await User.syncIndexes();
+}
+
+module.exports = User;
+module.exports.initUserIndexes = initUserIndexes;

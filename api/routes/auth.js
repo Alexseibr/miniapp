@@ -31,15 +31,18 @@ router.post('/telegram', async (req, res) => {
 
     const updatePayload = {
       telegramId: telegramUser.id,
-      username: telegramUser.username || null,
+      telegramUsername: telegramUser.username || null,
       firstName: telegramUser.first_name || '',
       lastName: telegramUser.last_name || '',
       lastActiveAt: new Date(),
+      // Оставляем username для обратной совместимости с ранними версиями схемы
+      username: telegramUser.username || null,
     };
 
     let user = await User.findOne({ telegramId: telegramUser.id });
 
     if (user) {
+      user.telegramUsername = updatePayload.telegramUsername;
       user.username = updatePayload.username;
       user.firstName = updatePayload.firstName;
       user.lastName = updatePayload.lastName;
@@ -57,6 +60,7 @@ router.post('/telegram', async (req, res) => {
       user: {
         id: user._id,
         telegramId: user.telegramId,
+        telegramUsername: user.telegramUsername,
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
