@@ -6,7 +6,8 @@ dotenv.config();
 
 const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const API_URL = process.env.BACKEND_API_URL || 'http://localhost:5000';
-const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
+const WEBAPP_URL =
+  process.env.MINIAPP_BASE_URL || process.env.WEBAPP_URL || 'http://localhost:3000';
 
 if (!BOT_TOKEN) {
   console.warn('[bot] TELEGRAM_BOT_TOKEN is not set — bot will not start.');
