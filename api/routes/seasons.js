@@ -44,7 +44,7 @@ router.get('/:code/ads', async (req, res, next) => {
       sortObj = { price: 1 };
     }
 
-    const items = await Ad.find({ seasonCode, status: 'active' })
+    const items = await Ad.find({ seasonCode, status: 'active', moderationStatus: 'approved' })
       .sort(sortObj)
       .skip(finalOffset)
       .limit(finalLimit);
@@ -84,7 +84,7 @@ router.get('/:code/live-spots', async (req, res, next) => {
 
     const fetchLimit = Math.max(finalLimit * 3, finalLimit);
 
-    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+    const ads = await Ad.find({ seasonCode, status: 'active', moderationStatus: 'approved', isLiveSpot: true })
       .sort({ createdAt: -1 })
       .limit(fetchLimit);
 
