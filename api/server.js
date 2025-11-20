@@ -46,7 +46,6 @@ app.get('/health', (_req, res) => {
 });
 
 // API маршруты
-// Ads routes should be mounted before legacy search to ensure enhanced handlers run
 app.use('/api/ads', adsRoutes);
 app.use('/api/ads', adsSearchRoutes);
 app.use('/api/categories', categoriesRoutes);
