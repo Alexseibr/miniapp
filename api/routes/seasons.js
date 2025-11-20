@@ -166,7 +166,12 @@ router.get(
 
     const fetchLimit = Math.max(finalLimit * 3, finalLimit);
 
-    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true })
+    const ads = await Ad.find({
+      seasonCode,
+      status: 'active',
+      isLiveSpot: true,
+      moderationStatus: 'approved',
+    })
       .sort({ createdAt: -1 })
       .limit(fetchLimit);
 
