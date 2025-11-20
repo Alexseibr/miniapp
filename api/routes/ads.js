@@ -118,10 +118,26 @@ router.get('/', async (req, res, next) => {
 
     const fetchLimit = hasGeoQuery ? finalLimit + finalOffset : finalLimit;
 
-    const baseItems = await Ad.find(query)
-      .sort(sortObj)
-      .skip(hasGeoQuery ? 0 : finalOffset)
-      .limit(fetchLimit > 0 ? fetchLimit : finalLimit);
+    const baseQuery = Ad.find(query);
+
+    if (hasGeoQuery && finalRadiusKm) {
+      const latDelta = finalRadiusKm / 110.574;
+      const lngDelta = finalRadiusKm / (111.32 * Math.cos((latNumber * Math.PI) / 180) || 1);
+
+      baseQuery.where('location.lat').gte(latNumber - latDelta).lte(latNumber + latDelta);
+      baseQuery.where('location.lng').gte(lngNumber - lngDelta).lte(lngNumber + lngDelta);
+    }
+
+    let baseItems;
+
+    if (hasGeoQuery && sort === 'distance') {
+      baseItems = await baseQuery.exec();
+    } else {
+      baseItems = await baseQuery
+        .sort(sortObj)
+        .skip(hasGeoQuery ? 0 : finalOffset)
+        .limit(fetchLimit > 0 ? fetchLimit : finalLimit);
+    }
 
     if (hasGeoQuery) {
       const items = filterAdsByGeo(baseItems, {
