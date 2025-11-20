@@ -7,6 +7,7 @@ export interface TelegramWebApp {
       first_name?: string;
       last_name?: string;
     };
+    start_param?: string;
   };
   themeParams?: {
     bg_color?: string;
