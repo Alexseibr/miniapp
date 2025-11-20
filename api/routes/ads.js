@@ -3,6 +3,20 @@ const Ad = require('../../models/Ad.js');
 
 const router = Router();
 
+const sanitizeAd = (ad) => {
+  if (!ad) return ad;
+
+  const rawAd = typeof ad.toObject === 'function' ? ad.toObject() : { ...ad };
+  const watchers = Array.isArray(rawAd.watchers) ? rawAd.watchers : [];
+
+  delete rawAd.watchers;
+
+  return {
+    ...rawAd,
+    watchersCount: watchers.length,
+  };
+};
+
 // Геопоиск:
 // GET /api/ads?lat=52.1&lng=23.7&radiusKm=2
 // GET /api/ads?lat=52.1&lng=23.7&radiusKm=50&categoryId=country_base
@@ -91,13 +105,17 @@ router.get('/', async (req, res, next) => {
       pipeline.push({ $limit: finalLimit });
 
       const geoItems = await Ad.aggregate(pipeline);
-      const items = geoItems.map((item) => ({
-        ...item,
-        distanceKm:
-          typeof item.distanceMeters === 'number'
-            ? item.distanceMeters / 1000
-            : null,
-      }));
+      const items = geoItems.map((item) => {
+        const sanitized = sanitizeAd(item);
+
+        return {
+          ...sanitized,
+          distanceKm:
+            typeof item.distanceMeters === 'number'
+              ? item.distanceMeters / 1000
+              : null,
+        };
+      });
 
       return res.json({ items });
     }
@@ -112,7 +130,7 @@ router.get('/', async (req, res, next) => {
       .skip(finalOffset)
       .limit(finalLimit);
 
-    res.json({ items });
+    res.json({ items: items.map(sanitizeAd) });
   } catch (error) {
     next(error);
   }
@@ -167,11 +185,15 @@ router.get('/nearby', async (req, res) => {
     ]);
 
     return res.json({
-      items: ads.map((ad) => ({
-        ...ad,
-        distanceKm:
-          typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
-      })),
+      items: ads.map((ad) => {
+        const sanitized = sanitizeAd(ad);
+
+        return {
+          ...sanitized,
+          distanceKm:
+            typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
+        };
+      }),
     });
   } catch (error) {
     console.error('GET /api/ads/nearby error:', error);
@@ -192,7 +214,7 @@ router.get('/:id', async (req, res, next) => {
     ad.views += 1;
     await ad.save();
     
-    res.json(ad);
+    res.json(sanitizeAd(ad));
   } catch (error) {
     next(error);
   }
@@ -241,7 +263,7 @@ router.post('/', async (req, res, next) => {
       status: 'active',
     });
 
-    res.status(201).json(ad);
+    res.status(201).json(sanitizeAd(ad));
   } catch (error) {
     next(error);
   }
@@ -277,7 +299,7 @@ router.post('/:id/live-spot', async (req, res, next) => {
     ad.isLiveSpot = isLiveSpot;
     await ad.save();
 
-    return res.json({ ok: true, ad });
+    return res.json({ ok: true, ad: sanitizeAd(ad) });
   } catch (error) {
     next(error);
   }
@@ -318,7 +340,7 @@ router.patch('/:id', async (req, res, next) => {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
 
-    res.json(ad);
+    res.json(sanitizeAd(ad));
   } catch (error) {
     next(error);
   }
@@ -353,7 +375,7 @@ router.post('/:id/live-spot', async (req, res, next) => {
     ad.isLiveSpot = isLiveSpot;
     await ad.save();
 
-    res.json(ad);
+    res.json(sanitizeAd(ad));
   } catch (error) {
     next(error);
   }
@@ -372,7 +394,7 @@ router.delete('/:id', async (req, res, next) => {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
 
-    res.json({ message: 'Объявление архивировано', ad });
+    res.json({ message: 'Объявление архивировано', ad: sanitizeAd(ad) });
   } catch (error) {
     next(error);
   }
