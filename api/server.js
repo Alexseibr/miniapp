@@ -1,4 +1,6 @@
 const express = require('express');
+const path = require('path');
+const pkg = require('../package.json');
 const { logErrors, notFoundHandler, errorHandler } = require('./middleware/errorHandlers.js');
 const adsSearchRoutes = require('./routes/search.js');
 const adsRoutes = require('./routes/ads.js');
@@ -14,12 +16,15 @@ const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
 const userRoutes = require('../routes/userRoutes');
 const miniAppFavoriteRoutes = require('../routes/favoriteRoutes');
 const miniAppOrderRoutes = require('../routes/orderRoutes');
+const uploadRoutes = require('./routes/uploadRoutes');
+const chatRoutes = require('./routes/chat');
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 // Базовые маршруты
 app.get('/api', (_req, res) => {
@@ -54,6 +59,8 @@ app.use('/api/favorites', miniAppFavoriteRoutes);
 app.use('/api/orders', miniAppOrderRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/ads', adsSearchRoutes);
+app.use('/api/upload', uploadRoutes);
+app.use('/api/chat', chatRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);

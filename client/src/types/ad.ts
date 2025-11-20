@@ -12,5 +12,7 @@ export type Ad = {
   category?: string;
   subcategory?: string;
   images?: string[];
+  photos?: string[];
+  sellerTelegramId?: number;
   location?: AdLocation;
 };

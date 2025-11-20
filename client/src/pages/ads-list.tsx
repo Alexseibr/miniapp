@@ -4,11 +4,18 @@ import { Loader2, MapPin, RefreshCw, Search } from "lucide-react";
 import AdCard from "@/components/AdCard";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useFavorites } from "@/features/favorites/FavoritesContext";
 import { fetchWithAuth } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
+
+interface Category {
+  code: string;
+  name: string;
+  subcategories: { code: string; name: string }[];
+}
 
 const radiusOptions = [1, 3, 5, 10];
 
@@ -20,6 +27,35 @@ export default function AdsList() {
   const [radiusKm, setRadiusKm] = useState(5);
   const [isNearbyMode, setIsNearbyMode] = useState(false);
   const [geoStatus, setGeoStatus] = useState<string | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [filters, setFilters] = useState({
+    category: "",
+    subcategory: "",
+    priceFrom: "",
+    priceTo: "",
+    q: "",
+  });
+
+  const subcategories = useMemo(() => {
+    return categories.find((cat) => cat.code === filters.category)?.subcategories ?? [];
+  }, [categories, filters.category]);
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const response = await fetchWithAuth("/api/categories");
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить категории");
+        }
+        const data = await response.json();
+        setCategories(Array.isArray(data) ? data : []);
+      } catch (requestError) {
+        console.error(requestError);
+      }
+    };
+
+    void loadCategories();
+  }, []);
 
   const loadAllAds = useCallback(async () => {
     setError(null);
@@ -27,7 +63,16 @@ export default function AdsList() {
     setIsLoading(true);
 
     try {
-      const response = await fetchWithAuth("/api/ads");
+      const params = new URLSearchParams();
+
+      if (filters.category) params.append("category", filters.category);
+      if (filters.subcategory) params.append("subcategory", filters.subcategory);
+      if (filters.priceFrom) params.append("priceFrom", filters.priceFrom);
+      if (filters.priceTo) params.append("priceTo", filters.priceTo);
+      if (filters.q) params.append("q", filters.q);
+
+      const query = params.toString();
+      const response = await fetchWithAuth(query ? `/api/ads?${query}` : "/api/ads");
       if (!response.ok) {
         throw new Error("Не удалось загрузить объявления");
       }
@@ -40,7 +85,7 @@ export default function AdsList() {
     } finally {
       setIsLoading(false);
     }
-  }, [refreshFavorites]);
+  }, [filters, refreshFavorites]);
 
   const loadNearbyAds = useCallback(
     async (lat: number, lng: number) => {
@@ -110,6 +155,94 @@ export default function AdsList() {
           </p>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Фильтры</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <Label>Категория</Label>
+              <select
+                className="w-full border rounded-md p-2"
+                value={filters.category}
+                onChange={(e) =>
+                  setFilters((prev) => ({ ...prev, category: e.target.value, subcategory: "" }))
+                }
+              >
+                <option value="">Все категории</option>
+                {categories.map((category) => (
+                  <option key={category.code} value={category.code}>
+                    {category.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <Label>Подкатегория</Label>
+              <select
+                className="w-full border rounded-md p-2"
+                value={filters.subcategory}
+                onChange={(e) => setFilters((prev) => ({ ...prev, subcategory: e.target.value }))}
+                disabled={!filters.category}
+              >
+                <option value="">Все подкатегории</option>
+                {subcategories.map((sub) => (
+                  <option key={sub.code} value={sub.code}>
+                    {sub.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <Label>Цена от</Label>
+              <Input
+                type="number"
+                min="0"
+                value={filters.priceFrom}
+                onChange={(e) => setFilters((prev) => ({ ...prev, priceFrom: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Цена до</Label>
+              <Input
+                type="number"
+                min="0"
+                value={filters.priceTo}
+                onChange={(e) => setFilters((prev) => ({ ...prev, priceTo: e.target.value }))}
+              />
+            </div>
+            <div>
+              <Label>Поиск</Label>
+              <Input
+                placeholder="Название или описание"
+                value={filters.q}
+                onChange={(e) => setFilters((prev) => ({ ...prev, q: e.target.value }))}
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <Button onClick={loadAllAds} className="gap-2">
+              <Search className="h-4 w-4" />
+              Применить фильтры
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFilters({ category: "", subcategory: "", priceFrom: "", priceTo: "", q: "" });
+                void loadAllAds();
+              }}
+            >
+              Сбросить
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

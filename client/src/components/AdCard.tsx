@@ -11,13 +11,15 @@ interface AdCardProps {
 }
 
 export function AdCard({ ad, isFavorite, onToggleFavorite }: AdCardProps) {
+  const previewImage = ad.images?.[0] || ad.photos?.[0];
+
   return (
     <Card className="hover-elevate overflow-hidden">
       <div className="grid grid-cols-1 md:grid-cols-[1fr,180px]">
-        {ad.images?.[0] ? (
+        {previewImage ? (
           <div className="relative h-48 md:h-full bg-muted/40">
             <img
-              src={ad.images[0]}
+              src={previewImage}
               alt={ad.title}
               className="w-full h-full object-cover"
               loading="lazy"

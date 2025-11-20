@@ -34,6 +34,11 @@ function buildAdQuery(query = {}) {
   let sortBy = 'date_desc';
 
   const {
+    category,
+    subcategory,
+    priceFrom,
+    priceTo,
+    q: qParam,
     categoryId,
     subcategoryId,
     seasonCode,
@@ -65,13 +70,29 @@ function buildAdQuery(query = {}) {
     filters.subcategoryId = subcategoryId;
   }
 
+  if (category) {
+    filters.$or = [
+      ...(filters.$or || []),
+      { categoryId: category },
+      { category },
+    ];
+  }
+
+  if (subcategory) {
+    filters.$or = [
+      ...(filters.$or || []),
+      { subcategoryId: subcategory },
+      { subcategory },
+    ];
+  }
+
   const normalizedSeason = normalizeSeasonCode(seasonCode);
   if (normalizedSeason) {
     filters.seasonCode = normalizedSeason;
   }
 
-  const minPriceNumber = parseNumber(minPrice);
-  const maxPriceNumber = parseNumber(maxPrice);
+  const minPriceNumber = parseNumber(minPrice ?? priceFrom);
+  const maxPriceNumber = parseNumber(maxPrice ?? priceTo);
   if (minPriceNumber != null || maxPriceNumber != null) {
     filters.price = { ...filters.price };
     if (minPriceNumber != null) {
@@ -82,10 +103,21 @@ function buildAdQuery(query = {}) {
     }
   }
 
-  const searchTerm = search || q;
+  const existingOr = filters.$or ? [...filters.$or] : null;
+  delete filters.$or;
+
+  const searchTerm = search || q || qParam;
   if (searchTerm) {
     const regex = new RegExp(searchTerm, 'i');
-    filters.$or = [{ title: regex }, { description: regex }];
+    const searchOr = [{ title: regex }, { description: regex }];
+
+    if (existingOr && existingOr.length) {
+      filters.$and = [...(filters.$and || []), { $or: existingOr }, { $or: searchOr }];
+    } else {
+      filters.$or = searchOr;
+    }
+  } else if (existingOr && existingOr.length) {
+    filters.$or = existingOr;
   }
 
   const sellerNumber = parseNumber(sellerId ?? sellerTelegramId);

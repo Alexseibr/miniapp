@@ -182,6 +182,13 @@ const adSchema = new mongoose.Schema(
   }
 );
 
+adSchema.virtual('images').get(function () {
+  return Array.isArray(this.photos) ? this.photos : [];
+});
+
+adSchema.set('toJSON', { virtuals: true });
+adSchema.set('toObject', { virtuals: true });
+
 adSchema.index({ 'location.geo': '2dsphere' });
 
 // Автоматический расчет validUntil при создании
