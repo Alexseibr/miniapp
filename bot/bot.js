@@ -10,6 +10,7 @@ bot.use(session());
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
 const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL;
+const INTERNAL_AUTH_SECRET = process.env.INTERNAL_AUTH_SECRET;
 
 registerSeasonHandlers(bot, { apiUrl: API_URL });
 
@@ -513,14 +514,11 @@ bot.command('start', async (ctx) => {
   const firstName = ctx.from.first_name || 'друг';
 
   const activeSeason = await getActiveSeason();
-  const seasonText = activeSeason
-    ? `\n\n🌟 Сейчас активна: **${activeSeason.name}**!`
-    : '';
 
   const startKeyboard = getMiniAppKeyboard();
 
   const seasonInfo = activeSeason ? `\n\n🌟 Сейчас активна: ${activeSeason.name}!` : '';
-  
+
   await ctx.reply(
     `👋 Привет, ${firstName}!\n\n` +
     `Добро пожаловать в KETMAR Market! 🛍️${seasonInfo}\n\n` +

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { MessageSquare, Star, UserRound, Wallet } from "lucide-react";
 
@@ -10,8 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFavorites } from "@/features/favorites/FavoritesContext";
-import { useAuth } from "@/features/auth/AuthContext";
-import { fetchWithAuth } from "@/lib/auth";
+import { AUTH_TOKEN_KEY, fetchWithAuth, getAuthToken } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
 import type { CurrentUser } from "@/types/user";
 
@@ -459,10 +458,27 @@ export default function AccountPage() {
   const [user, setUser] = useState<CurrentUser | null>(currentUser);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [authToken, setAuthToken] = useState<string | null>(() => getAuthToken());
+  const [loginToken, setLoginToken] = useState<string | null>(null);
+  const [loginStatus, setLoginStatus] = useState<
+    "idle" | "pending" | "completed" | "expired" | "error"
+  >("idle");
+  const [loginMessage, setLoginMessage] = useState<string | null>(null);
+  const [loginError, setLoginError] = useState<string | null>(null);
+  const [isCreatingSession, setIsCreatingSession] = useState(false);
+  const loginStartedAtRef = useRef<number | null>(null);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const hasToken = Boolean(authToken);
 
   useEffect(() => {
-    setUser(currentUser);
-  }, [currentUser]);
+    const handleStorage = () => {
+      setAuthToken(getAuthToken());
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   useEffect(() => {
     if (!token || currentUser) return;
@@ -482,13 +498,162 @@ export default function AccountPage() {
     void loadUser();
   }, [token, currentUser, refreshCurrentUser]);
 
-  if (!token) {
+  useEffect(() => {
+    if (!loginToken) {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+      return;
+    }
+
+    loginStartedAtRef.current = loginStartedAtRef.current || Date.now();
+
+    pollingRef.current = setInterval(async () => {
+      if (loginStartedAtRef.current && Date.now() - loginStartedAtRef.current > 15 * 60 * 1000) {
+        setLoginStatus("expired");
+        setLoginError("Время авторизации истекло. Попробуйте снова.");
+        setLoginToken(null);
+        loginStartedAtRef.current = null;
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/auth/telegram/poll?token=${loginToken}`);
+        if (response.status === 404) {
+          setLoginStatus("error");
+          setLoginError("Сессия авторизации не найдена. Создайте новую.");
+          setLoginToken(null);
+          loginStartedAtRef.current = null;
+          return;
+        }
+
+        const data = await response.json();
+
+        if (data.status && !["pending", "completed", "expired"].includes(data.status)) {
+          setLoginStatus("error");
+          setLoginError("Не удалось найти сессию авторизации. Попробуйте начать заново.");
+          setLoginToken(null);
+          loginStartedAtRef.current = null;
+          return;
+        }
+
+        if (data.status === "expired") {
+          setLoginStatus("expired");
+          setLoginError("Время авторизации истекло. Попробуйте снова.");
+          setLoginToken(null);
+          loginStartedAtRef.current = null;
+          return;
+        }
+
+        if (data.status === "completed") {
+          if (data.jwtToken) {
+            localStorage.setItem(AUTH_TOKEN_KEY, data.jwtToken);
+            setAuthToken(data.jwtToken);
+            window.dispatchEvent(new Event("storage"));
+          }
+
+          if (data.user) {
+            setUser(data.user);
+          }
+
+          setLoginStatus("completed");
+          setLoginMessage("Авторизация подтверждена. Возвращаем вас в личный кабинет.");
+          setLoginToken(null);
+          loginStartedAtRef.current = null;
+          return;
+        }
+
+        setLoginStatus("pending");
+      } catch (pollError) {
+        setLoginError((pollError as Error).message || "Не удалось проверить статус авторизации");
+        setLoginStatus("error");
+        setLoginToken(null);
+        loginStartedAtRef.current = null;
+      }
+    }, 2500);
+
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        pollingRef.current = null;
+      }
+    };
+  }, [loginToken]);
+
+  const handleStartTelegramLogin = async () => {
+    setIsCreatingSession(true);
+    setLoginError(null);
+    setLoginMessage(null);
+    setLoginStatus("pending");
+
+    try {
+      const response = await fetch("/api/auth/telegram/create-session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await response.json().catch(() => null);
+
+      if (!response.ok || !data?.token || !data?.deepLink) {
+        throw new Error(data?.error || "Не удалось создать сессию для входа через Telegram");
+      }
+
+      setLoginToken(data.token);
+      loginStartedAtRef.current = Date.now();
+      setLoginMessage("Мы открыли Telegram. Поделитесь номером телефона, чтобы войти.");
+
+      window.open(data.deepLink, "_blank", "noopener,noreferrer");
+    } catch (requestError) {
+      setLoginError((requestError as Error).message || "Не удалось запустить вход через Telegram");
+      setLoginStatus("error");
+    } finally {
+      setIsCreatingSession(false);
+    }
+  };
+
+  if (!hasToken) {
     return (
       <div className="container mx-auto px-4 py-10 space-y-4">
         <h1 className="text-3xl font-bold">Личный кабинет</h1>
         <Card>
-          <CardContent className="p-6 text-muted-foreground">
-            Войдите, чтобы просматривать личный кабинет. <Link to="/login">Войти</Link>
+          <CardHeader>
+            <CardTitle>Вход через Telegram</CardTitle>
+          </CardHeader>
+          <CardContent className="p-6 space-y-4">
+            <p className="text-muted-foreground">
+              Чтобы войти, нажмите кнопку ниже — мы откроем Telegram-бота и попросим подтвердить ваш номер телефона.
+            </p>
+
+            {loginError && <p className="text-sm text-red-600">{loginError}</p>}
+            {loginMessage && <p className="text-sm text-green-600">{loginMessage}</p>}
+
+            <div className="flex flex-wrap items-center gap-3">
+              <Button
+                size="lg"
+                onClick={handleStartTelegramLogin}
+                disabled={isCreatingSession || loginStatus === "pending"}
+              >
+                {isCreatingSession
+                  ? "Генерируем ссылку..."
+                  : loginStatus === "pending"
+                    ? "Ждём подтверждения в Telegram"
+                    : "Войти через Telegram"}
+              </Button>
+
+              {loginStatus === "pending" && <Badge variant="outline">Ожидаем подтверждение</Badge>}
+              {loginStatus === "completed" && <Badge variant="secondary">Готово</Badge>}
+            </div>
+
+            {loginStatus === "pending" && (
+              <p className="text-sm text-muted-foreground">
+                Мы ждём, пока вы подтвердите номер телефона в Telegram-боте. Если окно не открылось, откройте бота вручную и нажмите «Поделиться номером телефона».
+              </p>
+            )}
+
+            {loginStatus === "expired" && (
+              <p className="text-sm text-orange-600">Время авторизации истекло. Попробуйте начать снова.</p>
+            )}
           </CardContent>
         </Card>
       </div>
