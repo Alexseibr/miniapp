@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { MessageSquare, Star, UserRound, Wallet } from "lucide-react";
 
 import AdCard from "@/components/AdCard";
@@ -14,6 +14,7 @@ import { useAuth } from "@/features/auth/AuthContext";
 import { AUTH_TOKEN_KEY, fetchWithAuth, getAuthToken } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
 import type { CurrentUser } from "@/types/user";
+import AccountChatsTab from "@/pages/account-chats-tab";
 
 const tabs = [
   { key: "profile", label: "Профиль", icon: UserRound },
@@ -301,155 +302,6 @@ function AccountFavoritesTab({ isActive }: { isActive: boolean }) {
               onToggleFavorite={toggleFavorite}
             />
           ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-type ConversationPreview = {
-  _id: string;
-  ad?: {
-    _id: string;
-    title?: string;
-    price?: number;
-    status?: string;
-    photos?: string[];
-  } | null;
-  buyer?: CurrentUser | null;
-  seller?: CurrentUser | null;
-  lastMessage?: {
-    _id: string;
-    text: string;
-    createdAt: string;
-    sender?: CurrentUser | null;
-  } | null;
-  updatedAt?: string;
-};
-
-function formatTime(value?: string) {
-  if (!value) return "";
-  const date = new Date(value);
-  const now = new Date();
-
-  const isToday = date.toDateString() === now.toDateString();
-  const yesterday = new Date(now);
-  yesterday.setDate(now.getDate() - 1);
-  const isYesterday = date.toDateString() === yesterday.toDateString();
-
-  if (isToday) return `Сегодня, ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-  if (isYesterday) return `Вчера, ${date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
-  return date.toLocaleDateString();
-}
-
-function AccountChatsTab({ isActive, currentUser }: { isActive: boolean; currentUser: CurrentUser | null }) {
-  const [conversations, setConversations] = useState<ConversationPreview[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    if (!isActive) return;
-
-    const loadConversations = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        const response = await fetchWithAuth("/api/chat/my");
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить диалоги");
-        }
-        const data = await response.json();
-        setConversations(Array.isArray(data) ? data : []);
-      } catch (requestError) {
-        setError((requestError as Error).message || "Ошибка загрузки чатов");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadConversations();
-  }, [isActive]);
-
-  const renderCompanion = (conversation: ConversationPreview) => {
-    if (!currentUser) return conversation.seller || conversation.buyer;
-    if (conversation.buyer?.id === currentUser.id || conversation.buyer?._id === currentUser.id) {
-      return conversation.seller;
-    }
-    return conversation.buyer;
-  };
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Мои диалоги</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {isLoading && <p className="text-muted-foreground">Загружаем диалоги…</p>}
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        {!isLoading && !conversations.length && !error && (
-          <p className="text-muted-foreground">У вас пока нет переписок.</p>
-        )}
-
-        <div className="space-y-3">
-          {conversations.map((conversation) => {
-            const companion = renderCompanion(conversation);
-            const lastMessageText = conversation.lastMessage?.text || "Нет сообщений";
-            const preview = lastMessageText.length > 80 ? `${lastMessageText.slice(0, 80)}…` : lastMessageText;
-            const previewImage = conversation.ad?.photos?.[0];
-
-            return (
-              <Card
-                key={conversation._id}
-                className="hover-elevate cursor-pointer"
-                onClick={() => navigate(`/chat/${conversation._id}`)}
-              >
-                <CardContent className="p-4 flex items-center gap-4">
-                  <div className="w-16 h-16 bg-muted/40 rounded-md overflow-hidden flex items-center justify-center">
-                    {previewImage ? (
-                      <img src={previewImage} alt={conversation.ad?.title} className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-muted-foreground text-xs">Нет фото</span>
-                    )}
-                  </div>
-
-                  <div className="flex-1 space-y-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <h3 className="text-lg font-semibold">{conversation.ad?.title || "Объявление"}</h3>
-                      {conversation.ad?.price != null && (
-                        <span className="text-sm text-muted-foreground">{conversation.ad.price} BYN</span>
-                      )}
-                      {conversation.ad?.status && <Badge variant="outline">{conversation.ad.status}</Badge>}
-                    </div>
-
-                    {companion && (
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage
-                            src={companion.avatar ?? undefined}
-                            alt={companion.name ?? companion.username ?? undefined}
-                          />
-                          <AvatarFallback>{companion.name?.slice(0, 1) || "?"}</AvatarFallback>
-                        </Avatar>
-                        <span>
-                          {conversation.buyer?.id === currentUser?.id || conversation.buyer?._id === currentUser?.id
-                            ? "Продавец"
-                            : "Покупатель"}
-                          : {companion.name || companion.username}
-                        </span>
-                      </div>
-                    )}
-
-                    <p className="text-sm text-muted-foreground">{preview}</p>
-                  </div>
-
-                  <div className="text-sm text-muted-foreground">
-                    {formatTime(conversation.lastMessage?.createdAt || conversation.updatedAt)}
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
         </div>
       </CardContent>
     </Card>
