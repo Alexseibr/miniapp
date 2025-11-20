@@ -454,7 +454,8 @@ function AccountChatsTab({ isActive, currentUser }: { isActive: boolean; current
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<string>(tabs[0].key);
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const { currentUser, token, isLoading: authLoading, refreshCurrentUser, setCurrentUser } = useAuth();
+  const [user, setUser] = useState<CurrentUser | null>(currentUser);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(() => getAuthToken());
@@ -480,18 +481,13 @@ export default function AccountPage() {
   }, []);
 
   useEffect(() => {
-    if (!hasToken) return;
+    if (!token || currentUser) return;
 
     const loadUser = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetchWithAuth("/api/users/me");
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить профиль");
-        }
-        const data = await response.json();
-        setUser(data);
+        await refreshCurrentUser(token);
       } catch (requestError) {
         setError((requestError as Error).message || "Ошибка загрузки профиля");
       } finally {
@@ -500,7 +496,7 @@ export default function AccountPage() {
     };
 
     void loadUser();
-  }, [hasToken]);
+  }, [token, currentUser, refreshCurrentUser]);
 
   useEffect(() => {
     if (!loginToken) {
@@ -695,13 +691,19 @@ export default function AccountPage() {
           </div>
 
           <div className="p-4">
-            {isLoading && <p className="text-muted-foreground">Загружаем данные…</p>}
+            {(isLoading || authLoading) && <p className="text-muted-foreground">Загружаем данные…</p>}
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             {!isLoading && !error && (
               <div className="space-y-4">
                 {activeTab === "profile" && (
-                  <AccountProfileTab user={user} onUserUpdate={setUser} />
+                  <AccountProfileTab
+                    user={user}
+                    onUserUpdate={(updatedUser) => {
+                      setUser(updatedUser);
+                      setCurrentUser(updatedUser);
+                    }}
+                  />
                 )}
                 {activeTab === "ads" && <AccountMyAdsTab isActive={activeTab === "ads"} />}
                 {activeTab === "favorites" && <AccountFavoritesTab isActive={activeTab === "favorites"} />}

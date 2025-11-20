@@ -1,11 +1,10 @@
 const express = require('express');
-const { telegramInitDataMiddleware } = require('../middleware/telegramAuth');
-const requireAuth = require('../middleware/requireAuth');
+const authMiddleware = require('../middleware/auth');
 const Order = require('../models/Order');
 
 const router = express.Router();
 
-router.use(telegramInitDataMiddleware, requireAuth);
+router.use(authMiddleware);
 
 router.get('/my', async (req, res) => {
   try {

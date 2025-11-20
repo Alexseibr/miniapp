@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import AdsList from "@/pages/ads-list";
 import FavoritesRoute from "@/pages/favorites";
 import AccountPage from "@/pages/account";
+import LoginPage from "@/pages/login";
 import AdDetails from "@/pages/ad-details";
 import ChatPage from "@/pages/chat-page";
 import AdCreate from "@/pages/ad-create";
@@ -26,6 +27,7 @@ function App() {
               <Route path="/ads/new" element={<AdCreate />} />
               <Route path="/ads/:id" element={<AdDetails />} />
               <Route path="/favorites" element={<FavoritesRoute />} />
+              <Route path="/login" element={<LoginPage />} />
               <Route path="/account" element={<AccountPage />} />
               <Route path="/chat/:conversationId" element={<ChatPage />} />
               <Route path="/admin" element={<AdminPage />} />

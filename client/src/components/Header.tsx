@@ -1,12 +1,6 @@
-import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AUTH_TOKEN_KEY, fetchWithAuth, getAuthToken } from "@/lib/auth";
-import type { CurrentUser } from "@/types/user";
-
-const AUTH_HEADER_MESSAGE = "Войдите, чтобы просматривать эту страницу.";
-
-type UserWithRole = CurrentUser & { role?: string };
+import { useAuth } from "@/features/auth/AuthContext";
 
 export default function Header() {
   const navigate = useNavigate();
@@ -96,7 +90,7 @@ export default function Header() {
             </Button>
           </div>
         ) : (
-          <Button size="sm" onClick={() => navigate("/account")}>Войти</Button>
+          <Button size="sm" onClick={() => navigate("/login")}>Войти</Button>
         )}
       </div>
     </header>
