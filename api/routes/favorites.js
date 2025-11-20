@@ -51,8 +51,16 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Объявление не найдено' });
     }
 
+    if (!Array.isArray(user.favorites)) {
+      user.favorites = [];
+    }
+
     if (!user.favorites.some((fav) => fav.toString() === adId)) {
       user.favorites.push(adId);
+    }
+
+    if (!Array.isArray(ad.watchers)) {
+      ad.watchers = [];
     }
 
     if (!ad.watchers.includes(telegramId)) {
@@ -82,11 +90,11 @@ router.delete('/:adId', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    user.favorites = user.favorites.filter((fav) => fav.toString() !== adId);
+    user.favorites = (user.favorites || []).filter((fav) => fav.toString() !== adId);
 
     const ad = await Ad.findById(adId);
     if (ad) {
-      ad.watchers = ad.watchers.filter((id) => id !== telegramId);
+      ad.watchers = (ad.watchers || []).filter((id) => id !== telegramId);
       await ad.save();
     }
 
