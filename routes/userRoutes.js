@@ -6,19 +6,64 @@ const router = express.Router();
 
 router.use(telegramInitDataMiddleware, requireAuth);
 
-router.get('/me', (req, res) => {
-  const user = req.currentUser;
+function formatUser(user) {
+  if (!user) return null;
 
-  return res.json({
+  return {
     id: user._id,
     telegramId: user.telegramId,
     username: user.username,
+    name: user.name || user.firstName,
     firstName: user.firstName,
     lastName: user.lastName,
+    email: user.email,
+    avatar: user.avatar,
+    phone: user.phone,
     location: user.location || null,
     favoritesCount: user.favoritesCount || 0,
     ordersCount: user.ordersCount || 0,
-  });
+  };
+}
+
+router.get('/me', (req, res) => {
+  return res.json(formatUser(req.currentUser));
+});
+
+router.put('/me', async (req, res) => {
+  try {
+    const { name, email, avatar, phone } = req.body || {};
+
+    if (phone && phone !== req.currentUser.phone) {
+      return res.status(400).json({ message: 'Номер телефона нельзя изменить' });
+    }
+
+    const updates = {};
+
+    if (name !== undefined) {
+      updates.name = String(name).trim();
+    }
+
+    if (email !== undefined) {
+      const normalizedEmail = String(email).trim().toLowerCase();
+      const emailRegex = /.+@.+\..+/;
+      if (normalizedEmail && !emailRegex.test(normalizedEmail)) {
+        return res.status(400).json({ message: 'Некорректный email' });
+      }
+      updates.email = normalizedEmail || undefined;
+    }
+
+    if (avatar !== undefined) {
+      updates.avatar = String(avatar).trim();
+    }
+
+    Object.assign(req.currentUser, updates);
+    await req.currentUser.save();
+
+    return res.json(formatUser(req.currentUser));
+  } catch (error) {
+    console.error('Failed to update profile', error);
+    return res.status(500).json({ message: 'Не удалось обновить профиль' });
+  }
 });
 
 router.post('/me/location', async (req, res) => {

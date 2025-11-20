@@ -97,6 +97,20 @@ router.post('/conversations/:id/messages', async (req, res, next) => {
   }
 });
 
+function formatUser(user) {
+  if (!user) return null;
+
+  return {
+    id: user._id,
+    _id: user._id,
+    name: user.name || user.firstName || user.username || 'Пользователь',
+    username: user.username,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    avatar: user.avatar,
+  };
+}
+
 router.get('/my', async (req, res, next) => {
   try {
     const userId = req.currentUser._id;
@@ -104,17 +118,40 @@ router.get('/my', async (req, res, next) => {
       $or: [{ buyer: userId }, { seller: userId }],
     })
       .sort({ updatedAt: -1 })
-      .populate('ad');
+      .populate({ path: 'ad', select: 'title price status photos' })
+      .populate({ path: 'buyer', select: 'name firstName lastName username avatar' })
+      .populate({ path: 'seller', select: 'name firstName lastName username avatar' });
 
     const result = await Promise.all(
       conversations.map(async (conversation) => {
         const lastMessage = await Message.findOne({ conversation: conversation._id })
           .sort({ createdAt: -1 })
+          .populate({ path: 'sender', select: 'name firstName lastName username avatar' })
           .lean();
 
         return {
-          ...conversation.toObject(),
-          lastMessage,
+          _id: conversation._id,
+          ad: conversation.ad
+            ? {
+                _id: conversation.ad._id,
+                title: conversation.ad.title,
+                price: conversation.ad.price,
+                status: conversation.ad.status,
+                photos: conversation.ad.photos,
+              }
+            : null,
+          buyer: formatUser(conversation.buyer),
+          seller: formatUser(conversation.seller),
+          lastMessage: lastMessage
+            ? {
+                _id: lastMessage._id,
+                text: lastMessage.text,
+                createdAt: lastMessage.createdAt,
+                sender: formatUser(lastMessage.sender),
+              }
+            : null,
+          updatedAt: conversation.updatedAt,
+          createdAt: conversation.createdAt,
         };
       }),
     );
