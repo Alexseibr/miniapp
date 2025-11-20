@@ -381,7 +381,13 @@ router.get('/search', async (req, res, next) => {
     const matchClauses = [];
 
     if (regex) {
-      matchClauses.push({ title: regex }, { description: regex }, { attributeValues: { $elemMatch: { $regex: regex } } });
+      matchClauses.push({
+        $or: [
+          { title: regex },
+          { description: regex },
+          { attributeValues: { $elemMatch: { $regex: regex } } },
+        ],
+      });
     }
 
     if (Number.isFinite(minPrice) || Number.isFinite(maxPrice)) {
