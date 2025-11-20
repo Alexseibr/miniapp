@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link, useLocation } from "wouter";
+import { Link, useNavigate } from "react-router-dom";
 import { MessageSquare, Star, UserRound, Wallet } from "lucide-react";
 
 import AdCard from "@/components/AdCard";
@@ -206,7 +206,7 @@ function AccountMyAdsTab({ isActive }: { isActive: boolean }) {
                         {ad.status && <Badge variant="outline">{ad.status}</Badge>}
                       </div>
                       <div className="flex items-center gap-2">
-                        <Link href={`/ads/${ad._id}/edit`}>
+                        <Link to={`/ads/${ad._id}/edit`}>
                           <Button variant="outline" size="sm">Редактировать</Button>
                         </Link>
                         <Button variant="destructive" size="sm" onClick={() => handleDelete(ad._id)}>
@@ -345,7 +345,7 @@ function AccountChatsTab({ isActive, currentUser }: { isActive: boolean; current
   const [conversations, setConversations] = useState<ConversationPreview[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (!isActive) return;
@@ -401,7 +401,7 @@ function AccountChatsTab({ isActive, currentUser }: { isActive: boolean; current
               <Card
                 key={conversation._id}
                 className="hover-elevate cursor-pointer"
-                onClick={() => setLocation(`/chat/${conversation._id}`)}
+                onClick={() => navigate(`/chat/${conversation._id}`)}
               >
                 <CardContent className="p-4 flex items-center gap-4">
                   <div className="w-16 h-16 bg-muted/40 rounded-md overflow-hidden flex items-center justify-center">

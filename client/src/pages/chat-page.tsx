@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useRoute } from "wouter";
+import { useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { fetchWithAuth } from "@/lib/auth";
+import { fetchWithAuth, getAuthToken } from "@/lib/auth";
 
 interface Message {
   _id: string;
@@ -13,17 +13,17 @@ interface Message {
 }
 
 export default function ChatPage() {
-  const [, params] = useRoute("/chat/:conversationId");
-  const conversationId = params?.conversationId;
+  const { conversationId } = useParams();
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const pollRef = useRef<NodeJS.Timeout | null>(null);
+  const hasToken = Boolean(getAuthToken());
 
   const loadMessages = useCallback(async () => {
-    if (!conversationId) return;
+    if (!conversationId || !hasToken) return;
     setIsLoading(true);
 
     try {
@@ -39,7 +39,7 @@ export default function ChatPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [conversationId]);
+  }, [conversationId, hasToken]);
 
   useEffect(() => {
     void loadMessages();
@@ -56,7 +56,7 @@ export default function ChatPage() {
   }, [loadMessages]);
 
   const sendMessage = async () => {
-    if (!conversationId || !text.trim()) return;
+    if (!conversationId || !text.trim() || !hasToken) return;
     setIsSending(true);
     setError(null);
 
@@ -82,6 +82,18 @@ export default function ChatPage() {
       setIsSending(false);
     }
   };
+
+  if (!hasToken) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <Card>
+          <CardContent className="p-6 text-muted-foreground">
+            Войдите, чтобы просматривать эту страницу.
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">

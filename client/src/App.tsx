@@ -1,46 +1,38 @@
-import { Switch, Route } from "wouter";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import Home from "@/pages/home";
 import AdsList from "@/pages/ads-list";
-import Dashboard from "@/pages/dashboard";
-import Products from "@/pages/products-simple";
-import Categories from "@/pages/categories-simple";
-import NearbyPage from "@/pages/nearby";
 import FavoritesRoute from "@/pages/favorites";
 import AccountPage from "@/pages/account";
-import NotFound from "@/pages/not-found";
-import AdCreate from "@/pages/ad-create";
 import AdDetails from "@/pages/ad-details";
 import ChatPage from "@/pages/chat-page";
-
-function Router() {
-  return (
-    <Switch>
-      <Route path="/" component={Home} />
-      <Route path="/ads" component={AdsList} />
-      <Route path="/ads/new" component={AdCreate} />
-      <Route path="/ads/:id" component={AdDetails} />
-      <Route path="/account" component={AccountPage} />
-      <Route path="/chat/:conversationId" component={ChatPage} />
-      <Route path="/dashboard" component={Dashboard} />
-      <Route path="/products" component={Products} />
-      <Route path="/categories" component={Categories} />
-      <Route path="/nearby" component={NearbyPage} />
-      <Route path="/favorites" component={FavoritesRoute} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
+import AdCreate from "@/pages/ad-create";
+import NotFoundPage from "@/pages/not-found";
+import AdminPage from "@/pages/dashboard";
+import Layout from "@/components/Layout";
 
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <Toaster />
-        <Router />
+        <BrowserRouter>
+          <Layout>
+            <Routes>
+              <Route path="/" element={<AdsList />} />
+              <Route path="/ads" element={<AdsList />} />
+              <Route path="/ads/new" element={<AdCreate />} />
+              <Route path="/ads/:id" element={<AdDetails />} />
+              <Route path="/favorites" element={<FavoritesRoute />} />
+              <Route path="/account" element={<AccountPage />} />
+              <Route path="/chat/:conversationId" element={<ChatPage />} />
+              <Route path="/admin" element={<AdminPage />} />
+              <Route path="*" element={<NotFoundPage />} />
+            </Routes>
+          </Layout>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   );

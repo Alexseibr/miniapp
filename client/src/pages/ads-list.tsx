@@ -10,6 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useFavorites } from "@/features/favorites/FavoritesContext";
 import { fetchWithAuth } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
+import Loader from "@/components/Loader";
+import ErrorMessage from "@/components/ErrorMessage";
 
 interface Category {
   code: string;
@@ -23,11 +25,14 @@ export default function AdsList() {
   const { isFavorite, toggleFavorite, refreshFavorites } = useFavorites();
   const [ads, setAds] = useState<Ad[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(5);
   const [isNearbyMode, setIsNearbyMode] = useState(false);
   const [geoStatus, setGeoStatus] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
   const [filters, setFilters] = useState({
     category: "",
     subcategory: "",
@@ -35,6 +40,8 @@ export default function AdsList() {
     priceTo: "",
     q: "",
   });
+
+  const PAGE_LIMIT = 20;
 
   const subcategories = useMemo(() => {
     return categories.find((cat) => cat.code === filters.category)?.subcategories ?? [];
@@ -57,35 +64,51 @@ export default function AdsList() {
     void loadCategories();
   }, []);
 
-  const loadAllAds = useCallback(async () => {
-    setError(null);
-    setIsNearbyMode(false);
-    setIsLoading(true);
+  const fetchAds = useCallback(
+    async (pageToLoad: number, append: boolean) => {
+      setError(null);
+      setIsNearbyMode(false);
+      setIsLoading(!append);
+      setIsLoadingMore(append);
 
-    try {
-      const params = new URLSearchParams();
+      try {
+        const params = new URLSearchParams({
+          page: String(pageToLoad),
+          limit: String(PAGE_LIMIT),
+        });
 
-      if (filters.category) params.append("category", filters.category);
-      if (filters.subcategory) params.append("subcategory", filters.subcategory);
-      if (filters.priceFrom) params.append("priceFrom", filters.priceFrom);
-      if (filters.priceTo) params.append("priceTo", filters.priceTo);
-      if (filters.q) params.append("q", filters.q);
+        if (filters.category) params.append("category", filters.category);
+        if (filters.subcategory) params.append("subcategory", filters.subcategory);
+        if (filters.priceFrom) params.append("priceFrom", filters.priceFrom);
+        if (filters.priceTo) params.append("priceTo", filters.priceTo);
+        if (filters.q) params.append("q", filters.q);
 
-      const query = params.toString();
-      const response = await fetchWithAuth(query ? `/api/ads?${query}` : "/api/ads");
-      if (!response.ok) {
-        throw new Error("Не удалось загрузить объявления");
+        const response = await fetchWithAuth(`/api/ads?${params.toString()}`);
+        if (!response.ok) {
+          throw new Error("Не удалось загрузить объявления");
+        }
+        const data = await response.json();
+        const items: Ad[] = Array.isArray(data) ? data : data.items ?? [];
+        const limitValue: number = typeof data?.limit === "number" ? data.limit : PAGE_LIMIT;
+        const more =
+          typeof data?.total === "number"
+            ? pageToLoad * limitValue < data.total
+            : items.length === limitValue;
+
+        setAds((prev) => (append ? [...prev, ...items] : items));
+        setHasMore(more);
+        await refreshFavorites();
+      } catch (requestError) {
+        console.error(requestError);
+        setError("Ошибка при загрузке объявлений. Попробуйте ещё раз.");
+        setHasMore(false);
+      } finally {
+        setIsLoading(false);
+        setIsLoadingMore(false);
       }
-      const data = await response.json();
-      setAds(Array.isArray(data) ? data : data.items ?? []);
-      await refreshFavorites();
-    } catch (requestError) {
-      console.error(requestError);
-      setError("Ошибка при загрузке объявлений. Попробуйте ещё раз.");
-    } finally {
-      setIsLoading(false);
-    }
-  }, [filters, refreshFavorites]);
+    },
+    [PAGE_LIMIT, filters, refreshFavorites],
+  );
 
   const loadNearbyAds = useCallback(
     async (lat: number, lng: number) => {
@@ -108,6 +131,8 @@ export default function AdsList() {
 
         const data = await response.json();
         setAds(Array.isArray(data) ? data : data.items ?? []);
+        setHasMore(false);
+        setPage(1);
       } catch (requestError) {
         console.error(requestError);
         setError("Ошибка при загрузке объявлений рядом. Попробуйте ещё раз.");
@@ -139,8 +164,17 @@ export default function AdsList() {
   }, [loadNearbyAds]);
 
   useEffect(() => {
-    void loadAllAds();
-  }, [loadAllAds]);
+    setAds([]);
+    setPage(1);
+    setHasMore(true);
+    void fetchAds(1, false);
+  }, [fetchAds]);
+
+  useEffect(() => {
+    if (page > 1) {
+      void fetchAds(page, true);
+    }
+  }, [fetchAds, page]);
 
   const hasAds = useMemo(() => ads.length > 0, [ads]);
 
@@ -227,7 +261,14 @@ export default function AdsList() {
           </div>
 
           <div className="flex gap-3">
-            <Button onClick={loadAllAds} className="gap-2">
+            <Button
+              onClick={() => {
+                setPage(1);
+                setHasMore(true);
+                void fetchAds(1, false);
+              }}
+              className="gap-2"
+            >
               <Search className="h-4 w-4" />
               Применить фильтры
             </Button>
@@ -235,7 +276,9 @@ export default function AdsList() {
               variant="outline"
               onClick={() => {
                 setFilters({ category: "", subcategory: "", priceFrom: "", priceTo: "", q: "" });
-                void loadAllAds();
+                setPage(1);
+                setHasMore(true);
+                void fetchAds(1, false);
               }}
             >
               Сбросить
@@ -270,7 +313,15 @@ export default function AdsList() {
                 Показать рядом со мной
               </Button>
 
-              <Button onClick={loadAllAds} variant="outline" className="gap-2">
+              <Button
+                onClick={() => {
+                  setPage(1);
+                  setHasMore(true);
+                  void fetchAds(1, false);
+                }}
+                variant="outline"
+                className="gap-2"
+              >
                 <RefreshCw className="h-4 w-4" />
                 Показать все объявления
               </Button>
@@ -279,22 +330,13 @@ export default function AdsList() {
         </CardHeader>
         <CardContent className="space-y-3">
           {geoStatus && <p className="text-sm text-muted-foreground">{geoStatus}</p>}
-          {error && (
-            <div className="text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-md p-3">
-              {error}
-            </div>
-          )}
+          {error && <ErrorMessage message={error} />}
         </CardContent>
       </Card>
 
-      {isLoading && (
-        <div className="flex items-center gap-2 text-muted-foreground">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span>Загрузка объявлений…</span>
-        </div>
-      )}
+      {isLoading && !isLoadingMore && <Loader />}
 
-      {!isLoading && !hasAds && (
+      {!isLoading && !hasAds && !error && (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
             Объявления не найдены.
@@ -302,7 +344,7 @@ export default function AdsList() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 gap-4">
+      <div className="ads-grid">
         {ads.map((ad) => (
           <AdCard
             key={ad._id}
@@ -312,6 +354,21 @@ export default function AdsList() {
           />
         ))}
       </div>
+
+      {isLoadingMore && (
+        <div className="flex items-center gap-2 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          <span>Загружаем ещё объявления…</span>
+        </div>
+      )}
+
+      {!isLoading && hasMore && !isNearbyMode && (
+        <div className="flex justify-center">
+          <Button onClick={() => setPage((prev) => prev + 1)} disabled={isLoadingMore}>
+            Загрузить ещё
+          </Button>
+        </div>
+      )}
 
       {isNearbyMode && hasAds && (
         <p className="text-sm text-muted-foreground">

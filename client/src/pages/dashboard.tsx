@@ -1,9 +1,42 @@
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Package, ShoppingCart, TrendingUp, Users } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { fetchWithAuth, getAuthToken } from "@/lib/auth";
+import Loader from "@/components/Loader";
 
 export default function Dashboard() {
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [userError, setUserError] = useState<string | null>(null);
+  const [isCheckingUser, setIsCheckingUser] = useState(false);
+  const hasToken = Boolean(getAuthToken());
+
+  useEffect(() => {
+    if (!hasToken) return;
+
+    const checkAccess = async () => {
+      setIsCheckingUser(true);
+      setUserError(null);
+      try {
+        const response = await fetchWithAuth("/api/users/me");
+        if (!response.ok) {
+          throw new Error("Не удалось получить профиль пользователя");
+        }
+        const data = await response.json();
+        setIsAdmin(data?.role === "admin");
+      } catch (error) {
+        console.error(error);
+        setUserError("Не удалось подтвердить права администратора");
+        setIsAdmin(false);
+      } finally {
+        setIsCheckingUser(false);
+      }
+    };
+
+    void checkAccess();
+  }, [hasToken]);
+
   const { data: stats, isLoading } = useQuery<{
     totalProducts: number;
     activeListings: number;
@@ -11,7 +44,38 @@ export default function Dashboard() {
     totalRevenue: string;
   }>({
     queryKey: ["/api/stats"],
+    enabled: isAdmin,
   });
+
+  if (!hasToken) {
+    return (
+      <div className="container mx-auto px-4 py-10">
+        <Card>
+          <CardContent className="p-6 text-muted-foreground">Войдите, чтобы просматривать эту страницу.</CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isCheckingUser) {
+    return (
+      <div className="container mx-auto px-4 py-10">
+        <Loader />
+      </div>
+    );
+  }
+
+  if (userError || !isAdmin) {
+    return (
+      <div className="container mx-auto px-4 py-10">
+        <Card>
+          <CardContent className="p-6 text-muted-foreground">
+            {userError || "Доступ запрещён"}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   const statCards = [
     {

@@ -1,5 +1,5 @@
 import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
-import { useLocation } from "wouter";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,7 +19,7 @@ interface Category {
 }
 
 export default function AdCreate() {
-  const [, navigate] = useLocation();
+  const navigate = useNavigate();
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState({
     title: "",
