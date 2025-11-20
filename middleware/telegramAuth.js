@@ -25,15 +25,8 @@ async function attachUserFromJwt(req) {
     return null;
   }
 
-  const jwtSecret = process.env.JWT_SECRET;
-
-  if (!jwtSecret) {
-    console.warn('JWT_SECRET is not configured for JWT authorization');
-    return null;
-  }
-
   try {
-    const payload = jwt.verify(token, jwtSecret);
+    const payload = jwt.verify(token, config.jwtSecret);
     if (!payload?.id) {
       return null;
     }

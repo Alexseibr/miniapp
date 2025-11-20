@@ -9,6 +9,8 @@ const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateServic
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
 const { auth } = require('../../middleware/auth');
+const { validate } = require('../middleware/validate');
+const { adCreateSchema } = require('../validation/adSchemas');
 
 const router = Router();
 
@@ -1107,7 +1109,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', auth, validateCreateAd, async (req, res, next) => {
+router.post('/', auth, validate(adCreateSchema), validateCreateAd, async (req, res, next) => {
   try {
     const payload = req.validatedAdPayload;
 
