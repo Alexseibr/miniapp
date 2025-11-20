@@ -10,7 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFavorites } from "@/features/favorites/FavoritesContext";
-import { fetchWithAuth, getAuthToken } from "@/lib/auth";
+import { useAuth } from "@/features/auth/AuthContext";
+import { fetchWithAuth } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
 import type { CurrentUser } from "@/types/user";
 
@@ -454,25 +455,23 @@ function AccountChatsTab({ isActive, currentUser }: { isActive: boolean; current
 
 export default function AccountPage() {
   const [activeTab, setActiveTab] = useState<string>(tabs[0].key);
-  const [user, setUser] = useState<CurrentUser | null>(null);
+  const { currentUser, token, isLoading: authLoading, refreshCurrentUser, setCurrentUser } = useAuth();
+  const [user, setUser] = useState<CurrentUser | null>(currentUser);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasToken = Boolean(getAuthToken());
+  useEffect(() => {
+    setUser(currentUser);
+  }, [currentUser]);
 
   useEffect(() => {
-    if (!hasToken) return;
+    if (!token || currentUser) return;
 
     const loadUser = async () => {
       setIsLoading(true);
       setError(null);
       try {
-        const response = await fetchWithAuth("/api/users/me");
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить профиль");
-        }
-        const data = await response.json();
-        setUser(data);
+        await refreshCurrentUser(token);
       } catch (requestError) {
         setError((requestError as Error).message || "Ошибка загрузки профиля");
       } finally {
@@ -481,15 +480,15 @@ export default function AccountPage() {
     };
 
     void loadUser();
-  }, [hasToken]);
+  }, [token, currentUser, refreshCurrentUser]);
 
-  if (!hasToken) {
+  if (!token) {
     return (
       <div className="container mx-auto px-4 py-10 space-y-4">
         <h1 className="text-3xl font-bold">Личный кабинет</h1>
         <Card>
           <CardContent className="p-6 text-muted-foreground">
-            Войдите, чтобы просматривать личный кабинет.
+            Войдите, чтобы просматривать личный кабинет. <Link to="/login">Войти</Link>
           </CardContent>
         </Card>
       </div>
@@ -527,13 +526,19 @@ export default function AccountPage() {
           </div>
 
           <div className="p-4">
-            {isLoading && <p className="text-muted-foreground">Загружаем данные…</p>}
+            {(isLoading || authLoading) && <p className="text-muted-foreground">Загружаем данные…</p>}
             {error && <p className="text-sm text-red-600">{error}</p>}
 
             {!isLoading && !error && (
               <div className="space-y-4">
                 {activeTab === "profile" && (
-                  <AccountProfileTab user={user} onUserUpdate={setUser} />
+                  <AccountProfileTab
+                    user={user}
+                    onUserUpdate={(updatedUser) => {
+                      setUser(updatedUser);
+                      setCurrentUser(updatedUser);
+                    }}
+                  />
                 )}
                 {activeTab === "ads" && <AccountMyAdsTab isActive={activeTab === "ads"} />}
                 {activeTab === "favorites" && <AccountFavoritesTab isActive={activeTab === "favorites"} />}

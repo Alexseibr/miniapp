@@ -1,7 +1,7 @@
 export type CurrentUser = {
   id: string;
   _id?: string;
-  telegramId: number;
+  telegramId?: number;
   username?: string;
   name?: string;
   firstName?: string;
@@ -9,4 +9,5 @@ export type CurrentUser = {
   email?: string;
   avatar?: string;
   phone?: string;
+  role?: string;
 };

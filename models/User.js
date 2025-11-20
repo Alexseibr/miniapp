@@ -23,8 +23,15 @@ const userSchema = new mongoose.Schema(
   {
     telegramId: {
       type: Number,
-      required: true,
       unique: true,
+      sparse: true,
+      index: true,
+    },
+    phone: {
+      type: String,
+      trim: true,
+      unique: true,
+      sparse: true,
       index: true,
     },
     name: {
@@ -57,10 +64,6 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     lastName: {
-      type: String,
-      trim: true,
-    },
-    phone: {
       type: String,
       trim: true,
     },

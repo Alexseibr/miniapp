@@ -1,48 +1,13 @@
-import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { AUTH_TOKEN_KEY, fetchWithAuth, getAuthToken } from "@/lib/auth";
-import type { CurrentUser } from "@/types/user";
-
-const AUTH_HEADER_MESSAGE = "Войдите, чтобы просматривать эту страницу.";
-
-type UserWithRole = CurrentUser & { role?: string };
+import { useAuth } from "@/features/auth/AuthContext";
 
 export default function Header() {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState<UserWithRole | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const hasToken = Boolean(getAuthToken());
-
-  useEffect(() => {
-    if (!hasToken) {
-      setCurrentUser(null);
-      return;
-    }
-
-    const loadUser = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetchWithAuth("/api/users/me");
-        if (!response.ok) {
-          throw new Error(AUTH_HEADER_MESSAGE);
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch (error) {
-        console.error(error);
-        setCurrentUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadUser();
-  }, [hasToken]);
+  const { currentUser, isLoading, logout } = useAuth();
 
   const handleLogout = () => {
-    localStorage.removeItem(AUTH_TOKEN_KEY);
-    setCurrentUser(null);
+    logout();
     navigate("/");
   };
 
@@ -85,7 +50,7 @@ export default function Header() {
             </Button>
           </div>
         ) : (
-          <Button size="sm" onClick={() => navigate("/account")}>Войти</Button>
+          <Button size="sm" onClick={() => navigate("/login")}>Войти</Button>
         )}
       </div>
     </header>

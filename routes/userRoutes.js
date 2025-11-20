@@ -1,16 +1,16 @@
 const express = require('express');
-const { telegramInitDataMiddleware } = require('../middleware/telegramAuth');
-const requireAuth = require('../middleware/requireAuth');
+const authMiddleware = require('../middleware/auth');
 
 const router = express.Router();
 
-router.use(telegramInitDataMiddleware, requireAuth);
+router.use(authMiddleware);
 
 function formatUser(user) {
   if (!user) return null;
 
   return {
     id: user._id,
+    _id: user._id,
     telegramId: user.telegramId,
     username: user.username,
     name: user.name || user.firstName,
@@ -19,6 +19,7 @@ function formatUser(user) {
     email: user.email,
     avatar: user.avatar,
     phone: user.phone,
+    role: user.role,
     location: user.location || null,
     favoritesCount: user.favoritesCount || 0,
     ordersCount: user.ordersCount || 0,
