@@ -187,10 +187,11 @@ async function telegramInitDataMiddleware(req, res, next) {
   try {
     const update = {
       telegramId: telegramUser.id,
-      username: telegramUser.username,
       telegramUsername: telegramUser.username,
       firstName: telegramUser.first_name,
       lastName: telegramUser.last_name,
+      // username сохраняем как алиас telegramUsername для обратной совместимости
+      username: telegramUser.username,
     };
 
     const userDoc = await User.findOneAndUpdate(

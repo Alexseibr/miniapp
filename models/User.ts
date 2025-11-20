@@ -20,21 +20,25 @@ export interface IUserDocument extends IUser, Document {}
 
 const UserSchema = new Schema<IUserDocument>(
   {
-    phone: { type: String, unique: true, sparse: true },
-    telegramId: { type: String, unique: true, sparse: true },
-    telegramUsername: { type: String },
-    firstName: { type: String },
-    lastName: { type: String },
-    email: { type: String },
-    avatar: { type: String },
+    phone: { type: String, unique: true, sparse: true, trim: true },
+    telegramId: { type: String, unique: true, sparse: true, trim: true },
+    telegramUsername: { type: String, trim: true },
+    firstName: { type: String, trim: true },
+    lastName: { type: String, trim: true },
+    email: { type: String, trim: true, lowercase: true },
+    avatar: { type: String, trim: true },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
-    username: { type: String },
-    name: { type: String },
+    username: { type: String, trim: true },
+    name: { type: String, trim: true },
     isBlocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );
 
 const User = model<IUserDocument>('User', UserSchema);
+
+export async function initUserIndexes(): Promise<void> {
+  await User.syncIndexes();
+}
 
 export default User;
