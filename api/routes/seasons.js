@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const Season = require('../../models/Season.js');
 const Ad = require('../../models/Ad.js');
+const { getDistanceKm } = require('../../utils/distance');
 
 const router = Router();
 
@@ -72,37 +73,46 @@ router.get('/:code/live-spots', async (req, res, next) => {
 
     const radiusNumber = Number(radiusKm);
     const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
-    const maxDistance = finalRadiusKm * 1000;
-
     const limitNumber = Number(limit);
     const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
 
     const seasonCode = String(code).toLowerCase();
 
-    const ads = await Ad.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
-          distanceField: 'distanceMeters',
-          maxDistance,
-          spherical: true,
-          query: {
-            seasonCode,
-            status: 'active',
-            isLiveSpot: true,
-          },
-        },
-      },
-      { $sort: { distanceMeters: 1, createdAt: -1 } },
-      { $limit: finalLimit },
-    ]);
-
-    return res.json({
-      items: ads.map((ad) => ({
-        ...ad,
-        distanceKm: typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
-      })),
+    const ads = await Ad.find({
+      seasonCode,
+      status: 'active',
+      isLiveSpot: true,
     });
+
+    const itemsWithDistance = [];
+
+    for (const ad of ads) {
+      const locationLat = ad?.location?.lat;
+      const locationLng = ad?.location?.lng;
+
+      if (!Number.isFinite(locationLat) || !Number.isFinite(locationLng)) {
+        continue;
+      }
+
+      const distanceKm = getDistanceKm(latNumber, lngNumber, locationLat, locationLng);
+
+      if (!Number.isFinite(distanceKm) || distanceKm > finalRadiusKm) {
+        continue;
+      }
+
+      const adObject = ad.toObject();
+      adObject.distanceKm = distanceKm;
+      itemsWithDistance.push(adObject);
+    }
+
+    itemsWithDistance.sort((a, b) => {
+      if (a.distanceKm === b.distanceKm) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return a.distanceKm - b.distanceKm;
+    });
+
+    return res.json({ items: itemsWithDistance.slice(0, finalLimit) });
   } catch (error) {
     next(error);
   }
