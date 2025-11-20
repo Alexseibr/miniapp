@@ -44,7 +44,7 @@ export const getNearby = async (req: Request, res: Response) => {
       if (priceTo) (query.price as Record<string, number>).$lte = Number(priceTo);
     }
 
-    const ads = await Ad.find(query).sort({ createdAt: -1 }).limit(100);
+    const ads = await Ad.find(query).sort({ createdAt: -1 }).limit(100).lean();
     return res.json(ads);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch nearby ads', error });

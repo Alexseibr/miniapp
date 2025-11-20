@@ -116,7 +116,7 @@ export const getAds = async (req: Request, res: Response) => {
       };
     }
 
-    const ads = await Ad.find(query).sort({ createdAt: -1 });
+    const ads = await Ad.find(query).sort({ createdAt: -1 }).lean();
     return res.json(ads);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch ads', error });
@@ -134,7 +134,9 @@ export const getMyAds = async (req: Request, res: Response) => {
         { owner: req.currentUser._id },
         { userTelegramId: req.currentUser.telegramId },
       ],
-    }).sort({ createdAt: -1 });
+    })
+      .sort({ createdAt: -1 })
+      .lean();
 
     return res.json(ads);
   } catch (error) {
@@ -145,7 +147,9 @@ export const getMyAds = async (req: Request, res: Response) => {
 export const getAdById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    const ad = await Ad.findById(id).populate({ path: 'owner', select: 'firstName lastName username phone telegramId' });
+    const ad = await Ad.findById(id)
+      .populate({ path: 'owner', select: 'firstName lastName username phone telegramId' })
+      .lean();
     if (!ad) {
       return res.status(404).json({ message: 'Ad not found' });
     }

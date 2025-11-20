@@ -21,7 +21,7 @@ export const getSeasonShowcase = async (req: Request, res: Response) => {
       if (maxPrice) (filters.price as Record<string, number>).$lte = Number(maxPrice);
     }
 
-    const ads = await Ad.find(filters).sort({ createdAt: -1 });
+    const ads = await Ad.find(filters).sort({ createdAt: -1 }).lean();
     return res.json({ seasonCode, ads });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch season showcase', error });

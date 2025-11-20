@@ -49,7 +49,9 @@ export const getMyFavorites = async (req: Request, res: Response) => {
 
     const favorites = await Favorite.find({
       user: req.currentUser._id,
-    }).populate('ad');
+    })
+      .populate('ad')
+      .lean();
 
     return res.json(favorites);
   } catch (error) {
@@ -67,7 +69,7 @@ export const checkFavorite = async (req: Request, res: Response) => {
     const favorite = await Favorite.findOne({
       user: req.currentUser._id,
       ad: adId,
-    });
+    }).lean();
 
     return res.json({ favorite: Boolean(favorite) });
   } catch (error) {
