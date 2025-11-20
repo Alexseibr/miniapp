@@ -20,7 +20,7 @@ const statusHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
-const GeoPointSchema = new mongoose.Schema(
+const LocationSchema = new mongoose.Schema(
   {
     type: {
       type: String,
@@ -32,15 +32,10 @@ const GeoPointSchema = new mongoose.Schema(
       index: '2dsphere',
       default: undefined,
     },
-  },
-  { _id: false }
-);
-
-const LocationSchema = new mongoose.Schema(
-  {
-    lat: { type: Number },
-    lng: { type: Number },
-    geo: { type: GeoPointSchema, default: undefined },
+    address: {
+      type: String,
+      trim: true,
+    },
   },
   { _id: false }
 );
@@ -147,8 +142,16 @@ const adSchema = new mongoose.Schema(
       default: null,
     },
     geo: {
-      type: GeoPointSchema,
-      default: undefined,
+      type: {
+        type: String,
+        enum: ['Point'],
+        default: 'Point',
+      },
+      coordinates: {
+        type: [Number],
+        index: '2dsphere',
+        default: undefined,
+      },
     },
     priceHistory: [priceHistorySchema],
     statusHistory: [statusHistorySchema],
@@ -219,7 +222,7 @@ adSchema.set('toObject', {
   },
 });
 
-adSchema.index({ 'location.geo': '2dsphere' });
+adSchema.index({ location: '2dsphere' });
 
 // Автоматический расчет validUntil при создании
 adSchema.pre('save', function (next) {
@@ -237,32 +240,21 @@ adSchema.pre('save', function (next) {
       ? { lat: Number(this.geo.coordinates[1]), lng: Number(this.geo.coordinates[0]) }
       : null;
 
-  // Sync location -> geo
   if (coordsFromLocation) {
+    this.location = {
+      type: 'Point',
+      coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
+      address: this.location?.address,
+    };
     this.geo = {
       type: 'Point',
       coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
     };
-
-    this.location = {
-      ...(this.location || {}),
-      lat: coordsFromLocation.lat,
-      lng: coordsFromLocation.lng,
-      geo: {
-        type: 'Point',
-        coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
-      },
-    };
   } else if (coordsFromGeo) {
-    // Sync geo -> location when only geo is present
     this.location = {
-      ...(this.location || {}),
-      lat: this.location?.lat != null ? this.location.lat : coordsFromGeo.lat,
-      lng: this.location?.lng != null ? this.location.lng : coordsFromGeo.lng,
-      geo: {
-        type: 'Point',
-        coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
-      },
+      type: 'Point',
+      coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
+      address: this.location?.address,
     };
     this.geo = {
       type: 'Point',
@@ -379,19 +371,19 @@ adSchema.post('save', async function (doc, next) {
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
-adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
 
 function resolveCoordinatesFromLocation(location) {
   if (!location) return null;
 
   if (
-    location.lat != null &&
-    location.lng != null &&
-    Number.isFinite(Number(location.lat)) &&
-    Number.isFinite(Number(location.lng))
+    Array.isArray(location.coordinates) &&
+    location.coordinates.length === 2 &&
+    Number.isFinite(Number(location.coordinates[0])) &&
+    Number.isFinite(Number(location.coordinates[1]))
   ) {
-    return { lat: Number(location.lat), lng: Number(location.lng) };
+    const [lng, lat] = location.coordinates;
+    return { lat: Number(lat), lng: Number(lng) };
   }
 
   if (

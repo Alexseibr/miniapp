@@ -21,10 +21,23 @@ export const createAd = async (req: Request, res: Response) => {
       images = [],
       lat,
       lng,
+      address,
     } = req.body;
 
-    if (!lat || !lng) {
-      return res.status(400).json({ message: 'lat and lng are required' });
+    let location;
+    if (lat != null && lng != null) {
+      const latNumber = Number(lat);
+      const lngNumber = Number(lng);
+
+      if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+        return res.status(400).json({ message: 'lat and lng must be valid numbers' });
+      }
+
+      location = {
+        type: 'Point' as const,
+        coordinates: [lngNumber, latNumber] as [number, number],
+        ...(address ? { address } : {}),
+      };
     }
 
     const resolvedImages = Array.isArray(images) && images.length ? images : photos;
@@ -41,7 +54,8 @@ export const createAd = async (req: Request, res: Response) => {
       images: resolvedImages,
       userTelegramId: req.currentUser.telegramId,
       owner: req.currentUser._id,
-      geo: { type: 'Point', coordinates: [Number(lng), Number(lat)] },
+      location,
+      geo: location,
     });
 
     return res.status(201).json(ad);
@@ -52,7 +66,19 @@ export const createAd = async (req: Request, res: Response) => {
 
 export const getAds = async (req: Request, res: Response) => {
   try {
-    const { category, subcategory, seasonCode, minPrice, maxPrice, search } = req.query;
+    const {
+      category,
+      subcategory,
+      seasonCode,
+      minPrice,
+      maxPrice,
+      priceFrom,
+      priceTo,
+      search,
+      lat,
+      lng,
+      radiusKm,
+    } = req.query;
 
     const query: Record<string, unknown> = { status: 'active' };
 
@@ -60,10 +86,13 @@ export const getAds = async (req: Request, res: Response) => {
     if (subcategory) query.subcategory = subcategory;
     if (seasonCode) query.seasonCode = seasonCode;
 
-    if (minPrice || maxPrice) {
+    const minPriceValue = minPrice ?? priceFrom;
+    const maxPriceValue = maxPrice ?? priceTo;
+
+    if (minPriceValue || maxPriceValue) {
       query.price = {};
-      if (minPrice) (query.price as Record<string, number>).$gte = Number(minPrice);
-      if (maxPrice) (query.price as Record<string, number>).$lte = Number(maxPrice);
+      if (minPriceValue) (query.price as Record<string, number>).$gte = Number(minPriceValue);
+      if (maxPriceValue) (query.price as Record<string, number>).$lte = Number(maxPriceValue);
     }
 
     if (search && typeof search === 'string') {
@@ -71,6 +100,20 @@ export const getAds = async (req: Request, res: Response) => {
         { title: { $regex: search, $options: 'i' } },
         { description: { $regex: search, $options: 'i' } },
       ];
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const radiusNumber = Number(radiusKm);
+
+    if (Number.isFinite(latNumber) && Number.isFinite(lngNumber)) {
+      const finalRadiusKm = Number.isFinite(radiusNumber) ? Math.min(Math.max(radiusNumber, 1), 100) : 10;
+      query.location = {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          $maxDistance: finalRadiusKm * 1000,
+        },
+      };
     }
 
     const ads = await Ad.find(query).sort({ createdAt: -1 });
