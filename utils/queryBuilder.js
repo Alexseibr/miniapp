@@ -15,6 +15,10 @@ function parseNumber(value) {
   return Number.isFinite(num) ? num : null;
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 function buildAdQuery(query = {}) {
   const filters = { status: 'active', moderationStatus: 'approved' };
   const sort = {};
@@ -63,7 +67,8 @@ function buildAdQuery(query = {}) {
 
   const searchTerm = search || q;
   if (searchTerm) {
-    const regex = new RegExp(searchTerm, 'i');
+    const escapedTerm = escapeRegExp(String(searchTerm));
+    const regex = new RegExp(escapedTerm, 'i');
     filters.$or = [{ title: regex }, { description: regex }];
   }
 

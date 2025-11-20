@@ -184,7 +184,7 @@ async function fetchMarketAdsList(marketData) {
   const params = {
     categoryId: marketData.categoryId,
     limit: MARKET_PAGE_SIZE,
-    offset: (marketData.page || 0) * MARKET_PAGE_SIZE,
+    page: (marketData.page || 0) + 1,
   };
 
   if (marketData.subcategoryId) {
