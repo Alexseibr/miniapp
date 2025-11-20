@@ -9,6 +9,16 @@ const LocationSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const FavoriteSchema = new mongoose.Schema(
+  {
+    adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', required: true },
+    createdAt: { type: Date, default: Date.now },
+    lastKnownPrice: { type: Number },
+    lastKnownStatus: { type: String },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     telegramId: {
@@ -39,8 +49,12 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'seller', 'admin'],
+      enum: ['user', 'moderator', 'admin', 'seller'],
       default: 'user',
+    },
+    isModerator: {
+      type: Boolean,
+      default: false,
     },
     socialLinks: {
       instagram: String,
@@ -67,7 +81,10 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
-    favorites: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Ad' }],
+    favorites: {
+      type: [FavoriteSchema],
+      default: [],
+    },
   },
   {
     timestamps: true,
@@ -77,5 +94,6 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ telegramId: 1 });
 userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
+userSchema.index({ 'favorites.adId': 1 });
 
 module.exports = mongoose.model('User', userSchema);

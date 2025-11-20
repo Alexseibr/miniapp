@@ -1,9 +1,33 @@
 const { Router } = require('express');
 const Order = require('../../models/Order.js');
 const Ad = require('../../models/Ad.js');
+const {
+  notifySellerAboutOrder,
+  notifyAdminAboutError,
+} = require('../../services/notificationService.js');
 
 const router = Router();
 
+const normalizeTelegramId = (value) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
+};
+
+/**
+ * POST /api/orders
+ * Пример:
+ * {
+ *   "buyerTelegramId": 123,
+ *   "buyerName": "Анна",
+ *   "buyerUsername": "anna_shop",
+ *   "items": [
+ *     { "adId": "...", "quantity": 2 },
+ *     { "adId": "...", "quantity": 1 }
+ *   ],
+ *   "comment": "Доставка утром",
+ *   "seasonCode": "march8_tulips"
+ * }
+ */
 router.post('/', async (req, res, next) => {
   try {
     const {
@@ -14,66 +38,67 @@ router.post('/', async (req, res, next) => {
       items,
       seasonCode,
       comment,
-    } = req.body;
+    } = req.body || {};
 
-    if (!buyerTelegramId || !items || !Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({
-        message: 'Необходимо указать buyerTelegramId и массив items',
-      });
+    const normalizedBuyerId = normalizeTelegramId(buyerTelegramId);
+
+    if (!normalizedBuyerId) {
+      return res.status(400).json({ message: 'buyerTelegramId обязателен' });
     }
 
-    // Валидация и обогащение данных из объявлений
-    const validatedItems = [];
-    
-    for (const item of items) {
-      if (!item.adId) {
-        return res.status(400).json({
-          message: 'Каждый item должен содержать adId',
-        });
-      }
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ message: 'Нужно указать хотя бы один товар' });
+    }
 
-      // Получаем актуальные данные из объявления
-      const ad = await Ad.findById(item.adId);
-      
+    const adIds = items
+      .map((item) => item.adId)
+      .filter(Boolean);
+
+    if (adIds.length !== items.length) {
+      return res.status(400).json({ message: 'Каждый товар должен содержать adId' });
+    }
+
+    const ads = await Ad.find({ _id: { $in: adIds } });
+    const adsMap = new Map(ads.map((ad) => [ad._id.toString(), ad]));
+
+    const validatedItems = [];
+
+    for (const item of items) {
+      const ad = adsMap.get(String(item.adId));
+
       if (!ad) {
-        return res.status(404).json({
-          message: `Объявление с ID ${item.adId} не найдено`,
-        });
+        return res.status(404).json({ message: `Объявление ${item.adId} не найдено` });
       }
 
       if (ad.status !== 'active') {
-        return res.status(400).json({
-          message: `Объявление "${ad.title}" недоступно для заказа (статус: ${ad.status})`,
-        });
+        return res.status(400).json({ message: `"${ad.title}" недоступно для заказа` });
       }
 
-      // Валидация quantity
-      const quantity = parseInt(item.quantity, 10);
-      if (!quantity || quantity < 1 || quantity > 1000) {
-        return res.status(400).json({
-          message: `Некорректное количество для "${ad.title}". Должно быть от 1 до 1000`,
-        });
+      const quantity = Number(item.quantity) || 1;
+
+      if (quantity < 1 || quantity > 1000) {
+        return res
+          .status(400)
+          .json({ message: `Количество для "${ad.title}" должно быть от 1 до 1000` });
       }
 
-      // Используем актуальные данные из объявления
       validatedItems.push({
         adId: ad._id,
         title: ad.title,
-        quantity: quantity,
-        price: ad.price, // Используем актуальную цену из БД
+        quantity,
+        price: ad.price,
         currency: ad.currency,
-        sellerTelegramId: ad.sellerTelegramId, // Используем актуального продавца
+        sellerTelegramId: ad.sellerTelegramId,
       });
     }
 
-    // Автоматический расчет totalPrice
     const totalPrice = validatedItems.reduce(
       (sum, item) => sum + item.price * item.quantity,
       0
     );
 
     const order = await Order.create({
-      buyerTelegramId,
+      buyerTelegramId: normalizedBuyerId,
       buyerName,
       buyerUsername,
       buyerPhone,
@@ -81,8 +106,33 @@ router.post('/', async (req, res, next) => {
       totalPrice,
       seasonCode,
       comment,
-      status: 'pending',
+      status: 'new',
     });
+
+    const botInstance = req.app?.get('bot');
+    const sellerIds = Array.from(
+      new Set(
+        order.items
+          .map((item) => Number(item.sellerTelegramId))
+          .filter((id) => Number.isFinite(id))
+      )
+    );
+
+    if (botInstance && sellerIds.length) {
+      for (const sellerId of sellerIds) {
+        try {
+          await notifySellerAboutOrder(order, sellerId, botInstance);
+        } catch (error) {
+          console.error('notifySellerAboutOrder error:', error);
+          await notifyAdminAboutError(
+            `Не удалось уведомить продавца ${sellerId} по заказу ${order._id}: ${error.message}`,
+            botInstance
+          );
+        }
+      }
+    } else if (!botInstance) {
+      console.warn('Bot instance недоступен, уведомления продавцов пропущены');
+    }
 
     res.status(201).json(order);
   } catch (error) {
@@ -90,11 +140,83 @@ router.post('/', async (req, res, next) => {
   }
 });
 
+// GET /api/orders/my?buyerTelegramId=XXX
+router.get('/my', async (req, res, next) => {
+  try {
+    const buyerTelegramId = normalizeTelegramId(req.query.buyerTelegramId);
+
+    if (!buyerTelegramId) {
+      return res.status(400).json({ message: 'buyerTelegramId обязателен' });
+    }
+
+    const orders = await Order.find({ buyerTelegramId }).sort({ createdAt: -1 });
+    res.json({ items: orders });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Совместимость со старым маршрутом /api/orders/:buyerTelegramId
 router.get('/:buyerTelegramId', async (req, res, next) => {
   try {
-    const { buyerTelegramId } = req.params;
+    const buyerTelegramId = normalizeTelegramId(req.params.buyerTelegramId);
+
+    if (!buyerTelegramId) {
+      return res.status(400).json({ message: 'Некорректный идентификатор покупателя' });
+    }
+
     const orders = await Order.find({ buyerTelegramId }).sort({ createdAt: -1 });
     res.json(orders);
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Принятие заказа продавцом
+router.post('/:id/accept', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const sellerTelegramId = normalizeTelegramId(req.body?.sellerTelegramId);
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({ message: 'sellerTelegramId обязателен' });
+    }
+
+    const order = await Order.findById(id);
+
+    if (!order) {
+      return res.status(404).json({ message: 'Заказ не найден' });
+    }
+
+    const sellerItems = order.items.filter(
+      (item) => Number(item.sellerTelegramId) === sellerTelegramId
+    );
+
+    if (sellerItems.length === 0) {
+      return res.status(403).json({ message: 'У продавца нет товаров в этом заказе' });
+    }
+
+    const sellerIdsInOrder = [
+      ...new Set(order.items.map((item) => Number(item.sellerTelegramId))),
+    ];
+
+    const acceptedSellerIds = order.acceptedSellerIds || [];
+
+    if (!acceptedSellerIds.includes(sellerTelegramId)) {
+      order.acceptedSellerIds = [...acceptedSellerIds, sellerTelegramId];
+    }
+
+    const allSellersAccepted = sellerIdsInOrder.every((id) =>
+      order.acceptedSellerIds.includes(id)
+    );
+
+    if (allSellersAccepted) {
+      order.status = 'processed';
+    }
+
+    await order.save();
+
+    res.json(order);
   } catch (error) {
     next(error);
   }
@@ -105,8 +227,8 @@ router.patch('/:id', async (req, res, next) => {
     const { id } = req.params;
     const { status } = req.body;
 
-    const allowedStatuses = ['pending', 'confirmed', 'processing', 'completed', 'cancelled'];
-    
+    const allowedStatuses = ['new', 'processed', 'completed', 'cancelled'];
+
     if (!status || !allowedStatuses.includes(status)) {
       return res.status(400).json({
         message: `Статус должен быть одним из: ${allowedStatuses.join(', ')}`,

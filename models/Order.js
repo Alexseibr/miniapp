@@ -62,6 +62,10 @@ const orderSchema = new mongoose.Schema(
         message: 'Заказ должен содержать хотя бы один товар',
       },
     },
+    acceptedSellerIds: {
+      type: [Number],
+      default: [],
+    },
     totalPrice: {
       type: Number,
       required: true,
@@ -74,8 +78,8 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['pending', 'confirmed', 'processing', 'completed', 'cancelled'],
-      default: 'pending',
+      enum: ['new', 'processed', 'completed', 'cancelled'],
+      default: 'new',
       index: true,
     },
     comment: {
