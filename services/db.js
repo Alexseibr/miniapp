@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 const config = require('../config/config.js');
-const User = require('../models/User');
+const { initIndexes } = require('../utils/initIndexes');
 
 async function connectDB() {
   try {
@@ -14,11 +14,10 @@ async function connectDB() {
     console.log('✅ MongoDB Connected:', connection.host);
     console.log('📊 Database:', connection.name);
 
-    try {
-      await User.syncIndexes();
-      console.log('✅ User indexes synced');
-    } catch (indexError) {
-      console.warn('⚠️  Failed to sync User indexes:', indexError.message);
+    const shouldSyncIndexes = process.env.NODE_ENV !== 'production' || process.env.SYNC_INDEXES === 'true';
+
+    if (shouldSyncIndexes) {
+      await initIndexes();
     }
 
     return connection;

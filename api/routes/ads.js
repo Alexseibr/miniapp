@@ -9,8 +9,18 @@ const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateServic
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
 const { auth } = require('../../middleware/auth');
+const {
+  cacheMiddleware,
+  cacheClient,
+  buildCacheKeyFromQuery,
+} = require('../middleware/cache');
 
 const router = Router();
+
+const ADS_CACHE_PREFIX = 'ads:';
+const ADS_LIST_TTL_SECONDS = 45;
+const ADS_DETAILS_TTL_SECONDS = 240;
+const ADS_NEARBY_TTL_SECONDS = 30;
 
 const SEASON_SHORT_LIFETIME = {
   march8_tulips: 3,
@@ -39,6 +49,20 @@ const CATEGORY_LIFETIME_RULES = {
 };
 
 const DEFAULT_EXTENSION_DAYS = 7;
+
+const invalidateAdsCache = () => cacheClient.flushPrefix(ADS_CACHE_PREFIX);
+
+router.use((req, res, next) => {
+  if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(req.method)) {
+    res.on('finish', () => {
+      if (res.statusCode < 500) {
+        invalidateAdsCache();
+      }
+    });
+  }
+
+  next();
+});
 
 function normalizeSeasonCode(code) {
   if (typeof code !== 'string') {
@@ -213,7 +237,13 @@ async function aggregateNearbyAds({ latNumber, lngNumber, radiusKm, limit, baseF
   }));
 }
 
-router.get('/', async (req, res, next) => {
+router.get(
+  '/',
+  cacheMiddleware(
+    (req) => `${ADS_CACHE_PREFIX}list:${buildCacheKeyFromQuery(req.query)}`,
+    ADS_LIST_TTL_SECONDS,
+  ),
+  async (req, res, next) => {
   try {
     const { filters, sort, page, limit, sortBy } = buildAdQuery(req.query);
     const skip = (page - 1) * limit;
@@ -525,7 +555,13 @@ router.get('/near', async (req, res) => {
 });
 
 // GET /api/ads/nearby
-router.get('/nearby', async (req, res, next) => {
+router.get(
+  '/nearby',
+  cacheMiddleware(
+    (req) => `${ADS_CACHE_PREFIX}nearby:${buildCacheKeyFromQuery(req.query)}`,
+    ADS_NEARBY_TTL_SECONDS,
+  ),
+  async (req, res, next) => {
   try {
     const { lat, lng, radiusKm, categoryId, subcategoryId, limit } = req.query;
 
@@ -1077,7 +1113,13 @@ router.post('/:id/debug-notify-favorites', requireInternalAuth, async (req, res)
   }
 });
 
-router.get('/:id', async (req, res, next) => {
+router.get(
+  '/:id',
+  cacheMiddleware(
+    (req) => `${ADS_CACHE_PREFIX}details:${req.params.id}`,
+    ADS_DETAILS_TTL_SECONDS,
+  ),
+  async (req, res, next) => {
   try {
     const { id } = req.params;
     const ad = await Ad.findById(id);

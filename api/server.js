@@ -1,7 +1,11 @@
 const express = require('express');
 const path = require('path');
+const compression = require('compression');
 const pkg = require('../package.json');
 const { logErrors, notFoundHandler, errorHandler } = require('./middleware/errorHandlers.js');
+const { requestTimeLogger } = require('./middleware/requestTimeLogger');
+const { apiLimiter, smsLimiter } = require('./middleware/rateLimit');
+const { metricsMiddleware, metricsHandler } = require('./middleware/metrics');
 const adsSearchRoutes = require('./routes/search.js');
 const adsRoutes = require('./routes/ads.js');
 const categoriesRoutes = require('./routes/categories.js');
@@ -23,10 +27,18 @@ const chatRoutes = require('./routes/chat');
 
 const app = express();
 
+app.set('trust proxy', 1);
+
 // Middleware
+app.use(compression());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(requestTimeLogger());
+app.use(metricsMiddleware);
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+
+app.use('/api/auth/sms', smsLimiter);
+app.use('/api/', apiLimiter);
 
 // Базовые маршруты
 app.get('/api', (_req, res) => {
@@ -48,12 +60,23 @@ app.get('/api', (_req, res) => {
   });
 });
 
+app.get('/api/health', (_req, res) => {
+  res.json({
+    status: 'ok',
+    uptime: Number(process.uptime().toFixed(2)),
+    version: pkg.version || '1.0.0',
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get('/health', (_req, res) => {
   res.json({
     status: 'ok',
     timestamp: new Date().toISOString(),
   });
 });
+
+app.get('/api/metrics', metricsHandler);
 
 // API маршруты
 app.use('/api/users', userRoutes);

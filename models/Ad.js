@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 const AdChange = require('./AdChange');
+const { applyCdnToMedia } = require('../utils/cdn');
 
 const priceHistorySchema = new mongoose.Schema(
   {
@@ -198,9 +199,10 @@ adSchema.set('toJSON', {
     const images = Array.isArray(ret.images) ? ret.images : [];
     const photos = Array.isArray(ret.photos) ? ret.photos : [];
     const finalImages = images.length ? images : photos;
+    const resolvedImages = applyCdnToMedia(finalImages);
 
-    ret.images = finalImages;
-    ret.photos = finalImages;
+    ret.images = resolvedImages;
+    ret.photos = resolvedImages;
 
     return ret;
   },
@@ -211,9 +213,10 @@ adSchema.set('toObject', {
     const images = Array.isArray(ret.images) ? ret.images : [];
     const photos = Array.isArray(ret.photos) ? ret.photos : [];
     const finalImages = images.length ? images : photos;
+    const resolvedImages = applyCdnToMedia(finalImages);
 
-    ret.images = finalImages;
-    ret.photos = finalImages;
+    ret.images = resolvedImages;
+    ret.photos = resolvedImages;
 
     return ret;
   },
@@ -378,9 +381,12 @@ adSchema.post('save', async function (doc, next) {
 
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
+adSchema.index({ categoryId: 1, price: 1 });
+adSchema.index({ subcategoryId: 1, price: 1 });
 adSchema.index({ seasonCode: 1, status: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
+adSchema.index({ title: 'text', description: 'text' });
 
 function resolveCoordinatesFromLocation(location) {
   if (!location) return null;
