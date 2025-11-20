@@ -51,12 +51,18 @@ router.post('/', async (req, res) => {
       return res.status(404).json({ error: 'Объявление не найдено' });
     }
 
-    if (!user.favorites.some((fav) => fav.toString() === adId)) {
-      user.favorites.push(adId);
+    const favorites = Array.isArray(user.favorites) ? user.favorites : [];
+    const watchers = Array.isArray(ad.watchers) ? ad.watchers : [];
+
+    user.favorites = favorites;
+    ad.watchers = watchers;
+
+    if (!favorites.some((fav) => fav.toString() === adId)) {
+      favorites.push(adId);
     }
 
-    if (!ad.watchers.includes(telegramId)) {
-      ad.watchers.push(telegramId);
+    if (!watchers.includes(telegramId)) {
+      watchers.push(telegramId);
     }
 
     await Promise.all([user.save(), ad.save()]);
@@ -82,11 +88,13 @@ router.delete('/:adId', async (req, res) => {
       return res.status(404).json({ error: 'Пользователь не найден' });
     }
 
-    user.favorites = user.favorites.filter((fav) => fav.toString() !== adId);
+    const favorites = Array.isArray(user.favorites) ? user.favorites : [];
+    user.favorites = favorites.filter((fav) => fav.toString() !== adId);
 
     const ad = await Ad.findById(adId);
     if (ad) {
-      ad.watchers = ad.watchers.filter((id) => id !== telegramId);
+      const watchers = Array.isArray(ad.watchers) ? ad.watchers : [];
+      ad.watchers = watchers.filter((id) => id !== telegramId);
       await ad.save();
     }
 
