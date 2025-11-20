@@ -3,7 +3,7 @@ import { validateSession } from '@/api/telegramAuth';
 import { addFavorite, fetchFavorites, removeFavorite } from '@/api/favorites';
 import { FavoriteItem, UserProfile } from '@/types';
 
-interface UserState {
+export interface UserState {
   user: UserProfile | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
   error?: string;
