@@ -1,4 +1,4 @@
-import { type ChangeEvent, type FormEvent, useEffect, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchWithAuth } from "@/lib/auth";
+import { ImageUploader } from "@/components/ImageUploader";
+import { useAuth } from "@/features/auth/AuthContext";
 
 interface Subcategory {
   code: string;
@@ -20,6 +22,7 @@ interface Category {
 
 export default function AdCreate() {
   const navigate = useNavigate();
+  const { currentUser } = useAuth();
   const [categories, setCategories] = useState<Category[]>([]);
   const [form, setForm] = useState({
     title: "",
@@ -28,10 +31,7 @@ export default function AdCreate() {
     category: "",
     subcategory: "",
   });
-  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
-  const [uploadedImages, setUploadedImages] = useState<string[]>([]);
-  const [isUploading, setIsUploading] = useState(false);
+  const [images, setImages] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,54 +54,6 @@ export default function AdCreate() {
     return categories.find((cat) => cat.code === form.category)?.subcategories ?? [];
   }, [categories, form.category]);
 
-  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.target.files || []);
-    setSelectedFiles(files);
-    setPreviews(files.map((file) => URL.createObjectURL(file)));
-  };
-
-  const uploadSelectedFiles = async () => {
-    if (!selectedFiles.length) {
-      setError("Выберите файлы для загрузки");
-      return;
-    }
-
-    setIsUploading(true);
-    setError(null);
-
-    try {
-      const urls: string[] = [];
-
-      for (const file of selectedFiles) {
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const response = await fetchWithAuth("/api/upload", {
-          method: "POST",
-          body: formData,
-        });
-
-        if (!response.ok) {
-          throw new Error("Ошибка загрузки файла");
-        }
-
-        const data = await response.json();
-        if (Array.isArray(data.urls)) {
-          urls.push(...data.urls);
-        }
-      }
-
-      setUploadedImages((prev) => Array.from(new Set([...prev, ...urls])));
-      setSelectedFiles([]);
-      setPreviews([]);
-    } catch (err) {
-      console.error(err);
-      setError("Не удалось загрузить файлы. Попробуйте снова.");
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
   const handleSubmit = async (event: FormEvent) => {
     event.preventDefault();
 
@@ -115,7 +67,8 @@ export default function AdCreate() {
         price: Number(form.price),
         category: form.category,
         subcategory: form.subcategory,
-        images: uploadedImages,
+        images,
+        sellerTelegramId: currentUser?.telegramId,
       };
 
       const response = await fetchWithAuth("/api/ads", {
@@ -233,24 +186,7 @@ export default function AdCreate() {
 
               <div className="space-y-2">
                 <Label>Фотографии</Label>
-                <Input type="file" multiple onChange={handleFileChange} />
-                {previews.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-2">
-                    {previews.map((src) => (
-                      <img key={src} src={src} alt="preview" className="rounded-md h-28 w-full object-cover" />
-                    ))}
-                  </div>
-                )}
-                <Button type="button" onClick={uploadSelectedFiles} disabled={isUploading}>
-                  {isUploading ? "Загружается..." : "Загрузить фото"}
-                </Button>
-                {uploadedImages.length > 0 && (
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                    {uploadedImages.map((src) => (
-                      <img key={src} src={src} alt="uploaded" className="rounded-md h-28 w-full object-cover" />
-                    ))}
-                  </div>
-                )}
+                <ImageUploader value={images} onChange={setImages} max={10} />
               </div>
 
               {error && <p className="text-sm text-red-600">{error}</p>}
