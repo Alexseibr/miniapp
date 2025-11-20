@@ -9,6 +9,7 @@ const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateServic
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
 const { getNearbyAds } = require('../controllers/adController');
+const { isAdVisibleForPublic } = require('../utils/moderationHelpers');
 
 const router = Router();
 
@@ -218,6 +219,7 @@ router.get('/', async (req, res, next) => {
   try {
     const { filters, sort, page, limit, sortBy } = buildAdQuery(req.query);
     const skip = (page - 1) * limit;
+    const includeModerationDrafts = req.query.includeModerationDrafts === 'true';
 
     const latNumber = Number(req.query.lat);
     const lngNumber = Number(req.query.lng);
@@ -258,10 +260,14 @@ router.get('/', async (req, res, next) => {
 
       const [result = {}] = await Ad.aggregate(pipeline);
       const total = result.total?.[0]?.count || 0;
-      const items = (result.items || []).map((item) => ({
+      let items = (result.items || []).map((item) => ({
         ...item,
         distanceMeters: item.distanceMeters,
       }));
+
+      if (!includeModerationDrafts) {
+        items = items.filter(isAdVisibleForPublic);
+      }
 
       return res.json({
         page,
@@ -273,10 +279,14 @@ router.get('/', async (req, res, next) => {
     }
 
     const total = await Ad.countDocuments(filters);
-    const items = await Ad.find(filters)
+    let items = await Ad.find(filters)
       .sort(sort)
       .skip(skip)
       .limit(limit);
+
+    if (!includeModerationDrafts) {
+      items = items.filter(isAdVisibleForPublic);
+    }
 
     return res.json({
       page,
@@ -1066,11 +1076,17 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const ad = await Ad.findById(id);
-    
+
+    const includeModerationDrafts = req.query.includeModerationDrafts === 'true';
+
     if (!ad) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
-    
+
+    if (!includeModerationDrafts && !isAdVisibleForPublic(ad)) {
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
+
     // Увеличиваем счетчик просмотров
     ad.views += 1;
     await ad.save();

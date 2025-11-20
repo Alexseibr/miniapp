@@ -1,117 +1,107 @@
 const express = require('express');
-const axios = require('axios');
 const Ad = require('../../models/Ad');
-const User = require('../../models/User');
-const config = require('../../config/config');
 
 const router = express.Router();
 
-function parseTelegramId(value) {
-  const numeric = Number(value);
-  return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+function parsePagination(query = {}) {
+  const rawPage = Number.parseInt(query.page, 10);
+  const rawLimit = Number.parseInt(query.limit, 10);
+
+  const page = Number.isFinite(rawPage) && rawPage > 0 ? rawPage : 1;
+  const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.min(rawLimit, 100) : 20;
+  const skip = (page - 1) * limit;
+
+  return { page, limit, skip };
 }
 
-function getAuthenticatedTelegramId(req) {
-  return parseTelegramId(req.telegramAuth?.user?.id);
-}
-
-async function checkModerator(req, res, next) {
+router.get('/pending-ads', async (req, res, next) => {
   try {
-    const telegramId = getAuthenticatedTelegramId(req);
+    const { page, limit, skip } = parsePagination(req.query);
 
-    if (!telegramId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const [items, total] = await Promise.all([
+      Ad.find({ moderationStatus: 'pending' })
+        .sort({ createdAt: 1 })
+        .skip(skip)
+        .limit(limit),
+      Ad.countDocuments({ moderationStatus: 'pending' }),
+    ]);
 
-    const user = await User.findOne({ telegramId });
-
-    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin')) {
-      return res.status(403).json({ error: 'Access denied' });
-    }
-
-    req.moderator = user;
-    next();
-  } catch (error) {
-    next(error);
-  }
-}
-
-async function notifySeller(ad, message) {
-  if (!ad || !ad.sellerTelegramId || !config.botToken) {
-    return;
-  }
-
-  try {
-    await axios.post(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
-      chat_id: ad.sellerTelegramId,
-      text: message,
+    return res.json({
+      page,
+      limit,
+      total,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      items,
     });
-  } catch (error) {
-    console.error('Не удалось уведомить продавца:', error.response?.data || error.message);
-  }
-}
-
-router.get('/pending', checkModerator, async (req, res, next) => {
-  try {
-    const ads = await Ad.find({ moderationStatus: 'pending' }).sort({ createdAt: 1 });
-    res.json({ items: ads });
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/approve', checkModerator, async (req, res, next) => {
+router.get('/ad/:id', async (req, res, next) => {
   try {
-    const { adId } = req.body || {};
-
-    if (!adId) {
-      return res.status(400).json({ error: 'adId обязателен' });
-    }
-
-    const ad = await Ad.findById(adId);
+    const ad = await Ad.findById(req.params.id);
 
     if (!ad) {
-      return res.status(404).json({ error: 'Объявление не найдено' });
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
+
+    return res.json(ad);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/ad/:id/approve', async (req, res, next) => {
+  try {
+    const moderator = (req.body?.moderator || '').trim();
+
+    if (!moderator) {
+      return res.status(400).json({ message: 'Поле moderator обязательно' });
+    }
+
+    const ad = await Ad.findById(req.params.id);
+
+    if (!ad) {
+      return res.status(404).json({ message: 'Объявление не найдено' });
     }
 
     ad.moderationStatus = 'approved';
     ad.moderationComment = null;
+    ad.moderatedAt = new Date();
+    ad.moderatedBy = moderator;
+
     await ad.save();
 
-    await notifySeller(ad, `🎉 Ваше объявление «${ad.title}» одобрено!`);
-
-    res.json({ item: ad, approved: true });
+    return res.json(ad);
   } catch (error) {
     next(error);
   }
 });
 
-router.post('/reject', checkModerator, async (req, res, next) => {
+router.post('/ad/:id/reject', async (req, res, next) => {
   try {
-    const { adId, comment } = req.body || {};
+    const moderator = (req.body?.moderator || '').trim();
+    const comment = (req.body?.comment || '').trim();
 
-    if (!adId) {
-      return res.status(400).json({ error: 'adId обязателен' });
+    if (!moderator || !comment) {
+      return res.status(400).json({ message: 'moderator и comment обязательны' });
     }
 
-    const ad = await Ad.findById(adId);
+    const ad = await Ad.findById(req.params.id);
 
     if (!ad) {
-      return res.status(404).json({ error: 'Объявление не найдено' });
+      return res.status(404).json({ message: 'Объявление не найдено' });
     }
 
-    const finalComment = comment && comment.trim() ? comment.trim() : 'Причина не указана';
-
     ad.moderationStatus = 'rejected';
-    ad.moderationComment = finalComment;
+    ad.moderationComment = comment;
+    ad.moderatedAt = new Date();
+    ad.moderatedBy = moderator;
+
     await ad.save();
 
-    await notifySeller(
-      ad,
-      `⚠️ Ваше объявление «${ad.title}» отклонено.\nПричина: ${finalComment}`,
-    );
-
-    res.json({ item: ad, rejected: true });
+    return res.json(ad);
   } catch (error) {
     next(error);
   }

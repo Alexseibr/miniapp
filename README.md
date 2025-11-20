@@ -59,3 +59,11 @@ npm run dev:all
 - Перенесите существующую бизнес-логику в соответствующие пакеты (`backend/src`, `bot/src`, `miniapp/src`).
 - Добавьте линтеры и тесты в каждый пакет.
 - Заполните `shared/` общими моделями и утилитами.
+
+## Модерация объявлений (API)
+Для работы модерации объявлений добавлены эндпоинты backend API:
+
+- `GET /api/moderation/pending-ads` — список объявлений со статусом `pending` с пагинацией (`page`, `limit`).
+- `GET /api/moderation/ad/:id` — детальная информация по объявлению.
+- `POST /api/moderation/ad/:id/approve` — утверждение объявления. Тело запроса: `{ moderator: string }`.
+- `POST /api/moderation/ad/:id/reject` — отклонение объявления с указанием причины. Тело запроса: `{ moderator: string, comment: string }`.

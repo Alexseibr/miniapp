@@ -34,7 +34,7 @@ app.get('/api', (_req, res) => {
       favorites: '/api/favorites',
       alerts: '/api/alerts',
       notifications: '/api/notifications',
-      moderation: '/api/mod',
+      moderation: '/api/moderation',
       auth: '/auth/telegram',
       health: '/health',
     },
@@ -58,7 +58,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
 app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
-app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
+app.use('/api/moderation', moderationRoutes);
 app.use('/auth', authRoutes);
 
 module.exports = app;
