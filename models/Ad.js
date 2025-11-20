@@ -121,6 +121,11 @@ const adSchema = new mongoose.Schema(
       default: 'pending',
       index: true,
     },
+    moderation: {
+      lastActionBy: { type: String },
+      lastActionAt: { type: Date },
+      lastReason: { type: String },
+    },
     moderationComment: {
       type: String,
       default: null,
