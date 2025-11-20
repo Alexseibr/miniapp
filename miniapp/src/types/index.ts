@@ -18,6 +18,7 @@ export interface UserProfile {
   phoneVerified?: boolean;
   phone?: string | null;
   instagram?: string | null;
+  showUsername?: boolean;
   showPhone?: boolean;
   showInstagram?: boolean;
   location?: {
