@@ -177,6 +177,10 @@ router.get(
 
     const mapped = [];
     for (const ad of ads) {
+      if (ad.moderationStatus !== 'approved') {
+        continue;
+      }
+
       if (!ad.location || ad.location.lat == null || ad.location.lng == null) {
         continue;
       }
