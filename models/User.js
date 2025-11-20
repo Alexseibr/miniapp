@@ -27,6 +27,14 @@ const userSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    favoritesCount: {
+      type: Number,
+      default: 0,
+    },
+    ordersCount: {
+      type: Number,
+      default: 0,
+    },
     username: {
       type: String,
       trim: true,

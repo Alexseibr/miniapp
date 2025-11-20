@@ -11,6 +11,9 @@ const notificationsRoutes = require('./routes/notifications.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
+const userRoutes = require('../routes/userRoutes');
+const miniAppFavoriteRoutes = require('../routes/favoriteRoutes');
+const miniAppOrderRoutes = require('../routes/orderRoutes');
 
 const app = express();
 
@@ -46,6 +49,9 @@ app.get('/health', (_req, res) => {
 });
 
 // API маршруты
+app.use('/api/users', userRoutes);
+app.use('/api/favorites', miniAppFavoriteRoutes);
+app.use('/api/orders', miniAppOrderRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/ads', adsSearchRoutes);
 app.use('/api/categories', categoriesRoutes);
