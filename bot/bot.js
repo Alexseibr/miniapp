@@ -10,6 +10,7 @@ bot.use(session());
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
 const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL;
+const INTERNAL_AUTH_SECRET = process.env.INTERNAL_AUTH_SECRET;
 
 registerSeasonHandlers(bot, { apiUrl: API_URL });
 
@@ -487,19 +488,35 @@ async function getActiveSeason() {
 
 // === КОМАНДЫ ===
 
-// /start - приветствие
-bot.command('start', async (ctx) => {
+// /start - приветствие и обработка логина
+bot.start(async (ctx) => {
+  const payload = ctx.startPayload || ctx.message?.text?.split(' ')?.[1];
+
+  if (payload && payload.startsWith('login_')) {
+    const loginToken = payload.replace('login_', '');
+    ctx.session.loginToken = loginToken;
+
+    await ctx.reply(
+      'Для входа в маркетплейс через Telegram нужно подтвердить номер телефона и согласиться на передачу данных (номер и никнейм).',
+      {
+        reply_markup: {
+          keyboard: [[{ text: '✅ Поделиться номером телефона', request_contact: true }]],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }
+    );
+    return;
+  }
+
   const firstName = ctx.from.first_name || 'друг';
 
   const activeSeason = await getActiveSeason();
-  const seasonText = activeSeason
-    ? `\n\n🌟 Сейчас активна: **${activeSeason.name}**!`
-    : '';
 
   const startKeyboard = getMiniAppKeyboard();
 
   const seasonInfo = activeSeason ? `\n\n🌟 Сейчас активна: ${activeSeason.name}!` : '';
-  
+
   await ctx.reply(
     `👋 Привет, ${firstName}!\n\n` +
     `Добро пожаловать в KETMAR Market! 🛍️${seasonInfo}\n\n` +
@@ -518,6 +535,52 @@ bot.command('start', async (ctx) => {
       ...(startKeyboard ? { reply_markup: startKeyboard } : {}),
     }
   );
+});
+
+bot.on('contact', async (ctx) => {
+  const loginToken = ctx.session?.loginToken;
+  const contact = ctx.message?.contact;
+
+  if (!loginToken) {
+    await ctx.reply('Не найден токен авторизации. Попробуйте заново перейти по ссылке из сайта.', {
+      reply_markup: { remove_keyboard: true },
+    });
+    return;
+  }
+
+  if (!contact || (contact.user_id && contact.user_id !== ctx.from.id)) {
+    await ctx.reply('Пожалуйста, поделитесь своим номером телефона через кнопку.');
+    return;
+  }
+
+  const from = ctx.from;
+  const payload = {
+    token: loginToken,
+    telegramId: String(from.id),
+    username: from.username || null,
+    firstName: from.first_name || null,
+    lastName: from.last_name || null,
+    phone: contact.phone_number,
+  };
+
+  try {
+    await axios.post(`${API_URL}/api/auth/telegram/confirm`, payload, {
+      headers: {
+        ...(INTERNAL_AUTH_SECRET ? { 'X-Internal-Secret': INTERNAL_AUTH_SECRET } : {}),
+      },
+    });
+
+    await ctx.reply('✅ Номер подтверждён. Теперь можете вернуться на сайт — вход будет завершён.', {
+      reply_markup: { remove_keyboard: true },
+    });
+
+    ctx.session.loginToken = null;
+  } catch (error) {
+    console.error('Failed to confirm telegram login', error.response?.data || error.message);
+    await ctx.reply('❌ Произошла ошибка при подтверждении. Попробуйте позже.', {
+      reply_markup: { remove_keyboard: true },
+    });
+  }
 });
 
 // /myid - показать Telegram ID

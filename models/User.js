@@ -22,9 +22,9 @@ const FavoriteSchema = new mongoose.Schema(
 const userSchema = new mongoose.Schema(
   {
     telegramId: {
-      type: Number,
-      required: true,
+      type: String,
       unique: true,
+      sparse: true,
       index: true,
     },
     name: {
@@ -52,6 +52,10 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    telegramUsername: {
+      type: String,
+      trim: true,
+    },
     firstName: {
       type: String,
       trim: true,
@@ -63,6 +67,8 @@ const userSchema = new mongoose.Schema(
     phone: {
       type: String,
       trim: true,
+      unique: true,
+      sparse: true,
     },
     phoneVerified: {
       type: Boolean,

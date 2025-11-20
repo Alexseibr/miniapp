@@ -12,7 +12,17 @@ export default function Header() {
   const navigate = useNavigate();
   const [currentUser, setCurrentUser] = useState<UserWithRole | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const hasToken = Boolean(getAuthToken());
+  const [authToken, setAuthToken] = useState<string | null>(() => getAuthToken());
+  const hasToken = Boolean(authToken);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      setAuthToken(getAuthToken());
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   useEffect(() => {
     if (!hasToken) {
@@ -42,6 +52,7 @@ export default function Header() {
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
+    setAuthToken(null);
     setCurrentUser(null);
     navigate("/");
   };

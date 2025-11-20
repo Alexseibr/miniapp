@@ -12,6 +12,7 @@ function formatUser(user) {
   return {
     id: user._id,
     telegramId: user.telegramId,
+    telegramUsername: user.telegramUsername || user.username,
     username: user.username,
     name: user.name || user.firstName,
     firstName: user.firstName,
@@ -19,6 +20,7 @@ function formatUser(user) {
     email: user.email,
     avatar: user.avatar,
     phone: user.phone,
+    role: user.role,
     location: user.location || null,
     favoritesCount: user.favoritesCount || 0,
     ordersCount: user.ordersCount || 0,
