@@ -1,8 +1,10 @@
 const express = require('express');
-const jwt = require('jsonwebtoken');
 const SmsLoginCode = require('../../models/SmsLoginCode');
 const User = require('../../models/User');
 const { formatUser } = require('../../utils/formatUser');
+const { buildAccessToken } = require('../../utils/jwt');
+const { validate } = require('../middleware/validate');
+const { requestCodeSchema, smsLoginSchema } = require('../validation/authSchemas');
 
 const router = express.Router();
 
@@ -18,20 +20,9 @@ function generateCode() {
   return String(Math.floor(1000 + Math.random() * 9000));
 }
 
-function buildToken(user) {
-  return jwt.sign(
-    {
-      id: user._id,
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
-}
-
-router.post('/sms/requestCode', async (req, res) => {
+router.post('/sms/requestCode', validate(requestCodeSchema), async (req, res) => {
   try {
-    const normalizedPhone = normalizePhone(req.body?.phone);
+    const normalizedPhone = normalizePhone(req.body.phone);
 
     if (!normalizedPhone) {
       return res.status(400).json({ message: 'Укажите номер телефона' });
@@ -49,10 +40,10 @@ router.post('/sms/requestCode', async (req, res) => {
   }
 });
 
-router.post('/sms/login', async (req, res) => {
+router.post('/sms/login', validate(smsLoginSchema), async (req, res) => {
   try {
-    const normalizedPhone = normalizePhone(req.body?.phone);
-    const code = String(req.body?.code || '').trim();
+    const normalizedPhone = normalizePhone(req.body.phone);
+    const code = String(req.body.code || '').trim();
 
     if (!normalizedPhone || !code) {
       return res.status(400).json({ message: 'Телефон и код обязательны' });
@@ -71,7 +62,7 @@ router.post('/sms/login', async (req, res) => {
       user = await User.create({ phone: normalizedPhone });
     }
 
-    const token = buildToken(user);
+    const token = buildAccessToken(user);
 
     await SmsLoginCode.deleteMany({ phone: normalizedPhone });
 

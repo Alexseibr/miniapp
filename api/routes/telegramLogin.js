@@ -1,9 +1,11 @@
 const express = require('express');
 const crypto = require('crypto');
-const jwt = require('jsonwebtoken');
 const PendingTelegramLogin = require('../../models/PendingTelegramLogin');
 const User = require('../../models/User');
 const { formatUser } = require('../../utils/formatUser');
+const { buildAccessToken } = require('../../utils/jwt');
+const { validate } = require('../middleware/validate');
+const { telegramConfirmSchema } = require('../validation/authSchemas');
 
 const router = express.Router();
 
@@ -20,17 +22,6 @@ function normalizePhone(phone) {
     .trim()
     .replace(/[^+\d]/g, '')
     .replace(/^8/, '+7');
-}
-
-function buildJwt(user) {
-  return jwt.sign(
-    {
-      id: user._id,
-      role: user.role,
-    },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
-  );
 }
 
 function buildDeepLink(token) {
@@ -57,7 +48,7 @@ router.post('/create-session', async (_req, res) => {
   }
 });
 
-router.post('/confirm', async (req, res) => {
+router.post('/confirm', validate(telegramConfirmSchema), async (req, res) => {
   try {
     const secret = process.env.INTERNAL_AUTH_SECRET;
     if (!secret || req.header('X-Internal-Secret') !== secret) {
@@ -110,7 +101,7 @@ router.post('/confirm', async (req, res) => {
       await user.save();
     }
 
-    const jwtToken = buildJwt(user);
+    const jwtToken = buildAccessToken(user);
 
     pending.status = 'completed';
     pending.user = user._id;

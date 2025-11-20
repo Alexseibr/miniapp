@@ -36,6 +36,9 @@ app.use(express.urlencoded({ extended: true }));
 app.use(requestTimeLogger());
 app.use(metricsMiddleware);
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/api', apiLimiter);
+app.use('/api/auth/sms', authLimiter);
+app.use('/api/auth/telegram/create-session', authLimiter);
 
 app.use('/api/auth/sms', smsLimiter);
 app.use('/api/', apiLimiter);

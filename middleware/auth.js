@@ -1,25 +1,53 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
+const config = require('../config/config');
+const { JWT_PAYLOAD_FIELDS } = require('../utils/jwt');
+
+function extractBearerToken(req) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null;
+  }
+
+  return authHeader.slice(7).trim();
+}
 
 async function auth(req, res, next) {
   try {
-    const authHeader = req.headers.authorization;
+    const token = extractBearerToken(req);
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Unauthorized' });
+    if (!token) {
+      return res.status(401).json({ error: 'Authorization token is required' });
     }
 
-    const token = authHeader.slice(7);
     let payload;
 
     try {
-      payload = jwt.verify(token, process.env.JWT_SECRET);
+      payload = jwt.verify(token, config.jwtSecret);
     } catch (error) {
-      return res.status(401).json({ error: 'Invalid token' });
+      const message =
+        error.name === 'TokenExpiredError'
+          ? 'Token has expired'
+          : 'Invalid token';
+
+      console.warn('JWT verification failed', {
+        path: req.originalUrl,
+        ip: req.ip,
+        reason: error.message,
+      });
+
+      return res.status(401).json({ error: message });
     }
 
-    const userId = payload?.id || payload?.userId || payload?._id;
-    const user = userId ? await User.findById(userId) : null;
+    if (!payload || typeof payload !== 'object' || !payload.id) {
+      console.warn('JWT payload missing required fields', {
+        path: req.originalUrl,
+        ip: req.ip,
+      });
+      return res.status(401).json({ error: 'Invalid token payload' });
+    }
+
+    const user = await User.findById(payload.id);
 
     if (!user) {
       return res.status(401).json({ error: 'User not found' });
@@ -30,6 +58,13 @@ async function auth(req, res, next) {
     }
 
     req.currentUser = user;
+    req.authPayload = JWT_PAYLOAD_FIELDS.reduce((acc, key) => {
+      if (payload[key] != null) {
+        acc[key] = payload[key];
+      }
+      return acc;
+    }, {});
+
     return next();
   } catch (error) {
     console.error('Auth middleware error:', error);

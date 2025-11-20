@@ -1149,7 +1149,7 @@ router.get(
   }
 });
 
-router.post('/', auth, validateCreateAd, async (req, res, next) => {
+router.post('/', auth, validate(adCreateSchema), validateCreateAd, async (req, res, next) => {
   try {
     const payload = req.validatedAdPayload;
 
