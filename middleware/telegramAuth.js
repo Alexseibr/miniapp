@@ -1,5 +1,6 @@
 const crypto = require('crypto');
 const config = require('../config/config.js');
+const User = require('../models/User');
 
 const DEFAULT_TTL_SECONDS = Number(process.env.TELEGRAM_INITDATA_TTL || 60 * 60 * 24); // 24 часа по умолчанию
 
@@ -103,8 +104,51 @@ function telegramAuthMiddleware(req, res, next) {
   return next();
 }
 
+async function telegramInitDataMiddleware(req, res, next) {
+  const initData = extractInitDataFromRequest(req);
+  const validation = validateTelegramInitData(initData);
+
+  if (!validation.ok) {
+    return res.status(401).json({ error: 'Invalid Telegram initData' });
+  }
+
+  const telegramUser = validation.data?.user;
+
+  if (!telegramUser || !telegramUser.id) {
+    return res.status(401).json({ error: 'Invalid Telegram initData' });
+  }
+
+  try {
+    const update = {
+      telegramId: telegramUser.id,
+      username: telegramUser.username,
+      firstName: telegramUser.first_name,
+      lastName: telegramUser.last_name,
+    };
+
+    const userDoc = await User.findOneAndUpdate(
+      { telegramId: telegramUser.id },
+      {
+        $set: update,
+        $setOnInsert: {
+          favoritesCount: 0,
+          ordersCount: 0,
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    req.currentUser = userDoc;
+    return next();
+  } catch (error) {
+    console.error('Failed to upsert Telegram user', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 module.exports = {
   validateTelegramInitData,
   telegramAuthMiddleware,
   extractInitDataFromRequest,
+  telegramInitDataMiddleware,
 };
