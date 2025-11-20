@@ -54,11 +54,13 @@ router.post('/add', async (req, res) => {
       return res.status(404).json({ error: 'Ad not found' });
     }
 
-    const alreadyExists = (user.favorites || []).some(
+    const favorites = Array.isArray(user.favorites) ? user.favorites : [];
+    const alreadyExists = favorites.some(
       (favoriteId) => favoriteId && favoriteId.toString() === adId
     );
 
     if (!alreadyExists) {
+      user.favorites = favorites;
       user.favorites.push(ad._id);
       await user.save();
     }
