@@ -181,7 +181,10 @@ router.get(
         continue;
       }
 
-      const distanceKm = haversineDistanceKm(latNumber, lngNumber, ad.location.lat, ad.location.lng);
+      const distanceKm = haversineDistanceKm(
+        { lat: latNumber, lng: lngNumber },
+        { lat: ad.location.lat, lng: ad.location.lng }
+      );
       if (distanceKm == null || distanceKm > finalRadiusKm) {
         continue;
       }
