@@ -29,12 +29,7 @@ function parseNumber(value) {
 }
 
 function buildAdQuery(query = {}) {
-  const includeModerationDrafts = query?.includeModerationDrafts === 'true';
-  const filters = {};
-
-  if (!includeModerationDrafts) {
-    filters.moderationStatus = 'approved';
-  }
+  const filters = { moderationStatus: 'approved' };
   const sort = {};
   let sortBy = 'date_desc';
 

@@ -40,7 +40,6 @@ const LocationSchema = new mongoose.Schema(
   {
     lat: { type: Number },
     lng: { type: Number },
-    address: { type: String, trim: true },
     geo: { type: GeoPointSchema, default: undefined },
   },
   { _id: false }
@@ -121,21 +120,7 @@ const adSchema = new mongoose.Schema(
       default: 'pending',
       index: true,
     },
-    moderation: {
-      lastActionBy: { type: String },
-      lastActionAt: { type: Date },
-      lastReason: { type: String },
-    },
     moderationComment: {
-      type: String,
-      default: null,
-      trim: true,
-    },
-    moderatedAt: {
-      type: Date,
-      default: null,
-    },
-    moderatedBy: {
       type: String,
       default: null,
       trim: true,
@@ -171,7 +156,6 @@ const adSchema = new mongoose.Schema(
     geo: {
       type: GeoPointSchema,
       default: undefined,
-      index: '2dsphere',
     },
     priceHistory: [priceHistorySchema],
     statusHistory: [statusHistorySchema],
@@ -216,46 +200,40 @@ adSchema.pre('save', function (next) {
       ? { lat: Number(this.geo.coordinates[1]), lng: Number(this.geo.coordinates[0]) }
       : null;
 
-  try {
-    if (coordsFromLocation) {
-      assertCoordinatesInRange(coordsFromLocation.lat, coordsFromLocation.lng);
-      if (!this.geo || !Array.isArray(this.geo.coordinates) || this.geo.coordinates.length !== 2) {
-        this.geo = {
-          type: 'Point',
-          coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
-        };
-      }
+  // Sync location -> geo
+  if (coordsFromLocation) {
+    this.geo = {
+      type: 'Point',
+      coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
+    };
 
-      this.location = {
-        ...(this.location || {}),
-        lat: coordsFromLocation.lat,
-        lng: coordsFromLocation.lng,
-        geo: {
-          type: 'Point',
-          coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
-        },
-      };
-    } else if (coordsFromGeo) {
-      assertCoordinatesInRange(coordsFromGeo.lat, coordsFromGeo.lng);
-      this.location = {
-        ...(this.location || {}),
-        lat: this.location?.lat != null ? this.location.lat : coordsFromGeo.lat,
-        lng: this.location?.lng != null ? this.location.lng : coordsFromGeo.lng,
-        geo: {
-          type: 'Point',
-          coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
-        },
-      };
-      this.geo = {
+    this.location = {
+      ...(this.location || {}),
+      lat: coordsFromLocation.lat,
+      lng: coordsFromLocation.lng,
+      geo: {
+        type: 'Point',
+        coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
+      },
+    };
+  } else if (coordsFromGeo) {
+    // Sync geo -> location when only geo is present
+    this.location = {
+      ...(this.location || {}),
+      lat: this.location?.lat != null ? this.location.lat : coordsFromGeo.lat,
+      lng: this.location?.lng != null ? this.location.lng : coordsFromGeo.lng,
+      geo: {
         type: 'Point',
         coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
-      };
-    }
-
-    next();
-  } catch (error) {
-    next(error);
+      },
+    };
+    this.geo = {
+      type: 'Point',
+      coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
+    };
   }
+
+  next();
 });
 
 adSchema.pre('save', async function (next) {
@@ -367,21 +345,6 @@ adSchema.index({ seasonCode: 1, status: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
 
-function assertCoordinatesInRange(lat, lng) {
-  const latNumber = Number(lat);
-  const lngNumber = Number(lng);
-
-  if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-    throw new Error('Coordinates must be valid numbers');
-  }
-
-  if (latNumber < -90 || latNumber > 90 || lngNumber < -180 || lngNumber > 180) {
-    throw new Error('Coordinates are out of range');
-  }
-
-  return { lat: latNumber, lng: lngNumber };
-}
-
 function resolveCoordinatesFromLocation(location) {
   if (!location) return null;
 
@@ -391,7 +354,7 @@ function resolveCoordinatesFromLocation(location) {
     Number.isFinite(Number(location.lat)) &&
     Number.isFinite(Number(location.lng))
   ) {
-    return assertCoordinatesInRange(location.lat, location.lng);
+    return { lat: Number(location.lat), lng: Number(location.lng) };
   }
 
   if (
@@ -401,7 +364,7 @@ function resolveCoordinatesFromLocation(location) {
   ) {
     const [lng, lat] = location.geo.coordinates;
     if (Number.isFinite(Number(lat)) && Number.isFinite(Number(lng))) {
-      return assertCoordinatesInRange(lat, lng);
+      return { lat: Number(lat), lng: Number(lng) };
     }
   }
 
