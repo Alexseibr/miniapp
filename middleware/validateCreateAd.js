@@ -93,12 +93,12 @@ async function validateCreateAd(req, res, next) {
       return res.status(400).json({ error: 'Поле title обязательно (3-120 символов)' });
     }
 
-    const categoryId = normalizeSlug(payload.categoryId);
+    const categoryId = normalizeSlug(payload.categoryId || payload.category);
     if (!categoryId) {
       return res.status(400).json({ error: 'Поле categoryId обязательно' });
     }
 
-    const subcategoryId = normalizeSlug(payload.subcategoryId);
+    const subcategoryId = normalizeSlug(payload.subcategoryId || payload.subcategory);
     if (!subcategoryId) {
       return res.status(400).json({ error: 'Поле subcategoryId обязательно' });
     }
@@ -157,11 +157,15 @@ async function validateCreateAd(req, res, next) {
       location = { lat, lng };
     }
 
-    const photos = Array.isArray(payload.photos)
+    const incomingPhotos = Array.isArray(payload.photos)
       ? payload.photos
-          .filter((photo) => typeof photo === 'string' && photo.trim())
-          .map((photo) => photo.trim())
-      : [];
+      : Array.isArray(payload.images)
+        ? payload.images
+        : [];
+
+    const photos = incomingPhotos
+      .filter((photo) => typeof photo === 'string' && photo.trim())
+      .map((photo) => photo.trim());
 
     let seasonCode = null;
     if (payload.seasonCode) {
@@ -186,6 +190,8 @@ async function validateCreateAd(req, res, next) {
       categoryId,
       subcategoryId,
       price,
+      category: payload.category || categoryId,
+      subcategory: payload.subcategory || subcategoryId,
       currency: normalizeString(payload.currency) || 'BYN',
       photos,
       attributes,

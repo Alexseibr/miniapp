@@ -4,49 +4,47 @@ const asyncHandler = require('../middleware/asyncHandler.js');
 
 const router = Router();
 
-function buildTree(categories) {
-  const map = new Map();
-  categories.forEach((cat) => {
-    map.set(cat.slug, { ...cat.toObject(), subcategories: [] });
-  });
-
-  const roots = [];
-
-  map.forEach((category) => {
-    if (category.parentSlug) {
-      const parent = map.get(category.parentSlug);
-      if (parent) {
-        parent.subcategories.push(category);
-      }
-    } else {
-      roots.push(category);
-    }
-  });
-
-  const sortRecursive = (nodes) => {
-    nodes.sort((a, b) => a.sortOrder - b.sortOrder);
-    nodes.forEach((n) => sortRecursive(n.subcategories));
-  };
-
-  sortRecursive(roots);
-
-  const stripInternal = (node) => ({
-    slug: node.slug,
-    name: node.name,
-    parentSlug: node.parentSlug,
-    subcategories: node.subcategories.map(stripInternal),
-  });
-
-  return roots.map(stripInternal);
-}
+const defaultCategories = [
+  {
+    code: 'electronics',
+    name: 'Электроника',
+    subcategories: [
+      { code: 'phones', name: 'Телефоны' },
+      { code: 'laptops', name: 'Ноутбуки' },
+      { code: 'tvs', name: 'Телевизоры' },
+    ],
+  },
+  {
+    code: 'auto',
+    name: 'Авто',
+    subcategories: [
+      { code: 'cars', name: 'Легковые' },
+      { code: 'moto', name: 'Мото' },
+      { code: 'tires', name: 'Шины и диски' },
+    ],
+  },
+];
 
 router.get(
   '/',
   asyncHandler(async (_req, res) => {
-    const categories = await Category.find().sort({ sortOrder: 1, slug: 1 });
-    const tree = buildTree(categories);
-    res.json(tree);
-  })
+    const categories = await Category.find().sort({ code: 1 });
+    res.json(categories);
+  }),
+);
+
+router.post(
+  '/seed',
+  asyncHandler(async (req, res) => {
+    const categories = Array.isArray(req.body?.categories) && req.body.categories.length
+      ? req.body.categories
+      : defaultCategories;
+
+    await Category.deleteMany({});
+    const created = await Category.insertMany(categories);
+
+    res.json({ inserted: created.length });
+  }),
 );
 
 module.exports = router;
