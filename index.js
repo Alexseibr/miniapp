@@ -60,6 +60,23 @@ async function start() {
       // Vite middleware должен быть ПОСЛЕ API routes
       app.use(vite.middlewares);
       
+      // MiniApp route handler - serve miniapp/index.html for /miniapp/*
+      app.use('/miniapp*', async (req, res, next) => {
+        const url = req.originalUrl;
+        
+        try {
+          const template = await fs.promises.readFile(
+            path.resolve(__dirname, 'miniapp/index.html'),
+            'utf-8'
+          );
+          const html = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+        } catch (e) {
+          vite.ssrFixStacktrace(e);
+          next(e);
+        }
+      });
+      
       // Раздача index.html для всех non-API routes
       app.use('*', async (req, res, next) => {
         const url = req.originalUrl;
