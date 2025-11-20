@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Favorite from '../models/Favorite';
+import NotificationSubscription from '../models/NotificationSubscription';
 
 export const toggleFavorite = async (req: Request, res: Response) => {
   try {
@@ -14,6 +15,7 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     });
 
     if (existing) {
+      await NotificationSubscription.deleteOne({ userTelegramId: req.currentUser.telegramId, adId });
       await existing.deleteOne();
       return res.json({ favorite: false });
     }
@@ -21,7 +23,15 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     await Favorite.create({
       userTelegramId: req.currentUser.telegramId,
       adId,
+      notifyOnPriceChange: true,
+      notifyOnStatusChange: true,
     });
+
+    await NotificationSubscription.findOneAndUpdate(
+      { userTelegramId: req.currentUser.telegramId, adId },
+      { notifyOnPriceChange: true, notifyOnStatusChange: true },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
 
     return res.status(201).json({ favorite: true });
   } catch (error) {
@@ -71,7 +81,7 @@ export const updateNotifySettings = async (req: Request, res: Response) => {
 
     const { adId, notifyOnPriceChange, notifyOnStatusChange } = req.body;
 
-    const updated = await Favorite.findOneAndUpdate(
+    const favorite = await Favorite.findOneAndUpdate(
       {
         userTelegramId: req.currentUser.telegramId,
         adId,
@@ -83,11 +93,17 @@ export const updateNotifySettings = async (req: Request, res: Response) => {
       { new: true }
     );
 
-    if (!updated) {
+    await NotificationSubscription.findOneAndUpdate(
+      { userTelegramId: req.currentUser.telegramId, adId },
+      { notifyOnPriceChange, notifyOnStatusChange },
+      { upsert: true, new: true, setDefaultsOnInsert: true }
+    );
+
+    if (!favorite) {
       return res.status(404).json({ message: 'Favorite not found' });
     }
 
-    return res.json(updated);
+    return res.json(favorite);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to update notify settings', error });
   }

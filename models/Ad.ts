@@ -1,14 +1,19 @@
-import { Schema, model, Document } from 'mongoose';
+import { Document, Schema, model } from 'mongoose';
 
 export interface IAdGeo {
-  type: string;
+  type: 'Point';
   coordinates: [number, number];
 }
+
+export type AdStatus = 'active' | 'sold' | 'archived';
 
 export interface IAd {
   title: string;
   description: string;
   price: number;
+  oldPrice?: number;
+  priceChangedAt?: Date;
+  status: AdStatus;
   category: string;
   subcategory?: string;
   seasonCode?: string;
@@ -23,7 +28,7 @@ export interface IAdDocument extends IAd, Document {}
 
 const GeoSchema = new Schema<IAdGeo>(
   {
-    type: { type: String, default: 'Point' },
+    type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], required: true },
   },
   { _id: false }
@@ -34,6 +39,9 @@ const AdSchema = new Schema<IAdDocument>(
     title: { type: String, required: true },
     description: { type: String, required: true },
     price: { type: Number, required: true },
+    oldPrice: { type: Number },
+    priceChangedAt: { type: Date },
+    status: { type: String, enum: ['active', 'sold', 'archived'], default: 'active' },
     category: { type: String, required: true },
     subcategory: { type: String },
     seasonCode: { type: String },

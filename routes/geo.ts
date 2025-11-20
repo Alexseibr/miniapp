@@ -1,10 +1,8 @@
 import express from 'express';
-import authMiniApp from '../middleware/authMiniApp';
+import { getNearby } from '../controllers/geoController';
 
 const router = express.Router();
 
-router.get('/ping', authMiniApp, (req, res) => {
-  return res.json({ status: 'ok', user: req.currentUser?.telegramId });
-});
+router.get('/nearby', getNearby);
 
 export default router;

@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import Ad from '../models/Ad';
 import User from '../models/User';
+import priceService from '../services/priceService';
+import notificationService from '../services/notificationService';
 
 export const createAd = async (req: Request, res: Response) => {
   try {
@@ -20,10 +22,15 @@ export const createAd = async (req: Request, res: Response) => {
       lng,
     } = req.body;
 
+    if (!lat || !lng) {
+      return res.status(400).json({ message: 'lat and lng are required' });
+    }
+
     const ad = await Ad.create({
       title,
       description,
       price,
+      status: 'active',
       category,
       subcategory,
       seasonCode,
@@ -40,13 +47,14 @@ export const createAd = async (req: Request, res: Response) => {
 
 export const getAds = async (req: Request, res: Response) => {
   try {
-    const { category, subcategory, seasonCode, minPrice, maxPrice, search } = req.query;
+    const { category, subcategory, seasonCode, minPrice, maxPrice, search, status } = req.query;
 
     const query: Record<string, unknown> = {};
 
     if (category) query.category = category;
     if (subcategory) query.subcategory = subcategory;
     if (seasonCode) query.seasonCode = seasonCode;
+    if (status) query.status = status;
 
     if (minPrice || maxPrice) {
       query.price = {};
@@ -68,38 +76,6 @@ export const getAds = async (req: Request, res: Response) => {
   }
 };
 
-export const getNearbyAds = async (req: Request, res: Response) => {
-  try {
-    const { lat, lng, radiusKm = 10, category, subcategory, seasonCode } = req.query;
-
-    if (!lat || !lng) {
-      return res.status(400).json({ message: 'lat and lng are required' });
-    }
-
-    const distanceMeters = Number(radiusKm) * 1000;
-    const query: Record<string, unknown> = {
-      geo: {
-        $near: {
-          $geometry: {
-            type: 'Point',
-            coordinates: [Number(lng), Number(lat)],
-          },
-          $maxDistance: distanceMeters,
-        },
-      },
-    };
-
-    if (category) query.category = category;
-    if (subcategory) query.subcategory = subcategory;
-    if (seasonCode) query.seasonCode = seasonCode;
-
-    const ads = await Ad.find(query).sort({ createdAt: -1 });
-    return res.json(ads);
-  } catch (error) {
-    return res.status(500).json({ message: 'Failed to fetch nearby ads', error });
-  }
-};
-
 export const getAdById = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
@@ -112,5 +88,68 @@ export const getAdById = async (req: Request, res: Response) => {
     return res.json({ ad, owner });
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch ad', error });
+  }
+};
+
+export const updatePrice = async (req: Request, res: Response) => {
+  try {
+    if (!req.currentUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+    const { price } = req.body;
+    const ad = await Ad.findById(id);
+
+    if (!ad) {
+      return res.status(404).json({ message: 'Ad not found' });
+    }
+
+    if (ad.userTelegramId !== req.currentUser.telegramId) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    const result = await priceService.updatePrice(id, Number(price));
+
+    return res.json({
+      ad: result.ad,
+      priceHistory: result.history,
+      notifyRecipients: result.recipients,
+    });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to update price', error });
+  }
+};
+
+export const updateStatus = async (req: Request, res: Response) => {
+  try {
+    if (!req.currentUser) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const { id } = req.params;
+    const { status } = req.body;
+
+    if (!['active', 'sold', 'archived'].includes(status)) {
+      return res.status(400).json({ message: 'Invalid status value' });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ message: 'Ad not found' });
+    }
+
+    if (ad.userTelegramId !== req.currentUser.telegramId) {
+      return res.status(403).json({ message: 'Forbidden' });
+    }
+
+    ad.status = status;
+    await ad.save();
+
+    const recipients = await notificationService.notifyStatusChange(ad._id.toString());
+
+    return res.json({ ad, notifyRecipients: recipients });
+  } catch (error) {
+    return res.status(500).json({ message: 'Failed to update status', error });
   }
 };

@@ -1,11 +1,11 @@
 import express from 'express';
+import authMiniApp from '../middleware/authMiniApp';
 import {
   checkFavorite,
   getMyFavorites,
   toggleFavorite,
   updateNotifySettings,
 } from '../controllers/favoritesController';
-import authMiniApp from '../middleware/authMiniApp';
 
 const router = express.Router();
 
