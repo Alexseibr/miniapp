@@ -1,3 +1,4 @@
+const express = require('express');
 const config = require('./config/config.js');
 const connectDB = require('./services/db.js');
 const app = require('./api/server.js');
@@ -37,7 +38,8 @@ async function start() {
       const { createServer: createViteServer } = await import('vite');
       const react = await import('@vitejs/plugin-react');
       
-      const vite = await createViteServer({
+      // Create separate Vite instances for client and miniapp
+      const clientVite = await createViteServer({
         configFile: false,
         plugins: [react.default()],
         server: { 
@@ -57,32 +59,59 @@ async function start() {
         },
       });
 
-      // Vite middleware должен быть ПОСЛЕ API routes
-      app.use(vite.middlewares);
+      const miniappVite = await createViteServer({
+        configFile: false,
+        plugins: [react.default()],
+        server: { 
+          middlewareMode: true,
+          hmr: {
+            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
+          },
+        },
+        appType: 'custom',
+        root: path.resolve(__dirname, 'miniapp'),
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, 'miniapp/src'),
+            '@shared': path.resolve(__dirname, 'shared'),
+            '@assets': path.resolve(__dirname, 'attached_assets'),
+          },
+        },
+      });
       
-      // MiniApp route handler - serve miniapp/index.html for /miniapp/*
+      // MiniApp route handler BEFORE client Vite middleware
       app.use('/miniapp*', async (req, res, next) => {
         const url = req.originalUrl;
+        console.log(`📱 MiniApp handler: ${url}`);
         
         try {
           const template = await fs.promises.readFile(
             path.resolve(__dirname, 'miniapp/index.html'),
             'utf-8'
           );
-          const html = await vite.transformIndexHtml(url, template);
+          console.log('📱 MiniApp: transforming HTML...');
+          const html = await miniappVite.transformIndexHtml(url, template);
+          console.log('📱 MiniApp: sending response');
           res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
         } catch (e) {
-          vite.ssrFixStacktrace(e);
+          console.error('📱 MiniApp error:', e);
+          miniappVite.ssrFixStacktrace(e);
           next(e);
         }
       });
       
-      // Раздача index.html для всех non-API routes
+      // Handle MiniApp assets with miniappVite
+      app.use('/miniapp', miniappVite.middlewares);
+
+      // Client Vite middleware should be AFTER API routes
+      app.use(clientVite.middlewares);
+      
+      // Раздача index.html для всех non-API routes (client app)
       app.use('*', async (req, res, next) => {
         const url = req.originalUrl;
         
-        // Пропускаем API endpoints и webhook
-        if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/auth') || url.startsWith('/telegram-webhook')) {
+        // Пропускаем API endpoints, webhook, и miniapp
+        if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/auth') || url.startsWith('/telegram-webhook') || url.startsWith('/miniapp')) {
           return next();
         }
         
@@ -91,15 +120,64 @@ async function start() {
             path.resolve(__dirname, 'client/index.html'),
             'utf-8'
           );
-          const html = await vite.transformIndexHtml(url, template);
+          const html = await clientVite.transformIndexHtml(url, template);
           res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
         } catch (e) {
-          vite.ssrFixStacktrace(e);
+          clientVite.ssrFixStacktrace(e);
           next(e);
         }
       });
       
       console.log('✅ Vite dev server настроен');
+    } else {
+      // Production mode: serve static built assets
+      console.log('\n📦 Production mode: serving static assets...');
+      
+      // Serve MiniApp static assets from miniapp/dist
+      const miniappDistPath = path.resolve(__dirname, 'miniapp/dist');
+      if (fs.existsSync(miniappDistPath)) {
+        // Serve static files first
+        app.use('/miniapp', express.static(miniappDistPath));
+        
+        // SPA fallback ONLY for HTML navigation (not assets/APIs)
+        app.get('/miniapp/*', (req, res, next) => {
+          // Only serve index.html for HTML requests without file extensions
+          const hasFileExtension = path.extname(req.path);
+          if (!hasFileExtension && req.accepts('html')) {
+            res.sendFile(path.resolve(miniappDistPath, 'index.html'));
+          } else {
+            next(); // Let 404 handler or other routes handle this
+          }
+        });
+        console.log('✅ MiniApp static assets configured');
+      } else {
+        console.warn('⚠️  MiniApp dist folder not found, /miniapp will not work');
+      }
+      
+      // Serve client app static assets from dist/public
+      const clientDistPath = path.resolve(__dirname, 'dist/public');
+      if (fs.existsSync(clientDistPath)) {
+        app.use(express.static(clientDistPath));
+        
+        // SPA fallback ONLY for HTML navigation (not assets/APIs)
+        app.get('*', (req, res, next) => {
+          // Skip API routes
+          if (req.path.startsWith('/api') || req.path.startsWith('/auth') || req.path.startsWith('/health') || req.path.startsWith('/telegram-webhook')) {
+            return next();
+          }
+          
+          // Only serve index.html for HTML requests without file extensions
+          const hasFileExtension = path.extname(req.path);
+          if (!hasFileExtension && req.accepts('html')) {
+            res.sendFile(path.resolve(clientDistPath, 'index.html'));
+          } else {
+            next(); // Let 404 handler or other routes handle this
+          }
+        });
+        console.log('✅ Client app static assets configured');
+      } else {
+        console.warn('⚠️  Client dist folder not found');
+      }
     }
     
     // 3. Запуск Express API сервера
