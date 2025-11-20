@@ -6,7 +6,7 @@ const collectRecipients = async (
   flags: { priceChange?: boolean; statusChange?: boolean }
 ): Promise<string[]> => {
   const subscriptions = await NotificationSubscription.find({ adId });
-  const favorites = await Favorite.find({ adId });
+  const favorites = await Favorite.find({ $or: [{ ad: adId }, { adId }] });
 
   const recipients = new Set<string>();
 

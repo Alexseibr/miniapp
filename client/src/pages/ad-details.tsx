@@ -12,7 +12,9 @@ import { useAuth } from "@/features/auth/AuthContext";
 export default function AdDetails() {
   const navigate = useNavigate();
   const { id: adId } = useParams();
+  const { currentUser } = useAuth();
   const [ad, setAd] = useState<Ad | null>(null);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
@@ -44,11 +46,15 @@ export default function AdDetails() {
 
   const startChat = async () => {
     if (!adId) return;
+    if (!currentUser) {
+      navigate("/login");
+      return;
+    }
     setIsStartingChat(true);
     setError(null);
 
     try {
-      const response = await fetchWithAuth(`/api/chat/conversations`, {
+      const response = await fetchWithAuth(`/api/chat/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adId }),

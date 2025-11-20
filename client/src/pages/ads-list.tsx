@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, RefreshCw, Search } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 import AdCard from "@/components/AdCard";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useAuth } from "@/features/auth/AuthContext";
 import { useFavorites } from "@/features/favorites/FavoritesContext";
 import { fetchWithAuth } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
@@ -22,6 +24,8 @@ interface Category {
 const radiusOptions = [1, 3, 5, 10];
 
 export default function AdsList() {
+  const navigate = useNavigate();
+  const { token } = useAuth();
   const { isFavorite, toggleFavorite, refreshFavorites } = useFavorites();
   const [ads, setAds] = useState<Ad[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -175,6 +179,23 @@ export default function AdsList() {
       void fetchAds(page, true);
     }
   }, [fetchAds, page]);
+
+  const handleToggleFavorite = useCallback(
+    async (adId: string) => {
+      if (!token) {
+        alert("Чтобы добавить в избранное, войдите в аккаунт");
+        navigate("/login");
+        return;
+      }
+
+      try {
+        await toggleFavorite(adId);
+      } catch (error) {
+        console.error("Не удалось обновить избранное", error);
+      }
+    },
+    [navigate, toggleFavorite, token],
+  );
 
   const hasAds = useMemo(() => ads.length > 0, [ads]);
 
@@ -350,7 +371,7 @@ export default function AdsList() {
             key={ad._id}
             ad={ad}
             isFavorite={isFavorite(ad._id)}
-            onToggleFavorite={toggleFavorite}
+            onToggleFavorite={handleToggleFavorite}
           />
         ))}
       </div>

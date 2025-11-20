@@ -107,6 +107,10 @@ export const getAdById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Ad not found' });
     }
 
+    if (ad.status !== 'active') {
+      return res.status(404).json({ message: 'Ad not available' });
+    }
+
     const owner = ad.owner || (await User.findOne({ telegramId: ad.userTelegramId }));
     return res.json({ ad, owner });
   } catch (error) {

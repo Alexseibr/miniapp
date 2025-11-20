@@ -12,7 +12,7 @@ import ChatPage from "@/pages/chat-page";
 import AdCreate from "@/pages/ad-create";
 import AdEditPage from "@/pages/ad-edit";
 import NotFoundPage from "@/pages/not-found";
-import AdminPage from "@/pages/dashboard";
+import AdminPage from "@/pages/admin";
 import Layout from "@/components/Layout";
 
 function App() {

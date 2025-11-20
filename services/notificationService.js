@@ -4,8 +4,8 @@ const NotificationQueue = require('../models/NotificationQueue');
 
 async function handlePriceChange(ad, oldPrice, newPrice) {
   const favorites = await Favorite.find({
-    adId: ad._id,
     notifyOnPriceChange: true,
+    $or: [{ ad: ad._id }, { adId: ad._id }],
   }).lean();
 
   if (!favorites.length) return;
@@ -24,8 +24,8 @@ async function handlePriceChange(ad, oldPrice, newPrice) {
 
 async function handleStatusChange(ad, oldStatus, newStatus) {
   const favorites = await Favorite.find({
-    adId: ad._id,
     notifyOnStatusChange: true,
+    $or: [{ ad: ad._id }, { adId: ad._id }],
   }).lean();
 
   if (!favorites.length) return;
