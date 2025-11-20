@@ -1,34 +1,52 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
-const { telegramInitDataMiddleware, extractInitDataFromRequest } = require('./telegramAuth');
 
-async function authMiddleware(req, res, next) {
-  const authHeader = req.headers.authorization || '';
-  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+async function auth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
 
-  if (token) {
-    try {
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
-      const user = await User.findById(payload.id);
-
-      if (!user) {
-        return res.status(401).json({ message: 'Пользователь не найден' });
-      }
-
-      req.currentUser = user;
-      req.authMethod = 'jwt';
-      return next();
-    } catch (error) {
-      return res.status(401).json({ message: 'Неверный или истёкший токен' });
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Unauthorized' });
     }
-  }
 
-  const initData = extractInitDataFromRequest(req);
-  if (!initData) {
-    return res.status(401).json({ message: 'Требуется авторизация' });
-  }
+    const token = authHeader.slice(7);
+    let payload;
 
-  return telegramInitDataMiddleware(req, res, next);
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      return res.status(401).json({ error: 'Invalid token' });
+    }
+
+    const userId = payload?.id || payload?.userId || payload?._id;
+    const user = userId ? await User.findById(userId) : null;
+
+    if (!user) {
+      return res.status(401).json({ error: 'User not found' });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({ error: 'User is blocked' });
+    }
+
+    req.currentUser = user;
+    return next();
+  } catch (error) {
+    console.error('Auth middleware error:', error);
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
 }
 
-module.exports = authMiddleware;
+function requireAdmin(req, res, next) {
+  if (!req.currentUser) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  if (req.currentUser.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: admin only' });
+  }
+
+  return next();
+}
+
+module.exports = { auth, requireAdmin };

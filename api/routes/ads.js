@@ -8,7 +8,7 @@ const { sendPriceStatusChangeNotifications } = require('../../services/notificat
 const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
-const authMiddleware = require('../../middleware/auth');
+const { auth } = require('../../middleware/auth');
 
 const router = Router();
 
@@ -592,12 +592,12 @@ router.get('/nearby', async (req, res, next) => {
   }
 });
 
-router.get('/my', authMiddleware, async (req, res, next) => {
+router.get('/my', auth, async (req, res, next) => {
   try {
     const telegramId = req.currentUser.telegramId;
 
     if (!telegramId) {
-      return res.status(401).json({ message: 'Unauthorized' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const ads = await Ad.find({ sellerTelegramId: telegramId }).sort({ createdAt: -1 });
@@ -805,7 +805,7 @@ router.get('/my', async (req, res, next) => {
   }
 });
 
-router.patch('/:id/price', async (req, res, next) => {
+router.patch('/:id/price', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
     const newPrice = Number(req.body?.price);
@@ -830,7 +830,7 @@ router.patch('/:id/price', async (req, res, next) => {
   }
 });
 
-router.patch('/:id/photos', async (req, res, next) => {
+router.patch('/:id/photos', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
     const photos = req.body?.photos;
@@ -860,7 +860,7 @@ router.patch('/:id/photos', async (req, res, next) => {
   }
 });
 
-router.post('/:id/extend', async (req, res, next) => {
+router.post('/:id/extend', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
 
@@ -882,7 +882,7 @@ router.post('/:id/extend', async (req, res, next) => {
   }
 });
 
-router.post('/:id/liveSpot/on', async (req, res, next) => {
+router.post('/:id/liveSpot/on', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
 
@@ -902,7 +902,7 @@ router.post('/:id/liveSpot/on', async (req, res, next) => {
   }
 });
 
-router.post('/:id/liveSpot/off', async (req, res, next) => {
+router.post('/:id/liveSpot/off', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
 
@@ -922,7 +922,7 @@ router.post('/:id/liveSpot/off', async (req, res, next) => {
   }
 });
 
-router.post('/bulk/update-status', async (req, res) => {
+router.post('/bulk/update-status', auth, async (req, res) => {
   try {
     const { adIds, status } = req.body || {};
     const allowedStatuses = new Set(['active', 'hidden', 'archived']);
@@ -952,7 +952,7 @@ router.post('/bulk/update-status', async (req, res) => {
   }
 });
 
-router.post('/bulk/extend', async (req, res) => {
+router.post('/bulk/extend', auth, async (req, res) => {
   try {
     const { adIds, extendDays, sellerTelegramId } = req.body || {};
 
@@ -991,7 +991,7 @@ router.post('/bulk/extend', async (req, res) => {
   }
 });
 
-router.post('/bulk/hide-expired', async (req, res) => {
+router.post('/bulk/hide-expired', auth, async (req, res) => {
   try {
     const now = new Date();
     const expiringAds = await Ad.find({ status: 'active', validUntil: { $lt: now } });
@@ -1011,7 +1011,7 @@ router.post('/bulk/hide-expired', async (req, res) => {
   }
 });
 
-router.post('/:id/hide', async (req, res, next) => {
+router.post('/:id/hide', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
     const hidden = req.body?.hidden;
@@ -1095,7 +1095,7 @@ router.get('/:id', async (req, res, next) => {
   }
 });
 
-router.post('/', validateCreateAd, async (req, res, next) => {
+router.post('/', auth, validateCreateAd, async (req, res, next) => {
   try {
     const payload = req.validatedAdPayload;
 
@@ -1110,7 +1110,7 @@ router.post('/', validateCreateAd, async (req, res, next) => {
   }
 });
 
-router.post('/:id/live-spot', async (req, res, next) => {
+router.post('/:id/live-spot', auth, async (req, res, next) => {
   try {
     const sellerId = getSellerIdFromRequest(req);
 
@@ -1197,7 +1197,7 @@ router.post('/:id/live-spot', async (req, res, next) => {
   }
 });
 
-router.post('/:id/live-spot', async (req, res, next) => {
+router.post('/:id/live-spot', auth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const { isLiveSpot } = req.body || {};
@@ -1222,7 +1222,7 @@ router.post('/:id/live-spot', async (req, res, next) => {
   }
 });
 
-router.delete('/:id', async (req, res, next) => {
+router.delete('/:id', auth, async (req, res, next) => {
   try {
     const { id } = req.params;
     const ad = await updateAdStatus(id, 'archived');
@@ -1237,7 +1237,7 @@ router.delete('/:id', async (req, res, next) => {
 });
 
 // PATCH /api/ads/:id/status — обновление статуса объявления
-router.patch('/:id/status', async (req, res) => {
+router.patch('/:id/status', auth, async (req, res) => {
   try {
     const { id } = req.params;
     const { status, moderationStatus, comment } = req.body || {};
