@@ -3,6 +3,8 @@ const connectDB = require('./services/db.js');
 const app = require('./api/server.js');
 const bot = require('./bot/bot.js');
 const { checkFavoritesForChanges } = require('./notifications/watcher');
+const path = require('path');
+const fs = require('fs');
 
 const PORT = config.port;
 
@@ -17,11 +19,57 @@ async function start() {
     console.log('📊 Подключение к MongoDB...');
     await connectDB();
     
-    // 2. Запуск Express API сервера
+    // 2. Настройка Vite dev server для фронтенда (только в dev mode)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n🎨 Настройка Vite dev server...');
+      const { createServer: createViteServer } = await import('vite');
+      const vite = await createViteServer({
+        configFile: false,
+        server: { middlewareMode: true },
+        appType: 'custom',
+        root: path.resolve(__dirname, 'client'),
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, 'client/src'),
+            '@assets': path.resolve(__dirname, 'attached_assets'),
+          },
+        },
+      });
+
+      // Vite middleware должен быть ПОСЛЕ API routes
+      app.use(vite.middlewares);
+      
+      // Раздача index.html для всех non-API routes
+      app.use('*', async (req, res, next) => {
+        const url = req.originalUrl;
+        
+        // Пропускаем API endpoints
+        if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/auth')) {
+          return next();
+        }
+        
+        try {
+          const template = await fs.promises.readFile(
+            path.resolve(__dirname, 'client/index.html'),
+            'utf-8'
+          );
+          const html = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+        } catch (e) {
+          vite.ssrFixStacktrace(e);
+          next(e);
+        }
+      });
+      
+      console.log('✅ Vite dev server настроен');
+    }
+    
+    // 3. Запуск Express API сервера
     console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
     const server = app.listen(PORT, '0.0.0.0', () => {
       console.log(`✅ API сервер запущен: http://localhost:${PORT}`);
       console.log(`   Health check: http://localhost:${PORT}/health`);
+      console.log(`   Frontend: http://localhost:${PORT}/`);
       console.log(`   Доступен по адресу: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
     });
     
