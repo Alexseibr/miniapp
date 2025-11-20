@@ -5,4 +5,4 @@ app.use(express.json());
 
 app.get("/", (_, res) => res.json({ status: "API OK" }));
 
-app.listen(4000, () => console.log("API started on :4000"));
+app.listen(4000, () => console.log("API listening on :4000"));
