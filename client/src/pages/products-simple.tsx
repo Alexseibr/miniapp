@@ -3,6 +3,7 @@ import { Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/features/auth/AuthContext";
 import { useFavorites } from "@/features/favorites/FavoritesContext";
 
 interface Ad {
@@ -16,6 +17,7 @@ interface Ad {
 }
 
 export default function Products() {
+  const { token } = useAuth();
   const { isFavorite, toggleFavorite } = useFavorites();
   const { data: ads, isLoading } = useQuery<{ items: Ad[]; total: number }>({
     queryKey: ["/api/ads"],
@@ -90,7 +92,16 @@ export default function Products() {
                             aria-label="Добавить в избранное"
                             onClick={async (event) => {
                               event.stopPropagation();
-                              await toggleFavorite(ad._id);
+                              if (!token) {
+                                alert("Чтобы пользоваться избранным, войдите в аккаунт");
+                                return;
+                              }
+
+                              try {
+                                await toggleFavorite(ad._id);
+                              } catch (error) {
+                                console.error("Не удалось обновить избранное", error);
+                              }
                             }}
                           >
                             {isFavorite(ad._id) ? "♥" : "♡"}

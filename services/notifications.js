@@ -9,7 +9,9 @@ async function notifySubscribers(adId, message) {
 
   try {
     const adFilter = mongoose.isValidObjectId(adId) ? new mongoose.Types.ObjectId(adId) : adId;
-    const favorites = await Favorite.find({ adId: adFilter }).select('userTelegramId');
+    const favorites = await Favorite.find({ $or: [{ ad: adFilter }, { adId: adFilter }] }).select(
+      'userTelegramId'
+    );
 
     if (!favorites.length) {
       return;

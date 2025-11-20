@@ -5,56 +5,69 @@ const { auth } = require('../../middleware/auth');
 
 const router = express.Router();
 
-function getUserTelegramId(req) {
-  const id = req.currentUser?.telegramId;
-  return id ? String(id) : null;
-}
-
 router.use(auth);
 
 // GET /api/favorites/my
 router.get('/my', async (req, res, next) => {
   try {
-    const userTelegramId = getUserTelegramId(req);
-    if (!userTelegramId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
-    const favorites = await Favorite.find({ userTelegramId })
-      .populate('adId')
+    const favorites = await Favorite.find({ user: req.currentUser._id })
+      .populate({
+        path: 'ad',
+        select: 'title price images photos category subcategory',
+      })
+      .sort({ createdAt: -1 })
       .lean();
 
-    res.json(favorites);
+    const formatted = favorites
+      .filter((favorite) => favorite.ad)
+      .map((favorite) => ({
+        ad: favorite.ad,
+        createdAt: favorite.createdAt,
+      }));
+
+    res.json(formatted);
   } catch (err) {
     next(err);
   }
 });
 
-// POST /api/favorites
-// body: { adId, notifyOnPriceChange?, notifyOnStatusChange? }
-router.post('/', async (req, res, next) => {
+// GET /api/favorites/ids
+router.get('/ids', async (req, res, next) => {
   try {
-    const userTelegramId = getUserTelegramId(req);
-    if (!userTelegramId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    const favorites = await Favorite.find({ user: req.currentUser._id })
+      .select('ad adId')
+      .lean();
 
-    const {
-      adId,
-      notifyOnPriceChange = true,
-      notifyOnStatusChange = true,
-    } = req.body;
+    const adIds = favorites
+      .map((favorite) => favorite.ad || favorite.adId)
+      .filter(Boolean)
+      .map((id) => String(id));
+
+    res.json({ adIds });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/favorites/:adId
+router.post('/:adId', async (req, res, next) => {
+  try {
+    const { adId } = req.params;
 
     const ad = await Ad.findById(adId);
-    if (!ad) return res.status(404).json({ error: 'Ad not found' });
+    if (!ad) {
+      return res.status(404).json({ error: 'Ad not found' });
+    }
 
-    const favorite = await Favorite.findOneAndUpdate(
-      { userTelegramId, adId },
-      { notifyOnPriceChange, notifyOnStatusChange },
-      { new: true, upsert: true }
-    );
-
-    res.status(201).json(favorite);
+    try {
+      const favorite = await Favorite.create({ user: req.currentUser._id, ad: ad._id });
+      return res.status(201).json({ ok: true, favorite });
+    } catch (error) {
+      if (error?.code === 11000) {
+        return res.json({ ok: true });
+      }
+      throw error;
+    }
   } catch (err) {
     next(err);
   }
@@ -63,14 +76,8 @@ router.post('/', async (req, res, next) => {
 // DELETE /api/favorites/:adId
 router.delete('/:adId', async (req, res, next) => {
   try {
-    const userTelegramId = getUserTelegramId(req);
-    if (!userTelegramId) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-
     const { adId } = req.params;
-
-    await Favorite.findOneAndDelete({ userTelegramId, adId });
+    await Favorite.findOneAndDelete({ user: req.currentUser._id, ad: adId });
     res.json({ ok: true });
   } catch (err) {
     next(err);
