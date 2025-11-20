@@ -1,6 +1,4 @@
-import type { Config } from "tailwindcss";
-
-export default {
+module.exports = {
   darkMode: ["class"],
   content: [
     "./client/index.html",
@@ -109,4 +107,4 @@ export default {
     },
   },
   plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
-} satisfies Config;
+};
