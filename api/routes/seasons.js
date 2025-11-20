@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const Season = require('../../models/Season.js');
 const Ad = require('../../models/Ad.js');
+const { getDistanceKm } = require('../../utils/distance');
 
 const router = Router();
 
@@ -72,36 +73,47 @@ router.get('/:code/live-spots', async (req, res, next) => {
 
     const radiusNumber = Number(radiusKm);
     const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 5;
-    const maxDistance = finalRadiusKm * 1000;
 
     const limitNumber = Number(limit);
     const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
 
     const seasonCode = String(code).toLowerCase();
 
-    const ads = await Ad.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
-          distanceField: 'distanceMeters',
-          maxDistance,
-          spherical: true,
-          query: {
-            seasonCode,
-            status: 'active',
-            isLiveSpot: true,
-          },
-        },
-      },
-      { $sort: { distanceMeters: 1, createdAt: -1 } },
-      { $limit: finalLimit },
-    ]);
+    const ads = await Ad.find({ seasonCode, status: 'active', isLiveSpot: true }).lean();
+
+    const withDistance = [];
+
+    for (const ad of ads) {
+      const adLat = ad?.location?.lat;
+      const adLng = ad?.location?.lng;
+
+      if (!Number.isFinite(adLat) || !Number.isFinite(adLng)) {
+        continue;
+      }
+
+      const distanceKm = getDistanceKm(latNumber, lngNumber, adLat, adLng);
+
+      if (!Number.isFinite(distanceKm)) {
+        continue;
+      }
+
+      if (distanceKm > finalRadiusKm) {
+        continue;
+      }
+
+      withDistance.push({ ...ad, distanceKm });
+    }
+
+    withDistance.sort((a, b) => {
+      if (a.distanceKm !== b.distanceKm) {
+        return a.distanceKm - b.distanceKm;
+      }
+
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
 
     return res.json({
-      items: ads.map((ad) => ({
-        ...ad,
-        distanceKm: typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
-      })),
+      items: withDistance.slice(0, finalLimit),
     });
   } catch (error) {
     next(error);
