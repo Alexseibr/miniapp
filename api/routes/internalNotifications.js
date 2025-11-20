@@ -1,8 +1,9 @@
 const express = require('express');
+const requireInternalAuth = require('../../middleware/internalAuth');
 
 const router = express.Router();
 
-router.post('/notify-favorite-update', async (req, res) => {
+router.post('/notify-favorite-update', requireInternalAuth, async (req, res) => {
   try {
     const { telegramId, payload } = req.body || {};
 
