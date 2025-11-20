@@ -543,7 +543,7 @@ router.post('/', async (req, res, next) => {
   }
 });
 
-router.post('/:id/live-spot', async (req, res, next) => {
+router.patch('/:id', async (req, res, next) => {
   try {
     const ad = await Ad.findById(req.params.id);
     if (!ad) {
@@ -553,6 +553,11 @@ router.post('/:id/live-spot', async (req, res, next) => {
     const before = ad.toObject();
 
     const allowedFields = [
+      'title',
+      'description',
+      'attributes',
+      'seasonCode',
+      'deliveryOptions',
       'price',
       'currency',
       'photos',
@@ -564,9 +569,15 @@ router.post('/:id/live-spot', async (req, res, next) => {
       'validUntil',
     ];
 
+    const normalizedSeason = normalizeSeasonCode(req.body.seasonCode);
+
     for (const field of allowedFields) {
       if (Object.prototype.hasOwnProperty.call(req.body, field)) {
-        ad[field] = req.body[field];
+        if (field === 'seasonCode') {
+          ad[field] = normalizedSeason;
+        } else {
+          ad[field] = req.body[field];
+        }
       }
     }
 
