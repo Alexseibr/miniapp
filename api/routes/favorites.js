@@ -55,6 +55,10 @@ router.post('/:adId', async (req, res) => {
     const user = await getUserByTelegram(req, res);
     if (!user) return;
 
+    if (!Array.isArray(user.favorites)) {
+      user.favorites = [];
+    }
+
     const { adId } = req.params;
     const { notifyOnPrice = true, notifyOnStatus = true } = req.body || {};
 
