@@ -309,14 +309,14 @@ router.patch('/:id', async (req, res, next) => {
       }
     }
 
-    const ad = await Ad.findByIdAndUpdate(id, filteredUpdates, {
-      new: true,
-      runValidators: true,
-    });
+    const ad = await Ad.findById(id);
 
     if (!ad) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
+
+    ad.set(filteredUpdates);
+    await ad.save();
 
     res.json(ad);
   } catch (error) {
