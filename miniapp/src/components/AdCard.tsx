@@ -1,95 +1,38 @@
-import React from 'react';
 import { Link } from 'react-router-dom';
-import FavoriteButton from './FavoriteButton';
-import { AdPreview } from '@/types';
-import { formatDistance } from '@/utils/geo';
-import { formatRelativeTime } from '@/utils/time';
-import { useCartStore } from '@/store/cart';
 
 interface Props {
-  ad: AdPreview;
-  onSelect?: (ad: AdPreview) => void;
+  ad: any;
+  onToggleFavorite?: (id: string) => void;
+  isFavorite?: boolean;
 }
 
-export default function AdCard({ ad, onSelect }: Props) {
-  const addItem = useCartStore((state) => state.addItem);
+const AdCard = ({ ad, onToggleFavorite, isFavorite }: Props) => (
+  <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+    <div style={{ position: 'relative' }}>
+      <img
+        src={ad.photos?.[0] || 'https://placehold.co/400x240?text=Photo'}
+        alt={ad.title}
+        style={{ width: '100%', borderRadius: 12, objectFit: 'cover' }}
+      />
+      {onToggleFavorite && (
+        <button
+          className="button"
+          style={{ position: 'absolute', top: 8, right: 8 }}
+          onClick={() => onToggleFavorite(ad._id || ad.id)}
+        >
+          {isFavorite ? '★' : '☆'}
+        </button>
+      )}
+    </div>
+    <Link to={`/ad/${ad._id || ad.id}`} style={{ fontWeight: 700 }}>
+      {ad.title}
+    </Link>
+    <div style={{ color: '#1f2937', fontSize: 14 }}>{ad.description}</div>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <strong>{ad.price} ₽</strong>
+      {ad.seasonCode && <span style={{ fontSize: 12, color: '#6b7280' }}>{ad.seasonCode}</span>}
+    </div>
+  </div>
+);
 
-  const handleAddToCart = () => {
-    addItem({
-      adId: ad._id,
-      title: ad.title,
-      price: ad.price,
-      quantity: 1,
-      sellerTelegramId: ad.sellerTelegramId,
-      photo: ad.photos?.[0],
-    });
-  };
-
-  const handleDetails = (event: React.MouseEvent) => {
-    if (onSelect) {
-      event.preventDefault();
-      onSelect(ad);
-    }
-  };
-
-  return (
-    <article className="card" style={{ display: 'flex', gap: 12 }}>
-      <div style={{ flex: 1 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Link to={`/ads/${ad._id}`} onClick={handleDetails} style={{ fontWeight: 600 }}>
-            {ad.title}
-          </Link>
-          <FavoriteButton adId={ad._id} />
-        </div>
-        <p style={{ margin: '4px 0', color: '#475467', fontSize: '0.9rem' }}>
-          {ad.categoryId}
-          {ad.subcategoryId ? ` / ${ad.subcategoryId}` : ''}
-        </p>
-        <p style={{ margin: '8px 0', color: '#475467' }}>
-          {(ad.description || 'Описание появится позже').slice(0, 140)}
-          {ad.description && ad.description.length > 140 ? '…' : ''}
-        </p>
-        <p style={{ margin: '4px 0 0', fontSize: '1.1rem', fontWeight: 600 }}>
-          {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
-        </p>
-        {ad.distanceKm != null && (
-          <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#64748b' }}>
-            {formatDistance(ad.distanceKm)} от вас
-          </p>
-        )}
-        {ad.createdAt && (
-          <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
-            Опубликовано {formatRelativeTime(ad.createdAt)}
-          </p>
-        )}
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
-            <span className="badge" style={{ background: '#ecfeff', color: '#0ea5e9' }}>
-              🚚 Доставка
-            </span>
-          )}
-          {ad.isLiveSpot && (
-            <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>
-              📍 На ярмарке
-            </span>
-          )}
-        </div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
-          <button type="button" className="secondary" onClick={handleAddToCart}>
-            Добавить в корзину
-          </button>
-          <button type="button" className="secondary" onClick={handleDetails}>
-            Подробнее
-          </button>
-          <a
-            className="secondary"
-            href={`tg://user?id=${ad.sellerTelegramId}`}
-            style={{ textAlign: 'center', textDecoration: 'none', lineHeight: '42px' }}
-          >
-            Написать продавцу
-          </a>
-        </div>
-      </div>
-    </article>
-  );
-}
+export default AdCard;

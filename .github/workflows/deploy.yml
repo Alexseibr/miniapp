@@ -1,0 +1,41 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: ["work"]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Build backend image
+        run: docker build -t ${{ secrets.REGISTRY }}/miniapp-backend:latest -f Dockerfile.backend .
+      - name: Build frontend image
+        run: docker build -t ${{ secrets.REGISTRY }}/miniapp-frontend:latest -f Dockerfile.frontend .
+      - name: Build bot image
+        run: docker build -t ${{ secrets.REGISTRY }}/miniapp-bot:latest -f Dockerfile.bot .
+      - name: Push images
+        run: |
+          echo ${{ secrets.REGISTRY_PASSWORD }} | docker login ${{ secrets.REGISTRY }} -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push ${{ secrets.REGISTRY }}/miniapp-backend:latest
+          docker push ${{ secrets.REGISTRY }}/miniapp-frontend:latest
+          docker push ${{ secrets.REGISTRY }}/miniapp-bot:latest
+
+  deploy:
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_KEY }}
+          script: |
+            cd ${{ secrets.DEPLOY_PATH }}
+            docker-compose pull
+            docker-compose up -d --remove-orphans

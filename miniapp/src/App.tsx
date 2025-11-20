@@ -1,46 +1,40 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
-import BottomTabs from '@/components/BottomTabs';
-import AdsPage from '@/pages/AdsPage';
-import CategoriesPage from '@/pages/CategoriesPage';
-import DashboardPage from '@/pages/DashboardPage';
+import { useEffect } from 'react';
+import { useNavigate, useRoutes } from 'react-router-dom';
+import Header from './components/Header';
+import { routes } from './router';
+import { useTelegramInit } from './telegramInit';
 
-export default function App() {
+const App = () => {
+  const startParam = useTelegramInit();
+  const navigate = useNavigate();
+  const element = useRoutes(routes);
+
+  useEffect(() => {
+    if (!startParam) return;
+    switch (startParam) {
+      case 'market_all':
+        navigate('/market?scope=all', { replace: true });
+        break;
+      case 'niche_farm':
+        navigate('/market?niche=farm', { replace: true });
+        break;
+      case 'niche_crafts':
+        navigate('/market?niche=crafts', { replace: true });
+        break;
+      case 'season_march8_tulips':
+        navigate('/season/march8_tulips', { replace: true });
+        break;
+      default:
+        break;
+    }
+  }, [navigate, startParam]);
+
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <div className="container topbar__inner">
-          <div>
-            <p className="eyebrow">KETMAR Market MiniApp</p>
-            <h1 className="topbar__title">Живой дашборд</h1>
-            <p className="muted">Проверьте API, категории и объявления прямо из браузера.</p>
-          </div>
-          <div className="topbar__links">
-            <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
-              /dashboard
-            </NavLink>
-            <NavLink to="/categories" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
-              /categories
-            </NavLink>
-            <NavLink to="/ads" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
-              /ads
-            </NavLink>
-          </div>
-        </div>
-      </header>
-
-      <main>
-        <div className="container">
-          <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/ads" element={<AdsPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </div>
-      </main>
-
-      <BottomTabs />
+    <div className="app">
+      <Header />
+      <main className="container">{element}</main>
     </div>
   );
-}
+};
+
+export default App;
