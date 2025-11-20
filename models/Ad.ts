@@ -5,7 +5,7 @@ export interface IAdGeo {
   coordinates: [number, number];
 }
 
-export type AdStatus = 'active' | 'sold' | 'archived';
+export type AdStatus = 'pending' | 'active' | 'blocked';
 
 export interface IAd {
   title: string;
@@ -19,6 +19,7 @@ export interface IAd {
   seasonCode?: string;
   photos: string[];
   userTelegramId: string;
+  owner?: Schema.Types.ObjectId;
   geo: IAdGeo;
   createdAt?: Date;
   updatedAt?: Date;
@@ -41,12 +42,13 @@ const AdSchema = new Schema<IAdDocument>(
     price: { type: Number, required: true },
     oldPrice: { type: Number },
     priceChangedAt: { type: Date },
-    status: { type: String, enum: ['active', 'sold', 'archived'], default: 'active' },
+    status: { type: String, enum: ['pending', 'active', 'blocked'], default: 'pending' },
     category: { type: String, required: true },
     subcategory: { type: String },
     seasonCode: { type: String },
     photos: [{ type: String }],
     userTelegramId: { type: String, required: true },
+    owner: { type: Schema.Types.ObjectId, ref: 'User' },
     geo: { type: GeoSchema, required: true },
   },
   { timestamps: true }
