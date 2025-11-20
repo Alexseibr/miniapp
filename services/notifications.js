@@ -32,7 +32,7 @@ async function notifyUsersAboutAdChange(ad, changedFields = {}) {
     return;
   }
 
-  const watchers = await User.find({ favorites: ad._id })
+  const watchers = await User.find({ 'favorites.adId': ad._id })
     .select('telegramId')
     .lean();
 
