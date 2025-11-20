@@ -15,7 +15,7 @@ export type Ad = {
   images?: string[];
   photos?: string[];
   sellerTelegramId?: number;
-  location?: AdLocation;
+  location?: AdLocation | null;
   status?: string;
   createdAt?: string;
   updatedAt?: string;

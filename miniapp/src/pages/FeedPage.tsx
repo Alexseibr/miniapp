@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { listAds, listNearbyAds } from '@/api/ads';
-import AdCard from '@/components/AdCard';
+import AdCard from '../components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview } from '@/types';
 import { useGeo } from '@/utils/geo';
@@ -37,15 +37,15 @@ export default function FeedPage() {
     let cancelled = false;
     async function load() {
       setLoading(true);
-      try {
-        const response = sort === 'distance' && coords
-          ? await listNearbyAds({
-              lat: coords.lat,
-              lng: coords.lng,
-              radiusKm,
-              sort: 'distance',
-              q: search,
-              limit: 40,
+        try {
+          const response = sort === 'distance' && coords
+            ? await listNearbyAds({
+                lat: coords.lat,
+                lng: coords.lng,
+                radius: radiusKm,
+                sort: 'distance',
+                q: search,
+                limit: 40,
               categoryId: params.categoryId,
               subcategoryId: params.subcategoryId,
               seasonCode: params.seasonCode,

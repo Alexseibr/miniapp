@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { getAd } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview } from '@/types';
-import FavoriteButton from '@/components/FavoriteButton';
+import FavoriteButton from '../components/FavoriteButton';
 import { useCartStore } from '@/store/cart';
 
 export default function AdPage() {

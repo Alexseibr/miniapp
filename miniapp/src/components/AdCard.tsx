@@ -4,10 +4,15 @@ interface Props {
   ad: any;
   onToggleFavorite?: (id: string) => void;
   isFavorite?: boolean;
+  onSelect?: (ad: any) => void;
 }
 
-const AdCard = ({ ad, onToggleFavorite, isFavorite }: Props) => (
-  <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+const AdCard = ({ ad, onToggleFavorite, isFavorite, onSelect }: Props) => (
+  <div
+    className="card"
+    style={{ display: 'flex', flexDirection: 'column', gap: 8, cursor: onSelect ? 'pointer' : undefined }}
+    onClick={() => onSelect?.(ad)}
+  >
     <div style={{ position: 'relative' }}>
       <img
         src={ad.photos?.[0] || 'https://placehold.co/400x240?text=Photo'}

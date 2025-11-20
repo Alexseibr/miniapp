@@ -1,10 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { listAds } from '@/api/ads';
 import { fetchCategories } from '@/api/categories';
-import AdCard from '@/components/AdCard';
-import AdDetailsModal from '@/components/AdDetailsModal';
-import CategoryTabs from '@/components/CategoryTabs';
-import FiltersBar from '@/components/FiltersBar';
+import AdCard from '../components/AdCard';
+import AdDetailsModal from '../components/AdDetailsModal';
+import CategoryTabs from '../components/CategoryTabs';
+import FiltersBar from '../components/FiltersBar';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview, CategoryNode } from '@/types';
 import { useGeo } from '@/utils/geo';
@@ -137,7 +137,7 @@ export default function AdsListPage() {
       ) : filteredAds.length ? (
         <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
           {filteredAds.map((ad) => (
-            <AdCard key={ad._id} ad={ad} onSelect={(item) => setSelectedAdId(item._id)} />
+            <AdCard key={ad._id} ad={ad} onSelect={() => setSelectedAdId(ad._id)} />
           ))}
         </div>
       ) : (

@@ -8,7 +8,8 @@ api.interceptors.request.use((config) => {
   const tg = (window as any).Telegram?.WebApp;
   const initData = tg?.initData || '';
   if (initData) {
-    config.headers = { ...config.headers, 'X-Telegram-InitData': initData };
+    config.headers = config.headers ?? {};
+    (config.headers as Record<string, string>)['X-Telegram-InitData'] = initData;
   }
   return config;
 });

@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import AdCard from '@/components/AdCard';
+import AdCard from '../components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
 import { useUserStore } from '@/store/useUserStore';
 

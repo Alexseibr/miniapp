@@ -15,12 +15,29 @@ export interface AdPayload {
 export const getAds = (filters: Record<string, string | number | undefined>) =>
   api.get('/ads', { params: filters }).then((res) => res.data);
 
-export const getNearbyAds = (lat: number, lng: number, radius?: number) =>
-  api
-    .get('/ads/nearby', { params: { lat, lng, radiusKm: radius } })
+export const listAds = getAds;
+
+type NearbyParams = { lat: number; lng: number; radius?: number } & Record<string, unknown>;
+
+export const getNearbyAds = (
+  coordsOrLat: number | NearbyParams,
+  lng?: number,
+  radius?: number,
+) => {
+  const { lat, lng: lngValue, radius: radiusValue, ...rest } =
+    typeof coordsOrLat === 'number'
+      ? ({ lat: coordsOrLat, lng: lng as number, radius: radius } satisfies NearbyParams)
+      : coordsOrLat;
+
+  return api
+    .get('/ads/nearby', { params: { lat, lng: lngValue, radiusKm: radiusValue, ...rest } })
     .then((res) => res.data);
+};
+
+export const listNearbyAds = getNearbyAds;
 
 export const getAdById = (id: string) => api.get(`/ads/${id}`).then((res) => res.data);
+export const getAd = getAdById;
 
 export const createAd = (payload: AdPayload) => api.post('/ads', payload).then((res) => res.data);
 
