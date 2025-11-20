@@ -1,0 +1,16 @@
+{
+  "name": "api",
+  "version": "1.0.0",
+  "main": "src/main.ts",
+  "scripts": {
+    "dev": "ts-node-dev src/main.ts"
+  },
+  "dependencies": {
+    "express": "^4.19.0",
+    "@shared-types": "workspace:*"
+  },
+  "devDependencies": {
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.4.0"
+  }
+}
