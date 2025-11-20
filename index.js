@@ -25,7 +25,12 @@ async function start() {
       const { createServer: createViteServer } = await import('vite');
       const vite = await createViteServer({
         configFile: false,
-        server: { middlewareMode: true },
+        server: { 
+          middlewareMode: true,
+          hmr: {
+            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
+          },
+        },
         appType: 'custom',
         root: path.resolve(__dirname, 'client'),
         resolve: {
@@ -73,10 +78,14 @@ async function start() {
     // 3. Запуск Express API сервера
     console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
     const server = app.listen(PORT, '0.0.0.0', () => {
+      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : `http://localhost:${PORT}`;
+      
       console.log(`✅ API сервер запущен: http://localhost:${PORT}`);
-      console.log(`   Health check: http://localhost:${PORT}/health`);
-      console.log(`   Frontend: http://localhost:${PORT}/`);
-      console.log(`   Доступен по адресу: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+      console.log(`   Health check: ${publicUrl}/health`);
+      console.log(`   Frontend: ${publicUrl}/`);
+      console.log(`\n🌐 Доступен по адресу: ${publicUrl}`);
     });
     
     // 3. Запуск Telegram бота
