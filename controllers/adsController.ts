@@ -18,6 +18,7 @@ export const createAd = async (req: Request, res: Response) => {
       subcategory,
       seasonCode,
       photos = [],
+      images = [],
       lat,
       lng,
     } = req.body;
@@ -25,6 +26,8 @@ export const createAd = async (req: Request, res: Response) => {
     if (!lat || !lng) {
       return res.status(400).json({ message: 'lat and lng are required' });
     }
+
+    const resolvedImages = Array.isArray(images) && images.length ? images : photos;
 
     const ad = await Ad.create({
       title,
@@ -34,7 +37,8 @@ export const createAd = async (req: Request, res: Response) => {
       category,
       subcategory,
       seasonCode,
-      photos,
+      photos: resolvedImages,
+      images: resolvedImages,
       userTelegramId: req.currentUser.telegramId,
       owner: req.currentUser._id,
       geo: { type: 'Point', coordinates: [Number(lng), Number(lat)] },

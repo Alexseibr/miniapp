@@ -10,6 +10,7 @@ import LoginPage from "@/pages/login";
 import AdDetails from "@/pages/ad-details";
 import ChatPage from "@/pages/chat-page";
 import AdCreate from "@/pages/ad-create";
+import AdEditPage from "@/pages/ad-edit";
 import NotFoundPage from "@/pages/not-found";
 import AdminPage from "@/pages/admin";
 import Layout from "@/components/Layout";
@@ -26,6 +27,7 @@ function App() {
               <Route path="/ads" element={<AdsList />} />
               <Route path="/ads/new" element={<AdCreate />} />
               <Route path="/ads/:id" element={<AdDetails />} />
+              <Route path="/ads/:id/edit" element={<AdEditPage />} />
               <Route path="/favorites" element={<FavoritesRoute />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/account" element={<AccountPage />} />

@@ -26,6 +26,7 @@ export type Ad = {
   deliveryOptions?: string[];
   deliveryRadiusKm?: number | null;
   location?: AdLocation;
+  images?: string[];
   photos?: string[];
   sellerTelegramId?: number;
 };

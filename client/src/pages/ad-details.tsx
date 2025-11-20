@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Ad } from "@/types/ad";
 import { fetchWithAuth } from "@/lib/auth";
 import Loader from "@/components/Loader";
 import ErrorMessage from "@/components/ErrorMessage";
+import AdGallery from "@/components/AdGallery";
 import { useAuth } from "@/features/auth/AuthContext";
 
 export default function AdDetails() {
@@ -17,6 +18,7 @@ export default function AdDetails() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
+  const { currentUser } = useAuth();
 
   useEffect(() => {
     const loadAd = async () => {
@@ -30,11 +32,7 @@ export default function AdDetails() {
           throw new Error("Не удалось загрузить объявление");
         }
         const data = await response.json();
-        const adData = data?.ad || data;
-        setAd(adData);
-        setOwnerId(
-          data?.owner?._id || data?.owner?.id || adData?.owner?._id || adData?.owner?.id || adData?.owner || null,
-        );
+        setAd(data?.ad ?? data);
       } catch (err) {
         console.error(err);
         setError((err as Error).message || "Ошибка загрузки объявления");
@@ -93,19 +91,23 @@ export default function AdDetails() {
     );
   }
 
-  const preview = ad.images?.[0] || ad.photos?.[0];
-  const isOwner = ownerId && currentUser ? ownerId.toString() === (currentUser._id || currentUser.id) : false;
-  const canStartChat = currentUser && !isOwner;
+  const images = useMemo(() => {
+    if (!ad) return [];
+    if (Array.isArray(ad.images) && ad.images.length) return ad.images;
+    if (Array.isArray(ad.photos)) return ad.photos;
+    return [];
+  }, [ad]);
+
+  const isOwner = useMemo(() => {
+    if (!ad || !currentUser?.telegramId) return false;
+    return Number(currentUser.telegramId) === Number(ad.sellerTelegramId);
+  }, [ad, currentUser?.telegramId]);
 
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-4xl mx-auto space-y-6">
-        <Card>
-          {preview && (
-            <div className="h-80 bg-muted/40">
-              <img src={preview} alt={ad.title} className="w-full h-full object-cover" />
-            </div>
-          )}
+        <Card className="overflow-hidden">
+          <AdGallery images={images} />
           <CardHeader>
             <CardTitle>{ad.title}</CardTitle>
           </CardHeader>
@@ -119,13 +121,16 @@ export default function AdDetails() {
               </p>
             )}
 
-            {canStartChat && (
-              <div className="flex flex-wrap gap-3">
-                <Button onClick={startChat} disabled={isStartingChat}>
-                  {isStartingChat ? "Открываем чат..." : "Написать продавцу"}
+            <div className="flex flex-wrap gap-3">
+              <Button onClick={startChat} disabled={isStartingChat}>
+                {isStartingChat ? "Открываем чат..." : "Написать продавцу"}
+              </Button>
+              {isOwner && (
+                <Button variant="secondary" asChild>
+                  <Link to={`/ads/${ad._id}/edit`}>Управлять фото</Link>
                 </Button>
-              </div>
-            )}
+              )}
+            </div>
 
             {error && <p className="text-sm text-red-600">{error}</p>}
           </CardContent>
