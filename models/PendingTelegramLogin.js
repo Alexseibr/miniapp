@@ -13,4 +13,6 @@ const PendingTelegramLoginSchema = new mongoose.Schema({
   expiresAt: { type: Date, required: true },
 });
 
+PendingTelegramLoginSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
 module.exports = mongoose.model('PendingTelegramLogin', PendingTelegramLoginSchema);

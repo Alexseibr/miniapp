@@ -12,6 +12,7 @@ const alertsRoutes = require('./routes/alerts.js');
 const notificationsRoutes = require('./routes/notifications.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
+const phoneAuthRoutes = require('./routes/phoneAuth.js');
 const telegramLoginRoutes = require('./routes/telegramLogin.js');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
 const userRoutes = require('../routes/userRoutes');
@@ -68,6 +69,7 @@ app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
 app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 app.use('/auth', authRoutes);
+app.use('/api/auth', phoneAuthRoutes);
 app.use('/api/auth/telegram', telegramLoginRoutes);
 
 module.exports = app;

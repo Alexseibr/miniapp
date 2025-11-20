@@ -1,14 +1,14 @@
 export type CurrentUser = {
   id: string;
   _id?: string;
-  telegramId?: string | number;
-  telegramUsername?: string;
-  username?: string;
-  name?: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  avatar?: string;
-  phone?: string;
+  telegramId?: string;
+  telegramUsername?: string | null;
+  username?: string | null;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  avatar?: string | null;
+  phone?: string | null;
   role?: string;
 };

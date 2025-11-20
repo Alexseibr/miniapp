@@ -488,13 +488,15 @@ async function getActiveSeason() {
 
 // === КОМАНДЫ ===
 
-// /start - приветствие и обработка логина
-bot.start(async (ctx) => {
-  const payload = ctx.startPayload || ctx.message?.text?.split(' ')?.[1];
+// /start - приветствие
+bot.command('start', async (ctx) => {
+  const payload = ctx.message?.text?.split(' ')[1];
 
   if (payload && payload.startsWith('login_')) {
     const loginToken = payload.replace('login_', '');
-    ctx.session.loginToken = loginToken;
+    if (ctx.session) {
+      ctx.session.loginToken = loginToken;
+    }
 
     await ctx.reply(
       'Для входа в маркетплейс через Telegram нужно подтвердить номер телефона и согласиться на передачу данных (номер и никнейм).',
@@ -538,22 +540,14 @@ bot.start(async (ctx) => {
 });
 
 bot.on('contact', async (ctx) => {
-  const loginToken = ctx.session?.loginToken;
-  const contact = ctx.message?.contact;
-
-  if (!loginToken) {
-    await ctx.reply('Не найден токен авторизации. Попробуйте заново перейти по ссылке из сайта.', {
-      reply_markup: { remove_keyboard: true },
-    });
-    return;
-  }
-
-  if (!contact || (contact.user_id && contact.user_id !== ctx.from.id)) {
-    await ctx.reply('Пожалуйста, поделитесь своим номером телефона через кнопку.');
-    return;
-  }
-
+  const contact = ctx.message.contact;
   const from = ctx.from;
+
+  const loginToken = ctx.session?.loginToken;
+  if (!loginToken) {
+    return ctx.reply('Не найден токен авторизации. Перейдите заново по ссылке с сайта.');
+  }
+
   const payload = {
     token: loginToken,
     telegramId: String(from.id),
@@ -566,20 +560,20 @@ bot.on('contact', async (ctx) => {
   try {
     await axios.post(`${API_URL}/api/auth/telegram/confirm`, payload, {
       headers: {
-        ...(INTERNAL_AUTH_SECRET ? { 'X-Internal-Secret': INTERNAL_AUTH_SECRET } : {}),
+        'X-Internal-Secret': process.env.INTERNAL_AUTH_SECRET,
       },
     });
 
-    await ctx.reply('✅ Номер подтверждён. Теперь можете вернуться на сайт — вход будет завершён.', {
+    await ctx.reply('✅ Номер подтверждён. Вернитесь на сайт — вход будет завершён.', {
       reply_markup: { remove_keyboard: true },
     });
 
-    ctx.session.loginToken = null;
+    if (ctx.session) {
+      ctx.session.loginToken = null;
+    }
   } catch (error) {
-    console.error('Failed to confirm telegram login', error.response?.data || error.message);
-    await ctx.reply('❌ Произошла ошибка при подтверждении. Попробуйте позже.', {
-      reply_markup: { remove_keyboard: true },
-    });
+    console.error(error);
+    await ctx.reply('❌ Ошибка при подтверждении. Попробуйте позже.');
   }
 });
 

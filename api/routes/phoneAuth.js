@@ -1,7 +1,8 @@
 const express = require('express');
 const jwt = require('jsonwebtoken');
-const LoginCode = require('../../models/LoginCode');
+const SmsLoginCode = require('../../models/SmsLoginCode');
 const User = require('../../models/User');
+const { formatUser } = require('../../utils/formatUser');
 
 const router = express.Router();
 
@@ -28,7 +29,7 @@ function buildToken(user) {
   );
 }
 
-router.post('/requestCode', async (req, res) => {
+router.post('/sms/requestCode', async (req, res) => {
   try {
     const normalizedPhone = normalizePhone(req.body?.phone);
 
@@ -39,7 +40,7 @@ router.post('/requestCode', async (req, res) => {
     const code = generateCode();
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-    await LoginCode.create({ phone: normalizedPhone, code, expiresAt });
+    await SmsLoginCode.create({ phone: normalizedPhone, code, expiresAt });
 
     return res.json({ ok: true, code });
   } catch (error) {
@@ -48,7 +49,7 @@ router.post('/requestCode', async (req, res) => {
   }
 });
 
-router.post('/login', async (req, res) => {
+router.post('/sms/login', async (req, res) => {
   try {
     const normalizedPhone = normalizePhone(req.body?.phone);
     const code = String(req.body?.code || '').trim();
@@ -57,7 +58,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ message: 'Телефон и код обязательны' });
     }
 
-    const loginCode = await LoginCode.findOne({ phone: normalizedPhone, code })
+    const loginCode = await SmsLoginCode.findOne({ phone: normalizedPhone, code })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -72,19 +73,9 @@ router.post('/login', async (req, res) => {
 
     const token = buildToken(user);
 
-    await LoginCode.deleteMany({ phone: normalizedPhone });
+    await SmsLoginCode.deleteMany({ phone: normalizedPhone });
 
-    const userPayload = {
-      _id: user._id,
-      id: user._id,
-      phone: user.phone,
-      name: user.name || '',
-      email: user.email || '',
-      avatar: user.avatar || null,
-      role: user.role,
-    };
-
-    return res.json({ token, user: userPayload });
+    return res.json({ token, user: formatUser(user) });
   } catch (error) {
     console.error('login error', error);
     return res.status(500).json({ message: 'Не удалось выполнить вход' });
