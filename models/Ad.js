@@ -126,6 +126,15 @@ const adSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    moderatedAt: {
+      type: Date,
+      default: null,
+    },
+    moderatedBy: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     deliveryOptions: [{
       type: String,
       enum: ['pickup', 'delivery', 'shipping'],
