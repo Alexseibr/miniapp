@@ -31,11 +31,16 @@ export default function LoginPage() {
   const [deepLink, setDeepLink] = useState<string | null>(null);
   const [pollingStatus, setPollingStatus] = useState<TelegramStatus>("idle");
   const pollingInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollingTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const stopPolling = useCallback(() => {
     if (pollingInterval.current) {
       clearInterval(pollingInterval.current);
       pollingInterval.current = null;
+    }
+    if (pollingTimeout.current) {
+      clearTimeout(pollingTimeout.current);
+      pollingTimeout.current = null;
     }
   }, []);
 
@@ -138,6 +143,10 @@ export default function LoginPage() {
     pollingInterval.current = setInterval(() => {
       void pollTelegramLogin(token);
     }, 3000);
+    pollingTimeout.current = setTimeout(() => {
+      setPollingStatus("not_found");
+      stopPolling();
+    }, 10 * 60 * 1000);
   };
 
   const startTelegramLogin = async () => {
