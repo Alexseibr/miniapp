@@ -6,6 +6,10 @@ export interface IUser {
   firstName?: string;
   lastName?: string;
   avatarUrl?: string;
+  phone?: string;
+  email?: string;
+  role?: 'user' | 'admin';
+  isBlocked?: boolean;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -19,6 +23,10 @@ const UserSchema = new Schema<IUserDocument>(
     firstName: { type: String },
     lastName: { type: String },
     avatarUrl: { type: String },
+    phone: { type: String },
+    email: { type: String },
+    role: { type: String, enum: ['user', 'admin'], default: 'user' },
+    isBlocked: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

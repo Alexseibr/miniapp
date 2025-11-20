@@ -14,6 +14,7 @@ import NotFound from "@/pages/not-found";
 import AdCreate from "@/pages/ad-create";
 import AdDetails from "@/pages/ad-details";
 import ChatPage from "@/pages/chat-page";
+import AdminPage from "@/pages/admin";
 
 function Router() {
   return (
@@ -28,6 +29,7 @@ function Router() {
       <Route path="/categories" component={Categories} />
       <Route path="/nearby" component={NearbyPage} />
       <Route path="/favorites" component={FavoritesRoute} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );

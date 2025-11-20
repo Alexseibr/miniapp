@@ -22,6 +22,10 @@ const authMiniApp = async (req: Request, res: Response, next: NextFunction) => {
       { upsert: true, new: true, setDefaultsOnInsert: true }
     );
 
+    if (user?.isBlocked) {
+      return res.status(403).json({ message: 'Forbidden: user blocked' });
+    }
+
     req.currentUser = user;
     return next();
   } catch (error) {
