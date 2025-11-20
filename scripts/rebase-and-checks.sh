@@ -57,7 +57,7 @@ else
   echo "No build script found in package.json"
 fi
 
- echo "-> Tests (if available)"
+echo "-> Tests (if available)"
 if npm run | grep -q 'test'; then
   npm run test
 else
@@ -67,5 +67,4 @@ fi
 echo "5) If checks passed, push branch (recommended with --force-with-lease after verifying)"
 echo "To push: git push --force-with-lease $ORIGIN $BRANCH"
 echo "Backup branch is available: ${BACKUP_PREFIX}/${BRANCH}"
-echo "Done.
-"
+echo "Done."
