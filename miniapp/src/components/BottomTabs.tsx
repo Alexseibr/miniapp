@@ -1,7 +1,6 @@
 import { NavLink } from 'react-router-dom';
 
 const tabs = [
-  { path: '/market?scope=all', label: 'Маркет', emoji: '🛒' },
   { path: '/dashboard', label: 'Дашборд', emoji: '📊' },
   { path: '/categories', label: 'Категории', emoji: '🗂️' },
   { path: '/ads', label: 'Объявления', emoji: '📢' },

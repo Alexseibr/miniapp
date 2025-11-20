@@ -9,8 +9,7 @@ bot.use(session());
 
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
-const MINIAPP_URL =
-  process.env.MINIAPP_BASE_URL || config.miniAppUrl || process.env.MINIAPP_URL;
+const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL;
 
 registerSeasonHandlers(bot, { apiUrl: API_URL });
 
@@ -137,25 +136,15 @@ function getMiniAppKeyboard() {
     return undefined;
   }
 
-  const startParamButtons = [
-    { text: '🛒 Открыть маркетплейс', startParam: 'market_all' },
-    { text: '🌾 Фермерский маркет', startParam: 'niche_farm' },
-    { text: '🎨 Ремесленники / выпечка', startParam: 'niche_crafts' },
-    { text: '💐 Ярмарка 8 марта', startParam: 'season_march8_tulips' },
-  ];
-
-  const buildStartUrl = (startParam) => {
-    const separator = MINIAPP_URL.includes('?') ? '&' : '?';
-    return `${MINIAPP_URL}${separator}tgWebAppStartParam=${encodeURIComponent(startParam)}`;
-  };
-
   return {
-    inline_keyboard: startParamButtons.map((button) => [
-      {
-        text: button.text,
-        web_app: { url: buildStartUrl(button.startParam) },
-      },
-    ]),
+    keyboard: [
+      [{ text: 'Открыть KETMAR Market', web_app: { url: buildMiniAppUrl() } }],
+      [{ text: 'Фермеры', web_app: { url: buildMiniAppUrl({ niche: 'farm' }) } }],
+      [{ text: 'Ремесленники', web_app: { url: buildMiniAppUrl({ niche: 'craft' }) } }],
+      [{ text: '8 марта — тюльпаны', web_app: { url: buildMiniAppUrl({ season: 'march8_tulips' }) } }],
+    ],
+    resize_keyboard: true,
+    one_time_keyboard: false,
   };
 }
 
@@ -503,6 +492,10 @@ bot.command('start', async (ctx) => {
   const firstName = ctx.from.first_name || 'друг';
 
   const activeSeason = await getActiveSeason();
+  const seasonText = activeSeason
+    ? `\n\n🌟 Сейчас активна: **${activeSeason.name}**!`
+    : '';
+
   const startKeyboard = getMiniAppKeyboard();
 
   const seasonInfo = activeSeason ? `\n\n🌟 Сейчас активна: ${activeSeason.name}!` : '';
@@ -525,19 +518,6 @@ bot.command('start', async (ctx) => {
       ...(startKeyboard ? { reply_markup: startKeyboard } : {}),
     }
   );
-});
-
-bot.command('menu', async (ctx) => {
-  const keyboard = getMiniAppKeyboard();
-
-  if (!keyboard) {
-    await ctx.reply('⚠️ MINIAPP_BASE_URL не задан. Добавьте URL мини-приложения в .env.');
-    return;
-  }
-
-  await ctx.reply('📍 Главное меню:', {
-    reply_markup: keyboard,
-  });
 });
 
 // /myid - показать Telegram ID

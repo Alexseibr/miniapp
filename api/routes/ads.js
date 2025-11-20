@@ -8,8 +8,6 @@ const { sendPriceStatusChangeNotifications } = require('../../services/notificat
 const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
-const { getNearbyAds } = require('../controllers/adController');
-const { isAdVisibleForPublic } = require('../utils/moderationHelpers');
 
 const router = Router();
 
@@ -40,8 +38,6 @@ const CATEGORY_LIFETIME_RULES = {
 };
 
 const DEFAULT_EXTENSION_DAYS = 7;
-
-router.get('/nearby', getNearbyAds);
 
 function normalizeSeasonCode(code) {
   if (typeof code !== 'string') {
@@ -219,8 +215,6 @@ router.get('/', async (req, res, next) => {
   try {
     const { filters, sort, page, limit, sortBy } = buildAdQuery(req.query);
     const skip = (page - 1) * limit;
-    filters.status = 'active';
-    filters.moderationStatus = 'approved';
 
     const latNumber = Number(req.query.lat);
     const lngNumber = Number(req.query.lng);
@@ -261,7 +255,7 @@ router.get('/', async (req, res, next) => {
 
       const [result = {}] = await Ad.aggregate(pipeline);
       const total = result.total?.[0]?.count || 0;
-      let items = (result.items || []).map((item) => ({
+      const items = (result.items || []).map((item) => ({
         ...item,
         distanceMeters: item.distanceMeters,
       }));
@@ -276,7 +270,7 @@ router.get('/', async (req, res, next) => {
     }
 
     const total = await Ad.countDocuments(filters);
-    let items = await Ad.find(filters)
+    const items = await Ad.find(filters)
       .sort(sort)
       .skip(skip)
       .limit(limit);
@@ -1069,15 +1063,11 @@ router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
     const ad = await Ad.findById(id);
-
+    
     if (!ad) {
       return res.status(404).json({ message: 'Объявление не найдено' });
     }
-
-    if (!isAdVisibleForPublic(ad)) {
-      return res.status(404).json({ message: 'Объявление не найдено' });
-    }
-
+    
     // Увеличиваем счетчик просмотров
     ad.views += 1;
     await ad.save();

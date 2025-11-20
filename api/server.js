@@ -1,6 +1,5 @@
 const express = require('express');
 const { logErrors, notFoundHandler, errorHandler } = require('./middleware/errorHandlers.js');
-const pkg = require('../package.json');
 const adsSearchRoutes = require('./routes/search.js');
 const adsRoutes = require('./routes/ads.js');
 const categoriesRoutes = require('./routes/categories.js');
@@ -11,10 +10,6 @@ const alertsRoutes = require('./routes/alerts.js');
 const notificationsRoutes = require('./routes/notifications.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
-const usersMeRoutes = require('./routes/users.me.js');
-const adsMyRoutes = require('./routes/ads.my.js');
-const favoritesMyRoutes = require('./routes/favorites.my.js');
-const ordersMyRoutes = require('./routes/orders.my.js');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
 const userRoutes = require('../routes/userRoutes');
 const miniAppFavoriteRoutes = require('../routes/favoriteRoutes');
@@ -39,7 +34,7 @@ app.get('/api', (_req, res) => {
       favorites: '/api/favorites',
       alerts: '/api/alerts',
       notifications: '/api/notifications',
-      moderation: '/api/moderation',
+      moderation: '/api/mod',
       auth: '/auth/telegram',
       health: '/health',
     },
@@ -54,10 +49,6 @@ app.get('/health', (_req, res) => {
 });
 
 // API маршруты
-app.use('/api/users/me', usersMeRoutes);
-app.use('/api/ads/my', adsMyRoutes);
-app.use('/api/favorites/my', favoritesMyRoutes);
-app.use('/api/orders/my', ordersMyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/favorites', miniAppFavoriteRoutes);
 app.use('/api/orders', miniAppOrderRoutes);
@@ -67,7 +58,7 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
 app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
-app.use('/api/moderation', moderationRoutes);
+app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 app.use('/auth', authRoutes);
 
 module.exports = app;

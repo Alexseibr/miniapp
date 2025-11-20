@@ -46,20 +46,6 @@ function parsePositiveNumber(value) {
   return numberValue;
 }
 
-function parseBooleanFlag(value) {
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    if (['true', '1', 'yes', 'on'].includes(normalized)) {
-      return true;
-    }
-    if (['false', '0', 'no', 'off'].includes(normalized)) {
-      return false;
-    }
-  }
-
-  return Boolean(value);
-}
-
 function getDefaultLifetimeDays(categoryId, subcategoryId) {
   const subKey = normalizeSlug(subcategoryId);
   if (subKey && CATEGORY_DEFAULT_LIFETIME[subKey]) {
@@ -194,8 +180,6 @@ async function validateCreateAd(req, res, next) {
 
     const validUntil = calculateValidUntil(new Date(), lifetimeDays);
 
-    const moderationRequired = parseBooleanFlag(payload.moderationRequired);
-
     const sanitized = {
       title,
       description: normalizeString(payload.description),
@@ -212,7 +196,7 @@ async function validateCreateAd(req, res, next) {
       seasonCode,
       lifetimeDays,
       validUntil,
-      moderationStatus: moderationRequired ? 'pending' : 'approved',
+      moderationStatus: 'pending',
       status: 'active',
       deliveryOptions: Array.isArray(payload.deliveryOptions)
         ? payload.deliveryOptions.filter((option) => typeof option === 'string' && option.trim())
