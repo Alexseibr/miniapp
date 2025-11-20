@@ -14,9 +14,14 @@
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:bot\" \"npm run dev:miniapp\"",
     "start:backend": "npm run start --prefix backend",
     "start:bot": "npm run start --prefix bot",
-    "start:miniapp": "npm run start --prefix miniapp"
+    "start:miniapp": "npm run start --prefix miniapp",
+    "test": "vitest run"
   },
   "devDependencies": {
-    "concurrently": "^9.1.0"
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.1.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
   }
 }
