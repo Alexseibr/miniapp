@@ -52,12 +52,14 @@ export interface AdPreview {
   photos?: string[];
   categoryId: string;
   subcategoryId: string;
+  categoryCode?: string;
+  subcategoryCode?: string;
   sellerTelegramId: number;
   status?: string;
   seasonCode?: string | null;
   favoritesCount?: number;
   distanceKm?: number;
-  attributes?: Record<string, string | number>;
+  attributes?: Record<string, string | number | string[] | number[]>;
   deliveryOptions?: DeliveryOption[];
   isLiveSpot?: boolean;
   deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup' | null;
@@ -65,7 +67,9 @@ export interface AdPreview {
   location?: {
     lat?: number;
     lng?: number;
+    coordinates?: [number, number];
   } | null;
+  distanceMeters?: number;
   createdAt?: string;
 }
 
@@ -98,12 +102,11 @@ export interface SeasonInfo {
   name: string;
   description?: string;
   isActive?: boolean;
-  startDate?: string;
-  endDate?: string;
-  specialFilters?: {
-    enableTulips?: boolean;
-    enableCraft?: boolean;
-    enableFarm?: boolean;
+  startAt?: string;
+  endAt?: string;
+  config?: {
+    categories?: string[];
+    subcategories?: string[];
   };
 }
 

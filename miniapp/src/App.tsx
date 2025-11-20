@@ -3,6 +3,9 @@ import BottomTabs from '@/components/BottomTabs';
 import AdsPage from '@/pages/AdsPage';
 import CategoriesPage from '@/pages/CategoriesPage';
 import DashboardPage from '@/pages/DashboardPage';
+import SeasonMarch8TulipsPage from '@/pages/SeasonMarch8TulipsPage';
+import CraftNearbyPage from '@/pages/CraftNearbyPage';
+import LiveSpotsPage from '@/pages/LiveSpotsPage';
 
 export default function App() {
   return (
@@ -35,6 +38,9 @@ export default function App() {
             <Route path="/dashboard" element={<DashboardPage />} />
             <Route path="/categories" element={<CategoriesPage />} />
             <Route path="/ads" element={<AdsPage />} />
+            <Route path="/season/march8_tulips" element={<SeasonMarch8TulipsPage />} />
+            <Route path="/craft/nearby" element={<CraftNearbyPage />} />
+            <Route path="/live-spots/:seasonCode?" element={<LiveSpotsPage />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>

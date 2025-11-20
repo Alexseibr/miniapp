@@ -4,6 +4,8 @@ import { Ad, AdPreview, AdsResponse } from '@/types';
 export interface ListAdsParams {
   categoryId?: string;
   subcategoryId?: string;
+  categoryCode?: string;
+  subcategoryCode?: string;
   seasonCode?: string;
   q?: string;
   search?: string;
@@ -13,6 +15,9 @@ export interface ListAdsParams {
   lat?: number;
   lng?: number;
   radiusKm?: number;
+  priceMin?: number;
+  priceMax?: number;
+  [key: string]: unknown;
 }
 
 export interface NearbyAdsParams {
@@ -54,5 +59,15 @@ export async function getNearbyAds(params: NearbyAdsParams): Promise<AdsResponse
 
 export async function listSeasonAds(code: string, params: Record<string, unknown> = {}) {
   const response = await http.get(`/api/seasons/${code}/ads`, { params });
+  return response.data;
+}
+
+export async function listCraftNearby(params: NearbyAdsParams): Promise<AdsResponse> {
+  const response = await http.get('/api/ads/craft', { params });
+  return response.data;
+}
+
+export async function listLiveSpots(params: NearbyAdsParams & { seasonCode?: string }): Promise<AdsResponse> {
+  const response = await http.get('/api/ads/live-spots', { params });
   return response.data;
 }

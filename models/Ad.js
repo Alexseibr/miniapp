@@ -38,6 +38,15 @@ const GeoPointSchema = new mongoose.Schema(
 
 const LocationSchema = new mongoose.Schema(
   {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: undefined,
+    },
+    coordinates: {
+      type: [Number],
+      default: undefined,
+    },
     lat: { type: Number },
     lng: { type: Number },
     geo: { type: GeoPointSchema, default: undefined },
@@ -55,6 +64,16 @@ const adSchema = new mongoose.Schema(
     description: {
       type: String,
       trim: true,
+    },
+    categoryCode: {
+      type: String,
+      trim: true,
+      index: true,
+    },
+    subcategoryCode: {
+      type: String,
+      trim: true,
+      index: true,
     },
     categoryId: {
       type: String,
@@ -78,13 +97,15 @@ const adSchema = new mongoose.Schema(
       default: 'BYN',
       trim: true,
     },
-    photos: [{
-      type: String,
-      trim: true,
-    }],
+    photos: [
+      {
+        type: String,
+        trim: true,
+      },
+    ],
     attributes: {
       type: Map,
-      of: String,
+      of: mongoose.Schema.Types.Mixed,
       default: {},
     },
     sellerTelegramId: {
@@ -108,6 +129,11 @@ const adSchema = new mongoose.Schema(
       lowercase: true,
       index: true,
     },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
     status: {
       type: String,
       enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired'],
@@ -125,10 +151,12 @@ const adSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
-    deliveryOptions: [{
-      type: String,
-      enum: ['pickup', 'delivery', 'shipping'],
-    }],
+    deliveryOptions: [
+      {
+        type: String,
+        enum: ['pickup', 'delivery', 'shipping'],
+      },
+    ],
     lifetimeDays: {
       type: Number,
       default: 30,
@@ -137,6 +165,10 @@ const adSchema = new mongoose.Schema(
       type: Date,
     },
     isLiveSpot: {
+      type: Boolean,
+      default: false,
+    },
+    pickupOnly: {
       type: Boolean,
       default: false,
     },
@@ -157,12 +189,12 @@ const adSchema = new mongoose.Schema(
       type: GeoPointSchema,
       default: undefined,
     },
+    location: LocationSchema,
     priceHistory: [priceHistorySchema],
     statusHistory: [statusHistorySchema],
     lastPriceChangeAt: { type: Date },
     hasPriceChangeForNotifications: { type: Boolean, default: false },
     hasStatusChangeForNotifications: { type: Boolean, default: false },
-    location: LocationSchema,
     watchers: {
       type: [
         {
@@ -183,6 +215,7 @@ const adSchema = new mongoose.Schema(
 );
 
 adSchema.index({ 'location.geo': '2dsphere' });
+adSchema.index({ 'location.coordinates': '2dsphere' });
 
 // Автоматический расчет validUntil при создании
 adSchema.pre('save', function (next) {
@@ -211,6 +244,8 @@ adSchema.pre('save', function (next) {
       ...(this.location || {}),
       lat: coordsFromLocation.lat,
       lng: coordsFromLocation.lng,
+      type: 'Point',
+      coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
       geo: {
         type: 'Point',
         coordinates: [coordsFromLocation.lng, coordsFromLocation.lat],
@@ -222,6 +257,8 @@ adSchema.pre('save', function (next) {
       ...(this.location || {}),
       lat: this.location?.lat != null ? this.location.lat : coordsFromGeo.lat,
       lng: this.location?.lng != null ? this.location.lng : coordsFromGeo.lng,
+      type: 'Point',
+      coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
       geo: {
         type: 'Point',
         coordinates: [coordsFromGeo.lng, coordsFromGeo.lat],
@@ -342,6 +379,7 @@ adSchema.post('save', async function (doc, next) {
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
+adSchema.index({ isActive: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
 
@@ -355,6 +393,16 @@ function resolveCoordinatesFromLocation(location) {
     Number.isFinite(Number(location.lng))
   ) {
     return { lat: Number(location.lat), lng: Number(location.lng) };
+  }
+
+  if (
+    Array.isArray(location.coordinates) &&
+    location.coordinates.length === 2 &&
+    Number.isFinite(Number(location.coordinates[1])) &&
+    Number.isFinite(Number(location.coordinates[0]))
+  ) {
+    const [lng, lat] = location.coordinates;
+    return { lat: Number(lat), lng: Number(lng) };
   }
 
   if (

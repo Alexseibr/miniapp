@@ -12,8 +12,15 @@ const FARM_SUBCATEGORIES = ['farm', 'berries', 'vegetables', 'fruits'];
 
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
-    const seasons = await Season.find().sort({ startDate: -1 });
+  asyncHandler(async (req, res) => {
+    const { isActive } = req.query;
+    const filter = {};
+
+    if (typeof isActive !== 'undefined') {
+      filter.isActive = String(isActive).toLowerCase() === 'true';
+    }
+
+    const seasons = await Season.find(filter).sort({ startAt: -1 });
     res.json(seasons);
   })
 );
@@ -24,9 +31,9 @@ router.get(
     const now = new Date();
     const seasons = await Season.find({
       isActive: true,
-      startDate: { $lte: now },
-      endDate: { $gte: now },
-    }).sort({ startDate: -1 });
+      startAt: { $lte: now },
+      endAt: { $gte: now },
+    }).sort({ startAt: -1 });
     res.json(seasons);
   })
 );

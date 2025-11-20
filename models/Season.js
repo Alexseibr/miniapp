@@ -14,40 +14,24 @@ const seasonSchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
-    description: {
-      type: String,
-      trim: true,
-    },
-    startDate: {
-      type: Date,
-      required: true,
-    },
-    endDate: {
-      type: Date,
-      required: true,
-    },
     isActive: {
       type: Boolean,
       default: false,
       index: true,
     },
-    niche: {
+    startAt: {
+      type: Date,
+    },
+    endAt: {
+      type: Date,
+    },
+    description: {
       type: String,
       trim: true,
-      lowercase: true,
     },
-    isGeoFocused: {
-      type: Boolean,
-      default: false,
-    },
-    defaultRadiusKm: {
-      type: Number,
-      default: null,
-    },
-    specialFilters: {
-      enableTulips: { type: Boolean, default: false },
-      enableCraft: { type: Boolean, default: false },
-      enableFarm: { type: Boolean, default: false },
+    config: {
+      categories: [{ type: String }],
+      subcategories: [{ type: String }],
     },
   },
   {
@@ -55,6 +39,7 @@ const seasonSchema = new mongoose.Schema(
   }
 );
 
-seasonSchema.index({ isActive: 1, startDate: 1 });
+seasonSchema.index({ code: 1 }, { unique: true });
+seasonSchema.index({ isActive: 1 });
 
 module.exports = mongoose.model('Season', seasonSchema);

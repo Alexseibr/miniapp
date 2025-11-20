@@ -36,9 +36,13 @@ function buildAdQuery(query = {}) {
   const {
     categoryId,
     subcategoryId,
+    categoryCode,
+    subcategoryCode,
     seasonCode,
     minPrice,
     maxPrice,
+    priceMin,
+    priceMax,
     search,
     q,
     sellerId,
@@ -65,13 +69,21 @@ function buildAdQuery(query = {}) {
     filters.subcategoryId = subcategoryId;
   }
 
+  if (categoryCode) {
+    filters.categoryCode = categoryCode;
+  }
+
+  if (subcategoryCode) {
+    filters.subcategoryCode = subcategoryCode;
+  }
+
   const normalizedSeason = normalizeSeasonCode(seasonCode);
   if (normalizedSeason) {
     filters.seasonCode = normalizedSeason;
   }
 
-  const minPriceNumber = parseNumber(minPrice);
-  const maxPriceNumber = parseNumber(maxPrice);
+  const minPriceNumber = parseNumber(priceMin ?? minPrice);
+  const maxPriceNumber = parseNumber(priceMax ?? maxPrice);
   if (minPriceNumber != null || maxPriceNumber != null) {
     filters.price = { ...filters.price };
     if (minPriceNumber != null) {
@@ -123,6 +135,47 @@ function buildAdQuery(query = {}) {
 
   const parsedLimit = parseNumber(limitRaw);
   const limit = parsedLimit && parsedLimit > 0 ? Math.min(Math.floor(parsedLimit), MAX_LIMIT) : DEFAULT_LIMIT;
+
+  // Остальные query-параметры интерпретируем как фильтры по attributes
+  const reservedKeys = new Set([
+    'categoryid',
+    'subcategoryid',
+    'categorycode',
+    'subcategorycode',
+    'seasoncode',
+    'minprice',
+    'maxprice',
+    'pricemin',
+    'pricemax',
+    'search',
+    'q',
+    'sellerid',
+    'sellertelegramid',
+    'sortby',
+    'sort',
+    'page',
+    'limit',
+    'includeexpired',
+    'lat',
+    'lng',
+    'radiuskm',
+    'maxdistancekm',
+  ]);
+
+  Object.entries(query || {}).forEach(([key, value]) => {
+    const normalizedKey = String(key).toLowerCase();
+    if (reservedKeys.has(normalizedKey)) {
+      return;
+    }
+
+    if (value === undefined || value === null || value === '') {
+      return;
+    }
+
+    const numericValue = parseNumber(value);
+    const filterValue = numericValue != null ? numericValue : value;
+    filters[`attributes.${key}`] = filterValue;
+  });
 
   return {
     filters,

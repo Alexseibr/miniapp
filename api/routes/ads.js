@@ -211,6 +211,71 @@ async function aggregateNearbyAds({ latNumber, lngNumber, radiusKm, limit, baseF
   }));
 }
 
+router.get('/craft', async (req, res, next) => {
+  try {
+    const latNumber = Number(req.query.lat);
+    const lngNumber = Number(req.query.lng);
+    const radiusNumber = Number(req.query.radiusKm);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const items = await aggregateNearbyAds({
+      latNumber,
+      lngNumber,
+      radiusKm: radiusNumber,
+      limit: Number(req.query.limit) || 50,
+      baseFilter: {
+        categoryCode: 'craft',
+        status: 'active',
+        isActive: true,
+        moderationStatus: 'approved',
+      },
+    });
+
+    return res.json({ items });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/live-spots', async (req, res, next) => {
+  try {
+    const latNumber = Number(req.query.lat);
+    const lngNumber = Number(req.query.lng);
+    const radiusNumber = Number(req.query.radiusKm);
+    const seasonCode = req.query.seasonCode ? String(req.query.seasonCode).toLowerCase() : null;
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const baseFilter = {
+      isLiveSpot: true,
+      isActive: true,
+      status: 'active',
+      moderationStatus: 'approved',
+    };
+
+    if (seasonCode) {
+      baseFilter.seasonCode = seasonCode;
+    }
+
+    const items = await aggregateNearbyAds({
+      latNumber,
+      lngNumber,
+      radiusKm: radiusNumber,
+      limit: Number(req.query.limit) || 50,
+      baseFilter,
+    });
+
+    return res.json({ items });
+  } catch (error) {
+    next(error);
+  }
+});
+
 router.get('/', async (req, res, next) => {
   try {
     const { filters, sort, page, limit, sortBy } = buildAdQuery(req.query);
