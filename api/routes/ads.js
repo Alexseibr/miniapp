@@ -6,6 +6,7 @@ const { notifySubscribers } = require('../../services/notifications');
 const { findUsersToNotifyOnAdChange } = require('../../services/favoritesNotifications');
 const { sendPriceStatusChangeNotifications } = require('../../services/notificationSender');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
+const requireInternalAuth = require('../../middleware/internalAuth');
 
 const router = Router();
 
@@ -1015,7 +1016,7 @@ router.post('/:id/hide', async (req, res, next) => {
   }
 });
 
-router.post('/:id/debug-notify-favorites', async (req, res) => {
+router.post('/:id/debug-notify-favorites', requireInternalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { oldPrice, oldStatus } = req.body || {};
