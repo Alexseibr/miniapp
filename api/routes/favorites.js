@@ -160,7 +160,7 @@ router.post('/remove', async (req, res) => {
       return res.json({ ok: true, items: [] });
     }
 
-    const previousLength = user.favorites.length;
+    const previousLength = (user.favorites || []).length;
     user.favorites = (user.favorites || []).filter((fav) => {
       const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
       return !currentId || currentId.toString() !== adId.toString();
@@ -287,7 +287,7 @@ router.delete('/:adId', async (req, res) => {
       return res.json({ ok: true, items: [] });
     }
 
-    const beforeLength = user.favorites.length;
+    const beforeLength = (user.favorites || []).length;
     user.favorites = (user.favorites || []).filter((fav) => {
       const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
       return !currentId || currentId.toString() !== adId.toString();
