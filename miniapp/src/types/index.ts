@@ -18,6 +18,7 @@ export interface UserProfile {
   phoneVerified?: boolean;
   phone?: string | null;
   instagram?: string | null;
+  showUsername?: boolean;
   showPhone?: boolean;
   showInstagram?: boolean;
   location?: {
@@ -59,11 +60,20 @@ export interface AdPreview {
   attributes?: Record<string, string | number>;
   deliveryOptions?: DeliveryOption[];
   isLiveSpot?: boolean;
+  deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup' | null;
+  deliveryRadiusKm?: number | null;
   location?: {
     lat?: number;
     lng?: number;
   } | null;
   createdAt?: string;
+}
+
+export interface Ad extends AdPreview {
+  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  lifetimeDays: number;
+  validUntil?: string;
+  updatedAt?: string;
 }
 
 export interface FavoriteItem {
@@ -114,4 +124,22 @@ export interface OrderPayload {
     adId: string;
     quantity: number;
   }[];
+}
+
+export type OrderStatus = 'new' | 'processed' | 'completed' | 'cancelled' | 'expired' | 'archived';
+
+export interface OrderItemSummary {
+  adId: string;
+  title?: string;
+  quantity?: number;
+  price?: number;
+  sellerTelegramId?: number;
+}
+
+export interface OrderSummary {
+  _id: string;
+  status: OrderStatus;
+  createdAt?: string;
+  seasonCode?: string | null;
+  items: OrderItemSummary[];
 }

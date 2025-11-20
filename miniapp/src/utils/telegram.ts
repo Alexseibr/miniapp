@@ -2,6 +2,16 @@ export function getTelegramWebApp() {
   return window.Telegram?.WebApp;
 }
 
+export function getTelegramContext() {
+  const WebApp = getTelegramWebApp();
+  return {
+    WebApp,
+    initData: WebApp?.initData,
+    initDataUnsafe: WebApp?.initDataUnsafe,
+    themeParams: WebApp?.themeParams,
+  };
+}
+
 export function parseAppMode(search: string) {
   const params = new URLSearchParams(search);
   return {

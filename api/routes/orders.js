@@ -1,7 +1,10 @@
 const { Router } = require('express');
 const Order = require('../../models/Order.js');
 const Ad = require('../../models/Ad.js');
-const notifySellers = require('../../services/notifySellers.js');
+const {
+  notifySellerAboutOrder,
+  notifyAdminAboutError,
+} = require('../../services/notificationService.js');
 
 const router = Router();
 
@@ -108,11 +111,27 @@ router.post('/', async (req, res, next) => {
     });
 
     const botInstance = req.app?.get('bot');
-    if (botInstance) {
-      notifySellers(order, botInstance).catch((error) => {
-        console.error('notifySellers error:', error);
-      });
-    } else {
+    const sellerIds = Array.from(
+      new Set(
+        order.items
+          .map((item) => Number(item.sellerTelegramId))
+          .filter((id) => Number.isFinite(id))
+      )
+    );
+
+    if (botInstance && sellerIds.length) {
+      for (const sellerId of sellerIds) {
+        try {
+          await notifySellerAboutOrder(order, sellerId, botInstance);
+        } catch (error) {
+          console.error('notifySellerAboutOrder error:', error);
+          await notifyAdminAboutError(
+            `Не удалось уведомить продавца ${sellerId} по заказу ${order._id}: ${error.message}`,
+            botInstance
+          );
+        }
+      }
+    } else if (!botInstance) {
       console.warn('Bot instance недоступен, уведомления продавцов пропущены');
     }
 
@@ -178,7 +197,24 @@ router.post('/:id/accept', async (req, res, next) => {
       return res.status(403).json({ message: 'У продавца нет товаров в этом заказе' });
     }
 
-    order.status = 'processed';
+    const sellerIdsInOrder = [
+      ...new Set(order.items.map((item) => Number(item.sellerTelegramId))),
+    ];
+
+    const acceptedSellerIds = order.acceptedSellerIds || [];
+
+    if (!acceptedSellerIds.includes(sellerTelegramId)) {
+      order.acceptedSellerIds = [...acceptedSellerIds, sellerTelegramId];
+    }
+
+    const allSellersAccepted = sellerIdsInOrder.every((id) =>
+      order.acceptedSellerIds.includes(id)
+    );
+
+    if (allSellersAccepted) {
+      order.status = 'processed';
+    }
+
     await order.save();
 
     res.json(order);

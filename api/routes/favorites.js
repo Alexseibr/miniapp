@@ -50,6 +50,82 @@ function serializeFavorites(favorites = []) {
     });
 }
 
+// POST /api/favorites — add to favorites (idempotent)
+router.post('/', async (req, res) => {
+  try {
+    const telegramId = parseTelegramId(req.body?.telegramId);
+    const adId = normalizeAdId(req.body?.adId);
+
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and adId обязательны' });
+    }
+
+    const ad = await ensureAd(adId);
+    const user = await getOrCreateUser(telegramId);
+
+    const favorites = user.favorites || [];
+    const exists = favorites.find((fav) => {
+      const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
+      return currentId && currentId.toString() === adId.toString();
+    });
+
+    let shouldIncrementAd = false;
+
+    if (exists) {
+      exists.lastKnownPrice = ad.price;
+      exists.lastKnownStatus = ad.status;
+    } else {
+      favorites.push({ adId, createdAt: new Date(), lastKnownPrice: ad.price, lastKnownStatus: ad.status });
+      shouldIncrementAd = true;
+    }
+
+    user.favorites = favorites;
+    await user.save();
+
+    if (shouldIncrementAd) {
+      await adjustAdFavorites(adId, telegramId, true);
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('POST /api/favorites error:', error);
+    res.status(error.status || 500).json({ error: error.message || 'Server error' });
+  }
+});
+
+// DELETE /api/favorites — remove from favorites via body
+router.delete('/', async (req, res) => {
+  try {
+    const telegramId = parseTelegramId(req.body?.telegramId);
+    const adId = normalizeAdId(req.body?.adId);
+
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and adId обязательны' });
+    }
+
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.json({ success: true });
+    }
+
+    const beforeLength = user.favorites.length;
+    user.favorites = (user.favorites || []).filter((fav) => {
+      const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
+      return !currentId || currentId.toString() !== adId.toString();
+    });
+
+    if (beforeLength !== user.favorites.length) {
+      await user.save();
+      await adjustAdFavorites(adId, telegramId, false);
+    }
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('DELETE /api/favorites error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
 async function adjustAdFavorites(adId, telegramId, increment) {
   const update = {
     $addToSet: {},
@@ -152,6 +228,98 @@ router.post('/add', async (req, res) => {
   } catch (error) {
     console.error('POST /api/favorites/add error:', error);
     res.status(error.status || 500).json({ error: error.message || 'Server error' });
+  }
+});
+
+router.get('/my', async (req, res) => {
+  try {
+    const telegramId =
+      parseTelegramId(req.query.telegramId) || parseTelegramId(req.query.userTelegramId);
+
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId query parameter is required' });
+    }
+
+    const user = await User.findOne({ telegramId }).populate('favorites.adId');
+    if (!user) {
+      return res.json({ items: [] });
+    }
+
+    return res.json({ items: serializeFavorites(user.favorites) });
+  } catch (error) {
+    console.error('GET /api/favorites/my error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.post('/toggle', async (req, res) => {
+  try {
+    const telegramId = parseTelegramId(req.body?.telegramId);
+    const adId = normalizeAdId(req.body?.adId);
+
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and adId are required' });
+    }
+
+    const ad = await ensureAd(adId);
+    const user = await getOrCreateUser(telegramId);
+    const favorites = user.favorites || [];
+    const index = favorites.findIndex((fav) => {
+      const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
+      return currentId && currentId.toString() === adId.toString();
+    });
+
+    let isFavorite = false;
+
+    if (index >= 0) {
+      favorites.splice(index, 1);
+      await adjustAdFavorites(adId, telegramId, false);
+      isFavorite = false;
+    } else {
+      favorites.push({
+        adId,
+        createdAt: new Date(),
+        lastKnownPrice: ad.price,
+        lastKnownStatus: ad.status,
+      });
+      await adjustAdFavorites(adId, telegramId, true);
+      isFavorite = true;
+    }
+
+    user.favorites = favorites;
+    await user.save();
+
+    res.json({ ok: true, isFavorite });
+  } catch (error) {
+    console.error('POST /api/favorites/toggle error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/check', async (req, res) => {
+  try {
+    const telegramId =
+      parseTelegramId(req.query.telegramId) || parseTelegramId(req.query.userTelegramId);
+    const adId = normalizeAdId(req.query.adId);
+
+    if (!telegramId || !adId) {
+      return res.status(400).json({ error: 'telegramId and adId are required' });
+    }
+
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return res.json({ isFavorite: false });
+    }
+
+    const exists = (user.favorites || []).some((fav) => {
+      const currentId = fav.adId && fav.adId._id ? fav.adId._id : fav.adId;
+      return currentId && currentId.toString() === adId.toString();
+    });
+
+    res.json({ isFavorite: exists });
+  } catch (error) {
+    console.error('GET /api/favorites/check error:', error);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 

@@ -3,6 +3,8 @@ const connectDB = require('./services/db.js');
 const app = require('./api/server.js');
 const bot = require('./bot/bot.js');
 const { checkFavoritesForChanges } = require('./notifications/watcher');
+const path = require('path');
+const fs = require('fs');
 
 const PORT = config.port;
 
@@ -17,19 +19,143 @@ async function start() {
     console.log('📊 Подключение к MongoDB...');
     await connectDB();
     
-    // 2. Запуск Express API сервера
-    console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
-    const server = app.listen(PORT, '0.0.0.0', () => {
-      console.log(`✅ API сервер запущен: http://localhost:${PORT}`);
-      console.log(`   Health check: http://localhost:${PORT}/health`);
-      console.log(`   Доступен по адресу: https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`);
+    // 1.5 Регистрация Telegram webhook ПЕРЕД Vite (чтобы не перехватывался)
+    const webhookPath = '/telegram-webhook';
+    
+    // Используем bot.webhookCallback() БЕЗ параметра path
+    app.use(webhookPath, (req, res, next) => {
+      console.log(`📨 Получен webhook запрос: ${req.method} ${req.url}`);
+      return bot.webhookCallback()(req, res, next);
     });
     
-    // 3. Запуск Telegram бота
+    console.log(`✅ Telegram webhook endpoint зарегистрирован: ${webhookPath}`);
+    
+    // 2. Настройка Vite dev server для фронтенда (только в dev mode)
+    if (process.env.NODE_ENV !== 'production') {
+      console.log('\n🎨 Настройка Vite dev server...');
+      const { createServer: createViteServer } = await import('vite');
+      const react = await import('@vitejs/plugin-react');
+      
+      const vite = await createViteServer({
+        configFile: false,
+        plugins: [react.default()],
+        server: { 
+          middlewareMode: true,
+          hmr: {
+            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
+          },
+        },
+        appType: 'custom',
+        root: path.resolve(__dirname, 'client'),
+        resolve: {
+          alias: {
+            '@': path.resolve(__dirname, 'client/src'),
+            '@shared': path.resolve(__dirname, 'shared'),
+            '@assets': path.resolve(__dirname, 'attached_assets'),
+          },
+        },
+      });
+
+      // Vite middleware должен быть ПОСЛЕ API routes
+      app.use(vite.middlewares);
+      
+      // Раздача index.html для всех non-API routes
+      app.use('*', async (req, res, next) => {
+        const url = req.originalUrl;
+        
+        // Пропускаем API endpoints и webhook
+        if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/auth') || url.startsWith('/telegram-webhook')) {
+          return next();
+        }
+        
+        try {
+          const template = await fs.promises.readFile(
+            path.resolve(__dirname, 'client/index.html'),
+            'utf-8'
+          );
+          const html = await vite.transformIndexHtml(url, template);
+          res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
+        } catch (e) {
+          vite.ssrFixStacktrace(e);
+          next(e);
+        }
+      });
+      
+      console.log('✅ Vite dev server настроен');
+    }
+    
+    // 3. Запуск Express API сервера
+    console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
+    const server = app.listen(PORT, '0.0.0.0', () => {
+      const publicUrl = process.env.REPLIT_DEV_DOMAIN 
+        ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+        : `http://localhost:${PORT}`;
+      
+      console.log(`✅ API сервер запущен: http://localhost:${PORT}`);
+      console.log(`   Health check: ${publicUrl}/health`);
+      console.log(`   Frontend: ${publicUrl}/`);
+      console.log(`\n🌐 Доступен по адресу: ${publicUrl}`);
+    });
+    
+    // 4. Запуск Telegram бота
     console.log('\n🤖 Запуск Telegram бота...');
-    await bot.launch();
-    app.set('bot', bot);
-    console.log('✅ Telegram бот запущен и готов к работе!');
+    
+    // Проверка токена
+    if (!config.botToken) {
+      console.error('❌ TELEGRAM_BOT_TOKEN не установлен! Бот не будет запущен.');
+    } else {
+      console.log(`   Токен: ${config.botToken.slice(0, 10)}...${config.botToken.slice(-5)}`);
+      
+      try {
+        // Проверяем валидность токена через HTTP запрос
+        console.log('   Проверка токена...');
+        const axios = require('axios');
+        const testResponse = await axios.get(`https://api.telegram.org/bot${config.botToken}/getMe`, {
+          timeout: 10000
+        });
+        
+        if (testResponse.data.ok) {
+          console.log(`   ✅ Токен валиден! Бот: @${testResponse.data.result.username}`);
+          
+          // Устанавливаем webhook в Telegram (endpoint уже зарегистрирован выше)
+          const webhookDomain = process.env.REPLIT_DEV_DOMAIN 
+            ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+            : 'http://localhost:5000';
+          
+          const webhookUrl = `${webhookDomain}${webhookPath}`;
+          
+          console.log(`   Установка webhook в Telegram: ${webhookUrl}`);
+          
+          try {
+            await axios.post(`https://api.telegram.org/bot${config.botToken}/setWebhook`, {
+              url: webhookUrl,
+              drop_pending_updates: true,
+              allowed_updates: ['message', 'callback_query']
+            }, { timeout: 5000 });
+            
+            console.log('   ✅ Webhook установлен в Telegram');
+            
+            app.set('bot', bot);
+            console.log('✅ Telegram бот запущен (webhook режим)!');
+          } catch (webhookError) {
+            console.error('❌ Ошибка установки webhook:', webhookError.message);
+            if (webhookError.response) {
+              console.error('   Ответ:', JSON.stringify(webhookError.response.data));
+            }
+            console.error('   Бот может не работать.');
+          }
+        } else {
+          throw new Error('Неверный ответ от Telegram API');
+        }
+      } catch (error) {
+        console.error('❌ Ошибка запуска Telegram бота:', error.message);
+        if (error.response) {
+          console.error('   Ответ Telegram:', error.response.data);
+        }
+        console.error('   Сервер работает БЕЗ бота. Проверьте TELEGRAM_BOT_TOKEN.');
+        // Продолжаем работу без бота
+      }
+    }
 
     const runFavoritesCheck = () => {
       checkFavoritesForChanges().catch((error) =>
@@ -39,6 +165,13 @@ async function start() {
 
     runFavoritesCheck();
     favoritesInterval = setInterval(runFavoritesCheck, 2 * 60 * 1000);
+    
+    // Регистрируем error handlers в самом конце, после всех middleware
+    const { logErrors, notFoundHandler, errorHandler } = require('./api/middleware/errorHandlers.js');
+    app.use(logErrors);
+    app.use(notFoundHandler);
+    app.use(errorHandler);
+    console.log('✅ Error handlers зарегистрированы');
     
     console.log('\n✨ Все сервисы успешно запущены!\n');
     console.log('📋 Доступные команды бота:');
