@@ -75,12 +75,12 @@ router.get('/', async (req, res, next) => {
       sortObj = { price: 1 };
     }
 
-    const fetchLimit = hasGeoQuery ? finalLimit + finalOffset : finalLimit;
+    let baseQuery = Ad.find(query).sort(sortObj);
+    if (!hasGeoQuery) {
+      baseQuery = baseQuery.skip(finalOffset).limit(finalLimit);
+    }
 
-    const baseItems = await Ad.find(query)
-      .sort(sortObj)
-      .skip(hasGeoQuery ? 0 : finalOffset)
-      .limit(fetchLimit > 0 ? fetchLimit : finalLimit);
+    const baseItems = await baseQuery;
 
     if (hasGeoQuery) {
       const mapped = [];
