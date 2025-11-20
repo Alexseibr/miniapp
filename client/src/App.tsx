@@ -7,6 +7,8 @@ import Home from "@/pages/home";
 import Dashboard from "@/pages/dashboard";
 import Products from "@/pages/products-simple";
 import Categories from "@/pages/categories-simple";
+import NearbyPage from "@/pages/nearby";
+import FavoritesRoute from "@/pages/favorites";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -16,6 +18,8 @@ function Router() {
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/products" component={Products} />
       <Route path="/categories" component={Categories} />
+      <Route path="/nearby" component={NearbyPage} />
+      <Route path="/favorites" component={FavoritesRoute} />
       <Route component={NotFound} />
     </Switch>
   );
