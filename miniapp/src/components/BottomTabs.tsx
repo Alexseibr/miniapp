@@ -1,11 +1,9 @@
 import { NavLink } from 'react-router-dom';
 
 const tabs = [
-  { path: '/', label: 'Лента', emoji: '🧭' },
-  { path: '/favorites', label: 'Избранное', emoji: '❤️' },
-  { path: '/orders', label: 'Заказы', emoji: '📦' },
-  { path: '/seasons', label: 'Сезоны', emoji: '🌸' },
-  { path: '/profile', label: 'Профиль', emoji: '👤' },
+  { path: '/dashboard', label: 'Дашборд', emoji: '📊' },
+  { path: '/categories', label: 'Категории', emoji: '🗂️' },
+  { path: '/ads', label: 'Объявления', emoji: '📢' },
 ];
 
 export default function BottomTabs() {

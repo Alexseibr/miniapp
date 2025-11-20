@@ -1,63 +1,46 @@
-import { useEffect } from 'react';
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import Header from '@/components/Header';
+import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import BottomTabs from '@/components/BottomTabs';
-import HomePage from '@/pages/HomePage';
-import AdsListPage from '@/pages/AdsListPage';
-import FavoritesPage from '@/pages/FavoritesPage';
-import ProfilePage from '@/pages/ProfilePage';
-import AdPage from '@/pages/AdPage';
-import CategoryPage from '@/pages/CategoryPage';
-import SeasonsPage from '@/pages/SeasonsPage';
-import SeasonViewPage from '@/pages/SeasonViewPage';
-import OrdersPage from '@/pages/OrdersPage';
-import CartPanel from '@/components/CartPanel';
-import { useUserStore, type UserState } from '@/store/useUserStore';
-import { getTelegramWebApp } from '@/utils/telegram';
+import AdsPage from '@/pages/AdsPage';
+import CategoriesPage from '@/pages/CategoriesPage';
+import DashboardPage from '@/pages/DashboardPage';
 
 export default function App() {
-  const initialize = useUserStore((state: UserState) => state.initialize);
-  const status = useUserStore((state: UserState) => state.status);
-  const { pathname } = useLocation();
-
-  useEffect(() => {
-    const tg = getTelegramWebApp();
-    tg?.ready();
-    tg?.expand();
-    initialize();
-  }, [initialize]);
-
-  useEffect(() => {
-    const tg = getTelegramWebApp();
-    if (tg) {
-      tg.MainButton.hide();
-    }
-  }, [pathname]);
-
   return (
     <div className="app-shell">
-      <Header />
-      <main>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/ads" element={<AdsListPage />} />
-          <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/seasons" element={<SeasonsPage />} />
-          <Route path="/season/:code" element={<SeasonViewPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/ads/:id" element={<AdPage />} />
-          <Route path="/categories/:slug" element={<CategoryPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <BottomTabs />
-      <CartPanel />
-      {status === 'error' && (
-        <div style={{ padding: 12, textAlign: 'center', color: '#ef4444' }}>
-          Ошибка авторизации. Попробуйте перезапустить мини-приложение.
+      <header className="topbar">
+        <div className="container topbar__inner">
+          <div>
+            <p className="eyebrow">KETMAR Market MiniApp</p>
+            <h1 className="topbar__title">Живой дашборд</h1>
+            <p className="muted">Проверьте API, категории и объявления прямо из браузера.</p>
+          </div>
+          <div className="topbar__links">
+            <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
+              /dashboard
+            </NavLink>
+            <NavLink to="/categories" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
+              /categories
+            </NavLink>
+            <NavLink to="/ads" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
+              /ads
+            </NavLink>
+          </div>
         </div>
-      )}
+      </header>
+
+      <main>
+        <div className="container">
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/categories" element={<CategoriesPage />} />
+            <Route path="/ads" element={<AdsPage />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+        </div>
+      </main>
+
+      <BottomTabs />
     </div>
   );
 }
