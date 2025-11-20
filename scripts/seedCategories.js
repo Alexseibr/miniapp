@@ -1,5 +1,5 @@
 const mongoose = require('mongoose');
-const { MONGO_URL } = require('../config/config.js');
+const { getMongoUrl } = require('../config/config.js');
 const Category = require('../models/Category.js');
 const Season = require('../models/Season.js');
 
@@ -50,7 +50,7 @@ const seasonsSeed = [
 ];
 
 async function seed() {
-  await mongoose.connect(MONGO_URL, { autoIndex: true });
+  await mongoose.connect(getMongoUrl(), { autoIndex: true });
   console.log('[seed] Connected to MongoDB');
 
   await Category.deleteMany({});
