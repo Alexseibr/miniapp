@@ -23,8 +23,11 @@ async function start() {
     if (process.env.NODE_ENV !== 'production') {
       console.log('\n🎨 Настройка Vite dev server...');
       const { createServer: createViteServer } = await import('vite');
+      const react = await import('@vitejs/plugin-react');
+      
       const vite = await createViteServer({
         configFile: false,
+        plugins: [react.default()],
         server: { 
           middlewareMode: true,
           hmr: {
@@ -36,6 +39,7 @@ async function start() {
         resolve: {
           alias: {
             '@': path.resolve(__dirname, 'client/src'),
+            '@shared': path.resolve(__dirname, 'shared'),
             '@assets': path.resolve(__dirname, 'attached_assets'),
           },
         },
