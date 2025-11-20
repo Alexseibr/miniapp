@@ -73,10 +73,14 @@ const adSchema = new mongoose.Schema(
       default: 'BYN',
       trim: true,
     },
-    photos: [{
-      type: String,
-      trim: true,
-    }],
+    photos: {
+      type: [String],
+      default: [],
+    },
+    images: {
+      type: [String],
+      default: [],
+    },
     attributes: {
       type: Map,
       of: String,
@@ -105,20 +109,9 @@ const adSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired'],
-      default: 'active',
-      index: true,
-    },
-    moderationStatus: {
-      type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'active', 'blocked'],
       default: 'pending',
       index: true,
-    },
-    moderationComment: {
-      type: String,
-      default: null,
-      trim: true,
     },
     deliveryOptions: [{
       type: String,
@@ -185,12 +178,49 @@ const adSchema = new mongoose.Schema(
   }
 );
 
-adSchema.virtual('images').get(function () {
-  return Array.isArray(this.photos) ? this.photos : [];
+adSchema.pre('save', function (next) {
+  const normalizedImages = Array.isArray(this.images)
+    ? this.images.filter((url) => typeof url === 'string' && url.trim())
+    : [];
+
+  const normalizedPhotos = Array.isArray(this.photos)
+    ? this.photos.filter((url) => typeof url === 'string' && url.trim())
+    : [];
+
+  const finalImages = normalizedImages.length ? normalizedImages : normalizedPhotos;
+
+  this.images = finalImages;
+  this.photos = finalImages;
+
+  next();
 });
 
-adSchema.set('toJSON', { virtuals: true });
-adSchema.set('toObject', { virtuals: true });
+adSchema.set('toJSON', {
+  virtuals: true,
+  transform: (_doc, ret) => {
+    const images = Array.isArray(ret.images) ? ret.images : [];
+    const photos = Array.isArray(ret.photos) ? ret.photos : [];
+    const finalImages = images.length ? images : photos;
+
+    ret.images = finalImages;
+    ret.photos = finalImages;
+
+    return ret;
+  },
+});
+adSchema.set('toObject', {
+  virtuals: true,
+  transform: (_doc, ret) => {
+    const images = Array.isArray(ret.images) ? ret.images : [];
+    const photos = Array.isArray(ret.photos) ? ret.photos : [];
+    const finalImages = images.length ? images : photos;
+
+    ret.images = finalImages;
+    ret.photos = finalImages;
+
+    return ret;
+  },
+});
 
 adSchema.index({ location: '2dsphere' });
 

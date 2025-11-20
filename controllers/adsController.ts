@@ -18,6 +18,7 @@ export const createAd = async (req: Request, res: Response) => {
       subcategory,
       seasonCode,
       photos = [],
+      images = [],
       lat,
       lng,
       address,
@@ -39,6 +40,8 @@ export const createAd = async (req: Request, res: Response) => {
       };
     }
 
+    const resolvedImages = Array.isArray(images) && images.length ? images : photos;
+
     const ad = await Ad.create({
       title,
       description,
@@ -47,7 +50,8 @@ export const createAd = async (req: Request, res: Response) => {
       category,
       subcategory,
       seasonCode,
-      photos,
+      photos: resolvedImages,
+      images: resolvedImages,
       userTelegramId: req.currentUser.telegramId,
       owner: req.currentUser._id,
       location,
@@ -144,6 +148,10 @@ export const getAdById = async (req: Request, res: Response) => {
     const ad = await Ad.findById(id).populate({ path: 'owner', select: 'firstName lastName username phone telegramId' });
     if (!ad) {
       return res.status(404).json({ message: 'Ad not found' });
+    }
+
+    if (ad.status !== 'active') {
+      return res.status(404).json({ message: 'Ad not available' });
     }
 
     const owner = ad.owner || (await User.findOne({ telegramId: ad.userTelegramId }));

@@ -21,6 +21,7 @@ export interface IAd {
   category: string;
   subcategory?: string;
   seasonCode?: string;
+  images?: string[];
   photos: string[];
   userTelegramId: string;
   owner?: Schema.Types.ObjectId;
@@ -60,7 +61,8 @@ const AdSchema = new Schema<IAdDocument>(
     category: { type: String, required: true },
     subcategory: { type: String },
     seasonCode: { type: String },
-    photos: [{ type: String }],
+    images: { type: [String], default: [] },
+    photos: { type: [String], default: [] },
     userTelegramId: { type: String, required: true },
     owner: { type: Schema.Types.ObjectId, ref: 'User' },
     geo: { type: GeoSchema },

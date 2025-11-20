@@ -16,7 +16,7 @@ const phoneAuthRoutes = require('./routes/phoneAuth.js');
 const telegramLoginRoutes = require('./routes/telegramLogin.js');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
 const userRoutes = require('../routes/userRoutes');
-const miniAppFavoriteRoutes = require('../routes/favoriteRoutes');
+// Favorites for SPA
 const miniAppOrderRoutes = require('../routes/orderRoutes');
 const uploadRoutes = require('./routes/uploadRoutes');
 const chatRoutes = require('./routes/chat');
@@ -57,7 +57,7 @@ app.get('/health', (_req, res) => {
 
 // API маршруты
 app.use('/api/users', userRoutes);
-app.use('/api/favorites', miniAppFavoriteRoutes);
+app.use('/api/favorites', favoritesRoutes);
 app.use('/api/orders', miniAppOrderRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/ads', adsSearchRoutes);
@@ -66,7 +66,6 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
-app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/auth', phoneAuthRoutes);

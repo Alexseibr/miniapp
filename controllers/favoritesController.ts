@@ -10,8 +10,8 @@ export const toggleFavorite = async (req: Request, res: Response) => {
 
     const { adId } = req.body;
     const existing = await Favorite.findOne({
-      userTelegramId: req.currentUser.telegramId,
-      adId,
+      user: req.currentUser._id,
+      ad: adId,
     });
 
     if (existing) {
@@ -21,7 +21,9 @@ export const toggleFavorite = async (req: Request, res: Response) => {
     }
 
     await Favorite.create({
+      user: req.currentUser._id,
       userTelegramId: req.currentUser.telegramId,
+      ad: adId,
       adId,
       notifyOnPriceChange: true,
       notifyOnStatusChange: true,
@@ -46,8 +48,8 @@ export const getMyFavorites = async (req: Request, res: Response) => {
     }
 
     const favorites = await Favorite.find({
-      userTelegramId: req.currentUser.telegramId,
-    }).populate('adId');
+      user: req.currentUser._id,
+    }).populate('ad');
 
     return res.json(favorites);
   } catch (error) {
@@ -63,8 +65,8 @@ export const checkFavorite = async (req: Request, res: Response) => {
 
     const { adId } = req.params;
     const favorite = await Favorite.findOne({
-      userTelegramId: req.currentUser.telegramId,
-      adId,
+      user: req.currentUser._id,
+      ad: adId,
     });
 
     return res.json({ favorite: Boolean(favorite) });
@@ -83,8 +85,8 @@ export const updateNotifySettings = async (req: Request, res: Response) => {
 
     const favorite = await Favorite.findOneAndUpdate(
       {
-        userTelegramId: req.currentUser.telegramId,
-        adId,
+        user: req.currentUser._id,
+        ad: adId,
       },
       {
         notifyOnPriceChange,

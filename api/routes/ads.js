@@ -60,7 +60,8 @@ function parseSellerId(raw) {
 function getSellerIdFromRequest(req) {
   return (
     parseSellerId(req?.body?.sellerTelegramId) ||
-    parseSellerId(req?.query?.sellerTelegramId)
+    parseSellerId(req?.query?.sellerTelegramId) ||
+    parseSellerId(req?.currentUser?.telegramId)
   );
 }
 
@@ -1116,6 +1117,72 @@ router.post('/', auth, validateCreateAd, async (req, res, next) => {
 
     const ad = await Ad.create(payload);
     res.status(201).json(ad);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/:id', auth, async (req, res, next) => {
+  try {
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res
+        .status(400)
+        .json({ message: 'Необходимо указать sellerTelegramId для обновления объявления' });
+    }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+
+    const incomingImages = Array.isArray(req.body.images)
+      ? req.body.images
+      : Array.isArray(req.body.photos)
+        ? req.body.photos
+        : null;
+
+    const normalizedImages = Array.isArray(incomingImages)
+      ? incomingImages
+          .filter((url) => typeof url === 'string' && url.trim())
+          .map((url) => url.trim())
+      : null;
+
+    if (normalizedImages) {
+      ad.images = normalizedImages;
+      ad.photos = normalizedImages;
+    }
+
+    const allowedScalarFields = [
+      'title',
+      'description',
+      'price',
+      'currency',
+      'category',
+      'subcategory',
+      'categoryId',
+      'subcategoryId',
+      'seasonCode',
+    ];
+
+    for (const field of allowedScalarFields) {
+      if (req.body[field] != null) {
+        ad[field] = req.body[field];
+      }
+    }
+
+    if (req.body.attributes && typeof req.body.attributes === 'object') {
+      ad.attributes = req.body.attributes;
+    }
+
+    if (req.body.location && typeof req.body.location === 'object') {
+      ad.location = {
+        ...ad.location,
+        lat: req.body.location.lat ?? ad.location?.lat,
+        lng: req.body.location.lng ?? ad.location?.lng,
+      };
+    }
+
+    await ad.save();
+    res.json(ad);
   } catch (error) {
     next(error);
   }

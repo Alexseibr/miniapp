@@ -1,43 +1,77 @@
 const { Router } = require('express');
-const multer = require('multer');
-const path = require('path');
 const fs = require('fs');
+const path = require('path');
+const cloudinaryModule = require('cloudinary');
+const { auth } = require('../../middleware/auth');
+const { uploadSingle, uploadMultiple, useCloudinary } = require('../../middleware/upload');
 
-const uploadsDir = path.join(__dirname, '..', '..', 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, uploadsDir),
-  filename: (_req, file, cb) => {
-    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-    const ext = path.extname(file.originalname);
-    cb(null, `${uniqueSuffix}${ext}`);
-  },
-});
-
-const upload = multer({ storage });
 const router = Router();
 
-router.post('/', (req, res) => {
-  const handler = upload.any();
+function extractPublicIdFromUrl(url) {
+  const withoutParams = url.split('?')[0];
+  const uploadIndex = withoutParams.lastIndexOf('/upload/');
+  if (uploadIndex === -1) {
+    const filename = withoutParams.split('/').pop();
+    return filename ? filename.replace(path.extname(filename), '') : null;
+  }
 
-  handler(req, res, (err) => {
-    if (err) {
-      console.error('Upload error:', err);
-      return res.status(500).json({ message: 'Ошибка загрузки файла' });
+  const pathWithVersion = withoutParams.slice(uploadIndex + '/upload/'.length);
+  const cleaned = pathWithVersion.replace(/^v\d+\//, '');
+  const filename = cleaned.replace(path.extname(cleaned), '');
+  return filename || null;
+}
+
+router.post('/ad-image', auth, uploadSingle, (req, res) => {
+  const url = req.uploadedUrls?.[0];
+  if (!url) {
+    return res.status(400).json({ message: 'Файл не получен' });
+  }
+
+  return res.status(201).json({ url });
+});
+
+router.post('/ad-images', auth, uploadMultiple, (req, res) => {
+  const urls = req.uploadedUrls || [];
+  if (!urls.length) {
+    return res.status(400).json({ message: 'Файлы не получены' });
+  }
+
+  return res.status(201).json({ urls });
+});
+
+router.delete('/remove', auth, async (req, res) => {
+  try {
+    const url = req.body?.url;
+    if (!url || typeof url !== 'string') {
+      return res.status(400).json({ message: 'url обязателен' });
     }
 
-    const files = req.files || [];
+    if (useCloudinary) {
+      const publicId = extractPublicIdFromUrl(url);
+      if (!publicId) {
+        return res.status(400).json({ message: 'Не удалось определить файл' });
+      }
 
-    if (!files.length) {
-      return res.status(400).json({ message: 'Файл не получен' });
+      const cloudinary = cloudinaryModule.v2;
+      await cloudinary.uploader.destroy(publicId, { invalidate: true });
+    } else {
+      const uploadsRoot = path.join(process.cwd(), 'uploads');
+      const normalizedPath = path.join(process.cwd(), url.replace(/^\/+/, ''));
+
+      if (!normalizedPath.startsWith(uploadsRoot)) {
+        return res.status(400).json({ message: 'Некорректный путь файла' });
+      }
+
+      if (fs.existsSync(normalizedPath)) {
+        fs.unlinkSync(normalizedPath);
+      }
     }
 
-    const urls = files.map((file) => `/uploads/${file.filename}`);
-    return res.status(201).json({ urls });
-  });
+    return res.json({ ok: true });
+  } catch (error) {
+    console.error('Ошибка удаления файла:', error);
+    return res.status(500).json({ message: 'Не удалось удалить файл' });
+  }
 });
 
 module.exports = router;

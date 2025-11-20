@@ -3,20 +3,20 @@ import { Heart } from "lucide-react";
 
 import AdCard from "@/components/AdCard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useAuth } from "@/features/auth/AuthContext";
 import { useFavorites } from "./FavoritesContext";
-import { fetchWithAuth, getAuthToken } from "@/lib/auth";
+import { fetchWithAuth } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
 
 export function FavoritesPage() {
+  const { token } = useAuth();
   const { favorites, isFavorite, toggleFavorite, refreshFavorites } = useFavorites();
   const [ads, setAds] = useState<Ad[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const hasToken = Boolean(getAuthToken());
-
   useEffect(() => {
-    if (!hasToken) return;
+    if (!token) return;
 
     const loadFavorites = async () => {
       setIsLoading(true);
@@ -28,7 +28,7 @@ export function FavoritesPage() {
         }
         const data = await response.json();
         const adsData: Ad[] = Array.isArray(data)
-          ? data.map((item: any) => item?.ad ?? item).filter(Boolean)
+          ? data.map((item: any) => item?.ad ?? item?.adId ?? item).filter(Boolean)
           : [];
         setAds(adsData);
         await refreshFavorites();
@@ -41,9 +41,9 @@ export function FavoritesPage() {
     };
 
     void loadFavorites();
-  }, [hasToken, refreshFavorites]);
+  }, [refreshFavorites, token]);
 
-  if (!hasToken) {
+  if (!token) {
     return (
       <div className="container mx-auto px-4 py-10 space-y-6">
         <div className="flex items-center gap-3">

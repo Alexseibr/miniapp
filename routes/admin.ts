@@ -81,13 +81,14 @@ router.patch('/ads/:id/status', async (req, res) => {
 
 router.get('/users', async (req, res) => {
   try {
-    const { q, role } = req.query;
+    const { q, role, isBlocked } = req.query;
     const filter: Record<string, unknown> = {};
 
     if (q && typeof q === 'string') {
       filter.$or = [
         { phone: { $regex: q, $options: 'i' } },
         { username: { $regex: q, $options: 'i' } },
+        { telegramUsername: { $regex: q, $options: 'i' } },
         { firstName: { $regex: q, $options: 'i' } },
         { lastName: { $regex: q, $options: 'i' } },
         { email: { $regex: q, $options: 'i' } },
@@ -96,6 +97,14 @@ router.get('/users', async (req, res) => {
 
     if (role && typeof role === 'string' && ['user', 'admin'].includes(role)) {
       filter.role = role;
+    }
+
+    if (typeof isBlocked === 'string') {
+      if (isBlocked === 'true') {
+        filter.isBlocked = true;
+      } else if (isBlocked === 'false') {
+        filter.isBlocked = false;
+      }
     }
 
     const users = await User.find(filter).sort({ createdAt: -1 });

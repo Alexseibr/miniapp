@@ -204,6 +204,7 @@ async function validateCreateAd(req, res, next) {
       subcategory: payload.subcategory || subcategoryId,
       currency: normalizeString(payload.currency) || 'BYN',
       photos,
+      images: photos,
       attributes,
       sellerTelegramId,
       deliveryType,
