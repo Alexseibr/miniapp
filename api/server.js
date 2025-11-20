@@ -1,5 +1,6 @@
 const express = require('express');
 const { logErrors, notFoundHandler, errorHandler } = require('./middleware/errorHandlers.js');
+const pkg = require('../package.json');
 const adsSearchRoutes = require('./routes/search.js');
 const adsRoutes = require('./routes/ads.js');
 const categoriesRoutes = require('./routes/categories.js');
@@ -10,6 +11,10 @@ const alertsRoutes = require('./routes/alerts.js');
 const notificationsRoutes = require('./routes/notifications.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
+const usersMeRoutes = require('./routes/users.me.js');
+const adsMyRoutes = require('./routes/ads.my.js');
+const favoritesMyRoutes = require('./routes/favorites.my.js');
+const ordersMyRoutes = require('./routes/orders.my.js');
 const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
 const userRoutes = require('../routes/userRoutes');
 const miniAppFavoriteRoutes = require('../routes/favoriteRoutes');
@@ -49,6 +54,10 @@ app.get('/health', (_req, res) => {
 });
 
 // API маршруты
+app.use('/api/users/me', usersMeRoutes);
+app.use('/api/ads/my', adsMyRoutes);
+app.use('/api/favorites/my', favoritesMyRoutes);
+app.use('/api/orders/my', ordersMyRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/favorites', miniAppFavoriteRoutes);
 app.use('/api/orders', miniAppOrderRoutes);
