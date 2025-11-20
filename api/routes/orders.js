@@ -13,6 +13,8 @@ const normalizeTelegramId = (value) => {
   return Number.isFinite(parsed) ? parsed : null;
 };
 
+const getAuthenticatedTelegramId = (req) => normalizeTelegramId(req.telegramAuth?.user?.id);
+
 /**
  * POST /api/orders
  * Пример:
@@ -31,7 +33,6 @@ const normalizeTelegramId = (value) => {
 router.post('/', async (req, res, next) => {
   try {
     const {
-      buyerTelegramId,
       buyerName,
       buyerUsername,
       buyerPhone,
@@ -40,10 +41,10 @@ router.post('/', async (req, res, next) => {
       comment,
     } = req.body || {};
 
-    const normalizedBuyerId = normalizeTelegramId(buyerTelegramId);
+    const normalizedBuyerId = getAuthenticatedTelegramId(req);
 
     if (!normalizedBuyerId) {
-      return res.status(400).json({ message: 'buyerTelegramId обязателен' });
+      return res.status(401).json({ message: 'Unauthorized' });
     }
 
     if (!Array.isArray(items) || items.length === 0) {
@@ -196,7 +197,24 @@ router.post('/:id/accept', async (req, res, next) => {
       return res.status(403).json({ message: 'У продавца нет товаров в этом заказе' });
     }
 
-    order.status = 'processed';
+    const sellerIdsInOrder = [
+      ...new Set(order.items.map((item) => Number(item.sellerTelegramId))),
+    ];
+
+    const acceptedSellerIds = order.acceptedSellerIds || [];
+
+    if (!acceptedSellerIds.includes(sellerTelegramId)) {
+      order.acceptedSellerIds = [...acceptedSellerIds, sellerTelegramId];
+    }
+
+    const allSellersAccepted = sellerIdsInOrder.every((id) =>
+      order.acceptedSellerIds.includes(id)
+    );
+
+    if (allSellersAccepted) {
+      order.status = 'processed';
+    }
+
     await order.save();
 
     res.json(order);

@@ -31,6 +31,19 @@ const seasonSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    niche: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    isGeoFocused: {
+      type: Boolean,
+      default: false,
+    },
+    defaultRadiusKm: {
+      type: Number,
+      default: null,
+    },
     specialFilters: {
       enableTulips: { type: Boolean, default: false },
       enableCraft: { type: Boolean, default: false },

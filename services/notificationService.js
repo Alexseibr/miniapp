@@ -1,4 +1,5 @@
-const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || process.env.TELEGRAM_ADMIN_ID;
+const config = require('../config/config.js');
+const ADMIN_TELEGRAM_ID = config.adminTelegramId;
 
 const escapeHtml = (value = '') => {
   if (value == null) {

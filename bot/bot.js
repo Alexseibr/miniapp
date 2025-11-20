@@ -9,9 +9,44 @@ bot.use(session());
 
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
-const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL || 'https://t.me/ketmar_market_bot/app';
+const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL;
 
 registerSeasonHandlers(bot, { apiUrl: API_URL });
+
+async function sendFavoriteUpdateNotification(telegramId, payload = {}) {
+  const normalizedId = Number(telegramId);
+
+  if (!Number.isFinite(normalizedId)) {
+    console.warn('Некорректный telegramId для уведомления избранного', telegramId);
+    return;
+  }
+
+  const title = payload.title || 'Объявление';
+  const lines = ['\ud83d\udd14 Обновление по избранному объявлению:', `Название: ${title}`];
+
+  if (payload.oldPrice !== undefined || payload.newPrice !== undefined) {
+    lines.push(`Цена: ${payload.oldPrice ?? '—'} → ${payload.newPrice ?? '—'}`);
+  }
+
+  if (payload.oldStatus || payload.newStatus) {
+    lines.push(`Статус: ${payload.oldStatus || '—'} → ${payload.newStatus || '—'}`);
+  }
+
+  if (payload.adId) {
+    const link = buildMiniAppUrl({ adId: payload.adId });
+    if (link) {
+      lines.push(`Открыть: ${link}`);
+    }
+  }
+
+  try {
+    await bot.telegram.sendMessage(normalizedId, lines.join('\n'), {
+      disable_web_page_preview: true,
+    });
+  } catch (error) {
+    console.error('Ошибка отправки уведомления избранного:', error);
+  }
+}
 
 function escapeMarkdown(text = '') {
   if (typeof text !== 'string') {
@@ -463,23 +498,23 @@ bot.command('start', async (ctx) => {
 
   const startKeyboard = getMiniAppKeyboard();
 
+  const seasonInfo = activeSeason ? `\n\n🌟 Сейчас активна: ${activeSeason.name}!` : '';
+  
   await ctx.reply(
     `👋 Привет, ${firstName}!\n\n` +
-    `Добро пожаловать в **KETMAR Market**! 🛍️${seasonText}\n\n` +
-    `Доступные команды:\n` +
+    `Добро пожаловать в KETMAR Market! 🛍️${seasonInfo}\n\n` +
+    `Доступные команды:\n\n` +
     `/sell - 🏪 Создать объявление\n` +
     `/my_ads - 📋 Мои объявления\n` +
     `/catalog - 📦 Каталог объявлений\n` +
-    `/market - 🛒 Лента объявлений для покупателей\n` +
+    `/market - 🛒 Лента объявлений\n` +
+    `/fav_list - ⭐ Избранное\n` +
     `/season - 🌟 Сезонные предложения\n` +
-    `/categories - 📂 Категории товаров\n` +
-    `/search <запрос> - 🔍 Поиск объявлений\n` +
-    `/my_orders - 📋 Мои заказы\n` +
-    `/myid - 🆔 Узнать свой Telegram ID\n` +
-    `/new_test_ad - ➕ Создать тестовое объявление` +
-    (startKeyboard ? '\n\n🔗 Используйте кнопки ниже, чтобы открыть мини-приложение.' : ''),
+    `/categories - 📂 Категории\n` +
+    `/myid - 🆔 Ваш Telegram ID\n` +
+    `/new_test_ad - ➕ Тестовое объявление` +
+    (startKeyboard ? '\n\n🔗 Используйте кнопки ниже для открытия приложения.' : ''),
     {
-      parse_mode: 'Markdown',
       ...(startKeyboard ? { reply_markup: startKeyboard } : {}),
     }
   );
@@ -495,6 +530,85 @@ bot.command('myid', async (ctx) => {
     `📝 Имя: ${user.first_name || ''} ${user.last_name || ''}`,
     { parse_mode: 'Markdown' }
   );
+});
+
+bot.command('fav_add', async (ctx) => {
+  const [, adId] = ctx.message.text.trim().split(/\s+/, 2);
+
+  if (!adId) {
+    return ctx.reply('Использование: /fav_add <ID_объявления>');
+  }
+
+  try {
+    await axios.post(`${API_URL}/api/favorites/${adId}`, {
+      telegramId: ctx.from.id,
+    });
+
+    await ctx.reply('✅ Объявление добавлено в избранное.');
+  } catch (error) {
+    console.error('fav_add error:', error.response?.data || error.message);
+    const message = error.response?.data?.error || 'Не получилось добавить в избранное (проверь ID объявления).';
+    await ctx.reply(`⚠️ ${message}`);
+  }
+});
+
+bot.command('fav_remove', async (ctx) => {
+  const [, adId] = ctx.message.text.trim().split(/\s+/, 2);
+
+  if (!adId) {
+    return ctx.reply('Использование: /fav_remove <ID_объявления>');
+  }
+
+  try {
+    await axios.delete(`${API_URL}/api/favorites/${adId}`, {
+      params: { telegramId: ctx.from.id },
+    });
+
+    await ctx.reply('✅ Объявление удалено из избранного.');
+  } catch (error) {
+    console.error('fav_remove error:', error.response?.data || error.message);
+    const message = error.response?.data?.error || 'Не получилось удалить из избранного.';
+    await ctx.reply(`⚠️ ${message}`);
+  }
+});
+
+function formatFavoritesList(items = []) {
+  if (!items.length) {
+    return 'У тебя пока нет избранных объявлений.';
+  }
+
+  const lines = ['⭐ Твои избранные объявления:'];
+
+  items.forEach((item, index) => {
+    const ad = item.ad || item.adId || item;
+    if (!ad) {
+      return;
+    }
+
+    const price = ad.price != null ? `${ad.price} ${ad.currency || 'BYN'}` : '—';
+    const status = ad.status || item.lastKnownStatus || '—';
+    const id = ad._id || item.adId || '—';
+
+    lines.push(`${index + 1}) ${ad.title || 'Без названия'} — ${price} (${status})`);
+    lines.push(`   ID: ${id}`);
+  });
+
+  return lines.join('\n');
+}
+
+bot.command('fav_list', async (ctx) => {
+  try {
+    const response = await axios.get(`${API_URL}/api/favorites`, {
+      params: { telegramId: ctx.from.id },
+    });
+
+    const items = response.data?.items || [];
+    const message = formatFavoritesList(items);
+    await ctx.reply(message, { disable_web_page_preview: true });
+  } catch (error) {
+    console.error('fav_list error:', error.response?.data || error.message);
+    await ctx.reply('⚠️ Не удалось загрузить избранное. Попробуй позже.');
+  }
 });
 
 // /categories - показать категории (дерево)
@@ -1162,10 +1276,8 @@ bot.command('new_test_ad', async (ctx) => {
 // /sell — мастер создания объявления: выбор категории, подкатегории, затем поля
 bot.command("sell", async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
-
     // забираем дерево категорий
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await axios.get(`${API_URL}/api/categories`);
     const categories = res.data || [];
 
     // фильтруем только корневые категории (parentSlug == null)
@@ -1354,7 +1466,6 @@ bot.action(/myads_live:([^:]+):(on|off)/, async (ctx) => {
 // Обработка выбора категории (callback sell_cat:<slug>)
 bot.action(/sell_cat:(.+)/, async (ctx) => {
   try {
-    const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
     const slug = ctx.match[1];
 
     // убеждаемся, что мы в режиме sell
@@ -1365,7 +1476,7 @@ bot.action(/sell_cat:(.+)/, async (ctx) => {
     ctx.session.sell.data.categoryId = slug;
 
     // забираем дерево категорий
-    const res = await axios.get(`${API_BASE_URL}/api/categories`);
+    const res = await axios.get(`${API_URL}/api/categories`);
     const categories = res.data || [];
 
     // находим выбранную корневую категорию
@@ -1529,12 +1640,11 @@ bot.on("text", async (ctx) => {
         deliveryRadiusKm: null,
         location: null,
         seasonCode: null,
-        lifetimeDays: 7,
-      };
+      lifetimeDays: 7,
+    };
 
-      try {
-        const API_BASE_URL = process.env.API_BASE_URL || "http://localhost:5000";
-        const res = await axios.post(`${API_BASE_URL}/api/ads`, payload);
+    try {
+        const res = await axios.post(`${API_URL}/api/ads`, payload);
         const ad = res.data;
 
         // очищаем мастер
@@ -1640,5 +1750,7 @@ bot.catch((err, ctx) => {
   console.error('❌ Ошибка в боте:', err);
   ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
 });
+
+bot.sendFavoriteUpdateNotification = sendFavoriteUpdateNotification;
 
 module.exports = bot;

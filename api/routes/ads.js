@@ -6,6 +6,7 @@ const { notifySubscribers } = require('../../services/notifications');
 const { findUsersToNotifyOnAdChange } = require('../../services/favoritesNotifications');
 const { sendPriceStatusChangeNotifications } = require('../../services/notificationSender');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
+const requireInternalAuth = require('../../middleware/internalAuth');
 
 const router = Router();
 
@@ -157,7 +158,10 @@ function projectAdsWithinRadius(ads, { latNumber, lngNumber, radiusKm }) {
       continue;
     }
 
-    const distanceKm = haversineDistanceKm(latNumber, lngNumber, coordinates.lat, coordinates.lng);
+    const distanceKm = haversineDistanceKm(
+      { lat: latNumber, lng: lngNumber },
+      coordinates
+    );
     if (distanceKm == null) {
       continue;
     }
@@ -214,16 +218,46 @@ router.get('/', async (req, res, next) => {
     const latNumber = Number(req.query.lat);
     const lngNumber = Number(req.query.lng);
     const hasGeoQuery = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
-    const maxDistanceInput = req.query.maxDistanceKm ?? req.query.radiusKm;
-    const radiusNumber = Number(maxDistanceInput);
-    const maxDistanceKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : null;
+    const radiusInput = req.query.radiusKm ?? req.query.maxDistanceKm;
+    const radiusNumber = Number(radiusInput);
+    const maxDistanceKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
 
-    if (!hasGeoQuery) {
-      const total = await Ad.countDocuments(filters);
-      const items = await Ad.find(filters)
-        .sort(sort)
-        .skip(skip)
-        .limit(limit);
+    if (hasGeoQuery) {
+      const geoStage = {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          spherical: true,
+          query: filters,
+          key: 'geo',
+        },
+      };
+
+      if (maxDistanceKm) {
+        geoStage.$geoNear.maxDistance = maxDistanceKm * 1000;
+      }
+
+      const sortStage =
+        sortBy === 'distance' || req.query.sort === 'distance_asc'
+          ? { $sort: { distanceMeters: 1 } }
+          : { $sort: sort };
+
+      const pipeline = [geoStage, sortStage, {
+        $facet: {
+          items: [
+            { $skip: skip },
+            { $limit: limit },
+          ],
+          total: [{ $count: 'count' }],
+        },
+      }];
+
+      const [result = {}] = await Ad.aggregate(pipeline);
+      const total = result.total?.[0]?.count || 0;
+      const items = (result.items || []).map((item) => ({
+        ...item,
+        distanceMeters: item.distanceMeters,
+      }));
 
       return res.json({
         page,
@@ -234,39 +268,18 @@ router.get('/', async (req, res, next) => {
       });
     }
 
-    const baseLimit = Math.min(Math.max(limit * 5, 100), 500);
-    const baseItems = await Ad.find(filters)
+    const total = await Ad.countDocuments(filters);
+    const items = await Ad.find(filters)
       .sort(sort)
-      .limit(baseLimit);
-
-    let itemsWithDistance = projectAdsWithinRadius(baseItems, {
-      latNumber,
-      lngNumber,
-      radiusKm: maxDistanceKm,
-    });
-
-    const [sortField, sortDirection] = Object.entries(sort)[0] || ['createdAt', -1];
-
-    if (sortBy === 'distance') {
-      itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
-    } else if (sortField === 'price') {
-      itemsWithDistance.sort((a, b) => (a.price - b.price) * sortDirection);
-    } else {
-      itemsWithDistance.sort(
-        (a, b) => (new Date(a.createdAt) - new Date(b.createdAt)) * sortDirection
-      );
-    }
-
-    const total = itemsWithDistance.length;
-    const totalPages = total === 0 ? 0 : Math.ceil(total / limit);
-    const pagedItems = itemsWithDistance.slice(skip, skip + limit);
+      .skip(skip)
+      .limit(limit);
 
     return res.json({
       page,
       limit,
       total,
-      totalPages,
-      items: pagedItems,
+      totalPages: total === 0 ? 0 : Math.ceil(total / limit),
+      items,
     });
   } catch (error) {
     next(error);
@@ -372,7 +385,13 @@ router.get('/search', async (req, res, next) => {
     const matchClauses = [];
 
     if (regex) {
-      matchClauses.push({ title: regex }, { description: regex }, { attributeValues: { $elemMatch: { $regex: regex } } });
+      matchClauses.push({
+        $or: [
+          { title: regex },
+          { description: regex },
+          { attributeValues: { $elemMatch: { $regex: regex } } },
+        ],
+      });
     }
 
     if (Number.isFinite(minPrice) || Number.isFinite(maxPrice)) {
@@ -416,7 +435,6 @@ router.get('/search', async (req, res, next) => {
     if (hasGeo) {
       pipeline.push({
         $addFields: {
-          distance: { $ifNull: ['$distance', null] },
           distanceKm: {
             $cond: [{ $ifNull: ['$distance', false] }, { $divide: ['$distance', 1000] }, null],
           },
@@ -425,6 +443,14 @@ router.get('/search', async (req, res, next) => {
     }
 
     pipeline.push({ $sort: hasGeo ? { distance: 1, createdAt: -1 } : { createdAt: -1 } });
+
+    if (hasGeo) {
+      pipeline.push({
+        $project: {
+          distance: 0,
+        },
+      });
+    }
 
     pipeline.push({
       $facet: {
@@ -496,55 +522,130 @@ router.get('/near', async (req, res) => {
 });
 
 // GET /api/ads/nearby
-router.get('/nearby', async (req, res) => {
+router.get('/nearby', async (req, res, next) => {
   try {
-    const {
-      lat,
-      lng,
-      radiusKm = 5,
-      categoryId,
-      subcategoryId,
-      seasonCode,
-      limit = 20,
-    } = req.query;
+    const { lat, lng, radiusKm, categoryId, subcategoryId, limit } = req.query;
 
     if (lat === undefined || lng === undefined) {
-      return res.status(400).json({ error: 'lat and lng are required' });
+      return res.status(400).json({ error: 'lat и lng обязательны' });
     }
 
     const latNumber = Number(lat);
     const lngNumber = Number(lng);
 
     if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
-      return res.status(400).json({ error: 'lat and lng must be valid numbers' });
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
     }
 
-    const normalizedSeason = normalizeSeasonCode(seasonCode);
-    const baseFilter = { status: 'active', moderationStatus: 'approved' };
-    if (categoryId) baseFilter.categoryId = categoryId;
-    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
-    if (normalizedSeason) baseFilter.seasonCode = normalizedSeason;
-
-    const fetchLimit = 500;
-    const baseAds = await Ad.find(baseFilter)
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
-
-    const itemsWithDistance = projectAdsWithinRadius(baseAds, {
-      latNumber,
-      lngNumber,
-      radiusKm: Number(radiusKm),
-    });
-
-    itemsWithDistance.sort((a, b) => a.distanceKm - b.distanceKm);
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
 
     const limitNumber = Number(limit);
     const finalLimit =
-      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 100) : 20;
+      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
 
-    return res.json({ items: itemsWithDistance.slice(0, finalLimit) });
+    const baseFilter = {
+      status: 'active',
+      moderationStatus: 'approved',
+      'location.lat': { $ne: null },
+      'location.lng': { $ne: null },
+    };
+
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+    const candidates = await Ad.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const userPoint = { lat: latNumber, lng: lngNumber };
+    const itemsWithinRadius = [];
+
+    for (const ad of candidates) {
+      const adPoint = extractAdCoordinates(ad);
+      if (!adPoint) {
+        continue;
+      }
+
+      const distanceKm = haversineDistanceKm(userPoint, adPoint);
+      if (distanceKm == null || distanceKm > finalRadiusKm) {
+        continue;
+      }
+
+      const plain =
+        typeof ad.toObject === 'function'
+          ? ad.toObject({ getters: true, virtuals: false })
+          : { ...ad };
+
+      plain.distanceKm = Number(distanceKm.toFixed(1));
+      itemsWithinRadius.push(plain);
+    }
+
+    itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+
+    return res.json({ items: itemsWithinRadius.slice(0, finalLimit) });
   } catch (error) {
-    console.error('GET /api/ads/nearby error:', error);
+    next(error);
+  }
+});
+
+// GET /api/ads/live-spots — geo search for live locations
+router.get('/live-spots', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 5, seasonCode, categoryId, subcategoryId, limit = 200 } =
+      req.query;
+
+    const filter = {
+      isLiveSpot: true,
+      status: 'active',
+      moderationStatus: 'approved',
+    };
+
+    if (seasonCode) filter.seasonCode = normalizeSeasonCode(seasonCode);
+    if (categoryId) filter.categoryId = categoryId;
+    if (subcategoryId) filter.subcategoryId = subcategoryId;
+
+    const limitNumber = Number(limit);
+    const finalLimit = Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const radiusNumber = Number(radiusKm);
+
+    const hasGeo = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+
+    if (hasGeo) {
+      const geoStage = {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          spherical: true,
+          key: 'geo',
+          query: filter,
+        },
+      };
+
+      if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
+        geoStage.$geoNear.maxDistance = radiusNumber * 1000;
+      }
+
+      const items = await Ad.aggregate([
+        geoStage,
+        { $sort: { distanceMeters: 1 } },
+        { $limit: finalLimit },
+      ]);
+
+      return res.json({ items });
+    }
+
+    const items = await Ad.find(filter)
+      .sort({ createdAt: -1 })
+      .limit(finalLimit);
+
+    return res.json({ items });
+  } catch (error) {
+    console.error('GET /api/ads/live-spots error:', error);
     res.status(500).json({ error: 'Server error' });
   }
 });
@@ -658,149 +759,6 @@ router.get('/season/:code/live', async (req, res, next) => {
 
     return res.json({ items: finalItems });
   } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
-    next(error);
-  }
-});
-
-router.post('/bulk/update-status', async (req, res) => {
-  try {
-    const { adIds, status } = req.body || {};
-    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
-
-    if (!Array.isArray(adIds) || adIds.length === 0) {
-      return res.status(400).json({ error: 'adIds must be a non-empty array' });
-    }
-
-    if (typeof status !== 'string' || !allowedStatuses.has(status)) {
-      return res.status(400).json({ error: 'Invalid status value' });
-    }
-
-    const historyEntry = {
-      date: new Date(),
-      status,
-      moderationStatus: undefined,
-      comment: 'Bulk status update',
-    };
-
-    const result = await Ad.updateMany(
-      { _id: { $in: adIds } },
-      {
-        $set: { status },
-        $push: { statusHistory: historyEntry },
-      }
-    );
-
-    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
-    console.log(`[BULK UPDATE] update-status — ${updated} ads updated`);
-
-    return res.json({ updated, status });
-  } catch (error) {
-    console.error('POST /api/ads/bulk/update-status error:', error);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/bulk/extend', async (req, res) => {
-  try {
-    const { adIds, extendDays, sellerTelegramId } = req.body || {};
-
-    if (!Array.isArray(adIds) || adIds.length === 0) {
-      return res.status(400).json({ error: 'adIds must be a non-empty array' });
-    }
-
-    const extendNumber = Number(extendDays);
-    if (!Number.isFinite(extendNumber) || extendNumber <= 0) {
-      return res.status(400).json({ error: 'extendDays must be a positive number' });
-    }
-
-    const sellerId = parseSellerId(sellerTelegramId);
-    if (!sellerId) {
-      return res.status(400).json({ error: 'sellerTelegramId is required' });
-    }
-
-    const ads = await Ad.find({ _id: { $in: adIds }, sellerTelegramId: sellerId });
-    let updated = 0;
-
-    for (const ad of ads) {
-      const now = new Date();
-      const base = ad.validUntil && ad.validUntil > now ? new Date(ad.validUntil) : now;
-      base.setDate(base.getDate() + extendNumber);
-      ad.validUntil = base;
-      ad.lifetimeDays = extendNumber;
-      await ad.save();
-      updated += 1;
-    }
-
-    console.log(`[BULK UPDATE] extend — ${updated} ads updated`);
-    return res.json({ updated, extendDays: extendNumber });
-  } catch (error) {
-    console.error('POST /api/ads/bulk/extend error:', error);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/bulk/hide-expired', async (req, res) => {
-  try {
-    const now = new Date();
-    const historyEntry = {
-      date: now,
-      status: 'expired',
-      moderationStatus: undefined,
-      comment: 'Auto hide expired',
-    };
-
-    const result = await Ad.updateMany(
-      { status: 'active', validUntil: { $lt: now } },
-      {
-        $set: { status: 'expired' },
-        $push: { statusHistory: historyEntry },
-      }
-    );
-
-    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
-    console.log(`[BULK UPDATE] hide-expired — ${updated} ads updated`);
-
-    return res.json({ updated, status: 'expired' });
-  } catch (error) {
-    console.error('POST /api/ads/bulk/hide-expired error:', error);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
-router.post('/:id/hide', async (req, res, next) => {
-  try {
-    const sellerId = getSellerIdFromRequest(req);
-    const hidden = req.body?.hidden;
-
-    if (!sellerId) {
-      return res.status(400).json({ message: 'sellerTelegramId is required' });
-    }
-
-    if (hidden !== undefined && typeof hidden !== 'boolean') {
-      return res.status(400).json({ message: 'hidden must be a boolean value' });
-    }
-
-    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-
-    if (hidden === false) {
-      if (ad.status === 'hidden') {
-        ad.status = 'active';
-      }
-    } else {
-      ad.status = 'hidden';
-      ad.isLiveSpot = false;
-    }
-
-    await ad.save();
-
-    return res.json({ item: ad, hidden: ad.status === 'hidden' });
-  } catch (error) {
-    if (error.status) {
-      return res.status(error.status).json({ message: error.message });
-    }
     next(error);
   }
 });
@@ -822,6 +780,9 @@ router.get('/my', async (req, res, next) => {
 
     return res.json({ items: ads });
   } catch (error) {
+    if (error.status) {
+      return res.status(error.status).json({ message: error.message });
+    }
     next(error);
   }
 });
@@ -1084,7 +1045,7 @@ router.post('/:id/hide', async (req, res, next) => {
   }
 });
 
-router.post('/:id/debug-notify-favorites', async (req, res) => {
+router.post('/:id/debug-notify-favorites', requireInternalAuth, async (req, res) => {
   try {
     const { id } = req.params;
     const { oldPrice, oldStatus } = req.body || {};
@@ -1146,10 +1107,15 @@ router.post('/', validateCreateAd, async (req, res, next) => {
 
 router.post('/:id/live-spot', async (req, res, next) => {
   try {
-    const ad = await Ad.findById(req.params.id);
-    if (!ad) {
-      return res.status(404).json({ error: 'Ad not found' });
+    const sellerId = getSellerIdFromRequest(req);
+
+    if (!sellerId) {
+      return res
+        .status(400)
+        .json({ message: 'Необходимо указать корректный sellerTelegramId для проверки прав' });
     }
+
+    const ad = await findAdOwnedBySeller(req.params.id, sellerId);
 
     const before = ad.toObject();
 
@@ -1207,18 +1173,13 @@ router.post('/:id/live-spot', async (req, res, next) => {
       console.error('Favorites notification calculation error:', notifyError);
     }
 
-    if (statusChanged) {
-      await notifySubscribers(
-        ad._id,
-        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
-      );
-    }
-
-    if (statusChanged) {
-      await notifySubscribers(
-        ad._id,
-        `Статус объявления "${after.title}" изменился: ${before.status || '—'} → ${after.status}`
-      );
+    try {
+      const notifications = await findUsersToNotifyOnAdChange(before, after);
+      if (notifications.length) {
+        await sendPriceStatusChangeNotifications(notifications);
+      }
+    } catch (notifyError) {
+      console.error('Favorites notification calculation error:', notifyError);
     }
 
     ad.isLiveSpot = isLiveSpot;

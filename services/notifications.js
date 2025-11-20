@@ -1,4 +1,5 @@
-const User = require('../models/User');
+const mongoose = require('mongoose');
+const Favorite = require('../models/Favorite');
 const { sendMessageToTelegramId } = require('../bot/messenger');
 
 async function notifySubscribers(adId, message) {
@@ -7,14 +8,15 @@ async function notifySubscribers(adId, message) {
   }
 
   try {
-    const users = await User.find({ 'favorites.adId': adId }).select('telegramId');
+    const adFilter = mongoose.isValidObjectId(adId) ? new mongoose.Types.ObjectId(adId) : adId;
+    const favorites = await Favorite.find({ adId: adFilter }).select('userTelegramId');
 
-    if (!users.length) {
+    if (!favorites.length) {
       return;
     }
 
-    for (const user of users) {
-      const telegramId = Number(user.telegramId);
+    for (const favorite of favorites) {
+      const telegramId = Number(favorite.userTelegramId);
       if (!Number.isFinite(telegramId)) {
         continue;
       }

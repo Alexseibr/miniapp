@@ -98,20 +98,24 @@ export function ProductForm({ product, onClose, open }: ProductFormProps) {
 
   const handleGetUploadParameters = async () => {
     const response = await apiRequest("POST", "/api/objects/upload", {});
+    const data = (await response.json()) as { uploadURL: string };
+
     return {
       method: "PUT" as const,
-      url: response.uploadURL,
+      url: data.uploadURL,
     };
   };
 
-  const handleUploadComplete = async (result: UploadResult<Record<string, unknown>, Record<string, unknown>>) => {
-    if (result.successful.length > 0) {
+  const handleUploadComplete = async (
+    result: UploadResult<Record<string, unknown>, Record<string, unknown>>,
+  ) => {
+    if (result.successful && result.successful.length > 0) {
       const uploadURL = result.successful[0].uploadURL;
       if (uploadURL) {
         try {
           const response = await apiRequest("PUT", "/api/product-images", { imageURL: uploadURL });
-          const imagePath = response.objectPath;
-          setUploadedImages((prev) => [...prev, imagePath]);
+          const { objectPath } = (await response.json()) as { objectPath: string };
+          setUploadedImages((prev) => [...prev, objectPath]);
           toast({
             title: "Image uploaded",
             description: "Product image has been uploaded successfully.",
