@@ -6,6 +6,7 @@ type AdminUser = {
   firstName?: string;
   lastName?: string;
   username?: string;
+  telegramUsername?: string;
   phone?: string;
   email?: string;
   role: string;
@@ -16,11 +17,13 @@ type AdminUser = {
 type Filters = {
   q: string;
   role: string;
+  blocked: string;
 };
 
 const defaultFilters: Filters = {
   q: "",
   role: "",
+  blocked: "",
 };
 
 export default function AdminUsersTab() {
@@ -33,6 +36,8 @@ export default function AdminUsersTab() {
     const params = new URLSearchParams();
     if (filters.q) params.set("q", filters.q);
     if (filters.role) params.set("role", filters.role);
+    if (filters.blocked === "blocked") params.set("isBlocked", "true");
+    if (filters.blocked === "unblocked") params.set("isBlocked", "false");
     return params.toString();
   }, [filters]);
 
@@ -123,6 +128,18 @@ export default function AdminUsersTab() {
             <option value="admin">Администратор</option>
           </select>
         </label>
+        <label className="flex flex-col text-sm">
+          Блокировка
+          <select
+            className="border rounded px-2 py-1"
+            value={filters.blocked}
+            onChange={(e) => onChangeFilters("blocked", e.target.value)}
+          >
+            <option value="">Все</option>
+            <option value="blocked">Заблокированные</option>
+            <option value="unblocked">Активные</option>
+          </select>
+        </label>
         <button
           className="bg-blue-600 text-white px-4 py-2 rounded"
           type="button"
@@ -143,6 +160,7 @@ export default function AdminUsersTab() {
               <th className="border px-3 py-2 text-left">Имя</th>
               <th className="border px-3 py-2 text-left">Телефон</th>
               <th className="border px-3 py-2 text-left">Email</th>
+              <th className="border px-3 py-2 text-left">Username (TG)</th>
               <th className="border px-3 py-2 text-left">Роль</th>
               <th className="border px-3 py-2 text-left">Заблокирован</th>
               <th className="border px-3 py-2 text-left">Действия</th>
@@ -156,6 +174,7 @@ export default function AdminUsersTab() {
                 </td>
                 <td className="border px-3 py-2">{user.phone || "—"}</td>
                 <td className="border px-3 py-2">{user.email || "—"}</td>
+                <td className="border px-3 py-2">{user.telegramUsername || user.username || "—"}</td>
                 <td className="border px-3 py-2">{user.role}</td>
                 <td className="border px-3 py-2">{user.isBlocked ? "Да" : "Нет"}</td>
                 <td className="border px-3 py-2 space-x-2">
@@ -178,7 +197,7 @@ export default function AdminUsersTab() {
             ))}
             {!users.length && !loading && (
               <tr>
-                <td className="border px-3 py-2 text-center" colSpan={6}>
+                <td className="border px-3 py-2 text-center" colSpan={7}>
                   Пользователи не найдены
                 </td>
               </tr>

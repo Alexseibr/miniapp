@@ -11,7 +11,7 @@ import AdDetails from "@/pages/ad-details";
 import ChatPage from "@/pages/chat-page";
 import AdCreate from "@/pages/ad-create";
 import NotFoundPage from "@/pages/not-found";
-import AdminPage from "@/pages/dashboard";
+import AdminPage from "@/pages/admin";
 import Layout from "@/components/Layout";
 
 function App() {
