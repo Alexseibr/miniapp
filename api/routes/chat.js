@@ -3,11 +3,10 @@ const Conversation = require('../../models/Conversation');
 const Message = require('../../models/Message');
 const Ad = require('../../models/Ad');
 const User = require('../../models/User');
-const { telegramInitDataMiddleware } = require('../../middleware/telegramAuth');
-const requireAuth = require('../../middleware/requireAuth');
+const authMiddleware = require('../../middleware/auth');
 
 const router = Router();
-router.use(telegramInitDataMiddleware, requireAuth);
+router.use(authMiddleware);
 
 async function loadConversation(conversationId, userId) {
   const conversation = await Conversation.findById(conversationId);

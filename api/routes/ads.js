@@ -8,8 +8,7 @@ const { sendPriceStatusChangeNotifications } = require('../../services/notificat
 const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
-const { telegramInitDataMiddleware } = require('../../middleware/telegramAuth');
-const requireAuth = require('../../middleware/requireAuth');
+const authMiddleware = require('../../middleware/auth');
 
 const router = Router();
 
@@ -593,7 +592,7 @@ router.get('/nearby', async (req, res, next) => {
   }
 });
 
-router.get('/my', telegramInitDataMiddleware, requireAuth, async (req, res, next) => {
+router.get('/my', authMiddleware, async (req, res, next) => {
   try {
     const telegramId = req.currentUser.telegramId;
 
