@@ -71,9 +71,10 @@ router.post('/', async (req, res, next) => {
         return res.status(400).json({ message: `"${ad.title}" недоступно для заказа` });
       }
 
-      const quantity = Number(item.quantity) || 1;
+      const rawQuantity = item.quantity ?? 1;
+      const quantity = Number(rawQuantity);
 
-      if (quantity < 1 || quantity > 1000) {
+      if (!Number.isFinite(quantity) || quantity < 1 || quantity > 1000) {
         return res
           .status(400)
           .json({ message: `Количество для "${ad.title}" должно быть от 1 до 1000` });
