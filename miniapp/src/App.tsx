@@ -12,12 +12,12 @@ import SeasonsPage from '@/pages/SeasonsPage';
 import SeasonViewPage from '@/pages/SeasonViewPage';
 import OrdersPage from '@/pages/OrdersPage';
 import CartPanel from '@/components/CartPanel';
-import { useUserStore } from '@/store/useUserStore';
+import { useUserStore, type UserState } from '@/store/useUserStore';
 import { getTelegramWebApp } from '@/utils/telegram';
 
 export default function App() {
-  const initialize = useUserStore((state) => state.initialize);
-  const status = useUserStore((state) => state.status);
+  const initialize = useUserStore((state: UserState) => state.initialize);
+  const status = useUserStore((state: UserState) => state.status);
   const { pathname } = useLocation();
 
   useEffect(() => {
