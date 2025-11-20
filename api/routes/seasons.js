@@ -1,6 +1,7 @@
 const { Router } = require('express');
 const Season = require('../../models/Season.js');
 const Ad = require('../../models/Ad.js');
+const { getDistanceKm } = require('../../utils/distance');
 
 const router = Router();
 
@@ -79,30 +80,39 @@ router.get('/:code/live-spots', async (req, res, next) => {
 
     const seasonCode = String(code).toLowerCase();
 
-    const ads = await Ad.aggregate([
-      {
-        $geoNear: {
-          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
-          distanceField: 'distanceMeters',
-          maxDistance,
-          spherical: true,
-          query: {
-            seasonCode,
-            status: 'active',
-            isLiveSpot: true,
-          },
-        },
-      },
-      { $sort: { distanceMeters: 1, createdAt: -1 } },
-      { $limit: finalLimit },
-    ]);
-
-    return res.json({
-      items: ads.map((ad) => ({
-        ...ad,
-        distanceKm: typeof ad.distanceMeters === 'number' ? ad.distanceMeters / 1000 : null,
-      })),
+    const ads = await Ad.find({
+      seasonCode,
+      status: 'active',
+      isLiveSpot: true,
     });
+
+    const items = [];
+
+    for (const ad of ads) {
+      const locationLat = ad?.location?.lat;
+      const locationLng = ad?.location?.lng;
+      if (!Number.isFinite(locationLat) || !Number.isFinite(locationLng)) {
+        continue;
+      }
+
+      const distanceKm = getDistanceKm(latNumber, lngNumber, locationLat, locationLng);
+      if (distanceKm == null || distanceKm * 1000 > maxDistance) {
+        continue;
+      }
+
+      const adObj = ad.toObject();
+      adObj.distanceKm = distanceKm;
+      items.push(adObj);
+    }
+
+    items.sort((a, b) => {
+      if (a.distanceKm === b.distanceKm) {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      }
+      return a.distanceKm - b.distanceKm;
+    });
+
+    return res.json({ items: items.slice(0, finalLimit) });
   } catch (error) {
     next(error);
   }
