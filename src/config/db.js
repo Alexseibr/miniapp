@@ -1,8 +1,7 @@
 import mongoose from 'mongoose';
 
-const { MONGODB_URI = 'mongodb://localhost:27017/miniapp' } = process.env;
-
 export async function connectToDatabase() {
+  const { MONGODB_URI = 'mongodb://localhost:27017/miniapp' } = process.env;
   try {
     await mongoose.connect(MONGODB_URI, {
       autoIndex: true,
