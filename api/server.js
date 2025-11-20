@@ -20,25 +20,6 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Базовые маршруты
-app.get('/', (_req, res) => {
-  res.json({
-    message: 'API работает...',
-    endpoints: {
-      apiIndex: '/api',
-      categories: '/api/categories',
-      seasons: '/api/seasons',
-      ads: '/api/ads',
-      orders: '/api/orders',
-      favorites: '/api/favorites',
-      alerts: '/api/alerts',
-      notifications: '/api/notifications',
-      moderation: '/api/mod',
-      auth: '/auth/telegram',
-      health: '/health',
-    },
-  });
-});
-
 app.get('/api', (_req, res) => {
   res.json({
     message: 'KETMAR API',
@@ -78,12 +59,5 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/mod', moderationRoutes);
 app.use('/api/internal', internalNotificationsRoutes);
 app.use('/auth', authRoutes);
-
-// 404 обработчик
-app.use(notFoundHandler);
-
-// Логирование и финальный обработчик ошибок
-app.use(logErrors);
-app.use(errorHandler);
 
 module.exports = app;

@@ -64,6 +64,12 @@ async function start() {
       console.log('✅ Vite dev server настроен');
     }
     
+    // Error handlers должны быть в самом конце, после всех middleware
+    const { logErrors, notFoundHandler, errorHandler } = require('./api/middleware/errorHandlers.js');
+    app.use(notFoundHandler);
+    app.use(logErrors);
+    app.use(errorHandler);
+    
     // 3. Запуск Express API сервера
     console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
     const server = app.listen(PORT, '0.0.0.0', () => {
