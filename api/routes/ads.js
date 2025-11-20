@@ -5,6 +5,7 @@ const { buildAdQuery } = require('../../utils/queryBuilder');
 const { notifySubscribers } = require('../../services/notifications');
 const { findUsersToNotifyOnAdChange } = require('../../services/favoritesNotifications');
 const { sendPriceStatusChangeNotifications } = require('../../services/notificationSender');
+const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
 
@@ -801,10 +802,9 @@ router.patch('/:id/price', async (req, res, next) => {
     }
 
     const ad = await findAdOwnedBySeller(req.params.id, sellerId);
-    ad.price = newPrice;
-    await ad.save();
+    const updatedAd = await updateAdPrice(ad._id, newPrice);
 
-    return res.json({ item: ad });
+    return res.json({ item: updatedAd });
   } catch (error) {
     if (error.status) {
       return res.status(error.status).json({ message: error.message });
@@ -918,22 +918,14 @@ router.post('/bulk/update-status', async (req, res) => {
       return res.status(400).json({ error: 'Invalid status value' });
     }
 
-    const historyEntry = {
-      date: new Date(),
-      status,
-      moderationStatus: undefined,
-      comment: 'Bulk status update',
-    };
+    const ads = await Ad.find({ _id: { $in: adIds } });
+    let updated = 0;
 
-    const result = await Ad.updateMany(
-      { _id: { $in: adIds } },
-      {
-        $set: { status },
-        $push: { statusHistory: historyEntry },
-      }
-    );
+    for (const ad of ads) {
+      await updateAdStatus(ad._id, status);
+      updated += 1;
+    }
 
-    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
     console.log(`[BULK UPDATE] update-status — ${updated} ads updated`);
 
     return res.json({ updated, status });
@@ -985,22 +977,14 @@ router.post('/bulk/extend', async (req, res) => {
 router.post('/bulk/hide-expired', async (req, res) => {
   try {
     const now = new Date();
-    const historyEntry = {
-      date: now,
-      status: 'expired',
-      moderationStatus: undefined,
-      comment: 'Auto hide expired',
-    };
+    const expiringAds = await Ad.find({ status: 'active', validUntil: { $lt: now } });
+    let updated = 0;
 
-    const result = await Ad.updateMany(
-      { status: 'active', validUntil: { $lt: now } },
-      {
-        $set: { status: 'expired' },
-        $push: { statusHistory: historyEntry },
-      }
-    );
+    for (const ad of expiringAds) {
+      await updateAdStatus(ad._id, 'expired');
+      updated += 1;
+    }
 
-    const updated = result?.modifiedCount ?? result?.nModified ?? 0;
     console.log(`[BULK UPDATE] hide-expired — ${updated} ads updated`);
 
     return res.json({ updated, status: 'expired' });
@@ -1025,18 +1009,22 @@ router.post('/:id/hide', async (req, res, next) => {
 
     const ad = await findAdOwnedBySeller(req.params.id, sellerId);
 
+    let nextStatus = ad.status;
     if (hidden === false) {
       if (ad.status === 'hidden') {
-        ad.status = 'active';
+        nextStatus = 'active';
       }
     } else {
-      ad.status = 'hidden';
-      ad.isLiveSpot = false;
+      nextStatus = 'hidden';
     }
 
-    await ad.save();
+    const updatedAd = await updateAdStatus(ad._id, nextStatus);
+    if (nextStatus === 'hidden') {
+      updatedAd.isLiveSpot = false;
+      await updatedAd.save();
+    }
 
-    return res.json({ item: ad, hidden: ad.status === 'hidden' });
+    return res.json({ item: updatedAd, hidden: updatedAd.status === 'hidden' });
   } catch (error) {
     if (error.status) {
       return res.status(error.status).json({ message: error.message });
@@ -1220,18 +1208,13 @@ router.post('/:id/live-spot', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const ad = await Ad.findByIdAndUpdate(
-      id,
-      { status: 'archived' },
-      { new: true }
-    );
-
-    if (!ad) {
-      return res.status(404).json({ message: 'Объявление не найдено' });
-    }
+    const ad = await updateAdStatus(id, 'archived');
 
     res.json({ message: 'Объявление архивировано', ad });
   } catch (error) {
+    if (error.message === 'Ad not found') {
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
     next(error);
   }
 });
@@ -1248,31 +1231,21 @@ router.patch('/:id/status', async (req, res) => {
     }
 
     const adBefore = ad.toObject();
-    const historyEntry = {
-      date: new Date(),
-      status: status || ad.status,
-      moderationStatus: moderationStatus || ad.moderationStatus,
-      comment: comment || null,
-    };
+    let updatedAd = ad;
 
     if (status) {
-      ad.status = status;
+      updatedAd = await updateAdStatus(ad._id, status);
     }
 
     if (moderationStatus) {
-      ad.moderationStatus = moderationStatus;
+      updatedAd.moderationStatus = moderationStatus;
       if (moderationStatus === 'rejected' && comment) {
-        ad.moderationComment = comment;
+        updatedAd.moderationComment = comment;
       }
+      await updatedAd.save();
     }
 
-    if (!Array.isArray(ad.statusHistory)) {
-      ad.statusHistory = [];
-    }
-    ad.statusHistory.push(historyEntry);
-
-    await ad.save();
-    const adAfter = ad.toObject();
+    const adAfter = updatedAd.toObject();
 
     try {
       const notifications = await findUsersToNotifyOnAdChange(adBefore, adAfter);
@@ -1285,7 +1258,7 @@ router.patch('/:id/status', async (req, res) => {
 
     return res.json({
       message: 'Статус обновлён',
-      ad,
+      ad: updatedAd,
     });
   } catch (error) {
     return res.status(500).json({ error: 'Ошибка при обновлении статуса', details: error.message });

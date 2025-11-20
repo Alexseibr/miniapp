@@ -2,6 +2,24 @@ const mongoose = require('mongoose');
 const NotificationEvent = require('./NotificationEvent');
 const AdChange = require('./AdChange');
 
+const priceHistorySchema = new mongoose.Schema(
+  {
+    oldPrice: { type: Number, required: true },
+    newPrice: { type: Number, required: true },
+    changedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
+const statusHistorySchema = new mongoose.Schema(
+  {
+    oldStatus: { type: String, required: true },
+    newStatus: { type: String, required: true },
+    changedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const GeoPointSchema = new mongoose.Schema(
   {
     type: {
@@ -139,14 +157,11 @@ const adSchema = new mongoose.Schema(
       type: GeoPointSchema,
       default: undefined,
     },
-    statusHistory: [
-      {
-        date: { type: Date, default: Date.now },
-        status: { type: String },
-        moderationStatus: { type: String },
-        comment: { type: String },
-      },
-    ],
+    priceHistory: [priceHistorySchema],
+    statusHistory: [statusHistorySchema],
+    lastPriceChangeAt: { type: Date },
+    hasPriceChangeForNotifications: { type: Boolean, default: false },
+    hasStatusChangeForNotifications: { type: Boolean, default: false },
     location: LocationSchema,
     watchers: {
       type: [

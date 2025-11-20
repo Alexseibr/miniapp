@@ -1,26 +1,23 @@
+// models/Favorite.js
 const mongoose = require('mongoose');
 
 const favoriteSchema = new mongoose.Schema(
   {
-    userTelegramId: {
-      type: Number,
-      required: true,
-      index: true,
-    },
+    userTelegramId: { type: String, required: true, index: true },
     adId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'Ad',
       required: true,
+      index: true,
     },
-    lastKnownPrice: {
-      type: Number,
-    },
-    lastKnownStatus: {
-      type: String,
-    },
+
+    notifyOnPriceChange: { type: Boolean, default: true },
+    notifyOnStatusChange: { type: Boolean, default: true },
+
+    createdAt: { type: Date, default: Date.now },
   },
   {
-    timestamps: true,
+    timestamps: false,
   }
 );
 
