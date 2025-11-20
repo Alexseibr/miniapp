@@ -435,7 +435,6 @@ router.get('/search', async (req, res, next) => {
     if (hasGeo) {
       pipeline.push({
         $addFields: {
-          distance: { $ifNull: ['$distance', null] },
           distanceKm: {
             $cond: [{ $ifNull: ['$distance', false] }, { $divide: ['$distance', 1000] }, null],
           },
@@ -444,6 +443,14 @@ router.get('/search', async (req, res, next) => {
     }
 
     pipeline.push({ $sort: hasGeo ? { distance: 1, createdAt: -1 } : { createdAt: -1 } });
+
+    if (hasGeo) {
+      pipeline.push({
+        $project: {
+          distance: 0,
+        },
+      });
+    }
 
     pipeline.push({
       $facet: {
