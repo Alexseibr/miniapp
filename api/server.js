@@ -7,6 +7,7 @@ const ordersRoutes = require('./routes/orders.js');
 const favoritesRoutes = require('./routes/favorites.js');
 const moderationRoutes = require('./routes/moderation.js');
 const authRoutes = require('./routes/auth.js');
+const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
 
 const app = express();
 
@@ -43,9 +44,9 @@ app.use('/api/ads', adsSearchRoutes);
 app.use('/api/ads', adsRoutes);
 app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
-app.use('/api/orders', ordersRoutes);
-app.use('/api/favorites', favoritesRoutes);
-app.use('/api/mod', moderationRoutes);
+app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
+app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
+app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 app.use('/auth', authRoutes);
 
 // 404 обработчик

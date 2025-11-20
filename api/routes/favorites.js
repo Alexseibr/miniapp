@@ -12,6 +12,11 @@ function parseTelegramId(raw) {
   return id;
 }
 
+function getAuthenticatedTelegramId(req) {
+  const telegramId = req.telegramAuth?.user?.id || req.telegramUser?.id;
+  return parseTelegramId(telegramId);
+}
+
 async function getOrCreateUser(telegramId) {
   let user = await User.findOne({ telegramId });
   if (!user) {
@@ -98,11 +103,15 @@ async function ensureAd(adId) {
 
 router.post('/add', async (req, res) => {
   try {
-    const telegramId = parseTelegramId(req.body?.telegramId);
+    const telegramId = getAuthenticatedTelegramId(req);
     const adId = normalizeAdId(req.body?.adId);
 
-    if (!telegramId || !adId) {
-      return res.status(400).json({ error: 'telegramId and adId are required' });
+    if (!telegramId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!adId) {
+      return res.status(400).json({ error: 'adId is required' });
     }
 
     const ad = await ensureAd(adId);
@@ -148,11 +157,15 @@ router.post('/add', async (req, res) => {
 
 router.post('/remove', async (req, res) => {
   try {
-    const telegramId = parseTelegramId(req.body?.telegramId);
+    const telegramId = getAuthenticatedTelegramId(req);
     const adId = normalizeAdId(req.body?.adId);
 
-    if (!telegramId || !adId) {
-      return res.status(400).json({ error: 'telegramId and adId are required' });
+    if (!telegramId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (!adId) {
+      return res.status(400).json({ error: 'adId is required' });
     }
 
     const user = await User.findOne({ telegramId });
@@ -181,10 +194,15 @@ router.post('/remove', async (req, res) => {
 
 router.get('/:telegramId', async (req, res) => {
   try {
-    const telegramId = parseTelegramId(req.params.telegramId);
+    const telegramId = getAuthenticatedTelegramId(req);
+    const requestedTelegramId = parseTelegramId(req.params.telegramId);
 
     if (!telegramId) {
-      return res.status(400).json({ error: 'Invalid telegramId' });
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    if (requestedTelegramId && requestedTelegramId !== telegramId) {
+      return res.status(403).json({ error: 'Forbidden' });
     }
 
     const user = await User.findOne({ telegramId }).populate('favorites.adId');
