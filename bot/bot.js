@@ -500,18 +500,18 @@ bot.command('start', async (ctx) => {
 
   await ctx.reply(
     `👋 Привет, ${firstName}!\n\n` +
-    `Добро пожаловать в **KETMAR Market**! 🛍️${seasonText}\n\n` +
+    `Добро пожаловать в *KETMAR Market*! 🛍️${seasonText}\n\n` +
     `Доступные команды:\n` +
     `/sell - 🏪 Создать объявление\n` +
     `/my_ads - 📋 Мои объявления\n` +
     `/catalog - 📦 Каталог объявлений\n` +
     `/market - 🛒 Лента объявлений для покупателей\n` +
     `/fav_list - ⭐ Показать избранное\n` +
-    `/fav_add <id> - ➕ Добавить объявление\n` +
-    `/fav_remove <id> - 🗑 Удалить из избранного\n` +
+    `/fav_add ID - ➕ Добавить объявление\n` +
+    `/fav_remove ID - 🗑 Удалить из избранного\n` +
     `/season - 🌟 Сезонные предложения\n` +
     `/categories - 📂 Категории товаров\n` +
-    `/search <запрос> - 🔍 Поиск объявлений\n` +
+    `/search запрос - 🔍 Поиск объявлений\n` +
     `/my_orders - 📋 Мои заказы\n` +
     `/myid - 🆔 Узнать свой Telegram ID\n` +
     `/new_test_ad - ➕ Создать тестовое объявление` +
