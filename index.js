@@ -1,8 +1,9 @@
 const config = require('./config/config.js');
 const connectDB = require('./services/db.js');
 const app = require('./api/server.js');
-const bot = require('./bot/bot.js');
+const { bot } = require('./telegram/bot');
 const { checkFavoritesForChanges } = require('./notifications/watcher');
+const { startNotificationWorker } = require('./workers/notificationWorker');
 const path = require('path');
 const fs = require('fs');
 
@@ -165,6 +166,8 @@ async function start() {
 
     runFavoritesCheck();
     favoritesInterval = setInterval(runFavoritesCheck, 2 * 60 * 1000);
+
+    startNotificationWorker();
     
     // Регистрируем error handlers в самом конце, после всех middleware
     const { logErrors, notFoundHandler, errorHandler } = require('./api/middleware/errorHandlers.js');

@@ -1754,3 +1754,4 @@ bot.catch((err, ctx) => {
 bot.sendFavoriteUpdateNotification = sendFavoriteUpdateNotification;
 
 module.exports = bot;
+module.exports.bot = bot;
