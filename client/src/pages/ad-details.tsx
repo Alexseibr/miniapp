@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { useLocation, useRoute } from "wouter";
+import { useNavigate, useParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { Ad } from "@/types/ad";
 import { fetchWithAuth } from "@/lib/auth";
+import Loader from "@/components/Loader";
+import ErrorMessage from "@/components/ErrorMessage";
 
 export default function AdDetails() {
-  const [, params] = useRoute("/ads/:id");
-  const [, navigate] = useLocation();
-  const adId = params?.id;
+  const navigate = useNavigate();
+  const { id: adId } = useParams();
   const [ad, setAd] = useState<Ad | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -68,7 +69,7 @@ export default function AdDetails() {
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <p>Загрузка объявления...</p>
+        <Loader />
       </div>
     );
   }
@@ -76,7 +77,7 @@ export default function AdDetails() {
   if (!ad) {
     return (
       <div className="container mx-auto px-4 py-8">
-        <p>{error || "Объявление не найдено"}</p>
+        {error ? <ErrorMessage message={error} /> : <p>Объявление не найдено</p>}
       </div>
     );
   }

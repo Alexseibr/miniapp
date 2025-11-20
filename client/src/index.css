@@ -286,3 +286,126 @@
     inset: -1px;
   }
 }
+
+/* Базовый layout для SPA */
+.app-root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: hsl(var(--background));
+}
+
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid hsl(var(--border));
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+}
+
+.app-logo {
+  font-weight: 700;
+  font-size: 20px;
+  color: hsl(var(--foreground));
+}
+
+.app-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.app-nav__link {
+  color: hsl(var(--foreground));
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.app-nav__link:hover {
+  color: hsl(var(--primary));
+}
+
+.app-nav__link.muted {
+  color: hsl(var(--muted-foreground));
+}
+
+.app-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.app-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-user__info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.app-user__name {
+  font-weight: 600;
+}
+
+.app-user__meta {
+  color: hsl(var(--muted-foreground));
+  font-size: 12px;
+}
+
+.app-main {
+  flex: 1;
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.app-footer {
+  padding: 16px;
+  text-align: center;
+  border-top: 1px solid hsl(var(--border));
+  color: hsl(var(--muted-foreground));
+}
+
+.loader {
+  width: 100%;
+  text-align: center;
+  padding: 16px;
+  color: hsl(var(--muted-foreground));
+}
+
+.error-message {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #ffecec;
+  color: #a30000;
+  border: 1px solid rgba(163, 0, 0, 0.2);
+}
+
+.ads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 640px) {
+  .app-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .app-header__actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+}
