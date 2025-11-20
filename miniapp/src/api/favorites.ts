@@ -1,24 +1,5 @@
-import http from './http';
-import { FavoriteItem } from '@/types';
+import api from './axios';
 
-export async function fetchFavorites(telegramId: number) {
-  if (!telegramId) {
-    return { items: [], count: 0 };
-  }
-  const response = await http.get('/api/favorites/my', {
-    params: { telegramId },
-  });
-  return response.data as { items: FavoriteItem[]; count?: number };
-}
+export const toggleFavorite = (adId: string) => api.post('/favorites/toggle', { adId }).then((r) => r.data);
 
-export async function addFavorite(telegramId: number, adId: string) {
-  const response = await http.post('/api/favorites/add', { telegramId, adId });
-  return response.data as { ok: boolean; items: FavoriteItem[] };
-}
-
-export async function removeFavorite(telegramId: number, adId: string) {
-  const response = await http.delete(`/api/favorites/${adId}`, {
-    data: { telegramId },
-  });
-  return response.data as { ok: boolean; items: FavoriteItem[] };
-}
+export const getFavorites = () => api.get('/favorites/my').then((r) => r.data);

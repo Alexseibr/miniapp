@@ -1,58 +1,31 @@
-import http from './http';
-import { Ad, AdPreview, AdsResponse } from '@/types';
+import api from './axios';
 
-export interface ListAdsParams {
-  categoryId?: string;
-  subcategoryId?: string;
+export interface AdPayload {
+  title: string;
+  description: string;
+  price: number;
+  category: string;
+  subcategory?: string;
   seasonCode?: string;
-  q?: string;
-  search?: string;
-  sort?: string;
-  page?: number;
-  limit?: number;
-  lat?: number;
-  lng?: number;
-  radiusKm?: number;
-}
-
-export interface NearbyAdsParams {
+  photos?: string[];
   lat: number;
   lng: number;
-  radiusKm: number;
-  limit?: number;
 }
 
-export async function listAds(params: ListAdsParams = {}): Promise<AdsResponse> {
-  const response = await http.get('/api/ads', { params });
-  return response.data;
-}
+export const getAds = (filters: Record<string, string | number | undefined>) =>
+  api.get('/ads', { params: filters }).then((res) => res.data);
 
-export async function getAd(id: string): Promise<Ad> {
-  const response = await http.get(`/api/ads/${id}`);
-  return response.data;
-}
+export const getNearbyAds = (lat: number, lng: number, radius?: number) =>
+  api
+    .get('/ads/nearby', { params: { lat, lng, radiusKm: radius } })
+    .then((res) => res.data);
 
-export async function listNearbyAds(params: ListAdsParams): Promise<AdsResponse> {
-  const response = await http.get('/api/ads/nearby', { params });
-  return response.data;
-}
+export const getAdById = (id: string) => api.get(`/ads/${id}`).then((res) => res.data);
 
-export async function getNearbyAds(params: NearbyAdsParams): Promise<AdsResponse> {
-  const query = new URLSearchParams({
-    lat: String(params.lat),
-    lng: String(params.lng),
-    radiusKm: String(params.radiusKm),
-    ...(params.limit ? { limit: String(params.limit) } : {}),
-  });
+export const createAd = (payload: AdPayload) => api.post('/ads', payload).then((res) => res.data);
 
-  const response = await fetch(`/api/ads/nearby?${query.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch nearby ads');
-  }
-  return response.json();
-}
+export const updatePrice = (id: string, price: number) =>
+  api.put(`/ads/${id}/price`, { price }).then((res) => res.data);
 
-export async function listSeasonAds(code: string, params: Record<string, unknown> = {}) {
-  const response = await http.get(`/api/seasons/${code}/ads`, { params });
-  return response.data;
-}
+export const updateStatus = (id: string, status: string) =>
+  api.put(`/ads/${id}/status`, { status }).then((res) => res.data);

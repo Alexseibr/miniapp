@@ -1,14 +1,3 @@
-import http from './http';
+import api from './axios';
 
-export interface UpdateLocationPayload {
-  lat: number;
-  lng: number;
-}
-
-export async function updateUserLocation(payload: UpdateLocationPayload) {
-  try {
-    await http.post('/api/users/set-location', payload);
-  } catch (error) {
-    console.warn('set-location endpoint unavailable:', error);
-  }
-}
+export const getMe = () => api.get('/users/me').then((r) => r.data);
