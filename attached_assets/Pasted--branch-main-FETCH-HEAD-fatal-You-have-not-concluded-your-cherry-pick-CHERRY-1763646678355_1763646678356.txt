@@ -1,0 +1,83 @@
+* branch            main       -> FETCH_HEAD
+fatal: You have not concluded your cherry-pick (CHERRY_PICK_HEAD exists).
+Please, commit your changes before you merge.
+fe46f17 (HEAD -> main, origin/main, origin/HEAD) Merge pull request #106 from Alexseibr/codex/create-backend-module-for-telegram-miniapp
+3a49768 Add Telegram MiniApp auth middleware and routes
+40397ba Merge pull request #105 from Alexseibr/codex/implement-favorites-and-notifications-system
+24eb0d2 Add favorites notifications and telegram worker
+eabbea8 Merge pull request #104 from Alexseibr/codex/implement-geo-search-feature-in-miniapp
+total 24204
+drwxr-xr-x 1 runner runner     1056 Nov 20 13:39 .
+drwxrwxrwx 1 runner runner      260 Nov 20 05:25 ..
+drwxr-xr-x 1 runner runner       50 Nov 20 13:32 api
+drwxr-xr-x 1 runner runner     2806 Nov 20 13:32 attached_assets
+drwxr-xr-x 1 runner runner       70 Nov 20 13:32 bot
+-rwxr-xr-x 1 runner runner      462 Nov 20 09:34 build.sh
+drwxr-xr-x 1 runner runner       60 Nov 19 12:16 .cache
+drwxr-xr-x 1 runner runner       38 Nov 20 05:22 client
+-rw-r--r-- 1 runner runner      459 Nov 20 05:22 components.json
+drwxr-xr-x 1 runner runner        6 Nov 19 14:00 .config
+drwxr-xr-x 1 runner runner       18 Nov 20 13:32 config
+-rw-r--r-- 1 runner runner     5114 Nov 20 05:22 design_guidelines.md
+drwxr-xr-x 1 runner runner      194 Nov 20 13:32 docs
+-rw-r--r-- 1 runner runner      325 Nov 20 05:22 drizzle.config.ts
+-rw-r--r-- 1 runner runner      124 Nov 20 13:32 .env.example
+drwxr-xr-x 1 runner runner      272 Nov 20 13:50 .git
+drwxr-xr-x 1 runner runner       18 Nov 20 12:00 .github
+-rw-r--r-- 1 runner runner       53 Nov 20 13:32 .gitignore
+-rw-r--r-- 1 runner runner     8807 Nov 20 12:00 index.js
+-rw-r--r-- 1 runner runner      660 Nov 20 13:32 index.new.js
+-rw-r--r-- 1 runner runner 24216365 Nov 20 09:34 ketmar-market-backup.tar.gz
+drwxr-xr-x 1 runner runner       10 Nov 18 20:21 .local
+drwxr-xr-x 1 runner runner       26 Nov 20 05:22 logs
+drwxr-xr-x 1 runner runner      126 Nov 20 13:32 middleware
+drwxr-xr-x 1 runner runner      128 Nov 20 13:32 miniapp
+drwxr-xr-x 1 runner runner      300 Nov 20 13:32 models
+drwxr-xr-x 1 runner runner    11722 Nov 20 13:32 node_modules
+drwxr-xr-x 1 runner runner       20 Nov 20 13:02 notifications
+-rw-r--r-- 1 runner runner     4069 Nov 20 13:32 package.json
+-rw-r--r-- 1 runner runner   401685 Nov 20 13:32 package-lock.json
+-rw-r--r-- 1 runner runner       80 Nov 20 13:32 postcss.config.js
+-rw-r--r-- 1 runner runner     4115 Nov 20 05:22 PROJECT_STATUS.md
+-rw-r--r-- 1 runner runner    10723 Nov 20 13:32 README.md
+-rw-r--r-- 1 runner runner     1030 Nov 20 13:39 .replit
+-rw-r--r-- 1 runner runner     8096 Nov 20 05:22 replit.md
+drwxr-xr-x 1 runner runner       88 Nov 20 12:00 routes
+drwxr-xr-x 1 runner runner      142 Nov 20 13:32 scripts
+drwxr-xr-x 1 runner runner       78 Nov 20 13:32 server
+drwxr-xr-x 1 runner runner      286 Nov 20 13:02 services
+-rw-r--r-- 1 runner runner     4281 Nov 20 05:22 SETUP_COMPLETE.md
+drwxr-xr-x 1 runner runner       18 Nov 20 13:32 shared
+-rwxr-xr-x 1 runner runner       88 Nov 20 13:32 start-dev.sh
+-rwxr-xr-x 1 runner runner       97 Nov 20 05:22 start.sh
+-rw-r--r-- 1 runner runner     4050 Nov 20 13:32 tailwind.config.ts
+drwxr-xr-x 1 runner runner       28 Nov 20 13:02 telegram
+-rw-r--r-- 1 runner runner     4764 Nov 20 05:22 TELEGRAM_BOT_GUIDE.md
+-rw-r--r-- 1 runner runner     1950 Nov 20 05:22 test-mongo.js
+-rw-r--r-- 1 runner runner      696 Nov 20 05:22 tsconfig.json
+drwxr-xr-x 1 runner runner       20 Nov 20 12:54 .upm
+drwxr-xr-x 1 runner runner       76 Nov 20 13:32 utils
+-rw-r--r-- 1 runner runner      569 Nov 20 09:34 vite.config.prod.ts
+-rw-r--r-- 1 runner runner     1080 Nov 20 05:22 vite.config.ts
+drwxr-xr-x 1 runner runner       42 Nov 20 12:00 workers
+{
+  "name": "rest-express",
+  "version": "1.0.0",
+  "license": "MIT",
+  "scripts": {
+    "dev": "PORT=5000 node index.js",
+    "build": "vite build && esbuild server/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
+    "start": "node index.js",
+    "check": "tsc",
+    "db:push": "drizzle-kit push",
+    "marketplace": "PORT=5000 node index.js",
+    "seed": "node scripts/seedCategories.js",
+    "check:favorites": "node scripts/checkFavoritesChanges.js",
+    "process:notifications": "node scripts/processNotifications.js"
+  },
+  "dependencies": {
+    "@hookform/resolvers": "^3.10.0",
+    "@jridgewell/trace-mapping": "^0.3.25",
+    "@neondatabase/serverless": "^0.10.4",
+    "@radix-ui/react-accordion": "^1.2.4",
+~/workspace$ 
