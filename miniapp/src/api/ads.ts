@@ -15,6 +15,13 @@ export interface ListAdsParams {
   radiusKm?: number;
 }
 
+export interface NearbyAdsParams {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  limit?: number;
+}
+
 export async function listAds(params: ListAdsParams = {}): Promise<AdsResponse> {
   const response = await http.get('/api/ads', { params });
   return response.data;
@@ -28,6 +35,21 @@ export async function getAd(id: string): Promise<Ad> {
 export async function listNearbyAds(params: ListAdsParams): Promise<AdsResponse> {
   const response = await http.get('/api/ads/nearby', { params });
   return response.data;
+}
+
+export async function getNearbyAds(params: NearbyAdsParams): Promise<AdsResponse> {
+  const query = new URLSearchParams({
+    lat: String(params.lat),
+    lng: String(params.lng),
+    radiusKm: String(params.radiusKm),
+    ...(params.limit ? { limit: String(params.limit) } : {}),
+  });
+
+  const response = await fetch(`/api/ads/nearby?${query.toString()}`);
+  if (!response.ok) {
+    throw new Error('Failed to fetch nearby ads');
+  }
+  return response.json();
 }
 
 export async function listSeasonAds(code: string, params: Record<string, unknown> = {}) {
