@@ -6,11 +6,14 @@ import type { Ad } from "@/types/ad";
 import { fetchWithAuth } from "@/lib/auth";
 import Loader from "@/components/Loader";
 import ErrorMessage from "@/components/ErrorMessage";
+import { useAuth } from "@/features/auth/AuthContext";
 
 export default function AdDetails() {
   const navigate = useNavigate();
   const { id: adId } = useParams();
+  const { currentUser } = useAuth();
   const [ad, setAd] = useState<Ad | null>(null);
+  const [ownerId, setOwnerId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isStartingChat, setIsStartingChat] = useState(false);
@@ -27,7 +30,11 @@ export default function AdDetails() {
           throw new Error("Не удалось загрузить объявление");
         }
         const data = await response.json();
-        setAd(data);
+        const adData = data?.ad || data;
+        setAd(adData);
+        setOwnerId(
+          data?.owner?._id || data?.owner?.id || adData?.owner?._id || adData?.owner?.id || adData?.owner || null,
+        );
       } catch (err) {
         console.error(err);
         setError((err as Error).message || "Ошибка загрузки объявления");
@@ -41,11 +48,15 @@ export default function AdDetails() {
 
   const startChat = async () => {
     if (!adId) return;
+    if (!currentUser) {
+      navigate("/login");
+      return;
+    }
     setIsStartingChat(true);
     setError(null);
 
     try {
-      const response = await fetchWithAuth(`/api/chat/conversations`, {
+      const response = await fetchWithAuth(`/api/chat/start`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adId }),
@@ -83,6 +94,8 @@ export default function AdDetails() {
   }
 
   const preview = ad.images?.[0] || ad.photos?.[0];
+  const isOwner = ownerId && currentUser ? ownerId.toString() === (currentUser._id || currentUser.id) : false;
+  const canStartChat = currentUser && !isOwner;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -106,11 +119,13 @@ export default function AdDetails() {
               </p>
             )}
 
-            <div className="flex flex-wrap gap-3">
-              <Button onClick={startChat} disabled={isStartingChat}>
-                {isStartingChat ? "Открываем чат..." : "Написать продавцу"}
-              </Button>
-            </div>
+            {canStartChat && (
+              <div className="flex flex-wrap gap-3">
+                <Button onClick={startChat} disabled={isStartingChat}>
+                  {isStartingChat ? "Открываем чат..." : "Написать продавцу"}
+                </Button>
+              </div>
+            )}
 
             {error && <p className="text-sm text-red-600">{error}</p>}
           </CardContent>
