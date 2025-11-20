@@ -2,7 +2,9 @@
 
 ## Overview
 
-KETMAR Market is a Telegram-based marketplace application for buying and selling goods, with support for seasonal promotions and hierarchical product categories. The system combines a REST API backend built with Express.js and MongoDB, alongside a Telegram bot interface powered by Telegraf for user interactions. The application includes a web admin panel built with React, Vite, and shadcn/ui components for marketplace management.
+KETMAR Market is a Telegram-based marketplace application for buying and selling goods, with support for seasonal promotions and hierarchical product categories. The system combines a REST API backend built with Express.js and MongoDB, alongside a Telegram bot interface powered by Telegraf for user interactions. The application includes two web frontends:
+1. **Client App** (React + Vite): Admin panel for marketplace management (/)
+2. **MiniApp** (React + Vite): Telegram MiniApp for mobile users (/miniapp)
 
 ## User Preferences
 
@@ -13,6 +15,13 @@ Preferred communication style: Simple, everyday language.
 ### Backend Architecture
 
 **Framework**: Node.js with Express.js (CommonJS modules)
+
+**Recent Architectural Changes** (November 2025):
+- Implemented dual Vite server setup to support both Client App and MiniApp simultaneously
+- **Dev Mode**: Two separate Vite instances (clientVite, miniappVite) with different roots
+- **Production Mode**: Static serving from miniapp/dist and dist/public
+- MiniApp accessible at /miniapp with React Router basename configured
+- Middleware order: Telegram webhook → MiniApp handler → MiniApp assets → Client assets
 
 The backend follows a modular architecture with clear separation of concerns:
 
