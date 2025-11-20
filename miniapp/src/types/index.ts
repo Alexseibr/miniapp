@@ -76,6 +76,11 @@ export interface Ad extends AdPreview {
   updatedAt?: string;
 }
 
+export interface NearbyAd extends AdPreview {
+  distanceMeters?: number;
+  distanceKm?: number;
+}
+
 export interface FavoriteItem {
   adId: string;
   ad?: AdPreview;

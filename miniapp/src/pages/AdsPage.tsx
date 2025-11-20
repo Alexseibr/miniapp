@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { listAds, getNearbyAds } from '@/api/ads';
+import { listAds } from '@/api/ads';
+import { NearbyAdsButton } from '@/components/NearbyAdsButton';
 import { useFavorites } from '@/features/favorites/useFavorites';
 import { AdPreview, AdsResponse } from '@/types';
 
@@ -32,10 +33,6 @@ export default function AdsPage() {
   const [state, setState] = useState<RequestState>('idle');
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdPreview | null>(null);
-  const [geoRadius, setGeoRadius] = useState(5);
-  const [geoMessage, setGeoMessage] = useState('Поиск по геопозиции выключен.');
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [geoLoading, setGeoLoading] = useState(false);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const { favorites, isFavorite, toggleFavorite } = useFavorites();
 
@@ -51,8 +48,6 @@ export default function AdsPage() {
   const loadAds = async () => {
     setState('loading');
     setError(null);
-    setGeoMessage('Поиск по геопозиции выключен.');
-    setGeoError(null);
     try {
       const params: Record<string, string> = {};
       if (category) params.categoryId = category;
@@ -80,44 +75,6 @@ export default function AdsPage() {
     return list;
   }, [ads, showFavoritesOnly, favorites, isFavorite]);
 
-  const handleNearbySearch = async () => {
-    if (!navigator.geolocation) {
-      setGeoError('Не удалось получить геопозицию. Разрешите доступ к геолокации в браузере.');
-      return;
-    }
-    setGeoError(null);
-    setGeoLoading(true);
-    setState('loading');
-    navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const response = await getNearbyAds({
-            lat: coords.latitude,
-            lng: coords.longitude,
-            radiusKm: geoRadius,
-            limit: 50,
-          });
-          setAds(response.items || []);
-          setGeoMessage(`Показаны объявления в радиусе ${geoRadius} км от вашей геопозиции.`);
-          setState('success');
-        } catch (err) {
-          console.error('nearby search failed', err);
-          setError('Не удалось загрузить объявления рядом, попробуйте снова.');
-          setState('error');
-        } finally {
-          setGeoLoading(false);
-        }
-      },
-      (positionError) => {
-        console.error('geolocation error', positionError);
-        setGeoError('Не удалось получить геопозицию. Разрешите доступ к геолокации в браузере.');
-        setGeoLoading(false);
-        setState('idle');
-      },
-      { enableHighAccuracy: true, timeout: 8000 },
-    );
-  };
-
   return (
     <div className="page-grid">
       <section className="card">
@@ -129,27 +86,22 @@ export default function AdsPage() {
               {filters || 'Все объявления'}
             </p>
           </div>
-          <button type="button" className="secondary" onClick={loadAds} disabled={state === 'loading' || geoLoading}>
-            {state === 'loading' || geoLoading ? 'Обновляем…' : 'Обновить'}
+          <button type="button" className="secondary" onClick={loadAds} disabled={state === 'loading'}>
+            {state === 'loading' ? 'Обновляем…' : 'Обновить'}
           </button>
         </div>
 
+        <NearbyAdsButton
+          categoryId={category || undefined}
+          subcategoryId={subcategory || undefined}
+          radiusKm={5}
+        />
+
         <div className="card card--sub" style={{ marginBottom: 16 }}>
           <div className="ad-card__header" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-              <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                <span className="eyebrow">Радиус поиска</span>
-                <select value={geoRadius} onChange={(event) => setGeoRadius(Number(event.target.value))}>
-                  {[1, 3, 5, 10, 25].map((radius) => (
-                    <option key={radius} value={radius}>
-                      {radius} км
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" className="primary" onClick={handleNearbySearch} disabled={geoLoading}>
-                {geoLoading ? 'Поиск…' : 'Показать рядом со мной'}
-              </button>
+            <div>
+              <p className="eyebrow">Фильтрация</p>
+              <p className="muted">Отобразить только избранные объявления</p>
             </div>
             <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
@@ -160,14 +112,6 @@ export default function AdsPage() {
               Показывать только избранное
             </label>
           </div>
-          <p className="muted" style={{ marginTop: 8 }}>
-            {geoMessage}
-          </p>
-          {geoError && (
-            <div className="error-box" style={{ marginTop: 8 }}>
-              <p className="error-box__body">{geoError}</p>
-            </div>
-          )}
           {showFavoritesOnly && !favorites.length && (
             <p className="muted" style={{ marginTop: 8 }}>
               Избранных объявлений пока нет. Нажмите на сердечко в карточке, чтобы добавить объявление.

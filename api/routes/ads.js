@@ -8,6 +8,7 @@ const { sendPriceStatusChangeNotifications } = require('../../services/notificat
 const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
+const { getNearbyAds } = require('../controllers/adController');
 
 const router = Router();
 
@@ -38,6 +39,8 @@ const CATEGORY_LIFETIME_RULES = {
 };
 
 const DEFAULT_EXTENSION_DAYS = 7;
+
+router.get('/nearby', getNearbyAds);
 
 function normalizeSeasonCode(code) {
   if (typeof code !== 'string') {
