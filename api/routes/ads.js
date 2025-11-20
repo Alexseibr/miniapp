@@ -4,6 +4,7 @@ const { haversineDistanceKm } = require('../../utils/distance');
 const { buildAdQuery } = require('../../utils/queryBuilder');
 const { notifySubscribers } = require('../../services/notifications');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
+const User = require('../../models/User');
 
 const router = Router();
 
@@ -57,6 +58,26 @@ function getSellerIdFromRequest(req) {
     parseSellerId(req?.body?.sellerTelegramId) ||
     parseSellerId(req?.query?.sellerTelegramId)
   );
+}
+
+function getModeratorTelegramId(req) {
+  return (
+    parseSellerId(req?.body?.telegramId) ||
+    parseSellerId(req?.query?.telegramId) ||
+    parseSellerId(req?.headers?.['x-telegram-id'])
+  );
+}
+
+async function isModerator(req) {
+  const telegramId = getModeratorTelegramId(req);
+
+  if (!telegramId) {
+    return false;
+  }
+
+  const user = await User.findOne({ telegramId });
+
+  return Boolean(user && (user.isModerator || user.role === 'moderator' || user.role === 'admin'));
 }
 
 async function findAdOwnedBySeller(adId, sellerId) {
@@ -818,10 +839,22 @@ router.patch('/:id/status', async (req, res) => {
   try {
     const { id } = req.params;
     const { status, moderationStatus, comment } = req.body || {};
+    const sellerId = getSellerIdFromRequest(req);
+    const moderator = await isModerator(req);
 
-    const ad = await Ad.findById(id);
+    if (!moderator && !sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+
+    const ad = moderator ? await Ad.findById(id) : await findAdOwnedBySeller(id, sellerId);
     if (!ad) {
       return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+
+    if (!moderator && moderationStatus) {
+      return res
+        .status(403)
+        .json({ error: 'Недостаточно прав для обновления статуса модерации объявления' });
     }
 
     const historyEntry = {
@@ -854,7 +887,13 @@ router.patch('/:id/status', async (req, res) => {
       ad,
     });
   } catch (error) {
-    return res.status(500).json({ error: 'Ошибка при обновлении статуса', details: error.message });
+    if (error.status) {
+      return res.status(error.status).json({ error: error.message });
+    }
+
+    return res
+      .status(500)
+      .json({ error: 'Ошибка при обновлении статуса', details: error.message });
   }
 });
 
