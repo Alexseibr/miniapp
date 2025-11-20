@@ -99,8 +99,12 @@ router.get('/', async (req, res, next) => {
     }
 
     if (q) {
-      const regex = new RegExp(q, 'i');
-      query.$or = [{ title: regex }, { description: regex }];
+      try {
+        const regex = new RegExp(q, 'i');
+        query.$or = [{ title: regex }, { description: regex }];
+      } catch (err) {
+        return res.status(400).json({ error: 'Invalid search query' });
+      }
     }
 
     if (minPrice !== undefined) {
