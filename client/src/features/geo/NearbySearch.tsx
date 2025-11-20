@@ -230,10 +230,10 @@ export function NearbySearch() {
                     </div>
                   </div>
 
-                  {ad.location && ad.location.lat && ad.location.lng && (
+                  {ad.location?.coordinates && ad.location.coordinates.length === 2 && (
                     <p className="text-xs text-muted-foreground">
-                      Координаты объявления: {ad.location.lat.toFixed(4)}, {" "}
-                      {ad.location.lng.toFixed(4)}
+                      Координаты объявления: {ad.location.coordinates[1].toFixed(4)}, {" "}
+                      {ad.location.coordinates[0].toFixed(4)}
                     </p>
                   )}
 

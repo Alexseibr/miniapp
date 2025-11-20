@@ -3,19 +3,31 @@ import Ad from '../models/Ad';
 
 export const getNearby = async (req: Request, res: Response) => {
   try {
-    const { lat, lng, radiusKm = 10, category, subcategory, seasonCode } = req.query;
+    const { lat, lng, radiusKm = 10, category, subcategory, seasonCode, priceFrom, priceTo } = req.query;
 
-    if (!lat || !lng) {
+    if (lat === undefined || lng === undefined) {
       return res.status(400).json({ message: 'lat and lng are required' });
     }
 
-    const distanceMeters = Number(radiusKm) * 1000;
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ message: 'lat and lng must be numbers' });
+    }
+
+    const radiusNumber = Number(radiusKm);
+    const normalizedRadiusKm = Number.isFinite(radiusNumber) ? radiusNumber : 10;
+    const finalRadiusKm = Math.min(Math.max(normalizedRadiusKm, 1), 100);
+    const distanceMeters = finalRadiusKm * 1000;
+
     const query: Record<string, unknown> = {
-      geo: {
+      status: 'active',
+      location: {
         $near: {
           $geometry: {
             type: 'Point',
-            coordinates: [Number(lng), Number(lat)],
+            coordinates: [lngNumber, latNumber],
           },
           $maxDistance: distanceMeters,
         },
@@ -26,7 +38,13 @@ export const getNearby = async (req: Request, res: Response) => {
     if (subcategory) query.subcategory = subcategory;
     if (seasonCode) query.seasonCode = seasonCode;
 
-    const ads = await Ad.find(query).sort({ createdAt: -1 });
+    if (priceFrom || priceTo) {
+      query.price = {};
+      if (priceFrom) (query.price as Record<string, number>).$gte = Number(priceFrom);
+      if (priceTo) (query.price as Record<string, number>).$lte = Number(priceTo);
+    }
+
+    const ads = await Ad.find(query).sort({ createdAt: -1 }).limit(100);
     return res.json(ads);
   } catch (error) {
     return res.status(500).json({ message: 'Failed to fetch nearby ads', error });

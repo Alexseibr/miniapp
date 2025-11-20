@@ -38,7 +38,7 @@ function isPlainObject(value) {
   return value && typeof value === 'object' && !Array.isArray(value);
 }
 
-function parsePositiveNumber(value) {
+  function parsePositiveNumber(value) {
   const numberValue = Number(value);
   if (!Number.isFinite(numberValue) || numberValue <= 0) {
     return null;
@@ -144,17 +144,27 @@ async function validateCreateAd(req, res, next) {
       attributes = { ...payload.attributes };
     }
 
+    const rawLat = payload.lat ?? payload.latitude ?? payload.location?.lat;
+    const rawLng = payload.lng ?? payload.longitude ?? payload.location?.lng;
+    const address = normalizeString(payload.address || payload.location?.address);
+
     let location = undefined;
-    if (payload.location != null) {
-      if (!isPlainObject(payload.location)) {
-        return res.status(400).json({ error: 'location должен быть объектом' });
+    const hasLat = rawLat !== undefined && rawLat !== null && rawLat !== '';
+    const hasLng = rawLng !== undefined && rawLng !== null && rawLng !== '';
+
+    if (hasLat || hasLng) {
+      const latNumber = Number(rawLat);
+      const lngNumber = Number(rawLng);
+
+      if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+        return res.status(400).json({ error: 'lat и lng должны быть валидными числами' });
       }
-      const lat = Number(payload.location.lat);
-      const lng = Number(payload.location.lng);
-      if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        return res.status(400).json({ error: 'location.lat и location.lng обязательны' });
-      }
-      location = { lat, lng };
+
+      location = {
+        type: 'Point',
+        coordinates: [lngNumber, latNumber],
+        ...(address ? { address } : {}),
+      };
     }
 
     const incomingPhotos = Array.isArray(payload.photos)
