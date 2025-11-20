@@ -27,6 +27,19 @@ const userSchema = new mongoose.Schema(
       unique: true,
       index: true,
     },
+    name: {
+      type: String,
+      trim: true,
+    },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+    },
+    avatar: {
+      type: String,
+      trim: true,
+    },
     favoritesCount: {
       type: Number,
       default: 0,

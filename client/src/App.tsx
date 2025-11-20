@@ -10,6 +10,7 @@ import Products from "@/pages/products-simple";
 import Categories from "@/pages/categories-simple";
 import NearbyPage from "@/pages/nearby";
 import FavoritesRoute from "@/pages/favorites";
+import AccountPage from "@/pages/account";
 import NotFound from "@/pages/not-found";
 import AdCreate from "@/pages/ad-create";
 import AdDetails from "@/pages/ad-details";
@@ -23,6 +24,7 @@ function Router() {
       <Route path="/ads" component={AdsList} />
       <Route path="/ads/new" component={AdCreate} />
       <Route path="/ads/:id" component={AdDetails} />
+      <Route path="/account" component={AccountPage} />
       <Route path="/chat/:conversationId" component={ChatPage} />
       <Route path="/dashboard" component={Dashboard} />
       <Route path="/products" component={Products} />

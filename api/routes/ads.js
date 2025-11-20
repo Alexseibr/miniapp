@@ -8,6 +8,8 @@ const { sendPriceStatusChangeNotifications } = require('../../services/notificat
 const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
+const { telegramInitDataMiddleware } = require('../../middleware/telegramAuth');
+const requireAuth = require('../../middleware/requireAuth');
 
 const router = Router();
 
@@ -586,6 +588,22 @@ router.get('/nearby', async (req, res, next) => {
     itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
 
     return res.json({ items: itemsWithinRadius.slice(0, finalLimit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/my', telegramInitDataMiddleware, requireAuth, async (req, res, next) => {
+  try {
+    const telegramId = req.currentUser.telegramId;
+
+    if (!telegramId) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+
+    const ads = await Ad.find({ sellerTelegramId: telegramId }).sort({ createdAt: -1 });
+
+    return res.json(ads);
   } catch (error) {
     next(error);
   }

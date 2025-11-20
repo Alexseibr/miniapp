@@ -9,10 +9,14 @@ export type Ad = {
   title: string;
   description?: string;
   price?: number;
+  currency?: string;
   category?: string;
   subcategory?: string;
   images?: string[];
   photos?: string[];
   sellerTelegramId?: number;
   location?: AdLocation;
+  status?: string;
+  createdAt?: string;
+  updatedAt?: string;
 };
