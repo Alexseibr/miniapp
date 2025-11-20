@@ -22,14 +22,8 @@ function escapeMarkdown(text = '') {
 }
 
 async function fetchAdDetails(adId) {
-  const response = await fetch(`${API_URL}/api/ads/${adId}`);
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.message || 'Не удалось загрузить объявление');
-  }
-
-  return response.json();
+  const { data } = await axios.get(`${API_URL}/api/ads/${adId}`);
+  return data;
 }
 
 function formatAdDetails(ad) {
@@ -439,11 +433,8 @@ async function handleManageFlowInput(ctx, text) {
 // Хелпер для получения активных сезонов
 async function getActiveSeason() {
   try {
-    const response = await fetch(`${API_URL}/api/seasons/active`);
-    if (response.ok) {
-      const seasons = await response.json();
-      return seasons.length > 0 ? seasons[0] : null;
-    }
+    const { data } = await axios.get(`${API_URL}/api/seasons/active`);
+    return data.length > 0 ? data[0] : null;
   } catch (error) {
     console.error('Ошибка получения активного сезона:', error);
   }
@@ -500,13 +491,7 @@ bot.command('myid', async (ctx) => {
 // /categories - показать категории (дерево)
 bot.command('categories', async (ctx) => {
   try {
-    const response = await fetch(`${API_URL}/api/categories`);
-
-    if (!response.ok) {
-      throw new Error('Ошибка получения категорий');
-    }
-
-    const categories = await response.json();
+    const { data: categories } = await axios.get(`${API_URL}/api/categories`);
 
     if (categories.length === 0) {
       return ctx.reply('📂 Категории пока не добавлены.\n\nВыполните `npm run seed` для заполнения базы данных.');
@@ -856,13 +841,9 @@ bot.command('season', async (ctx) => {
       return ctx.reply('🌟 Сейчас нет активных сезонов.\n\nСледите за обновлениями!');
     }
     
-    const response = await fetch(`${API_URL}/api/ads?seasonCode=${activeSeason.code}&limit=10`);
-    
-    if (!response.ok) {
-      throw new Error('Ошибка получения сезонных объявлений');
-    }
-    
-    const data = await response.json();
+    const { data } = await axios.get(`${API_URL}/api/ads`, {
+      params: { seasonCode: activeSeason.code, limit: 10 },
+    });
     const ads = data.items || [];
     
     if (ads.length === 0) {
@@ -917,13 +898,7 @@ bot.command('season', async (ctx) => {
 // /catalog - показать каталог объявлений
 bot.command('catalog', async (ctx) => {
   try {
-    const response = await fetch(`${API_URL}/api/ads?limit=10`);
-    
-    if (!response.ok) {
-      throw new Error('Ошибка получения объявлений');
-    }
-    
-    const data = await response.json();
+    const { data } = await axios.get(`${API_URL}/api/ads`, { params: { limit: 10 } });
     const ads = data.items || [];
     
     if (ads.length === 0) {
@@ -990,13 +965,7 @@ bot.command('search', async (ctx) => {
   
   try {
     // Поиск по заголовку и описанию
-    const response = await fetch(`${API_URL}/api/ads?limit=50`);
-    
-    if (!response.ok) {
-      throw new Error('Ошибка поиска');
-    }
-    
-    const data = await response.json();
+    const { data } = await axios.get(`${API_URL}/api/ads`, { params: { limit: 50 } });
     const allAds = data.items || [];
     
     // Фильтрация на стороне бота (в будущем можно добавить в API)
@@ -1042,13 +1011,7 @@ bot.command('search', async (ctx) => {
 bot.command('myorders', async (ctx) => {
   try {
     const telegramId = ctx.from.id;
-    const response = await fetch(`${API_URL}/api/orders/${telegramId}`);
-    
-    if (!response.ok) {
-      throw new Error('Ошибка получения заказов');
-    }
-    
-    const orders = await response.json();
+    const { data: orders } = await axios.get(`${API_URL}/api/orders/${telegramId}`);
     
     if (orders.length === 0) {
       return ctx.reply('📋 У вас пока нет заказов.');
@@ -1112,18 +1075,7 @@ bot.command('new_test_ad', async (ctx) => {
       seasonCode: activeSeason ? activeSeason.code : null,
     };
     
-    const response = await fetch(`${API_URL}/api/ads`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(testAd),
-    });
-    
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Ошибка создания объявления');
-    }
-    
-    const createdAd = await response.json();
+    const { data: createdAd } = await axios.post(`${API_URL}/api/ads`, testAd);
     
     const seasonBadge = createdAd.seasonCode ? ` 🌟\n🌟 Сезон: ${createdAd.seasonCode}` : '';
     const message = 
@@ -1582,18 +1534,7 @@ bot.on("text", async (ctx) => {
 
       try {
         await ctx.reply("⏳ Создаю заказ...");
-        const response = await fetch(`${API_BASE_URL}/api/orders`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
-        });
-
-        if (!response.ok) {
-          const error = await response.json().catch(() => ({}));
-          throw new Error(error.message || "Не удалось создать заказ");
-        }
-
-        const order = await response.json();
+        const { data: order } = await axios.post(`${API_BASE_URL}/api/orders`, payload);
         const item = order.items[0];
         const currency = item?.currency || "BYN";
 
