@@ -86,7 +86,7 @@ export default function Categories() {
     setFormData({
       name: category.name,
       description: category.description || "",
-      icon: category.icon,
+      icon: category.icon || "📦",
     });
     setIsFormOpen(true);
   };

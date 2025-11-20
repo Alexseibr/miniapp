@@ -45,8 +45,8 @@ export const useUserStore = create<UserState>((set, get) => ({
       return;
     }
     try {
-      const response = await fetchFavorites(telegramId);
-      set({ favorites: response.items || [] });
+      const response = await fetchFavorites();
+      set({ favorites: response.items || response });
     } catch (error) {
       console.error('favorites fetch error', error);
     }
@@ -57,9 +57,9 @@ export const useUserStore = create<UserState>((set, get) => ({
       throw new Error('Для добавления в избранное нужно авторизоваться');
     }
     if (isFavorite) {
-      await removeFavorite(telegramId, adId);
+      await removeFavorite(adId);
     } else {
-      await addFavorite(telegramId, adId);
+      await addFavorite(adId);
     }
     await get().refreshFavorites();
   },

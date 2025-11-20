@@ -89,14 +89,14 @@ export default function AdsPage() {
     setGeoLoading(true);
     setState('loading');
     navigator.geolocation.getCurrentPosition(
-      async ({ coords }) => {
-        try {
-          const response = await getNearbyAds({
-            lat: coords.latitude,
-            lng: coords.longitude,
-            radiusKm: geoRadius,
-            limit: 50,
-          });
+        async ({ coords }) => {
+          try {
+            const response = await getNearbyAds({
+              lat: coords.latitude,
+              lng: coords.longitude,
+              radius: geoRadius,
+              limit: 50,
+            });
           setAds(response.items || []);
           setGeoMessage(`Показаны объявления в радиусе ${geoRadius} км от вашей геопозиции.`);
           setState('success');

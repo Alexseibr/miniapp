@@ -1,53 +1,16 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { AUTH_TOKEN_KEY } from "@/lib/auth";
 import { useAuth } from "@/features/auth/AuthContext";
 
 export default function Header() {
   const navigate = useNavigate();
-  const [currentUser, setCurrentUser] = useState<UserWithRole | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [authToken, setAuthToken] = useState<string | null>(() => getAuthToken());
-  const hasToken = Boolean(authToken);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      setAuthToken(getAuthToken());
-    };
-
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
-
-  useEffect(() => {
-    if (!hasToken) {
-      setCurrentUser(null);
-      return;
-    }
-
-    const loadUser = async () => {
-      setIsLoading(true);
-      try {
-        const response = await fetchWithAuth("/api/users/me");
-        if (!response.ok) {
-          throw new Error(AUTH_HEADER_MESSAGE);
-        }
-        const data = await response.json();
-        setCurrentUser(data);
-      } catch (error) {
-        console.error(error);
-        setCurrentUser(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    void loadUser();
-  }, [hasToken]);
+  const { currentUser, isLoading, token, logout } = useAuth();
+  const hasToken = Boolean(token);
 
   const handleLogout = () => {
     localStorage.removeItem(AUTH_TOKEN_KEY);
-    setAuthToken(null);
-    setCurrentUser(null);
+    logout();
     navigate("/");
   };
 

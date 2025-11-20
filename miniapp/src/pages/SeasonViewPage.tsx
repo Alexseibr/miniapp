@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { fetchSeasonAds, fetchSeasons } from '@/api/seasons';
 import EmptyState from '@/widgets/EmptyState';
-import AdCard from '@/components/AdCard';
+import AdCard from '../components/AdCard';
 import { AdPreview, SeasonInfo } from '@/types';
 
 export default function SeasonViewPage() {

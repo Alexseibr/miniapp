@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useFavorites } from "@/features/favorites/FavoritesContext";
+import { useAuth } from "@/features/auth/AuthContext";
 import { AUTH_TOKEN_KEY, fetchWithAuth, getAuthToken } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
 import type { CurrentUser } from "@/types/user";
@@ -424,7 +425,10 @@ function AccountChatsTab({ isActive, currentUser }: { isActive: boolean; current
                     {companion && (
                       <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Avatar className="h-6 w-6">
-                          <AvatarImage src={companion.avatar} alt={companion.name} />
+                          <AvatarImage
+                            src={companion.avatar ?? undefined}
+                            alt={companion.name ?? companion.username ?? undefined}
+                          />
                           <AvatarFallback>{companion.name?.slice(0, 1) || "?"}</AvatarFallback>
                         </Avatar>
                         <span>

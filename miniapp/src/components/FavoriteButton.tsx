@@ -23,13 +23,13 @@ export default function FavoriteButton({ adId }: Props) {
       style={{
         border: 'none',
         background: 'transparent',
-        color: isFavorite ? '#ef4444' : '#94a3b8',
+        color: isFavorite(adId) ? '#ef4444' : '#94a3b8',
         fontSize: '1.4rem',
         cursor: 'pointer',
       }}
-      aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
+      aria-label={isFavorite(adId) ? 'Удалить из избранного' : 'Добавить в избранное'}
     >
-      {isFavorite ? '❤️' : '🤍'}
+      {isFavorite(adId) ? '❤️' : '🤍'}
     </button>
   );
 }
