@@ -1,15 +1,16 @@
 const express = require('express');
 const Favorite = require('../../models/Favorite');
 const Ad = require('../../models/Ad');
+const { auth } = require('../../middleware/auth');
 
 const router = express.Router();
 
 function getUserTelegramId(req) {
-  const fromUser = req.user?.telegramId;
-  const fromTelegramAuth = req.telegramAuth?.user?.id || req.telegramUser?.id;
-  const id = fromUser || fromTelegramAuth;
+  const id = req.currentUser?.telegramId;
   return id ? String(id) : null;
 }
+
+router.use(auth);
 
 // GET /api/favorites/my
 router.get('/my', async (req, res, next) => {

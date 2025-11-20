@@ -1,12 +1,11 @@
 import express from 'express';
 import Ad from '../models/Ad';
 import User from '../models/User';
-import authMiniApp from '../middleware/authMiniApp';
-import requireAdmin from '../middleware/requireAdmin';
+import { auth, requireAdmin } from '../middleware/auth';
 
 const router = express.Router();
 
-router.use(authMiniApp, requireAdmin);
+router.use(auth as express.RequestHandler, requireAdmin as express.RequestHandler);
 
 router.get('/ads', async (req, res) => {
   try {

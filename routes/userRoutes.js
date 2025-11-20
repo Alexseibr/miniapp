@@ -1,10 +1,10 @@
 const express = require('express');
-const authMiddleware = require('../middleware/auth');
+const { auth } = require('../middleware/auth');
 const { formatUser } = require('../utils/formatUser');
 
 const router = express.Router();
 
-router.use(authMiddleware);
+router.use(auth);
 
 router.get('/me', (req, res) => {
   return res.json(formatUser(req.currentUser));

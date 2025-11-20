@@ -3,10 +3,10 @@ const Conversation = require('../../models/Conversation');
 const Message = require('../../models/Message');
 const Ad = require('../../models/Ad');
 const User = require('../../models/User');
-const authMiddleware = require('../../middleware/auth');
+const { auth } = require('../../middleware/auth');
 
 const router = Router();
-router.use(authMiddleware);
+router.use(auth);
 
 async function loadConversation(conversationId, userId) {
   const conversation = await Conversation.findById(conversationId);
