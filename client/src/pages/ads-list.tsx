@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Loader2, MapPin, RefreshCw, Search } from "lucide-react";
 
 import AdCard from "@/components/AdCard";
+import AdsMap from "@/components/AdsMap";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +13,7 @@ import { fetchWithAuth } from "@/lib/auth";
 import type { Ad } from "@/types/ad";
 import Loader from "@/components/Loader";
 import ErrorMessage from "@/components/ErrorMessage";
+import useGeoLocation from "@/hooks/useGeoLocation";
 
 interface Category {
   code: string;
@@ -29,7 +31,6 @@ export default function AdsList() {
   const [error, setError] = useState<string | null>(null);
   const [radiusKm, setRadiusKm] = useState(5);
   const [isNearbyMode, setIsNearbyMode] = useState(false);
-  const [geoStatus, setGeoStatus] = useState<string | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
@@ -40,6 +41,7 @@ export default function AdsList() {
     priceTo: "",
     q: "",
   });
+  const { coords: userCoords, loading: geoLoading, error: geoError, requestLocation } = useGeoLocation();
 
   const PAGE_LIMIT = 20;
 
@@ -64,26 +66,52 @@ export default function AdsList() {
     void loadCategories();
   }, []);
 
-  const fetchAds = useCallback(
-    async (pageToLoad: number, append: boolean) => {
+  const loadAds = useCallback(
+    async (
+      pageToLoad: number,
+      append: boolean,
+      options?: { nearby?: boolean; coordsOverride?: { lat: number; lng: number } | null },
+    ) => {
+      const useNearby = options?.nearby ?? false;
+      const coordsToUse = options?.coordsOverride ?? userCoords;
+
       setError(null);
-      setIsNearbyMode(false);
       setIsLoading(!append);
       setIsLoadingMore(append);
 
       try {
-        const params = new URLSearchParams({
-          page: String(pageToLoad),
-          limit: String(PAGE_LIMIT),
-        });
+        const params = new URLSearchParams();
 
-        if (filters.category) params.append("category", filters.category);
-        if (filters.subcategory) params.append("subcategory", filters.subcategory);
+        if (filters.category) {
+          params.append("categoryId", filters.category);
+          params.append("category", filters.category);
+        }
+        if (filters.subcategory) {
+          params.append("subcategoryId", filters.subcategory);
+          params.append("subcategory", filters.subcategory);
+        }
         if (filters.priceFrom) params.append("priceFrom", filters.priceFrom);
         if (filters.priceTo) params.append("priceTo", filters.priceTo);
-        if (filters.q) params.append("q", filters.q);
 
-        const response = await fetchWithAuth(`/api/ads?${params.toString()}`);
+        let url = "/api/ads";
+        let hasPagination = true;
+
+        if (useNearby) {
+          if (!coordsToUse) {
+            throw new Error("Сначала разрешите доступ к геолокации.");
+          }
+          params.set("lat", String(coordsToUse.lat));
+          params.set("lng", String(coordsToUse.lng));
+          params.set("radiusKm", String(radiusKm));
+          url = "/api/ads/nearby";
+          hasPagination = false;
+        } else {
+          params.append("page", String(pageToLoad));
+          params.append("limit", String(PAGE_LIMIT));
+          if (filters.q) params.append("q", filters.q);
+        }
+
+        const response = await fetchWithAuth(`${url}?${params.toString()}`);
         if (!response.ok) {
           throw new Error("Не удалось загрузить объявления");
         }
@@ -91,12 +119,15 @@ export default function AdsList() {
         const items: Ad[] = Array.isArray(data) ? data : data.items ?? [];
         const limitValue: number = typeof data?.limit === "number" ? data.limit : PAGE_LIMIT;
         const more =
-          typeof data?.total === "number"
+          hasPagination &&
+          (typeof data?.total === "number"
             ? pageToLoad * limitValue < data.total
-            : items.length === limitValue;
+            : items.length === limitValue);
 
         setAds((prev) => (append ? [...prev, ...items] : items));
         setHasMore(more);
+        setPage(hasPagination ? pageToLoad : 1);
+        setIsNearbyMode(useNearby);
         await refreshFavorites();
       } catch (requestError) {
         console.error(requestError);
@@ -107,76 +138,88 @@ export default function AdsList() {
         setIsLoadingMore(false);
       }
     },
-    [PAGE_LIMIT, filters, refreshFavorites],
+    [PAGE_LIMIT, filters, radiusKm, refreshFavorites, userCoords],
   );
 
-  const loadNearbyAds = useCallback(
-    async (lat: number, lng: number) => {
-      setError(null);
-      setIsNearbyMode(true);
-      setIsLoading(true);
-
-      try {
-        const params = new URLSearchParams({
-          lat: String(lat),
-          lng: String(lng),
-          radiusKm: String(radiusKm),
-        });
-
-        const response = await fetchWithAuth(`/api/ads/nearby?${params.toString()}`);
-
-        if (!response.ok) {
-          throw new Error("Не удалось загрузить объявления рядом");
-        }
-
-        const data = await response.json();
-        setAds(Array.isArray(data) ? data : data.items ?? []);
-        setHasMore(false);
-        setPage(1);
-      } catch (requestError) {
-        console.error(requestError);
-        setError("Ошибка при загрузке объявлений рядом. Попробуйте ещё раз.");
-      } finally {
-        setIsLoading(false);
-        setGeoStatus(null);
+  const handleNearbyClick = useCallback(async () => {
+    try {
+      const coords = userCoords ?? (await requestLocation());
+      await loadAds(1, false, { nearby: true, coordsOverride: coords });
+    } catch (requestError) {
+      console.error(requestError);
+      setIsNearbyMode(false);
+      if (requestError instanceof Error) {
+        setError(requestError.message);
+      } else {
+        setError("Не удалось получить геопозицию. Разрешите доступ к местоположению в браузере.");
       }
-    },
-    [radiusKm],
-  );
+    }
+  }, [loadAds, requestLocation, userCoords]);
 
-  const handleNearbyClick = useCallback(() => {
-    if (!navigator.geolocation) {
-      setError("Браузер не поддерживает геолокацию");
+  const handleShowAll = useCallback(() => {
+    setIsNearbyMode(false);
+    setPage(1);
+    setHasMore(true);
+    void loadAds(1, false, { nearby: false });
+  }, [loadAds]);
+
+  useEffect(() => {
+    if (isNearbyMode && !userCoords) {
       return;
     }
 
-    setGeoStatus("Определяем местоположение…");
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setGeoStatus(null);
-        void loadNearbyAds(position.coords.latitude, position.coords.longitude);
-      },
-      () => {
-        setGeoStatus(null);
-        setError("Не удалось получить геопозицию. Разрешите доступ к местоположению в браузере.");
-      },
-    );
-  }, [loadNearbyAds]);
-
-  useEffect(() => {
     setAds([]);
     setPage(1);
     setHasMore(true);
-    void fetchAds(1, false);
-  }, [fetchAds]);
+    void loadAds(1, false, { nearby: isNearbyMode, coordsOverride: userCoords });
+  }, [isNearbyMode, loadAds, userCoords]);
 
   useEffect(() => {
-    if (page > 1) {
-      void fetchAds(page, true);
+    if (page > 1 && !isNearbyMode) {
+      void loadAds(page, true, { nearby: false });
     }
-  }, [fetchAds, page]);
+  }, [isNearbyMode, loadAds, page]);
 
   const hasAds = useMemo(() => ads.length > 0, [ads]);
+  const adsWithLocation = useMemo(
+    () =>
+      ads.filter(
+        (ad) => Array.isArray(ad.location?.coordinates) && ad.location?.coordinates?.length === 2,
+      ),
+    [ads],
+  );
+
+  const mapCenter = useMemo(() => {
+    if (adsWithLocation.length) {
+      const sums = adsWithLocation.reduce(
+        (acc, ad) => {
+          const [lng, lat] = ad.location?.coordinates ?? [0, 0];
+          return { lat: acc.lat + Number(lat), lng: acc.lng + Number(lng) };
+        },
+        { lat: 0, lng: 0 },
+      );
+
+      return {
+        lat: sums.lat / adsWithLocation.length,
+        lng: sums.lng / adsWithLocation.length,
+      };
+    }
+
+    if (userCoords) {
+      return userCoords;
+    }
+
+    return { lat: 53.9, lng: 27.5667 };
+  }, [adsWithLocation, userCoords]);
+
+  const handleMarkerClick = useCallback((adId: string) => {
+    const element = document.getElementById(`ad-card-${adId}`);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, []);
+
+  const activeError = error || geoError;
 
   return (
     <div className="container mx-auto px-4 py-8 space-y-6">
@@ -264,8 +307,8 @@ export default function AdsList() {
             <Button
               onClick={() => {
                 setPage(1);
-                setHasMore(true);
-                void fetchAds(1, false);
+                setHasMore(!isNearbyMode);
+                void loadAds(1, false, { nearby: isNearbyMode, coordsOverride: userCoords });
               }}
               className="gap-2"
             >
@@ -277,8 +320,9 @@ export default function AdsList() {
               onClick={() => {
                 setFilters({ category: "", subcategory: "", priceFrom: "", priceTo: "", q: "" });
                 setPage(1);
+                setIsNearbyMode(false);
                 setHasMore(true);
-                void fetchAds(1, false);
+                void loadAds(1, false, { nearby: false });
               }}
             >
               Сбросить
@@ -314,11 +358,7 @@ export default function AdsList() {
               </Button>
 
               <Button
-                onClick={() => {
-                  setPage(1);
-                  setHasMore(true);
-                  void fetchAds(1, false);
-                }}
+                onClick={handleShowAll}
                 variant="outline"
                 className="gap-2"
               >
@@ -329,14 +369,25 @@ export default function AdsList() {
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {geoStatus && <p className="text-sm text-muted-foreground">{geoStatus}</p>}
-          {error && <ErrorMessage message={error} />}
+          {geoLoading && <p className="text-sm text-muted-foreground">Определяем местоположение…</p>}
+          {(error || geoError) && <ErrorMessage message={error || geoError || ""} />}
         </CardContent>
       </Card>
 
+      {adsWithLocation.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Карта объявлений</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AdsMap ads={adsWithLocation} center={mapCenter} onMarkerClick={handleMarkerClick} />
+          </CardContent>
+        </Card>
+      )}
+
       {isLoading && !isLoadingMore && <Loader />}
 
-      {!isLoading && !hasAds && !error && (
+      {!isLoading && !hasAds && !activeError && (
         <Card>
           <CardContent className="p-6 text-center text-muted-foreground">
             Объявления не найдены.
@@ -346,12 +397,13 @@ export default function AdsList() {
 
       <div className="ads-grid">
         {ads.map((ad) => (
-          <AdCard
-            key={ad._id}
-            ad={ad}
-            isFavorite={isFavorite(ad._id)}
-            onToggleFavorite={toggleFavorite}
-          />
+          <div key={ad._id} id={`ad-card-${ad._id}`} className="scroll-mt-24">
+            <AdCard
+              ad={ad}
+              isFavorite={isFavorite(ad._id)}
+              onToggleFavorite={toggleFavorite}
+            />
+          </div>
         ))}
       </div>
 

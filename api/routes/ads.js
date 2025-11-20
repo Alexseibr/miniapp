@@ -124,11 +124,13 @@ async function applyLiveSpotStatus(ad, isLiveSpot) {
 }
 
 function extractAdCoordinates(ad) {
-  if (ad?.location && ad.location.lat != null && ad.location.lng != null) {
-    return {
-      lat: Number(ad.location.lat),
-      lng: Number(ad.location.lng),
-    };
+  if (
+    ad?.location?.coordinates &&
+    Array.isArray(ad.location.coordinates) &&
+    ad.location.coordinates.length === 2
+  ) {
+    const [lng, lat] = ad.location.coordinates;
+    return { lat: Number(lat), lng: Number(lng) };
   }
 
   if (ad?.location?.geo?.coordinates && ad.location.geo.coordinates.length === 2) {
@@ -136,6 +138,13 @@ function extractAdCoordinates(ad) {
     return {
       lat: Number(lat),
       lng: Number(lng),
+    };
+  }
+
+  if (ad?.location && ad.location.lat != null && ad.location.lng != null) {
+    return {
+      lat: Number(ad.location.lat),
+      lng: Number(ad.location.lng),
     };
   }
 
@@ -198,7 +207,7 @@ async function aggregateNearbyAds({ latNumber, lngNumber, radiusKm, limit, baseF
         maxDistance: finalRadiusKm * 1000,
         spherical: true,
         query: baseFilter,
-        key: 'location.geo',
+        key: 'location',
       },
     },
     { $limit: finalLimit },
@@ -231,7 +240,7 @@ router.get('/', async (req, res, next) => {
           distanceField: 'distanceMeters',
           spherical: true,
           query: filters,
-          key: 'geo',
+          key: 'location',
         },
       };
 
@@ -359,7 +368,7 @@ router.get('/search', async (req, res, next) => {
           distanceField: 'distance',
           spherical: true,
           query: baseFilter,
-          key: 'location.geo',
+          key: 'location',
         },
       };
 
@@ -526,7 +535,7 @@ router.get('/near', async (req, res) => {
 // GET /api/ads/nearby
 router.get('/nearby', async (req, res, next) => {
   try {
-    const { lat, lng, radiusKm, categoryId, subcategoryId, limit } = req.query;
+    const { lat, lng, radiusKm = 10, categoryId, subcategoryId, priceFrom, priceTo } = req.query;
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({ error: 'lat и lng обязательны' });
@@ -540,53 +549,55 @@ router.get('/nearby', async (req, res, next) => {
     }
 
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
+    const normalizedRadiusKm = Number.isFinite(radiusNumber) ? radiusNumber : 10;
+    const finalRadiusKm = Math.min(Math.max(normalizedRadiusKm, 1), 100);
+    const radiusMeters = finalRadiusKm * 1000;
 
-    const limitNumber = Number(limit);
-    const finalLimit =
-      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
-
-    const baseFilter = {
+    const filter = {
       status: 'active',
       moderationStatus: 'approved',
-      'location.lat': { $ne: null },
-      'location.lng': { $ne: null },
     };
 
-    if (categoryId) baseFilter.categoryId = categoryId;
-    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+    const andConditions = [];
 
-    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
-    const candidates = await Ad.find(baseFilter)
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
-
-    const userPoint = { lat: latNumber, lng: lngNumber };
-    const itemsWithinRadius = [];
-
-    for (const ad of candidates) {
-      const adPoint = extractAdCoordinates(ad);
-      if (!adPoint) {
-        continue;
-      }
-
-      const distanceKm = haversineDistanceKm(userPoint, adPoint);
-      if (distanceKm == null || distanceKm > finalRadiusKm) {
-        continue;
-      }
-
-      const plain =
-        typeof ad.toObject === 'function'
-          ? ad.toObject({ getters: true, virtuals: false })
-          : { ...ad };
-
-      plain.distanceKm = Number(distanceKm.toFixed(1));
-      itemsWithinRadius.push(plain);
+    const categoryFilter = categoryId || req.query.category;
+    if (categoryFilter) {
+      andConditions.push({ $or: [{ categoryId: categoryFilter }, { category: categoryFilter }] });
     }
 
-    itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+    const subcategoryFilter = subcategoryId || req.query.subcategory;
+    if (subcategoryFilter) {
+      andConditions.push({ $or: [{ subcategoryId: subcategoryFilter }, { subcategory: subcategoryFilter }] });
+    }
 
-    return res.json({ items: itemsWithinRadius.slice(0, finalLimit) });
+    if (priceFrom || priceTo) {
+      const priceFilter = {};
+      if (priceFrom && Number.isFinite(Number(priceFrom))) {
+        priceFilter.$gte = Number(priceFrom);
+      }
+      if (priceTo && Number.isFinite(Number(priceTo))) {
+        priceFilter.$lte = Number(priceTo);
+      }
+      if (Object.keys(priceFilter).length) {
+        andConditions.push({ price: priceFilter });
+      }
+    }
+
+    const finalFilter = andConditions.length ? { ...filter, $and: andConditions } : filter;
+
+    const ads = await Ad.find({
+      ...finalFilter,
+      location: {
+        $near: {
+          $geometry: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          $maxDistance: radiusMeters,
+        },
+      },
+    })
+      .limit(100)
+      .select('title price photos images location categoryId category subcategoryId subcategory status');
+
+    return res.json(Array.isArray(ads) ? ads : []);
   } catch (error) {
     next(error);
   }
@@ -639,7 +650,7 @@ router.get('/live-spots', async (req, res) => {
           near: { type: 'Point', coordinates: [lngNumber, latNumber] },
           distanceField: 'distanceMeters',
           spherical: true,
-          key: 'geo',
+          key: 'location',
           query: filter,
         },
       };

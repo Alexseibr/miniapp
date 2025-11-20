@@ -1,6 +1,6 @@
 export type AdLocation = {
-  lat?: number;
-  lng?: number;
+  type?: 'Point';
+  coordinates?: [number, number];
   address?: string;
 };
 

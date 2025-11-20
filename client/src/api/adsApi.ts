@@ -4,12 +4,14 @@ export type NearbyAdsParams = {
   radiusKm: number;
   categoryId?: string;
   subcategoryId?: string;
+  priceFrom?: number;
+  priceTo?: number;
   limit?: number;
 };
 
 export type AdLocation = {
-  lat?: number;
-  lng?: number;
+  type?: 'Point';
+  coordinates?: [number, number];
   address?: string;
 };
 
@@ -46,6 +48,8 @@ export async function getNearbyAds(params: NearbyAdsParams): Promise<Ad[]> {
 
   if (params.categoryId) search.set("categoryId", params.categoryId);
   if (params.subcategoryId) search.set("subcategoryId", params.subcategoryId);
+  if (params.priceFrom != null) search.set("priceFrom", String(params.priceFrom));
+  if (params.priceTo != null) search.set("priceTo", String(params.priceTo));
   if (params.limit) search.set("limit", String(params.limit));
 
   const url = `${normalizedBaseUrl}ads/nearby?${search.toString()}`;

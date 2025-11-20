@@ -5,6 +5,10 @@ export interface IAdGeo {
   coordinates: [number, number];
 }
 
+export interface IAdLocation extends IAdGeo {
+  address?: string;
+}
+
 export type AdStatus = 'pending' | 'active' | 'blocked';
 
 export interface IAd {
@@ -20,7 +24,8 @@ export interface IAd {
   photos: string[];
   userTelegramId: string;
   owner?: Schema.Types.ObjectId;
-  geo: IAdGeo;
+  geo?: IAdGeo;
+  location?: IAdLocation;
   createdAt?: Date;
   updatedAt?: Date;
 }
@@ -31,6 +36,15 @@ const GeoSchema = new Schema<IAdGeo>(
   {
     type: { type: String, enum: ['Point'], default: 'Point' },
     coordinates: { type: [Number], required: true },
+  },
+  { _id: false }
+);
+
+const LocationSchema = new Schema<IAdLocation>(
+  {
+    type: { type: String, enum: ['Point'], default: 'Point' },
+    coordinates: { type: [Number], index: '2dsphere', required: true },
+    address: { type: String, trim: true },
   },
   { _id: false }
 );
@@ -49,12 +63,14 @@ const AdSchema = new Schema<IAdDocument>(
     photos: [{ type: String }],
     userTelegramId: { type: String, required: true },
     owner: { type: Schema.Types.ObjectId, ref: 'User' },
-    geo: { type: GeoSchema, required: true },
+    geo: { type: GeoSchema },
+    location: { type: LocationSchema },
   },
   { timestamps: true }
 );
 
 AdSchema.index({ geo: '2dsphere' });
+AdSchema.index({ location: '2dsphere' });
 
 const Ad = model<IAdDocument>('Ad', AdSchema);
 
