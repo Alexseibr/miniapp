@@ -20,7 +20,7 @@ async function getUserByTelegram(req, res) {
   let user = await User.findOne({ telegramId });
 
   if (!user) {
-    user = await User.create({ telegramId, role: 'buyer' });
+    user = await User.create({ telegramId, role: 'user' });
   }
 
   return user;
