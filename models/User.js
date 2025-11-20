@@ -26,13 +26,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
       unique: true,
       sparse: true,
-      index: true,
     },
     telegramId: {
       type: String,
       unique: true,
       sparse: true,
-      index: true,
     },
     telegramUsername: {
       type: String,
@@ -128,6 +126,8 @@ userSchema.index({ telegramId: 1 });
 userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ telegramId: 1 }, { unique: true, sparse: true });
 
 const User = mongoose.model('User', userSchema);
 
