@@ -88,9 +88,9 @@ export default function Products() {
                                 : "text-muted-foreground border-border hover:bg-muted"
                             }`}
                             aria-label="Добавить в избранное"
-                            onClick={(event) => {
+                            onClick={async (event) => {
                               event.stopPropagation();
-                              toggleFavorite(ad._id);
+                              await toggleFavorite(ad._id);
                             }}
                           >
                             {isFavorite(ad._id) ? "♥" : "♡"}
