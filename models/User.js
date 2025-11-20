@@ -94,6 +94,10 @@ const userSchema = new mongoose.Schema(
       },
     },
     location: LocationSchema,
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
     isActive: {
       type: Boolean,
       default: true,

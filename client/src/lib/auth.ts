@@ -7,12 +7,20 @@ export function getAuthToken(): string | null {
 
 export function getAuthHeaders(): HeadersInit {
   const token = getAuthToken();
-  return token
-    ? {
-        Authorization: `Bearer ${token}`,
-        "X-Telegram-InitData": token,
-      }
-    : {};
+  const headers: HeadersInit = {};
+
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+
+  if (typeof window !== 'undefined') {
+    const telegramInitData = (window as any)?.Telegram?.WebApp?.initData;
+    if (telegramInitData) {
+      headers['X-Telegram-InitData'] = telegramInitData;
+    }
+  }
+
+  return headers;
 }
 
 export async function fetchWithAuth(

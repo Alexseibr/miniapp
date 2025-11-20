@@ -8,6 +8,7 @@ import favoritesRouter from './routes/favorites';
 import geoRouter from './routes/geo';
 import seasonsRouter from './routes/seasons';
 import uploadsRouter from './routes/uploads';
+import adminRouter from './routes/admin';
 
 dotenv.config();
 
@@ -35,6 +36,7 @@ app.use('/api/geo', geoRouter);
 app.use('/api/favorites', favoritesRouter);
 app.use('/api/seasons', seasonsRouter);
 app.use('/api/uploads', uploadsRouter);
+app.use('/api/admin', adminRouter);
 
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok' });
