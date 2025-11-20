@@ -1,7 +1,11 @@
 const express = require('express');
 const path = require('path');
+const cors = require('cors');
 const pkg = require('../package.json');
 const { logErrors, notFoundHandler, errorHandler } = require('./middleware/errorHandlers.js');
+const { corsOptions } = require('./middleware/corsConfig');
+const { securityHeaders } = require('./middleware/securityHeaders');
+const { apiLimiter, authLimiter } = require('./middleware/rateLimit');
 const adsSearchRoutes = require('./routes/search.js');
 const adsRoutes = require('./routes/ads.js');
 const categoriesRoutes = require('./routes/categories.js');
@@ -24,9 +28,15 @@ const chatRoutes = require('./routes/chat');
 const app = express();
 
 // Middleware
+securityHeaders(app);
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
+app.use('/api', apiLimiter);
+app.use('/api/auth/sms', authLimiter);
+app.use('/api/auth/telegram/create-session', authLimiter);
 
 // Базовые маршруты
 app.get('/api', (_req, res) => {
