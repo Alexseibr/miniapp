@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const User = require('../models/User');
+const Alert = require('../models/Alert');
 const config = require('../config/config');
 const { sendMessageToTelegramId } = require('../bot/messenger');
 
@@ -99,12 +100,25 @@ async function notifyUser(user, message) {
 async function processFavorite(user, favorite) {
   const ad = favorite.adId;
   if (!ad || !ad._id) {
+    const adIdForAlert = favorite?.adId?._id || favorite?.adId;
     await appendLog({
       type: 'ad_removed',
       timestamp: new Date().toISOString(),
       userTelegramId: user.telegramId,
-      adId: favorite?.adId?._id || favorite?.adId,
+      adId: adIdForAlert,
     });
+
+    if (adIdForAlert) {
+      const lastStatus = favorite?.lastKnownStatus || 'unknown';
+      await Alert.create({
+        userTelegramId: user.telegramId,
+        adId: adIdForAlert,
+        adTitleSnapshot: favorite?.adId?.title || favorite?.title,
+        oldStatus: lastStatus,
+        newStatus: 'removed',
+        type: 'status_change',
+      });
+    }
     await notifyUser(user, formatRemovalMessage(favorite));
     return { remove: true, updated: true };
   }
@@ -145,6 +159,30 @@ async function processFavorite(user, favorite) {
       updates,
     };
     await appendLog(logEntry);
+
+    const alertBase = {
+      userTelegramId: user.telegramId,
+      adId: ad._id,
+      adTitleSnapshot: ad.title,
+    };
+
+    if (updates.price) {
+      await Alert.create({
+        ...alertBase,
+        oldPrice: updates.price.old,
+        newPrice: updates.price.new,
+        type: 'price_drop',
+      });
+    }
+
+    if (updates.status) {
+      await Alert.create({
+        ...alertBase,
+        oldStatus: updates.status.old,
+        newStatus: updates.status.new,
+        type: 'status_change',
+      });
+    }
     await notifyUser(user, formatUpdateMessage(ad, updates));
   }
 
