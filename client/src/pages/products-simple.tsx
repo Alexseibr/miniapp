@@ -3,6 +3,7 @@ import { Package } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { useFavorites } from "@/features/favorites/FavoritesContext";
 
 interface Ad {
   _id: string;
@@ -15,6 +16,7 @@ interface Ad {
 }
 
 export default function Products() {
+  const { isFavorite, toggleFavorite } = useFavorites();
   const { data: ads, isLoading } = useQuery<{ items: Ad[]; total: number }>({
     queryKey: ["/api/ads"],
   });
@@ -59,7 +61,7 @@ export default function Products() {
                 {ads.items.map((ad) => (
                   <Card key={ad._id} className="hover-elevate" data-testid={`card-product-${ad._id}`}>
                     <CardContent className="pt-6">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start gap-4">
                         <div className="flex-1">
                           <h3 className="font-semibold text-lg mb-2" data-testid={`text-title-${ad._id}`}>
                             {ad.title}
@@ -78,13 +80,29 @@ export default function Products() {
                             </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-2xl font-bold text-green-600" data-testid={`text-price-${ad._id}`}>
-                            {ad.price} BYN
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            ID: {ad._id.slice(-6)}
-                          </p>
+                        <div className="flex flex-col items-end gap-2">
+                          <button
+                            className={`px-3 py-1 rounded-full border text-sm transition-colors ${
+                              isFavorite(ad._id)
+                                ? "bg-pink-100 text-pink-600 border-pink-300"
+                                : "text-muted-foreground border-border hover:bg-muted"
+                            }`}
+                            aria-label="Добавить в избранное"
+                            onClick={(event) => {
+                              event.stopPropagation();
+                              toggleFavorite(ad._id);
+                            }}
+                          >
+                            {isFavorite(ad._id) ? "♥" : "♡"}
+                          </button>
+                          <div className="text-right">
+                            <p className="text-2xl font-bold text-green-600" data-testid={`text-price-${ad._id}`}>
+                              {ad.price} BYN
+                            </p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              ID: {ad._id.slice(-6)}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     </CardContent>

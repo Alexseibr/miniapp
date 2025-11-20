@@ -1,7 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
-import { Home as HomeIcon, ShoppingBag, LayoutDashboard, FolderTree } from "lucide-react";
+import {
+  Home as HomeIcon,
+  ShoppingBag,
+  LayoutDashboard,
+  FolderTree,
+  MapPin,
+  Heart,
+} from "lucide-react";
 
 export default function Home() {
   return (
@@ -69,6 +76,40 @@ export default function Home() {
               <CardContent>
                 <p className="text-sm text-muted-foreground">
                   Управление структурой категорий и подкатегорий товаров
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/nearby">
+            <Card className="hover-elevate active-elevate-2 cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <MapPin className="h-8 w-8 text-red-500" />
+                  <CardTitle>Рядом со мной</CardTitle>
+                </div>
+                <CardDescription>Поиск объявлений поблизости</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Определите своё местоположение и получите ленту предложений в заданном радиусе
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+
+          <Link href="/favorites">
+            <Card className="hover-elevate active-elevate-2 cursor-pointer h-full">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <Heart className="h-8 w-8 text-pink-500" />
+                  <CardTitle>Избранное</CardTitle>
+                </div>
+                <CardDescription>Сохранённые объявления</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Возвращайтесь к понравившимся объявлениям в пару кликов
                 </p>
               </CardContent>
             </Card>
