@@ -1,6 +1,7 @@
 const crypto = require('crypto');
 const config = require('../config/config.js');
 const User = require('../models/User');
+const jwt = require('jsonwebtoken');
 
 const DEFAULT_TTL_SECONDS = Number(process.env.TELEGRAM_INITDATA_TTL || 60 * 60 * 24); // 24 часа по умолчанию
 
@@ -14,6 +15,53 @@ function buildDataCheckString(searchParams) {
   }
   pairs.sort();
   return pairs.join('\n');
+}
+
+async function attachUserFromJwt(req) {
+  const authHeader = req.headers.authorization || '';
+  const [scheme, token] = authHeader.split(' ');
+
+  if (!token || scheme?.toLowerCase() !== 'bearer') {
+    return null;
+  }
+
+  const jwtSecret = process.env.JWT_SECRET;
+
+  if (!jwtSecret) {
+    console.warn('JWT_SECRET is not configured for JWT authorization');
+    return null;
+  }
+
+  try {
+    const payload = jwt.verify(token, jwtSecret);
+    if (!payload?.id) {
+      return null;
+    }
+
+    const user = await User.findById(payload.id);
+    if (!user) {
+      return null;
+    }
+
+    req.currentUser = user;
+    req.jwtPayload = payload;
+    req.authMethod = 'jwt';
+    req.user = user;
+
+    if (user.telegramId) {
+      const telegramUser = {
+        id: user.telegramId,
+        username: user.username || user.telegramUsername,
+      };
+      req.telegramAuth = { user: telegramUser };
+      req.telegramUser = telegramUser;
+    }
+
+    return user;
+  } catch (error) {
+    console.warn('Failed to verify JWT token', error.message);
+    throw error;
+  }
 }
 
 function safeJsonParse(value) {
@@ -84,7 +132,16 @@ function extractInitDataFromRequest(req) {
   );
 }
 
-function telegramAuthMiddleware(req, res, next) {
+async function telegramAuthMiddleware(req, res, next) {
+  try {
+    const userFromJwt = await attachUserFromJwt(req);
+    if (userFromJwt) {
+      return next();
+    }
+  } catch (error) {
+    return res.status(401).json({ ok: false, error: 'Unauthorized' });
+  }
+
   const initData = extractInitDataFromRequest(req);
   const validation = validateTelegramInitData(initData);
 
@@ -105,6 +162,15 @@ function telegramAuthMiddleware(req, res, next) {
 }
 
 async function telegramInitDataMiddleware(req, res, next) {
+  try {
+    const jwtUser = await attachUserFromJwt(req);
+    if (jwtUser) {
+      return next();
+    }
+  } catch (error) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
   const initData = extractInitDataFromRequest(req);
   const validation = validateTelegramInitData(initData);
 
@@ -122,6 +188,7 @@ async function telegramInitDataMiddleware(req, res, next) {
     const update = {
       telegramId: telegramUser.id,
       username: telegramUser.username,
+      telegramUsername: telegramUser.username,
       firstName: telegramUser.first_name,
       lastName: telegramUser.last_name,
     };
@@ -139,6 +206,8 @@ async function telegramInitDataMiddleware(req, res, next) {
     );
 
     req.currentUser = userDoc;
+    req.user = userDoc;
+    req.telegramUser = telegramUser;
     return next();
   } catch (error) {
     console.error('Failed to upsert Telegram user', error);

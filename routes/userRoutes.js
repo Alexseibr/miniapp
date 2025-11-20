@@ -12,6 +12,7 @@ function formatUser(user) {
     id: user._id,
     _id: user._id,
     telegramId: user.telegramId,
+    telegramUsername: user.telegramUsername || user.username,
     username: user.username,
     name: user.name || user.firstName,
     firstName: user.firstName,
