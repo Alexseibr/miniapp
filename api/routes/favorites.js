@@ -55,6 +55,8 @@ router.post('/', async (req, res) => {
       user.favorites.push(adId);
     }
 
+    ad.watchers = Array.isArray(ad.watchers) ? ad.watchers : [];
+
     if (!ad.watchers.includes(telegramId)) {
       ad.watchers.push(telegramId);
     }
@@ -86,6 +88,7 @@ router.delete('/:adId', async (req, res) => {
 
     const ad = await Ad.findById(adId);
     if (ad) {
+      ad.watchers = Array.isArray(ad.watchers) ? ad.watchers : [];
       ad.watchers = ad.watchers.filter((id) => id !== telegramId);
       await ad.save();
     }
