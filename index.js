@@ -19,6 +19,17 @@ async function start() {
     console.log('📊 Подключение к MongoDB...');
     await connectDB();
     
+    // 1.5 Регистрация Telegram webhook ПЕРЕД Vite (чтобы не перехватывался)
+    const webhookPath = '/telegram-webhook';
+    
+    // Используем bot.webhookCallback() БЕЗ параметра path
+    app.use(webhookPath, (req, res, next) => {
+      console.log(`📨 Получен webhook запрос: ${req.method} ${req.url}`);
+      return bot.webhookCallback()(req, res, next);
+    });
+    
+    console.log(`✅ Telegram webhook endpoint зарегистрирован: ${webhookPath}`);
+    
     // 2. Настройка Vite dev server для фронтенда (только в dev mode)
     if (process.env.NODE_ENV !== 'production') {
       console.log('\n🎨 Настройка Vite dev server...');
@@ -52,8 +63,8 @@ async function start() {
       app.use('*', async (req, res, next) => {
         const url = req.originalUrl;
         
-        // Пропускаем API endpoints
-        if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/auth')) {
+        // Пропускаем API endpoints и webhook
+        if (url.startsWith('/api') || url.startsWith('/health') || url.startsWith('/auth') || url.startsWith('/telegram-webhook')) {
           return next();
         }
         
@@ -72,12 +83,6 @@ async function start() {
       
       console.log('✅ Vite dev server настроен');
     }
-    
-    // Error handlers должны быть в самом конце, после всех middleware
-    const { logErrors, notFoundHandler, errorHandler } = require('./api/middleware/errorHandlers.js');
-    app.use(notFoundHandler);
-    app.use(logErrors);
-    app.use(errorHandler);
     
     // 3. Запуск Express API сервера
     console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
@@ -112,22 +117,16 @@ async function start() {
         if (testResponse.data.ok) {
           console.log(`   ✅ Токен валиден! Бот: @${testResponse.data.result.username}`);
           
-          // Используем WEBHOOK вместо polling (надёжнее для Replit)
+          // Устанавливаем webhook в Telegram (endpoint уже зарегистрирован выше)
           const webhookDomain = process.env.REPLIT_DEV_DOMAIN 
             ? `https://${process.env.REPLIT_DEV_DOMAIN}`
             : 'http://localhost:5000';
           
-          const webhookPath = '/telegram-webhook';
           const webhookUrl = `${webhookDomain}${webhookPath}`;
           
-          console.log(`   Настройка webhook: ${webhookUrl}`);
+          console.log(`   Установка webhook в Telegram: ${webhookUrl}`);
           
           try {
-            // Регистрируем webhook endpoint в Express (ПЕРЕД запуском сервера)
-            app.use(webhookPath, bot.webhookCallback(webhookPath));
-            console.log(`   ✅ Webhook endpoint зарегистрирован: ${webhookPath}`);
-            
-            // Устанавливаем webhook в Telegram
             await axios.post(`https://api.telegram.org/bot${config.botToken}/setWebhook`, {
               url: webhookUrl,
               drop_pending_updates: true,
@@ -166,6 +165,13 @@ async function start() {
 
     runFavoritesCheck();
     favoritesInterval = setInterval(runFavoritesCheck, 2 * 60 * 1000);
+    
+    // Регистрируем error handlers в самом конце, после всех middleware
+    const { logErrors, notFoundHandler, errorHandler } = require('./api/middleware/errorHandlers.js');
+    app.use(logErrors);
+    app.use(notFoundHandler);
+    app.use(errorHandler);
+    console.log('✅ Error handlers зарегистрированы');
     
     console.log('\n✨ Все сервисы успешно запущены!\n');
     console.log('📋 Доступные команды бота:');
