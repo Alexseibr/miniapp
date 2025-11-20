@@ -8,10 +8,12 @@ import {
   type ReactNode,
 } from "react";
 
-import { fetchWithAuth, getAuthToken } from "@/lib/auth";
+import { useAuth } from "@/features/auth/AuthContext";
+import { fetchWithAuth } from "@/lib/auth";
 
 export type FavoritesContextValue = {
   favorites: string[];
+  favoriteIds: string[];
   isFavorite: (adId: string) => boolean;
   toggleFavorite: (adId: string) => Promise<void>;
   refreshFavorites: () => Promise<void>;
@@ -20,40 +22,36 @@ export type FavoritesContextValue = {
 const FavoritesContext = createContext<FavoritesContextValue | undefined>(undefined);
 
 export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [favorites, setFavorites] = useState<string[]>([]);
+  const { token } = useAuth();
+  const [favoriteIds, setFavoriteIds] = useState<string[]>([]);
 
   const isFavorite = useCallback(
-    (adId: string) => favorites.includes(adId),
-    [favorites],
+    (adId: string) => favoriteIds.includes(adId),
+    [favoriteIds],
   );
 
   const refreshFavorites = useCallback(async () => {
-    const token = getAuthToken();
-
     if (!token) {
-      setFavorites([]);
+      setFavoriteIds([]);
       return;
     }
 
     try {
-      const response = await fetchWithAuth("/api/favorites/my");
+      const response = await fetchWithAuth("/api/favorites/ids");
 
       if (!response.ok) {
         throw new Error("Не удалось загрузить избранное");
       }
 
       const data = await response.json();
-      const ids: string[] = Array.isArray(data)
-        ? data
-            .map((item: any) => item?._id ?? item?.adId ?? item?.ad?._id)
-            .filter(Boolean)
-        : [];
+      const ids: string[] = Array.isArray(data?.adIds) ? data.adIds.filter(Boolean) : [];
 
-      setFavorites(ids);
+      setFavoriteIds(ids);
     } catch (error) {
       console.error("Failed to load favorites", error);
+      setFavoriteIds([]);
     }
-  }, []);
+  }, [token]);
 
   useEffect(() => {
     void refreshFavorites();
@@ -61,14 +59,14 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
 
   const toggleFavorite = useCallback(
     async (adId: string) => {
-      const token = getAuthToken();
-
       if (!token) {
-        alert("Чтобы пользоваться избранным, войдите в аккаунт");
-        return;
+        throw new Error("Unauthorized");
       }
 
-      const alreadyFavorite = favorites.includes(adId);
+      const alreadyFavorite = favoriteIds.includes(adId);
+      setFavoriteIds((prev) =>
+        alreadyFavorite ? prev.filter((id) => id !== adId) : [...prev, adId],
+      );
 
       try {
         const response = await fetchWithAuth(`/api/favorites/${adId}`, {
@@ -78,29 +76,26 @@ export const FavoritesProvider: React.FC<{ children: ReactNode }> = ({ children 
         if (!response.ok) {
           throw new Error("Не удалось обновить избранное");
         }
-
-        setFavorites((prev) => {
-          if (alreadyFavorite) {
-            return prev.filter((id) => id !== adId);
-          }
-          return [...prev, adId];
-        });
       } catch (error) {
         console.error("Favorites update failed", error);
-        alert("Не удалось обновить избранное. Попробуйте снова.");
+        setFavoriteIds((prev) =>
+          alreadyFavorite ? [...prev, adId] : prev.filter((id) => id !== adId),
+        );
+        throw error;
       }
     },
-    [favorites],
+    [favoriteIds, token],
   );
 
   const value = useMemo(
     () => ({
-      favorites,
+      favorites: favoriteIds,
+      favoriteIds,
       isFavorite,
       toggleFavorite,
       refreshFavorites,
     }),
-    [favorites, isFavorite, toggleFavorite, refreshFavorites],
+    [favoriteIds, isFavorite, toggleFavorite, refreshFavorites],
   );
 
   return <FavoritesContext.Provider value={value}>{children}</FavoritesContext.Provider>;

@@ -266,7 +266,7 @@ function AccountFavoritesTab({ isActive }: { isActive: boolean }) {
         }
         const data = await response.json();
         const adsData: Ad[] = Array.isArray(data)
-          ? data.map((item: any) => item?.adId || item?.ad || item).filter(Boolean)
+          ? data.map((item: any) => item?.ad ?? item?.adId ?? item).filter(Boolean)
           : [];
         setAds(adsData);
         await refreshFavorites();
