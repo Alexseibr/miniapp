@@ -1,1 +1,0 @@
-import{h as a}from"./index-C0UB_dVU.js";async function n(s={}){return(await a.get("/api/ads/search",{params:s})).data}async function r(s){return(await a.get(`/api/ads/${s}`)).data}async function o(s){return(await a.get("/api/ads/nearby",{params:s})).data}export{n as a,r as g,o as l};
