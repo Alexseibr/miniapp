@@ -61,10 +61,12 @@ The data model supports a marketplace with the following entities:
 **Key Architectural Decision**: Categories use a slug-based parent-child relationship rather than ObjectId references, making URLs more readable and API responses more intuitive. The `buildTree()` helper function in the categories route reconstructs the hierarchical structure from flat data.
 
 **Category Icon Architecture** (November 2025):
-- **No emoji policy**: All icons stored as lucide-react component name strings, never emoji characters
-- **Dynamic rendering**: MiniApp's CategoryScroll maps icon names to Lucide React components at runtime
-- **Fallback handling**: Missing/unknown icons gracefully render as null (no visual component)
-- **Icon selection**: 14 main categories each have unique icons (Home, Wrench, Plane, Hammer, Car, Dumbbell, Smartphone, Microwave, Shirt, TreePine, Baby, PawPrint, Sparkles, Briefcase)
+- **3D Icons Migration**: Migrated from lucide-react SVG icons to custom 3D-rendered PNG icons in Kufar.by style
+- **Icon Storage**: All category icons stored in `miniapp/src/assets/categories/` as PNG files
+- **Mapping System**: `miniapp/src/constants/categoryIcons.ts` contains slug-to-icon mapping for 14 main categories
+- **Icon Files**: real-estate.png, services.png, travel.png, repair.png, auto.png, hobby-sport.png, electronics.png, appliances.png, clothes.png, home-garden.png, kids.png, pets.png, beauty.png, jobs.png
+- **Visual Style**: 80x80px containers with 20px border-radius, #F5F7FA background, soft shadow (iOS-style)
+- **Fallback Handling**: Missing icons display Lucide Package icon (no emoji - policy compliant)
 
 ### Telegram Bot Interface
 

@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
-import * as LucideIcons from 'lucide-react';
+import { Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
+import { CATEGORY_ICONS } from '@/constants/categoryIcons';
 
 interface Props {
   categories: CategoryNode[];
@@ -11,11 +12,8 @@ export default function CategoryScroll({ categories }: Props) {
     return null;
   }
 
-  const getIcon = (iconName?: string | null) => {
-    if (!iconName) return null;
-    const Icon = (LucideIcons as any)[iconName];
-    if (!Icon) return null;
-    return <Icon size={32} strokeWidth={1.5} />;
+  const getCategoryIcon = (categorySlug: string) => {
+    return CATEGORY_ICONS[categorySlug] || null;
   };
 
   return (
@@ -48,16 +46,30 @@ export default function CategoryScroll({ categories }: Props) {
             style={{
               width: 80,
               height: 80,
-              borderRadius: 8,
-              backgroundColor: '#f3f4f6',
+              borderRadius: 20,
+              backgroundColor: '#F5F7FA',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: '#6b7280',
               marginBottom: 8,
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
+              overflow: 'hidden',
             }}
           >
-            {getIcon(category.icon)}
+            {getCategoryIcon(category.slug) ? (
+              <img
+                src={getCategoryIcon(category.slug)!}
+                alt={category.name}
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'cover',
+                }}
+                data-testid={`category-icon-${category.slug}`}
+              />
+            ) : (
+              <Package size={40} strokeWidth={1.5} color="#9ca3af" data-testid={`category-icon-fallback-${category.slug}`} />
+            )}
           </div>
           <span
             style={{
