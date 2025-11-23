@@ -15,6 +15,12 @@ function getAuthenticatedTelegramId(req) {
   return parseTelegramId(req.telegramAuth?.user?.id);
 }
 
+// TODO PRODUCTION: Current bot-to-API auth uses SESSION_SECRET + X-Telegram-Id header.
+// This is MVP-level security and vulnerable to impersonation if SESSION_SECRET is compromised.
+// For production, implement signed JWT tokens with cryptographic binding to moderator identity:
+// - Bot should request short-lived JWT from backend after validating Telegram initData
+// - JWT payload should contain moderator telegramId signed by server
+// - API should verify JWT signature and extract telegramId from token (not headers)
 function verifyBotInternal(req) {
   const internalSecret = process.env.INTERNAL_API_SECRET || process.env.SESSION_SECRET;
   
