@@ -693,8 +693,17 @@ bot.command('market', async (ctx) => {
 
 bot.command('mod_pending', async (ctx) => {
   try {
+    const telegramId = ctx.from.id;
+    const jwtToken = await getModeratorJWT(telegramId);
+    
+    if (!jwtToken) {
+      return ctx.reply('⚠️ Не удалось получить токен доступа.');
+    }
+    
     const response = await axios.get(`${API_URL}/api/mod/pending`, {
-      params: { telegramId: ctx.from.id },
+      headers: {
+        'Authorization': `Bearer ${jwtToken}`,
+      },
     });
 
     const ads = response.data?.items || [];
@@ -729,12 +738,24 @@ bot.command('mod_pending', async (ctx) => {
 
 bot.hears(/^\/mod_approve_(.+)/, async (ctx) => {
   const adId = ctx.match[1];
+  const telegramId = ctx.from.id;
 
   try {
-    await axios.post(`${API_URL}/api/mod/approve`, {
-      telegramId: ctx.from.id,
-      adId,
-    });
+    const jwtToken = await getModeratorJWT(telegramId);
+    
+    if (!jwtToken) {
+      return ctx.reply('⚠️ Не удалось получить токен доступа.');
+    }
+    
+    await axios.post(
+      `${API_URL}/api/mod/approve`,
+      { adId },
+      {
+        headers: {
+          'Authorization': `Bearer ${jwtToken}`,
+        },
+      }
+    );
 
     await ctx.reply('✅ Объявление одобрено!');
   } catch (error) {
@@ -751,13 +772,24 @@ bot.hears(/^\/mod_approve_(.+)/, async (ctx) => {
 
 bot.hears(/^\/mod_reject_(.+)/, async (ctx) => {
   const adId = ctx.match[1];
+  const telegramId = ctx.from.id;
 
   try {
-    await axios.post(`${API_URL}/api/mod/reject`, {
-      telegramId: ctx.from.id,
-      adId,
-      comment: 'Отклонено модератором',
-    });
+    const jwtToken = await getModeratorJWT(telegramId);
+    
+    if (!jwtToken) {
+      return ctx.reply('⚠️ Не удалось получить токен доступа.');
+    }
+    
+    await axios.post(
+      `${API_URL}/api/mod/reject`,
+      { adId, comment: 'Отклонено модератором' },
+      {
+        headers: {
+          'Authorization': `Bearer ${jwtToken}`,
+        },
+      }
+    );
 
     await ctx.reply('ℹ️ Объявление отклонено.');
   } catch (error) {

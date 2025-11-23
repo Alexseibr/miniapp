@@ -33,25 +33,23 @@ function verifyJWT(token) {
 
 async function checkModerator(req, res, next) {
   try {
-    let telegramId;
-    
     const authHeader = req.headers.authorization;
     
-    if (authHeader && authHeader.startsWith('Bearer ')) {
-      const token = authHeader.slice(7);
-      const decoded = verifyJWT(token);
-      
-      if (decoded && decoded.telegramId) {
-        telegramId = parseTelegramId(decoded.telegramId);
-      }
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authorization header required' });
     }
     
-    if (!telegramId) {
-      telegramId = getAuthenticatedTelegramId(req);
+    const token = authHeader.slice(7);
+    const decoded = verifyJWT(token);
+    
+    if (!decoded || !decoded.telegramId) {
+      return res.status(401).json({ error: 'Invalid or expired token' });
     }
-
+    
+    const telegramId = parseTelegramId(decoded.telegramId);
+    
     if (!telegramId) {
-      return res.status(401).json({ error: 'Unauthorized' });
+      return res.status(401).json({ error: 'Invalid telegramId in token' });
     }
 
     const user = await User.findOne({ telegramId });
