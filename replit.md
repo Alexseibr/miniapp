@@ -62,11 +62,15 @@ The data model supports a marketplace with the following entities:
 
 **Category Icon Architecture** (November 2025):
 - **3D Icons Migration**: Migrated from lucide-react SVG icons to custom 3D-rendered PNG icons in Kufar.by style
-- **Icon Storage**: All category icons stored in `miniapp/src/assets/categories/` as PNG files
-- **Mapping System**: `miniapp/src/constants/categoryIcons.ts` contains slug-to-icon mapping for 14 main categories
-- **Icon Files**: real-estate.png, services.png, travel.png, repair.png, auto.png, hobby-sport.png, electronics.png, appliances.png, clothes.png, home-garden.png, kids.png, pets.png, beauty.png, jobs.png
+- **Icon Storage**: 
+  - Main category icons: `miniapp/src/assets/categories/` (14 icons)
+  - Subcategory icons: `miniapp/src/assets/categories/subcategories/` (30 icons)
+- **Mapping System**: `miniapp/src/constants/categoryIcons.ts` contains slug-to-icon mapping for 44 categories total
+- **Main Category Icons** (14): real-estate.png, services.png, travel.png, repair.png, auto.png, hobby-sport.png, electronics.png, appliances.png, clothes.png, home-garden.png, kids.png, pets.png, beauty.png, jobs.png
+- **Subcategory Icons** (30): kvartiry.png, doma-dachi-kottedzhi.png, uchastki.png, garazhi-mashinomesta.png, legkovye-avtomobili.png, zapchasti-aksessuary.png, shiny-diski.png, telefony-planshety.png, noutbuki-kompyutery.png, tv-foto-video.png, igry-igrovye-pristavki.png, audio-tehnika.png, zhenskaya-odezhda.png, muzhskaya-odezhda.png, zhenskaya-obuv.png, krupnaya-bytovaya-tehnika.png, mebel.png, sobaki.png, koshki.png, igrushki.png, kolyaski-avtokresla.png, stroitelstvo-remont.png, stroitelnye-materialy.png, otdelochnye-materialy.png, santehnika.png, tury.png, aviabilety.png, gostinitsy-oteli.png, velosipedy.png, rezyume.png
 - **Visual Style**: 80x80px containers with 20px border-radius, #F5F7FA background, soft shadow (iOS-style)
 - **Fallback Handling**: Missing icons display Lucide Package icon (no emoji - policy compliant)
+- **CategoryGrid Component**: Universal icon rendering for both main categories and subcategories using the same mapping
 
 ### Telegram Bot Interface
 
