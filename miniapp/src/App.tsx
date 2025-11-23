@@ -6,6 +6,7 @@ import FeedPage from '@/pages/FeedPage';
 import FavoritesPage from '@/pages/FavoritesPage';
 import ProfilePage from '@/pages/ProfilePage';
 import CategoryPage from '@/pages/CategoryPage';
+import SubcategoryPage from '@/pages/SubcategoryPage';
 import AdPage from '@/pages/AdPage';
 import OrdersPage from '@/pages/OrdersPage';
 import SeasonsPage from '@/pages/SeasonsPage';
@@ -41,6 +42,7 @@ export default function App() {
       <main>
         <Routes>
           <Route path="/" element={<HomePage />} />
+          <Route path="/category/:slug" element={<SubcategoryPage />} />
           <Route path="/feed" element={<FeedPage />} />
           <Route path="/favorites" element={<FavoritesPage />} />
           <Route path="/profile" element={<ProfilePage />} />

@@ -16,6 +16,14 @@ export default function CategoryGrid({ categories }: Props) {
     return CATEGORY_ICONS[categorySlug] || null;
   };
 
+  const getCategoryLink = (category: CategoryNode): string => {
+    const hasSubcategories = category.subcategories && category.subcategories.length > 0;
+    if (hasSubcategories) {
+      return `/category/${encodeURIComponent(category.slug)}`;
+    }
+    return `/feed?categoryId=${encodeURIComponent(category.slug)}`;
+  };
+
   return (
     <section
       style={{
@@ -28,7 +36,7 @@ export default function CategoryGrid({ categories }: Props) {
       {categories.map((category) => (
         <Link
           key={category.slug}
-          to={`/feed?categoryId=${encodeURIComponent(category.slug)}`}
+          to={getCategoryLink(category)}
           data-testid={`category-card-${category.slug}`}
           style={{
             display: 'flex',
