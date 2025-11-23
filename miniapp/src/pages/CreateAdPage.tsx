@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useUserStore } from '@/store/useUserStore';
 import { fetchCategories } from '@/api/categories';
+import { createAd, CreateAdPayload } from '@/api/ads';
 import { CategoryNode } from '@/types';
 import EmptyState from '@/widgets/EmptyState';
 import { ArrowLeft, Camera, MapPin, Loader2 } from 'lucide-react';
@@ -13,6 +14,7 @@ export default function CreateAdPage() {
   const { coords, requestLocation, status: geoStatus } = useGeo();
 
   const [categories, setCategories] = useState<CategoryNode[]>([]);
+  const [loadingCategories, setLoadingCategories] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<CategoryNode | null>(null);
   const [subcategories, setSubcategories] = useState<CategoryNode[]>([]);
 
@@ -30,7 +32,10 @@ export default function CreateAdPage() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    fetchCategories().then(setCategories).catch(console.error);
+    fetchCategories()
+      .then(setCategories)
+      .catch(console.error)
+      .finally(() => setLoadingCategories(false));
   }, []);
 
   useEffect(() => {
@@ -62,8 +67,13 @@ export default function CreateAdPage() {
       return;
     }
 
-    if (!title.trim() || !categoryId || !subcategoryId || !price) {
+    if (!title.trim() || !categoryId || !price) {
       setError('Заполните все обязательные поля');
+      return;
+    }
+
+    if (subcategories.length > 0 && !subcategoryId) {
+      setError('Выберите подкатегорию');
       return;
     }
 
@@ -73,14 +83,14 @@ export default function CreateAdPage() {
       return;
     }
 
-    const payload: any = {
+    const payload: CreateAdPayload = {
       title: title.trim(),
-      description: description.trim(),
+      description: description.trim() || undefined,
       categoryId,
-      subcategoryId,
+      subcategoryId: subcategoryId || categoryId,
       price: priceNum,
       currency: 'BYN',
-      photos,
+      photos: photos.length > 0 ? photos : undefined,
       sellerTelegramId: user.telegramId,
       deliveryType,
     };
@@ -96,23 +106,16 @@ export default function CreateAdPage() {
       payload.location = {
         lat: coords.lat,
         lng: coords.lng,
+        geo: {
+          type: 'Point',
+          coordinates: [coords.lng, coords.lat],
+        },
       };
     }
 
     try {
       setSubmitting(true);
-      const response = await fetch('/api/ads', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Ошибка создания объявления');
-      }
-
-      const ad = await response.json();
+      const ad = await createAd(payload);
       navigate(`/ads/${ad._id}`);
     } catch (err: any) {
       console.error('Create ad error:', err);

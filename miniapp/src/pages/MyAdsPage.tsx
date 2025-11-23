@@ -2,14 +2,16 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useUserStore } from '@/store/useUserStore';
 import { Ad } from '@/types';
+import { fetchMyAds } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { formatRelativeTime } from '@/utils/time';
-import { Plus, Eye, Edit, Archive, TrendingUp } from 'lucide-react';
+import { Plus, Eye, MapPin, Loader2, Edit } from 'lucide-react';
 
 export default function MyAdsPage() {
   const user = useUserStore((state) => state.user);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string>('');
   const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
 
   useEffect(() => {
@@ -20,12 +22,12 @@ export default function MyAdsPage() {
       }
 
       try {
-        const response = await fetch(`/api/ads/my?sellerTelegramId=${user.telegramId}`);
-        if (!response.ok) throw new Error('Failed to fetch ads');
-        const data = await response.json();
+        setError('');
+        const data = await fetchMyAds(user.telegramId);
         setAds(data.items || []);
-      } catch (error) {
-        console.error('Error loading my ads:', error);
+      } catch (err: any) {
+        console.error('Error loading my ads:', err);
+        setError(err.message || 'Не удалось загрузить объявления');
         setAds([]);
       } finally {
         setLoading(false);
@@ -78,8 +80,20 @@ export default function MyAdsPage() {
     return (
       <div className="container">
         <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4" style={{ color: '#6b7280' }} />
           <div style={{ fontSize: 14, color: '#6b7280' }}>Загрузка объявлений...</div>
         </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container">
+        <EmptyState
+          title="Ошибка загрузки"
+          description={error}
+        />
       </div>
     );
   }
@@ -167,7 +181,7 @@ export default function MyAdsPage() {
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700 }}>
-                    {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+                    {ad.price?.toLocaleString('ru-RU') || '0'} {ad.currency || 'BYN'}
                   </div>
                   {ad.createdAt && (
                     <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>
@@ -176,13 +190,13 @@ export default function MyAdsPage() {
                   )}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, fontSize: 13, color: '#6b7280' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 4 }} data-testid={`ad-views-${ad._id}`}>
                     <Eye size={16} />
                     <span>{ad.views || 0}</span>
                   </div>
                   {ad.isLiveSpot && (
-                    <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>
-                      📍 Живая точка
+                    <span className="badge" style={{ background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      <MapPin size={14} /> Живая точка
                     </span>
                   )}
                 </div>

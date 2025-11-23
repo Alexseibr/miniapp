@@ -58,3 +58,39 @@ export async function listSeasonAds(code: string, params: Record<string, unknown
   const response = await http.get(`/api/seasons/${code}/ads`, { params });
   return response.data;
 }
+
+export interface CreateAdPayload {
+  title: string;
+  description?: string;
+  categoryId: string;
+  subcategoryId: string;
+  price: number;
+  currency?: string;
+  photos?: string[];
+  sellerTelegramId: number;
+  deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup';
+  deliveryRadiusKm?: number;
+  location?: {
+    lat: number;
+    lng: number;
+    geo?: {
+      type: 'Point';
+      coordinates: [number, number];
+    };
+  };
+}
+
+export async function fetchMyAds(sellerTelegramId: number) {
+  if (!sellerTelegramId) {
+    return { items: [] };
+  }
+  const response = await http.get('/api/ads/my', {
+    params: { sellerTelegramId },
+  });
+  return response.data as { items: Ad[] };
+}
+
+export async function createAd(payload: CreateAdPayload) {
+  const response = await http.post('/api/ads', payload);
+  return response.data as Ad;
+}
