@@ -1,43 +1,56 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import BottomTabs from '@/components/BottomTabs';
-import AdsPage from '@/pages/AdsPage';
-import CategoriesPage from '@/pages/CategoriesPage';
-import DashboardPage from '@/pages/DashboardPage';
+import HomePage from '@/pages/HomePage';
+import FeedPage from '@/pages/FeedPage';
+import FavoritesPage from '@/pages/FavoritesPage';
+import ProfilePage from '@/pages/ProfilePage';
+import CategoryPage from '@/pages/CategoryPage';
+import AdPage from '@/pages/AdPage';
+import OrdersPage from '@/pages/OrdersPage';
+import SeasonsPage from '@/pages/SeasonsPage';
+import SeasonViewPage from '@/pages/SeasonViewPage';
+import { useUserStore } from '@/store/useUserStore';
+import { getTelegramWebApp } from '@/utils/telegram';
 
 export default function App() {
+  const location = useLocation();
+  const initialize = useUserStore((state) => state.initialize);
+
+  useEffect(() => {
+    initialize();
+  }, [initialize]);
+
+  useEffect(() => {
+    const tg = getTelegramWebApp();
+    if (tg) {
+      tg.ready();
+      tg.expand();
+      if ('enableClosingConfirmation' in tg) {
+        (tg as any).enableClosingConfirmation();
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, [location.pathname]);
+
   return (
     <div className="app-shell">
-      <header className="topbar">
-        <div className="container topbar__inner">
-          <div>
-            <p className="eyebrow">KETMAR Market MiniApp</p>
-            <h1 className="topbar__title">Живой дашборд</h1>
-            <p className="muted">Проверьте API, категории и объявления прямо из браузера.</p>
-          </div>
-          <div className="topbar__links">
-            <NavLink to="dashboard" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
-              /dashboard
-            </NavLink>
-            <NavLink to="categories" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
-              /categories
-            </NavLink>
-            <NavLink to="ads" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
-              /ads
-            </NavLink>
-          </div>
-        </div>
-      </header>
-
       <main>
-        <div className="container">
-          <Routes>
-            <Route path="/" element={<Navigate to="dashboard" replace />} />
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="categories" element={<CategoriesPage />} />
-            <Route path="ads" element={<AdsPage />} />
-            <Route path="*" element={<Navigate to="dashboard" replace />} />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/feed" element={<FeedPage />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
+          <Route path="/orders" element={<OrdersPage />} />
+          <Route path="/seasons" element={<SeasonsPage />} />
+          <Route path="/seasons/:code" element={<SeasonViewPage />} />
+          <Route path="/categories/:slug" element={<CategoryPage />} />
+          <Route path="/ads/:id" element={<AdPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
       </main>
 
       <BottomTabs />
