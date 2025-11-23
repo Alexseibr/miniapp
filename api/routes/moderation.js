@@ -1,10 +1,14 @@
 const express = require('express');
 const axios = require('axios');
+const jwt = require('jsonwebtoken');
 const Ad = require('../../models/Ad');
 const User = require('../../models/User');
 const config = require('../../config/config');
 
 const router = express.Router();
+
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
+const JWT_EXPIRES_IN = '1h';
 
 function parseTelegramId(value) {
   const numeric = Number(value);
@@ -15,38 +19,34 @@ function getAuthenticatedTelegramId(req) {
   return parseTelegramId(req.telegramAuth?.user?.id);
 }
 
-// TODO PRODUCTION: Current bot-to-API auth uses SESSION_SECRET + X-Telegram-Id header.
-// This is MVP-level security and vulnerable to impersonation if SESSION_SECRET is compromised.
-// For production, implement signed JWT tokens with cryptographic binding to moderator identity:
-// - Bot should request short-lived JWT from backend after validating Telegram initData
-// - JWT payload should contain moderator telegramId signed by server
-// - API should verify JWT signature and extract telegramId from token (not headers)
-function verifyBotInternal(req) {
-  const internalSecret = process.env.INTERNAL_API_SECRET || process.env.SESSION_SECRET;
-  
-  if (!internalSecret) {
-    return false;
+function verifyJWT(token) {
+  try {
+    if (!JWT_SECRET) {
+      return null;
+    }
+    const decoded = jwt.verify(token, JWT_SECRET);
+    return decoded;
+  } catch (error) {
+    return null;
   }
-  
-  const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return false;
-  }
-  
-  const providedToken = authHeader.slice(7);
-  
-  return providedToken === internalSecret;
 }
 
 async function checkModerator(req, res, next) {
   try {
-    const isBotAuthenticated = verifyBotInternal(req);
     let telegramId;
     
-    if (isBotAuthenticated) {
-      telegramId = parseTelegramId(req.headers['x-telegram-id']);
-    } else {
+    const authHeader = req.headers.authorization;
+    
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.slice(7);
+      const decoded = verifyJWT(token);
+      
+      if (decoded && decoded.telegramId) {
+        telegramId = parseTelegramId(decoded.telegramId);
+      }
+    }
+    
+    if (!telegramId) {
       telegramId = getAuthenticatedTelegramId(req);
     }
 
@@ -81,6 +81,50 @@ async function notifySeller(ad, message) {
     console.error('Не удалось уведомить продавца:', error.response?.data || error.message);
   }
 }
+
+router.post('/token', async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return res.status(401).json({ error: 'Authorization header required' });
+    }
+    
+    const providedToken = authHeader.slice(7);
+    
+    if (providedToken !== config.botToken) {
+      return res.status(401).json({ error: 'Invalid bot token' });
+    }
+    
+    const { telegramId } = req.body || {};
+    
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId required' });
+    }
+    
+    const numericId = parseTelegramId(telegramId);
+    
+    if (!numericId) {
+      return res.status(400).json({ error: 'Invalid telegramId' });
+    }
+    
+    const user = await User.findOne({ telegramId: numericId });
+    
+    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin')) {
+      return res.status(403).json({ error: 'User is not a moderator' });
+    }
+    
+    const token = jwt.sign(
+      { telegramId: numericId },
+      JWT_SECRET,
+      { expiresIn: JWT_EXPIRES_IN }
+    );
+    
+    res.json({ token, expiresIn: JWT_EXPIRES_IN });
+  } catch (error) {
+    next(error);
+  }
+});
 
 router.get('/pending', checkModerator, async (req, res, next) => {
   try {
