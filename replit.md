@@ -55,11 +55,24 @@ The data model supports a marketplace with the following entities:
 
 The bot provides these core interactions:
 
+**User Commands:**
 - `/start`: Welcome message and command list
 - `/myid`: Display user's Telegram ID and profile information  
 - `/categories`: Hierarchical category browser with inline keyboards
+- `/sell`: Interactive wizard for creating advertisements (category → subcategory → title → description → price)
+- `/my_ads`: View and manage user's own advertisements (edit price, photos, extend, hide/show)
+- `/market`: Browse marketplace feed with filters
+- `/catalog`: Browse ads by category
+- `/fav_list`: View favorite ads
+- `/season`: View seasonal promotions
 - `/new_test_ad`: Create sample advertisements for testing
-- Inline keyboards for navigation ("Back", "Home", "Next" buttons)
+
+**Moderator Commands** (November 2025):
+- `/moderation`: Moderation panel showing pending advertisements with inline buttons:
+  - ✅ **Approve**: Approve ad and notify seller
+  - ❌ **Reject**: Reject ad with optional comment, notify seller
+  - 🔍 **Open Ad**: View full ad details
+- Requires `isModerator: true` or `role: 'moderator'/'admin'` in User model
 
 **Design Rationale**: The bot acts as the primary user interface for mobile users, while the web admin panel serves marketplace operators. This dual-interface approach optimizes for the mobile-first nature of Telegram while providing robust management tools.
 

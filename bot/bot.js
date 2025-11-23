@@ -10,6 +10,7 @@ bot.use(session());
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
 const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL;
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || process.env.SESSION_SECRET;
 
 registerSeasonHandlers(bot, { apiUrl: API_URL });
 
@@ -1554,10 +1555,11 @@ bot.on("text", async (ctx) => {
   const hasOrderFlow = Boolean(ctx.session?.orderFlow);
   const hasManageFlow = Boolean(ctx.session?.manageAd);
   const hasMarketFlow = Boolean(ctx.session?.market);
+  const hasModRejectFlow = Boolean(ctx.session?.modReject);
 
   const isCancelCommand = normalized === "/cancel" || normalized === "отмена";
 
-  if (!hasSellFlow && !hasOrderFlow && !hasManageFlow && !(hasMarketFlow && isCancelCommand)) {
+  if (!hasSellFlow && !hasOrderFlow && !hasManageFlow && !hasModRejectFlow && !(hasMarketFlow && isCancelCommand)) {
     // нет активного мастера — игнорируем, пусть другие хендлеры сработают
     return;
   }
@@ -1567,12 +1569,14 @@ bot.on("text", async (ctx) => {
     const wasOrder = Boolean(ctx.session?.orderFlow);
     const wasManage = Boolean(ctx.session?.manageAd);
     const wasMarket = Boolean(ctx.session?.market);
+    const wasModReject = Boolean(ctx.session?.modReject);
     ctx.session.sell = null;
     ctx.session.orderFlow = null;
     ctx.session.manageAd = null;
     ctx.session.market = null;
+    ctx.session.modReject = null;
 
-    if (wasSell || wasOrder || wasMarket || wasManage) {
+    if (wasSell || wasOrder || wasMarket || wasManage || wasModReject) {
       await ctx.reply("Диалог отменён. Можно начать заново в любое время.");
       return;
     }
@@ -1580,6 +1584,33 @@ bot.on("text", async (ctx) => {
 
   // Позволяем другим командам Telegraf обрабатывать сообщения, кроме /cancel
   if (text.startsWith("/") && !isCancelCommand) {
+    return;
+  }
+
+  // Обработка ввода причины отклонения объявления модератором
+  if (hasModRejectFlow) {
+    try {
+      const { adId, telegramId } = ctx.session.modReject;
+      const comment = normalized === '-' ? '' : text;
+
+      await axios.post(
+        `${API_URL}/api/mod/reject`,
+        { adId, comment },
+        {
+          headers: {
+            'Authorization': `Bearer ${INTERNAL_SECRET}`,
+            'X-Telegram-Id': telegramId.toString(),
+          },
+        }
+      );
+
+      ctx.session.modReject = null;
+      await ctx.reply('❌ Объявление отклонено. Продавец получит уведомление.');
+    } catch (err) {
+      console.error('modReject flow error:', err.response?.data || err.message);
+      ctx.session.modReject = null;
+      await ctx.reply('⚠️ Ошибка при отклонении объявления. Попробуйте позже.');
+    }
     return;
   }
 
@@ -1744,6 +1775,142 @@ bot.on("text", async (ctx) => {
   }
 });
 
+
+// /moderation - панель модератора
+bot.command('moderation', async (ctx) => {
+  try {
+    const telegramId = ctx.from.id;
+    
+    const userRes = await axios.get(`${API_URL}/api/users/${telegramId}`);
+    const user = userRes.data;
+    
+    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin')) {
+      return ctx.reply('⛔️ У вас нет прав для модерации.');
+    }
+    
+    const adsRes = await axios.get(`${API_URL}/api/mod/pending`, {
+      headers: {
+        'Authorization': `Bearer ${INTERNAL_SECRET}`,
+        'X-Telegram-Id': telegramId.toString(),
+      },
+    });
+    
+    const ads = adsRes.data.items || [];
+    
+    if (ads.length === 0) {
+      return ctx.reply('✅ Нет объявлений на модерации.');
+    }
+    
+    await ctx.reply(`📋 Объявлений на модерации: ${ads.length}\n\nВыберите действие:`);
+    
+    for (const ad of ads) {
+      const text = 
+        `📌 *${escapeMarkdown(ad.title)}*\n` +
+        `💰 Цена: ${ad.price} ${ad.currency || 'BYN'}\n` +
+        `👤 Продавец: ${ad.sellerTelegramId}\n` +
+        `🆔 ID: \`${ad._id}\`\n` +
+        `📅 Создано: ${new Date(ad.createdAt).toLocaleDateString('ru-RU')}`;
+      
+      const keyboard = Markup.inlineKeyboard([
+        [
+          Markup.button.callback('✅ Одобрить', `mod_approve:${ad._id}`),
+          Markup.button.callback('❌ Отклонить', `mod_reject:${ad._id}`),
+        ],
+        [
+          Markup.button.callback('🔍 Открыть', `mod_view:${ad._id}`),
+        ],
+      ]);
+      
+      await ctx.reply(text, {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard.reply_markup,
+      });
+    }
+  } catch (err) {
+    console.error('/moderation error:', err.response?.data || err.message);
+    ctx.reply('⚠️ Ошибка при загрузке объявлений на модерации.');
+  }
+});
+
+// Обработчик одобрения объявления
+bot.action(/mod_approve:(.+)/, async (ctx) => {
+  try {
+    const adId = ctx.match[1];
+    const telegramId = ctx.from.id;
+    
+    await axios.post(
+      `${API_URL}/api/mod/approve`,
+      { adId },
+      {
+        headers: {
+          'Authorization': `Bearer ${INTERNAL_SECRET}`,
+          'X-Telegram-Id': telegramId.toString(),
+        },
+      }
+    );
+    
+    await ctx.answerCbQuery('✅ Объявление одобрено!');
+    await ctx.editMessageReplyMarkup({
+      inline_keyboard: [
+        [{ text: '✅ Одобрено', callback_data: 'noop' }],
+      ],
+    });
+  } catch (err) {
+    console.error('mod_approve error:', err.response?.data || err.message);
+    await ctx.answerCbQuery('⚠️ Ошибка при одобрении', { show_alert: true });
+  }
+});
+
+// Обработчик отклонения объявления
+bot.action(/mod_reject:(.+)/, async (ctx) => {
+  try {
+    const adId = ctx.match[1];
+    const telegramId = ctx.from.id;
+    
+    ensureBotSession(ctx);
+    ctx.session.modReject = { adId, telegramId };
+    
+    await ctx.answerCbQuery('Введите причину отклонения');
+    await ctx.reply(
+      `❌ Отклонение объявления \`${adId}\`\n\n` +
+      'Введите причину отклонения или отправьте "-" без комментария.\n' +
+      'Отмена: /cancel',
+      { parse_mode: 'Markdown' }
+    );
+  } catch (err) {
+    console.error('mod_reject error:', err.response?.data || err.message);
+    await ctx.answerCbQuery('⚠️ Ошибка', { show_alert: true });
+  }
+});
+
+// Обработчик просмотра объявления
+bot.action(/mod_view:(.+)/, async (ctx) => {
+  try {
+    const adId = ctx.match[1];
+    
+    const response = await axios.get(`${API_URL}/api/ads/${adId}`);
+    const ad = response.data.item || response.data;
+    
+    const photoText = ad.photos && ad.photos.length > 0
+      ? `\n📸 Фото: ${ad.photos.length} шт.`
+      : '\n📸 Нет фото';
+    
+    const text =
+      `*${escapeMarkdown(ad.title)}*\n\n` +
+      `${escapeMarkdown(ad.description || 'Без описания')}\n\n` +
+      `💰 Цена: ${ad.price} ${ad.currency || 'BYN'}\n` +
+      `📂 Категория: ${ad.categoryId?.name || ad.categoryId}\n` +
+      `👤 Продавец: ${ad.sellerTelegramId}\n` +
+      `📅 Создано: ${new Date(ad.createdAt).toLocaleDateString('ru-RU')}` +
+      photoText;
+    
+    await ctx.answerCbQuery('Просмотр объявления');
+    await ctx.reply(text, { parse_mode: 'Markdown' });
+  } catch (err) {
+    console.error('mod_view error:', err.response?.data || err.message);
+    await ctx.answerCbQuery('⚠️ Не удалось загрузить', { show_alert: true });
+  }
+});
 
 // Обработка ошибок
 bot.catch((err, ctx) => {
