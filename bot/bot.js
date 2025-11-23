@@ -577,6 +577,7 @@ bot.command('start', async (ctx) => {
     `/my_ads - 📋 Мои объявления\n` +
     `/catalog - 📦 Каталог объявлений\n` +
     `/market - 🛒 Лента объявлений\n` +
+    `/rental - 🏠 Краткосрочная аренда\n` +
     `/fav_list - ⭐ Избранное\n` +
     `/season - 🌟 Сезонные предложения\n` +
     `/categories - 📂 Категории\n` +
@@ -1126,6 +1127,97 @@ bot.command('season', async (ctx) => {
   } catch (error) {
     console.error('Ошибка в /season:', error);
     await ctx.reply('❌ Произошла ошибка при загрузке сезонных предложений.');
+  }
+});
+
+// /rental - быстрый доступ к краткосрочной аренде через Season
+bot.command('rental', async (ctx) => {
+  try {
+    // Получаем объявления через Season endpoint (используем short_term_rental season)
+    const response = await fetch(`${API_URL}/api/ads?seasonCode=short_term_rental&limit=10`);
+    
+    if (!response.ok) {
+      throw new Error('Ошибка получения объявлений');
+    }
+    
+    const data = await response.json();
+    const ads = data.items || [];
+    
+    // Формируем deep link на MiniApp с фильтром по сезону
+    const miniappLink = MINIAPP_URL 
+      ? `${MINIAPP_URL}?startapp=season_short_term_rental`
+      : null;
+    
+    if (ads.length === 0) {
+      await ctx.reply(
+        `🏠 Краткосрочная аренда (Посуточно)\n\n` +
+        `Аренда квартир и домов на короткий срок.\n\n` +
+        `📦 Пока нет доступных объявлений.`
+      );
+      
+      if (miniappLink) {
+        await ctx.reply(
+          '🔗 Открыть в приложении',
+          Markup.inlineKeyboard([
+            [Markup.button.url('Смотреть предложения', miniappLink)]
+          ])
+        );
+      }
+      return;
+    }
+    
+    await ctx.reply(
+      `🏠 Краткосрочная аренда (Посуточно)\n\n` +
+      `Найдено предложений: ${ads.length}\n\n` +
+      `📋 Показываю первые 5:`
+    );
+    
+    // Показываем объявления
+    for (const ad of ads.slice(0, 5)) {
+      const title = escapeMarkdown(ad.title || 'Без названия');
+      const description = escapeMarkdown(ad.description || 'Без описания');
+      const city = escapeMarkdown(ad.location?.city || 'Не указано');
+      const contact = escapeMarkdown(ad.sellerContact || 'См. детали');
+      const price = escapeMarkdown(String(ad.price || 0));
+      const currency = escapeMarkdown(ad.currency || 'BYN');
+      
+      const message = 
+        `**${title}**\n\n` +
+        `${description}\n\n` +
+        `💰 Цена: **${price} ${currency}**\n` +
+        `📍 Местоположение: ${city}\n` +
+        `👤 Контакт: ${contact}`;
+      
+      const keyboard = Markup.inlineKeyboard([
+        [Markup.button.callback('👁️ Подробнее', `view_${ad._id}`)],
+      ]);
+      
+      if (ad.photos && ad.photos.length > 0) {
+        await ctx.replyWithPhoto(ad.photos[0], {
+          caption: message,
+          parse_mode: 'Markdown',
+          ...keyboard,
+        });
+      } else {
+        await ctx.reply(message, {
+          parse_mode: 'Markdown',
+          ...keyboard,
+        });
+      }
+    }
+    
+    // Добавляем кнопку "Смотреть все в приложении"
+    if (miniappLink) {
+      await ctx.reply(
+        '🔗 Смотреть все объявления краткосрочной аренды',
+        Markup.inlineKeyboard([
+          [Markup.button.url('Открыть приложение', miniappLink)]
+        ])
+      );
+    }
+  } catch (error) {
+    console.error('Ошибка в /rental:', error);
+    await ctx.reply('❌ Произошла ошибка при загрузке объявлений аренды.');
   }
 });
 

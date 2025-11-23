@@ -18,9 +18,19 @@ The backend uses Node.js with Express.js, orchestrating an API server and Telegr
 
 MongoDB Atlas is used with Mongoose for data modeling. Key entities include User, Category (hierarchical with `parentSlug`), Season, Ad (product listings), and Order. Categories feature a slug-based parent-child relationship for intuitive URLs and support for 3D rendered PNG icons across multiple hierarchy levels, mirroring Kufar.by's taxonomy. Ad documents store photos as URL arrays, and Order items are denormalized to preserve historical data.
 
+**Real Estate (Недвижимость) Category Structure:**
+- `realty` (Недвижимость)
+  - `realty_rent` (Аренда)
+    - `realty_rent_daily` (Посуточно) - Short-term/daily rentals
+    - `realty_rent_long` (Долгосрочная) - Long-term rentals
+  - Legacy categories: `rent_flat`, `rent_house`, `country_base`
+
+**Short-Term Rental Promo Block:**
+A permanent Season (`short_term_rental`) is configured as a promotional "island" for daily rentals (`realty_rent_daily`). This block is featured prominently in both the MiniApp and bot, and can be accessed via deep link for dedicated bot instances.
+
 ### Telegram Bot Interface
 
-Built with Telegraf, the bot handles user commands like `/start`, `/categories`, `/sell` (including geolocation), `/my_ads`, and `/market`. It also features a moderation panel with JWT-authenticated approval/rejection workflows for ads. The bot is the primary mobile interface, complementing the web admin panel.
+Built with Telegraf, the bot handles user commands like `/start`, `/categories`, `/sell` (including geolocation), `/my_ads`, `/market`, and `/rental`. The `/rental` command provides quick access to short-term (daily) rental listings with deep links to the MiniApp. The bot also features a moderation panel with JWT-authenticated approval/rejection workflows for ads. The bot is the primary mobile interface, complementing the web admin panel.
 
 ### Frontend Architecture (Web Admin)
 

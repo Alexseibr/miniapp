@@ -81,6 +81,10 @@ export const CATEGORY_ICONS: Record<string, string> = {
   'doma-dachi-kottedzhi': housesIcon,
   'uchastki': landIcon,
   'garazhi-mashinomesta': garagesIcon,
+  
+  'realty_rent': apartmentsIcon,
+  'realty_rent_daily': hotelsIcon,
+  'realty_rent_long': apartmentsIcon,
   'legkovye-avtomobili': carsIcon,
   'zapchasti-aksessuary': sparePartsIcon,
   'shiny-diski': tiresIcon,

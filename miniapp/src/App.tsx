@@ -39,6 +39,13 @@ export default function App() {
           if ('enableClosingConfirmation' in tg) {
             (tg as any).enableClosingConfirmation();
           }
+          
+          // Обработка deep link из Telegram (startapp параметр)
+          const startParam = (tg as any).initDataUnsafe?.start_param;
+          if (startParam) {
+            console.log('📱 Deep link detected:', startParam);
+            handleDeepLink(startParam);
+          }
         } else {
           console.warn('⚠️ Telegram WebApp SDK not available - running in browser mode');
         }
@@ -57,6 +64,20 @@ export default function App() {
 
     initApp();
   }, [initialize]);
+  
+  // Обработка deep link из бота
+  function handleDeepLink(startParam: string) {
+    // Формат: season_short_term_rental, category_realty_rent_daily и т.д.
+    if (startParam.startsWith('season_')) {
+      const seasonCode = startParam.replace('season_', '');
+      // Перенаправляем на FeedPage с фильтром по сезону
+      window.location.href = `/feed?season=${encodeURIComponent(seasonCode)}`;
+    } else if (startParam.startsWith('category_')) {
+      const categoryId = startParam.replace('category_', '');
+      // Перенаправляем на FeedPage с фильтром по категории
+      window.location.href = `/feed?categoryId=${encodeURIComponent(categoryId)}`;
+    }
+  }
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
