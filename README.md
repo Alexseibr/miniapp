@@ -256,3 +256,23 @@ curl http://localhost:5000/api/ads
 **Проект готов к использованию!** 🎉
 
 Текущий URL: https://workspace.alexseibr.repl.co
+
+## KufarCode iOS Client (SwiftUI)
+
+A native SwiftUI client scaffold that consumes the existing Node.js + MongoDB backend for the KufarCode marketplace. The project lives in `KufarCodeApp/` and follows MVVM with Data/Domain/Presentation layering and Combine for reactivity.
+
+### Structure
+- `App/` — SwiftUI app entry point and dependency container.
+- `Data/` — Networking layer, DTOs, and remote repository implementations.
+- `Domain/` — Business models and use cases.
+- `Presentation/` — SwiftUI screens, view models, server-driven layout renderer, and shared UI components.
+- `Shared/` — Utilities, extensions, theme helpers, and local storage wrapper.
+
+### Configuration
+- Set the backend base URL in `App/DI/AppContainer.swift` when initializing `ApiClient` (default placeholder is `https://api.example.com`).
+- UserDefaults keys are defined in `Shared/Utils/LocalStorageService.swift` for selected city code and favorite ad IDs.
+
+### Building
+1. Open `KufarCodeApp` in Xcode 15+.
+2. Ensure the deployment target is iOS 16 or newer (NavigationStack is used).
+3. Build and run on a simulator or device; the app will fetch layouts and content from the configured backend without requiring App Store updates for UI changes.
