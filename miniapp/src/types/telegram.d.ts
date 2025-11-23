@@ -1,3 +1,12 @@
+export interface LocationData {
+  latitude: number;
+  longitude: number;
+  altitude?: number;
+  course?: number;
+  speed?: number;
+  horizontal_accuracy?: number;
+}
+
 export interface TelegramWebApp {
   initData?: string;
   initDataUnsafe?: {
@@ -25,6 +34,10 @@ export interface TelegramWebApp {
     show: () => void;
     hide: () => void;
     text: string;
+  };
+  LocationManager?: {
+    getLocation: (callback: (location: LocationData | null) => void) => void;
+    isLocationAvailable: boolean;
   };
 }
 
