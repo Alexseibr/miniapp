@@ -1,142 +1,259 @@
-# Design Guidelines: Telegram Marketplace Bot
+# Design Guidelines: KETMAR Market
 
 ## Design Approach
 
-**System Selection**: Material Design 3 principles adapted for Telegram's ecosystem  
-**Primary Interface**: Telegram Bot with inline keyboards and rich media  
+**System Selection**: Modern Neutral Design System
+**Primary Interface**: Telegram MiniApp with Server-Driven UI
 **Secondary Interface**: Web admin panel for marketplace management
 
-**Justification**: Material Design provides clear hierarchy and interaction patterns perfect for data-heavy marketplace content while maintaining mobile-first principles essential for Telegram users.
+**Justification**: Contemporary neutral palette provides professional appearance, excellent readability, and timeless aesthetic perfect for marketplace applications. Emphasis on content over decoration.
+
+---
+
+## Color System
+
+### Neutral Professional Palette
+
+**Primary Colors:**
+- `--color-primary`: `#0f172a` (Slate 900) - Primary text, headers
+- `--color-primary-light`: `#1e293b` (Slate 800) - Interactive elements
+- `--color-primary-soft`: `#334155` (Slate 700) - Secondary elements
+
+**Secondary Colors:**
+- `--color-secondary`: `#64748b` (Slate 500) - Secondary text
+- `--color-secondary-light`: `--color-text-muted`: `#94a3b8` (Slate 400) - Muted text
+- `--color-secondary-soft`: `#cbd5e1` (Slate 300) - Borders
+
+**Accent Colors:**
+- `--color-accent`: `#475569` (Slate 600) - Subtle accents
+- `--color-accent-warm`: `#78716c` (Stone 500) - Warm accents
+- `--color-accent-highlight`: `#3b82f6` (Blue 500) - Important CTAs only
+
+**Background Colors:**
+- `--bg-primary`: `#ffffff` - Main background
+- `--bg-secondary`: `#f8fafc` (Slate 50) - Alternate sections
+- `--bg-tertiary`: `#f1f5f9` (Slate 100) - Cards, containers
+- `--bg-elevated`: `#ffffff` - Elevated cards with shadow
+
+**Semantic Colors:**
+- `--color-success`: `#10b981` (Emerald 500)
+- `--color-success-bg`: `#d1fae5` (Emerald 100)
+- `--color-warning`: `#f59e0b` (Amber 500)
+- `--color-warning-bg`: `#fef3c7` (Amber 100)
+- `--color-error`: `#ef4444` (Red 500)
+- `--color-error-bg`: `#fee2e2` (Red 100)
+- `--color-info`: `#6366f1` (Indigo 500)
+- `--color-info-bg`: `#e0e7ff` (Indigo 100)
+
+### Dark Mode Support
+*Planned for future implementation - Telegram theme integration*
 
 ---
 
 ## Typography
 
-**Primary Font**: System fonts (Telegram native)
-- **Headings**: Bold, 16-18px for product titles
-- **Body**: Regular, 14px for descriptions
-- **Metadata**: Regular, 12px for prices, categories, timestamps
-- **CTAs**: Medium weight, 14px for action buttons
+**Primary Font**: Inter (Google Fonts)
+- Modern, highly legible geometric sans-serif
+- Excellent at small sizes for mobile
+
+**Hierarchy:**
+- **Headings**: 600-700 weight, Slate 900
+- **Body**: 400-500 weight, Slate 700
+- **Metadata**: 400 weight, Slate 500
+- **Muted**: 400 weight, Slate 400
+
+**Size Scale:**
+- H1: `clamp(1.5rem, 2.5vw, 2rem)` (24-32px)
+- H2: `clamp(1.25rem, 2vw, 1.5rem)` (20-24px)
+- H3: `1.125rem` (18px)
+- Body: `1rem` (16px)
+- Small: `0.875rem` (14px)
+- Tiny: `0.75rem` (12px)
 
 ---
 
 ## Layout System
 
-**Spacing Units**: Tailwind units of 2, 4, 6, and 8
-- Card padding: `p-4`
-- Section spacing: `gap-6` or `gap-8`
-- Button spacing: `px-6 py-2`
-- Grid gaps: `gap-4`
+**Spacing Units**: Consistent 4px-based scale
+- Micro: `4px`
+- Small: `8px`
+- Medium: `12px`
+- Base: `16px`
+- Large: `24px`
+- XL: `32px`
 
-**Container Strategy**:
-- Web admin: `max-w-7xl` for dashboards
-- Product cards: `max-w-sm` for optimal preview
-- Forms: `max-w-2xl` for comfortable input
+**Container Strategy:**
+- MiniApp: Full-width with horizontal padding `clamp(16px, 3vw, 28px)`
+- Cards: `16px` padding
+- Bottom padding: `120px` to account for tab navigation
+- Max width: `1200px` for wide screens
+
+**Border Radius:**
+- Small: `8px` - Buttons, small cards
+- Medium: `12px` - Input fields, standard cards
+- Large: `16px` - Major containers
+- XL: `18px` - Feature sections
+- Full: `999px` - Pills, badges
 
 ---
 
-## Telegram Bot Interface Design
+## Component Design
 
-### Message Composition
-- **Product Cards**: Photo + Title + Price + Category + Description (truncated to 2 lines) + "View Details" inline button
-- **List Views**: Compact format with thumbnail (100x100px), title, price in single row
-- **Category Navigation**: Inline keyboard with 2 columns, max 6 categories per page
-- **Search Results**: Grid of 2 columns on mobile with product thumbnails
+### Cards
+- Background: `#ffffff`
+- Border: `1px solid #e2e8f0` (optional)
+- Shadow: `0 2px 8px rgba(15, 23, 42, 0.06)` (subtle)
+- Hover: `0 4px 16px rgba(15, 23, 42, 0.1)` (elevation)
+- Radius: `16px`
 
-### Inline Keyboards Layout
-- **Primary Actions**: Full-width buttons (Add to Cart, Buy Now, Contact Seller)
-- **Navigation**: 2-3 buttons per row (◀️ Back | 🏠 Home | ▶️ Next)
-- **Filters**: Compact 2-column grid (📱 Electronics | 👕 Fashion | 🏠 Home | 🎮 Games)
+### Buttons
+**Primary:**
+- Background: `#0f172a` (Slate 900)
+- Text: `#ffffff`
+- Padding: `12px 20px`
+- Radius: `12px`
+- Hover: `#1e293b` (Slate 800)
 
-### Rich Media Presentation
-- **Product Images**: Always include high-quality photos, 1200x1200px optimal
-- **Image Galleries**: Carousel format using Telegram's native media groups (max 10 images)
-- **Thumbnails**: 300x300px for list views
+**Secondary:**
+- Background: `#f1f5f9` (Slate 100)
+- Text: `#0f172a` (Slate 900)
+- Border: `1px solid #cbd5e1` (optional)
+- Hover: `#e2e8f0` (Slate 200)
+
+**Ghost:**
+- Background: `transparent`
+- Text: `#475569` (Slate 600)
+- Hover: `#f8fafc` (Slate 50)
+
+### Input Fields
+- Border: `1px solid #cbd5e1` (Slate 300)
+- Background: `#ffffff`
+- Radius: `12px`
+- Padding: `12px`
+- Focus: `2px solid #3b82f6` (Blue 500) outline
+
+### Badges & Pills
+- Padding: `4px 10px`
+- Radius: `999px` (full pill)
+- Background: `rgba(71, 85, 105, 0.1)` with matching text color
+- Font size: `0.75rem` (12px)
+- Font weight: 600
+
+---
+
+## Telegram MiniApp Design
+
+### Server-Driven UI Blocks
+
+**Block Types:**
+1. **Hero Banner** - Full-width image with title overlay
+2. **Category Grid** - 2-3 column grid with icons
+3. **Ad Carousel** - Horizontal scroll of product cards
+4. **Promo Banner** - Seasonal/event promotional block
+5. **Map Block** - Geolocation-based content
+6. **Content Slot** - Flexible content from CMS
+
+**Layout Principles:**
+- Blocks render vertically in order
+- Each block has consistent 16px horizontal padding
+- Vertical spacing: 16-24px between blocks
+- Responsive grid for category/product displays
+
+### Bottom Navigation
+- Fixed position, 64px height
+- Background: `#ffffff` with top border
+- Icons: Lucide React, 24px size
+- Active state: Slate 900 text, subtle background
+- Inactive: Slate 400 text
 
 ---
 
 ## Web Admin Panel Design
 
-### Dashboard Layout
-**Hero Section**: Stats cards in 4-column grid (`grid-cols-4`)
-- Total Products | Active Listings | Revenue | Pending Orders
-- Icons from Heroicons (outline style)
-- Large numbers (24px bold) with labels below (12px regular)
-
-### Product Management
-**Table View**: 
-- Columns: Thumbnail | Title | Category | Price | Stock | Status | Actions
-- Row height: `h-16` with centered content
-- Sticky header with `shadow-sm`
-
-**Product Creation Form**:
-- Two-column layout (`grid-cols-2`) for desktop
-- Single column on mobile
-- Image upload zone: Large dropzone with preview grid below (4 columns)
-- Fields: Title, Description (textarea), Price, Category (select), Stock, Images (multi-upload)
-
-### Navigation
-**Sidebar** (Desktop):
-- Fixed left sidebar, `w-64`
-- Vertical navigation with icons
-- Sections: Dashboard, Products, Orders, Categories, Settings
-
-**Top Bar** (Mobile):
-- Hamburger menu
-- Compact navigation drawer
-
----
-
-## Component Library
-
-### Cards
-- **Product Card**: Rounded corners (`rounded-lg`), shadow on hover, image aspect ratio 1:1
-- **Stat Card**: Subtle background, prominent number display, icon in top-right
-- **Order Card**: Timeline-style with status indicators
-
-### Buttons
-- **Primary CTA**: Solid background, `rounded-md`, `px-6 py-3`
-- **Secondary**: Outline style, same dimensions
-- **Icon Buttons**: Square `w-10 h-10`, centered icon
+### Dashboard
+- Sidebar: `w-64`, fixed left, Slate 50 background
+- Main content: Max-width `1200px`, centered
+- Stats cards: 4-column grid on desktop, stacked mobile
+- Tables: Striped rows, hover states
 
 ### Forms
-- **Input Fields**: Border style, `rounded-md`, `h-12`, focus ring on interaction
-- **Dropdowns**: Custom styled select with chevron icon
-- **File Upload**: Drag-and-drop zone with preview thumbnails below
-
-### Data Display
-- **Tables**: Striped rows for readability, `hover:bg-gray-50` on rows
-- **Status Badges**: Rounded pills (`rounded-full px-3 py-1`) with color coding (green=active, yellow=pending, red=inactive)
+- Two-column layout on desktop
+- Generous padding and spacing
+- Clear labels above inputs
+- Validation states with colored borders
 
 ---
 
-## Images
+## Shadows & Elevation
 
-### Web Admin Panel
-**Dashboard Hero**: No large hero image - focus on functional stats dashboard
-**Product Placeholders**: Include generic product category images when products lack photos
-**Empty States**: Illustrative SVGs for empty product lists, orders (e.g., "No products yet - Add your first product")
-
-### Telegram Bot
-**All product listings MUST include photos** - use placeholder images if merchant hasn't uploaded
-**Category Icons**: Emoji or simple icons for quick category recognition in inline keyboards
+**Elevation Scale:**
+- Level 0 (flat): No shadow
+- Level 1 (subtle): `0 2px 8px rgba(15, 23, 42, 0.06)`
+- Level 2 (card): `0 4px 16px rgba(15, 23, 42, 0.1)`
+- Level 3 (modal): `0 20px 40px rgba(15, 23, 42, 0.2)`
 
 ---
 
 ## Animations
 
-**Minimal and Purposeful**:
-- Smooth transitions on hover states (buttons, cards): 150ms ease
-- Loading spinners for data fetching
-- Slide-in for mobile navigation drawer
-- No scroll-triggered animations
+**Transitions:**
+- Duration: `150ms` for micro-interactions
+- Duration: `250ms` for larger movements
+- Easing: `cubic-bezier(0.4, 0, 0.2, 1)` (ease-in-out)
+
+**Hover States:**
+- Buttons: Slight background color change
+- Cards: Subtle elevation increase (`translateY(-2px)`)
+- Links: Color shift to primary
+
+**No scroll-triggered animations** - Performance priority
 
 ---
 
-## Key Principles
+## Images & Media
 
-1. **Mobile-First**: 90% of Telegram users are on mobile - optimize for thumb-friendly touch targets
-2. **Fast Loading**: Compress images, lazy load product galleries
-3. **Clear Hierarchy**: Price and product title always most prominent
-4. **Trust Signals**: Display seller ratings, verified badges, secure payment indicators
-5. **Efficient Navigation**: No more than 3 taps to reach any product from home
+### Product Images
+- Aspect ratio: 1:1 (square) or 4:3
+- Quality: WebP format, lazy loading
+- Placeholder: Neutral gray background with icon
+
+### Category Icons
+- WebP format, optimized
+- Size: Variable based on hierarchy
+- Lazy loading enabled
+- Async decoding
+
+---
+
+## Accessibility
+
+- Minimum touch target: 44x44px
+- Color contrast: WCAG AA minimum (4.5:1)
+- Focus indicators: Visible 2px outline
+- Keyboard navigation: Full support in web admin
+
+---
+
+## Key Design Principles
+
+1. **Content First**: Minimal chrome, maximum content visibility
+2. **Performance**: Optimized images, lazy loading, code splitting
+3. **Consistency**: Unified spacing, typography, color usage
+4. **Clarity**: Clear hierarchy, obvious interactive elements
+5. **Professionalism**: Neutral palette conveys trust and reliability
+6. **Mobile Optimized**: Thumb-friendly targets, optimized layouts
+7. **Future-Proof**: Timeless neutral palette won't feel dated
+
+---
+
+## Logo Integration
+
+*Pending: Awaiting logo files to generate variants*
+
+Once logos are provided, will create:
+- Full horizontal logo
+- Compact icon version
+- Favicon (32x32, 64x64, 128x128)
+- App icon (1024x1024)
+- MiniApp icon (512x512)
+- Splash screen graphic
