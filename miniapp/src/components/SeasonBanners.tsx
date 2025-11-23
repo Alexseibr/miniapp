@@ -65,15 +65,15 @@ export default function SeasonBanners() {
             data-testid={`season-banner-${season.code}`}
           >
             <div>
-              <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600 }} data-testid={`text-season-name-${season.code}`}>{season.name}</h3>
+              <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600 }} data-testid={`text-season-name-${season.code}`}>{season.name}</h3>
               {season.description && (
-                <p style={{ margin: '4px 0 0', fontSize: 14, opacity: 0.9 }} data-testid={`text-season-description-${season.code}`}>
+                <p style={{ margin: '4px 0 0', fontSize: 13, opacity: 0.9 }} data-testid={`text-season-description-${season.code}`}>
                   {season.description.slice(0, 60)}
                   {season.description.length > 60 ? '...' : ''}
                 </p>
               )}
             </div>
-            <div style={{ fontSize: 12, opacity: 0.8 }} data-testid={`text-season-cta-${season.code}`}>
+            <div style={{ fontSize: 11, opacity: 0.8 }} data-testid={`text-season-cta-${season.code}`}>
               Смотреть предложения →
             </div>
           </Link>

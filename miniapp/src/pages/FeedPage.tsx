@@ -115,11 +115,11 @@ export default function FeedPage() {
           top: 0,
           backgroundColor: 'white',
           zIndex: 10,
-          padding: '12px 16px',
+          padding: '10px 16px',
           borderBottom: '1px solid #e5e7eb',
         }}
       >
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <div style={{ position: 'relative', flex: 1 }}>
             <input
               className="input"
@@ -128,15 +128,27 @@ export default function FeedPage() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               data-testid="input-search"
+              style={{ fontSize: 15, padding: '10px 14px' }}
             />
           </div>
           <button
-            className="secondary"
             type="button"
             onClick={() => setShowFilters(true)}
             data-testid="button-open-filters"
+            style={{
+              padding: 10,
+              backgroundColor: '#f3f4f6',
+              border: '1px solid #e5e7eb',
+              borderRadius: 8,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 40,
+              height: 40,
+            }}
           >
-            <SlidersHorizontal size={18} />
+            <SlidersHorizontal size={20} color="#6b7280" />
           </button>
         </div>
       </div>
@@ -152,24 +164,24 @@ export default function FeedPage() {
           <SeasonBanners />
         </div>
 
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' }}>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
           <button
             className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14 }}
+            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
             data-testid="button-filter-categories"
           >
             Категории
           </button>
           <button
             className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14 }}
+            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
             data-testid="button-filter-location"
           >
             Вся Беларусь
           </button>
           <button
             className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14 }}
+            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
             data-testid="button-filter-sort"
           >
             По новизне
@@ -180,7 +192,7 @@ export default function FeedPage() {
           <button
             className="primary"
             style={{ 
-              padding: '16px', 
+              padding: '14px', 
               textAlign: 'left',
               display: 'flex',
               flexDirection: 'column',
@@ -188,13 +200,13 @@ export default function FeedPage() {
             }}
             data-testid="button-all-ads"
           >
-            <span style={{ fontSize: 16, fontWeight: 600 }}>Всего</span>
-            <span style={{ fontSize: 14, opacity: 0.9 }}>{ads.length} объявлений</span>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>Всего</span>
+            <span style={{ fontSize: 13, opacity: 0.9 }}>{ads.length} объявлений</span>
           </button>
           <button
             className="primary"
             style={{ 
-              padding: '16px', 
+              padding: '14px', 
               textAlign: 'left',
               display: 'flex',
               flexDirection: 'column',
@@ -203,13 +215,13 @@ export default function FeedPage() {
             }}
             data-testid="button-company-ads"
           >
-            <span style={{ fontSize: 16, fontWeight: 600 }}>Товары компаний</span>
-            <span style={{ fontSize: 14, opacity: 0.9 }}>0 объявлений</span>
+            <span style={{ fontSize: 15, fontWeight: 600 }}>Товары компаний</span>
+            <span style={{ fontSize: 13, opacity: 0.9 }}>0 объявлений</span>
           </button>
         </div>
 
         <div style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }} data-testid="text-all-ads-title">Все объявления</h2>
+          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }} data-testid="text-all-ads-title">Все объявления</h2>
         </div>
 
         {loading ? (
@@ -254,6 +266,7 @@ export default function FeedPage() {
         radiusKm={radiusKm}
         onRadiusChange={setRadius}
         geoStatus={status}
+        totalAds={ads.length}
       />
     </div>
   );

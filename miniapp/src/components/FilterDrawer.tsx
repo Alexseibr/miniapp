@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { X } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { ChevronLeft } from 'lucide-react';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -15,14 +15,15 @@ interface FilterDrawerProps {
   radiusKm: number;
   onRadiusChange: (value: number) => void;
   geoStatus: string;
+  totalAds: number;
 }
 
 const SORT_OPTIONS = [
-  { value: 'newest', label: 'Новые' },
-  { value: 'cheapest', label: 'Дешевле' },
-  { value: 'expensive', label: 'Дороже' },
-  { value: 'popular', label: 'Популярные' },
-  { value: 'distance', label: 'Рядом' },
+  { value: 'newest', label: 'По новизне' },
+  { value: 'cheapest', label: 'По возрастанию цены' },
+  { value: 'expensive', label: 'По убыванию цены' },
+  { value: 'popular', label: 'По популярности' },
+  { value: 'distance', label: 'По расстоянию' },
 ];
 
 export default function FilterDrawer({
@@ -39,9 +40,19 @@ export default function FilterDrawer({
   radiusKm,
   onRadiusChange,
   geoStatus,
+  totalAds,
 }: FilterDrawerProps) {
+  const [localMinPrice, setLocalMinPrice] = useState(minPrice);
+  const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice);
+  const [localSort, setLocalSort] = useState(sort);
+  const [localRadiusKm, setLocalRadiusKm] = useState(radiusKm);
+
   useEffect(() => {
     if (isOpen) {
+      setLocalMinPrice(minPrice);
+      setLocalMaxPrice(maxPrice);
+      setLocalSort(sort);
+      setLocalRadiusKm(radiusKm);
       document.body.style.overflow = 'hidden';
     } else {
       document.body.style.overflow = '';
@@ -49,12 +60,36 @@ export default function FilterDrawer({
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, minPrice, maxPrice, sort, radiusKm]);
+
+  const handleApply = () => {
+    onMinPriceChange(localMinPrice);
+    onMaxPriceChange(localMaxPrice);
+    onSortChange(localSort);
+    onRadiusChange(localRadiusKm);
+    if (localSort === 'distance' && !coords) {
+      onRequestLocation();
+    }
+    onClose();
+  };
+
+  const handleReset = () => {
+    setLocalMinPrice('');
+    setLocalMaxPrice('');
+    setLocalSort('newest');
+    setLocalRadiusKm(5);
+    onMinPriceChange('');
+    onMaxPriceChange('');
+    onSortChange('newest');
+    onRadiusChange(5);
+  };
+
 
   if (!isOpen) return null;
 
   return (
     <>
+      {/* Overlay */}
       <div
         style={{
           position: 'fixed',
@@ -69,131 +104,232 @@ export default function FilterDrawer({
         onClick={onClose}
         data-testid="filter-overlay"
       />
+      
       <div
         style={{
           position: 'fixed',
-          bottom: 0,
+          top: 0,
           left: 0,
           right: 0,
+          bottom: 0,
           backgroundColor: 'white',
-          borderTopLeftRadius: 20,
-          borderTopRightRadius: 20,
-          padding: '20px 16px 32px',
           zIndex: 1000,
-          maxHeight: '85vh',
-          overflowY: 'auto',
-          animation: 'slideUp 0.3s',
+          display: 'flex',
+          flexDirection: 'column',
+          animation: 'slideInRight 0.3s',
         }}
         data-testid="filter-drawer"
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <h2 style={{ margin: 0, fontSize: 20, fontWeight: 600 }} data-testid="text-filter-title">Фильтры</h2>
-          <button
-            className="secondary"
-            type="button"
-            onClick={onClose}
-            style={{ minWidth: 40, width: 'auto', padding: '8px 12px' }}
-            data-testid="button-close-filters"
-          >
-            <X size={20} />
-          </button>
-        </div>
+      {/* Header */}
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          borderBottom: '1px solid #e5e7eb',
+          backgroundColor: 'white',
+        }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 8,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+          data-testid="button-close-filters"
+        >
+          <ChevronLeft size={24} color="#111827" />
+        </button>
+        <h2 style={{ margin: 0, fontSize: 17, fontWeight: 600 }} data-testid="text-filter-title">
+          Фильтр
+        </h2>
+        <button
+          type="button"
+          onClick={handleReset}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 8,
+            cursor: 'pointer',
+            fontSize: 15,
+            color: '#10b981',
+            fontWeight: 500,
+          }}
+          data-testid="button-reset-filters"
+        >
+          Сбросить
+        </button>
+      </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }} data-testid="text-price-label">Цена</h3>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <input
-              className="input"
-              type="number"
-              placeholder="От"
-              value={minPrice}
-              onChange={(e) => onMinPriceChange(e.target.value)}
-              style={{ flex: 1 }}
-              data-testid="input-min-price-drawer"
-              min="0"
-            />
-            <input
-              className="input"
-              type="number"
-              placeholder="До"
-              value={maxPrice}
-              onChange={(e) => onMaxPriceChange(e.target.value)}
-              style={{ flex: 1 }}
-              data-testid="input-max-price-drawer"
-              min="0"
-            />
+      {/* Content */}
+      <div style={{ flex: 1, overflowY: 'auto', padding: 16 }}>
+
+        {/* Цена */}
+        <div style={{ marginBottom: 20 }}>
+          <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: '#111827' }} data-testid="text-price-label">
+            Цена
+          </h3>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <div style={{ flex: 1 }}>
+              <input
+                className="input"
+                type="number"
+                placeholder="от"
+                value={localMinPrice}
+                onChange={(e) => setLocalMinPrice(e.target.value)}
+                style={{ fontSize: 14, padding: '10px 12px' }}
+                data-testid="input-min-price-drawer"
+                min="0"
+              />
+            </div>
+            <div style={{ flex: 1 }}>
+              <input
+                className="input"
+                type="number"
+                placeholder="до"
+                value={localMaxPrice}
+                onChange={(e) => setLocalMaxPrice(e.target.value)}
+                style={{ fontSize: 14, padding: '10px 12px' }}
+                data-testid="input-max-price-drawer"
+                min="0"
+              />
+              <div style={{ fontSize: 13, color: '#6b7280', marginTop: 4, textAlign: 'right' }}>р.</div>
+            </div>
           </div>
         </div>
 
-        <div style={{ marginBottom: 24 }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: 16, fontWeight: 600 }} data-testid="text-sort-label">Сортировка</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-            {SORT_OPTIONS.map((option) => (
-              <button
-                key={option.value}
-                className={sort === option.value ? 'primary' : 'secondary'}
-                type="button"
-                onClick={() => {
-                  if (option.value === 'distance' && !coords) {
-                    onRequestLocation();
-                  }
-                  onSortChange(option.value);
-                }}
-                data-testid={`button-sort-${option.value}-drawer`}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {sort === 'distance' && (
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ margin: '0 0 8px', fontSize: 16, fontWeight: 600 }} data-testid="text-radius-label">Радиус поиска</h3>
+        {/* Радиус поиска */}
+        {localSort === 'distance' && (
+          <div style={{ marginBottom: 20, paddingTop: 16, borderTop: '1px solid #f3f4f6' }}>
+            <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: '#111827' }} data-testid="text-radius-label">
+              Радиус поиска
+            </h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
               <input
                 type="range"
                 min={1}
                 max={50}
                 step={1}
-                value={radiusKm}
-                onChange={(e) => onRadiusChange(Number(e.target.value))}
+                value={localRadiusKm}
+                onChange={(e) => setLocalRadiusKm(Number(e.target.value))}
                 style={{ flex: 1 }}
                 data-testid="slider-radius"
               />
-              <span style={{ fontSize: 16, fontWeight: 600, minWidth: 60 }} data-testid="text-radius-value">{radiusKm} км</span>
+              <span style={{ fontSize: 14, fontWeight: 600, minWidth: 60 }} data-testid="text-radius-value">
+                {localRadiusKm} км
+              </span>
             </div>
             {geoStatus !== 'ready' && (
-              <p style={{ margin: '8px 0 0', fontSize: 14, color: '#64748b' }} data-testid="text-geo-status">
-                {geoStatus === 'loading' ? 'Получаем координаты…' : 'Включите геолокацию для поиска рядом'}
-              </p>
+              <>
+                <p style={{ margin: '8px 0', fontSize: 13, color: '#6b7280' }} data-testid="text-geo-status">
+                  {geoStatus === 'loading' ? 'Получаем координаты…' : 'Включите геолокацию для поиска рядом'}
+                </p>
+                {geoStatus === 'idle' && (
+                  <button
+                    type="button"
+                    onClick={onRequestLocation}
+                    style={{
+                      padding: '8px 16px',
+                      backgroundColor: '#10b981',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: 6,
+                      fontSize: 13,
+                      fontWeight: 500,
+                      cursor: 'pointer',
+                      marginTop: 8,
+                    }}
+                    data-testid="button-request-location"
+                  >
+                    Включить геолокацию
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
 
+        {/* Сортировать */}
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '16px 0',
+            marginTop: 16,
+          }}
+        >
+          <span style={{ fontSize: 14, color: '#111827' }}>Сортировать</span>
+          <select
+            value={localSort}
+            onChange={(e) => setLocalSort(e.target.value)}
+            style={{
+              fontSize: 14,
+              color: '#10b981',
+              border: 'none',
+              background: 'none',
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+            data-testid="select-sort"
+          >
+            {SORT_OPTIONS.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+      </div>
+
+      {/* Footer with green button */}
+      <div
+        style={{
+          padding: 16,
+          borderTop: '1px solid #e5e7eb',
+          backgroundColor: 'white',
+        }}
+      >
         <button
-          className="primary"
           type="button"
-          onClick={onClose}
-          style={{ width: '100%' }}
+          onClick={handleApply}
+          style={{
+            width: '100%',
+            padding: '14px 16px',
+            backgroundColor: '#10b981',
+            color: 'white',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 15,
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
           data-testid="button-apply-filters"
         >
-          Применить фильтры
+          Показать {totalAds > 0 ? `${totalAds.toLocaleString('ru-RU')} ` : ''}объявлений
         </button>
-
-        <style>
-          {`
-            @keyframes fadeIn {
-              from { opacity: 0; }
-              to { opacity: 1; }
-            }
-            @keyframes slideUp {
-              from { transform: translateY(100%); }
-              to { transform: translateY(0); }
-            }
-          `}
-        </style>
       </div>
+
+      <style>
+        {`
+          @keyframes slideInRight {
+            from { transform: translateX(100%); }
+            to { transform: translateX(0); }
+          }
+          @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+          }
+        `}
+      </style>
+    </div>
     </>
   );
 }
