@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const AdChangeSchema = new mongoose.Schema(
   {
@@ -14,4 +14,4 @@ const AdChangeSchema = new mongoose.Schema(
 
 AdChangeSchema.index({ adId: 1, processed: 1, createdAt: -1 });
 
-module.exports = mongoose.model('AdChange', AdChangeSchema);
+export default mongoose.model('AdChange', AdChangeSchema);

@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const requireInternalAuth = require('../../middleware/internalAuth');
 
-const router = express.Router();
+const router = Router();
 
 router.post('/notify-favorite-update', requireInternalAuth, async (req, res) => {
   try {
@@ -26,4 +26,4 @@ router.post('/notify-favorite-update', requireInternalAuth, async (req, res) => 
   }
 });
 
-module.exports = router;
+export default router;

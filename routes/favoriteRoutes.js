@@ -1,9 +1,9 @@
-const express = require('express');
+import express from 'express';
 const { telegramInitDataMiddleware } = require('../middleware/telegramAuth');
 const requireAuth = require('../middleware/requireAuth');
 const Favorite = require('../models/Favorite');
 
-const router = express.Router();
+const router = Router();
 
 router.use(telegramInitDataMiddleware, requireAuth);
 
@@ -17,4 +17,4 @@ router.get('/my', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

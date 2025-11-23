@@ -1,17 +1,17 @@
-const config = require('../../config/config.js');
+import config from '../../config/config.js';
 
-function logErrors(err, req, _res, next) {
+export function logErrors(err, req, _res, next) {
   console.error(`❌ API error on ${req.method} ${req.originalUrl}:`, err);
   next(err);
 }
 
-function notFoundHandler(_req, _res, next) {
+export function notFoundHandler(_req, _res, next) {
   const error = new Error('Маршрут не найден');
   error.status = 404;
   next(error);
 }
 
-function errorHandler(err, _req, res, _next) {
+export function errorHandler(err, _req, res, _next) {
   const status = err.status || 500;
   const payload = {
     error: err.message || 'Внутренняя ошибка сервера',
@@ -23,9 +23,3 @@ function errorHandler(err, _req, res, _next) {
 
   res.status(status).json(payload);
 }
-
-module.exports = {
-  logErrors,
-  notFoundHandler,
-  errorHandler,
-};

@@ -1,11 +1,11 @@
-const express = require('express');
+import express from 'express';
 const axios = require('axios');
 const jwt = require('jsonwebtoken');
 const Ad = require('../../models/Ad');
 const User = require('../../models/User');
 const config = require('../../config/config');
 
-const router = express.Router();
+const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET;
 const JWT_EXPIRES_IN = '1h';
@@ -190,4 +190,4 @@ router.post('/reject', checkModerator, async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;

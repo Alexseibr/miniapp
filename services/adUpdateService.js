@@ -1,6 +1,6 @@
 // services/adUpdateService.js
-const Ad = require('../models/Ad');
-const notificationService = require('./notificationService');
+import Ad from '../models/Ad.js.js';
+import notificationService from './notificationService.js';
 
 async function updateAdPrice(adId, newPrice) {
   const ad = await Ad.findById(adId);

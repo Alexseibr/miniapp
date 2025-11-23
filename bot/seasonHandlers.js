@@ -1,5 +1,5 @@
-const axios = require('axios');
-const config = require('../config/config');
+import axios from 'axios';
+import config from '../config/config.js';
 
 const TULIPS_SESSION_KEY = 'awaitingTulipLocation';
 

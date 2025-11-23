@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const Notification = require('../../models/Notification');
 
-const router = express.Router();
+const router = Router();
 
 // GET /api/notifications?telegramId=...
 router.get('/', async (req, res) => {
@@ -28,4 +28,4 @@ router.get('/', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

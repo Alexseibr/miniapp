@@ -1,4 +1,4 @@
-const Season = require('../models/Season');
+import Season from '../models/Season.js.js';
 
 const ALLOWED_DELIVERY_TYPES = ['pickup_only', 'delivery_only', 'delivery_and_pickup'];
 const CATEGORY_DEFAULT_LIFETIME = {

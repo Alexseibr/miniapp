@@ -1,4 +1,4 @@
-const { Router } = require('express');
+import { Router } from 'express';
 const Order = require('../../models/Order.js');
 const Ad = require('../../models/Ad.js');
 const {
@@ -252,4 +252,4 @@ router.patch('/:id', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;

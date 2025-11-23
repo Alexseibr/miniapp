@@ -1,4 +1,4 @@
-const { haversineDistanceKm: rawHaversineDistanceKm } = require('./haversine');
+import { haversineDistanceKm: rawHaversineDistanceKm } from './haversine.js';
 
 function normalizePoint(point) {
   if (!point || typeof point !== 'object') {

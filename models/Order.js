@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const orderItemSchema = new mongoose.Schema(
   {
@@ -107,4 +107,4 @@ orderSchema.pre('save', function (next) {
 orderSchema.index({ buyerTelegramId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Order', orderSchema);
+export default mongoose.model('Order', orderSchema);

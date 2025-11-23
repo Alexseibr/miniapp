@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const subscriptionSchema = new mongoose.Schema(
   {
@@ -35,4 +35,4 @@ subscriptionSchema.index({ userTelegramId: 1, isActive: 1 });
 subscriptionSchema.index({ 'filters.categoryId': 1, isActive: 1 });
 subscriptionSchema.index({ 'filters.subcategoryId': 1, isActive: 1 });
 
-module.exports = mongoose.model('Subscription', subscriptionSchema);
+export default mongoose.model('Subscription', subscriptionSchema);

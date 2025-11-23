@@ -1,6 +1,6 @@
-const mongoose = require('mongoose');
-const Favorite = require('../models/Favorite');
-const { sendMessageToTelegramId } = require('../bot/messenger');
+import mongoose from 'mongoose';
+import Favorite from '../models/Favorite.js.js';
+import { sendMessageToTelegramId } from '../bot/messenger.js';
 
 async function notifySubscribers(adId, message) {
   if (!adId || !message) {

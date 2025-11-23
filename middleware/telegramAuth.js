@@ -1,6 +1,6 @@
-const crypto = require('crypto');
-const config = require('../config/config.js');
-const User = require('../models/User');
+import crypto from 'crypto';
+import config from '../config/config.js';
+import User from '../models/User.js.js';
 
 const DEFAULT_TTL_SECONDS = Number(process.env.TELEGRAM_INITDATA_TTL || 60 * 60 * 24); // 24 часа по умолчанию
 
@@ -29,7 +29,7 @@ function safeJsonParse(value) {
   }
 }
 
-function validateTelegramInitData(rawInitData) {
+export function validateTelegramInitData(rawInitData) {
   if (!rawInitData || typeof rawInitData !== 'string') {
     return { ok: false, error: 'initData is required' };
   }
@@ -75,7 +75,7 @@ function validateTelegramInitData(rawInitData) {
   };
 }
 
-function extractInitDataFromRequest(req) {
+export function extractInitDataFromRequest(req) {
   return (
     req.headers['x-telegram-init-data'] ||
     req.body?.initData ||
@@ -84,7 +84,7 @@ function extractInitDataFromRequest(req) {
   );
 }
 
-function telegramAuthMiddleware(req, res, next) {
+export function telegramAuthMiddleware(req, res, next) {
   const initData = extractInitDataFromRequest(req);
   const validation = validateTelegramInitData(initData);
 
@@ -104,7 +104,7 @@ function telegramAuthMiddleware(req, res, next) {
   return next();
 }
 
-async function telegramInitDataMiddleware(req, res, next) {
+export async function telegramInitDataMiddleware(req, res, next) {
   const initData = extractInitDataFromRequest(req);
   const validation = validateTelegramInitData(initData);
 
@@ -145,10 +145,3 @@ async function telegramInitDataMiddleware(req, res, next) {
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
-
-module.exports = {
-  validateTelegramInitData,
-  telegramAuthMiddleware,
-  extractInitDataFromRequest,
-  telegramInitDataMiddleware,
-};

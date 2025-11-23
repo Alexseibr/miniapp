@@ -1,9 +1,9 @@
-const fs = require('fs');
-const path = require('path');
-const User = require('../models/User');
-const Alert = require('../models/Alert');
-const config = require('../config/config');
-const { sendMessageToTelegramId } = require('../bot/messenger');
+import fs from 'fs';
+import path from 'path';
+import User from '../models/User.js.js';
+import Alert from '../models/Alert.js.js';
+import config from '../config/config.js';
+import { sendMessageToTelegramId } from '../bot/messenger.js';
 
 const LOG_FILE_PATH = path.join(__dirname, '..', 'logs', 'favorites.log');
 

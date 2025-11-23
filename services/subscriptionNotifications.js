@@ -1,5 +1,5 @@
-const Subscription = require('../models/Subscription');
-const { haversineDistanceKm } = require('../utils/haversine');
+import Subscription from '../models/Subscription.js.js';
+import { haversineDistanceKm } from '../utils/haversine.js';
 
 async function findMatchingSubscriptions(ad) {
   try {

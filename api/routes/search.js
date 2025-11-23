@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const Ad = require('../../models/Ad');
 const { haversineDistanceKm } = require('../../utils/haversine');
 
-const router = express.Router();
+const router = Router();
 const DEFAULT_LIMIT = 100;
 const FETCH_LIMIT = 500;
 
@@ -167,4 +167,4 @@ router.get('/search', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

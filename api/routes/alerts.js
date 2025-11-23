@@ -1,7 +1,7 @@
-const express = require('express');
+import express from 'express';
 const Alert = require('../../models/Alert');
 
-const router = express.Router();
+const router = Router();
 
 function parseTelegramId(raw) {
   const id = Number(raw);
@@ -44,4 +44,4 @@ router.delete('/clear', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;
