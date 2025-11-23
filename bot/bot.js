@@ -10,7 +10,24 @@ bot.use(session());
 // API базовый URL (для запросов к нашему Express API)
 const API_URL = config.apiBaseUrl;
 const MINIAPP_URL = config.miniAppUrl || process.env.MINIAPP_URL;
-const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET || process.env.SESSION_SECRET;
+
+async function getModeratorJWT(telegramId) {
+  try {
+    const response = await axios.post(
+      `${API_URL}/api/mod/token`,
+      { telegramId },
+      {
+        headers: {
+          'Authorization': `Bearer ${config.botToken}`,
+        },
+      }
+    );
+    return response.data.token;
+  } catch (error) {
+    console.error('Не удалось получить JWT токен:', error.response?.data || error.message);
+    return null;
+  }
+}
 
 registerSeasonHandlers(bot, { apiUrl: API_URL });
 
@@ -1592,14 +1609,20 @@ bot.on("text", async (ctx) => {
     try {
       const { adId, telegramId } = ctx.session.modReject;
       const comment = normalized === '-' ? '' : text;
+      
+      const jwtToken = await getModeratorJWT(telegramId);
+      
+      if (!jwtToken) {
+        ctx.session.modReject = null;
+        return ctx.reply('⚠️ Ошибка аутентификации.');
+      }
 
       await axios.post(
         `${API_URL}/api/mod/reject`,
         { adId, comment },
         {
           headers: {
-            'Authorization': `Bearer ${INTERNAL_SECRET}`,
-            'X-Telegram-Id': telegramId.toString(),
+            'Authorization': `Bearer ${jwtToken}`,
           },
         }
       );
@@ -1788,10 +1811,15 @@ bot.command('moderation', async (ctx) => {
       return ctx.reply('⛔️ У вас нет прав для модерации.');
     }
     
+    const jwtToken = await getModeratorJWT(telegramId);
+    
+    if (!jwtToken) {
+      return ctx.reply('⚠️ Не удалось получить токен доступа.');
+    }
+    
     const adsRes = await axios.get(`${API_URL}/api/mod/pending`, {
       headers: {
-        'Authorization': `Bearer ${INTERNAL_SECRET}`,
-        'X-Telegram-Id': telegramId.toString(),
+        'Authorization': `Bearer ${jwtToken}`,
       },
     });
     
@@ -1838,13 +1866,18 @@ bot.action(/mod_approve:(.+)/, async (ctx) => {
     const adId = ctx.match[1];
     const telegramId = ctx.from.id;
     
+    const jwtToken = await getModeratorJWT(telegramId);
+    
+    if (!jwtToken) {
+      return ctx.answerCbQuery('⚠️ Ошибка аутентификации');
+    }
+    
     await axios.post(
       `${API_URL}/api/mod/approve`,
       { adId },
       {
         headers: {
-          'Authorization': `Bearer ${INTERNAL_SECRET}`,
-          'X-Telegram-Id': telegramId.toString(),
+          'Authorization': `Bearer ${jwtToken}`,
         },
       }
     );
