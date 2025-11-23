@@ -13,6 +13,8 @@ export interface ListAdsParams {
   lat?: number;
   lng?: number;
   radiusKm?: number;
+  minPrice?: number;
+  maxPrice?: number;
 }
 
 export interface NearbyAdsParams {
@@ -23,7 +25,7 @@ export interface NearbyAdsParams {
 }
 
 export async function listAds(params: ListAdsParams = {}): Promise<AdsResponse> {
-  const response = await http.get('/api/ads', { params });
+  const response = await http.get('/api/ads/search', { params });
   return response.data;
 }
 

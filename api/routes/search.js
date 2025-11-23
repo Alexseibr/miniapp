@@ -44,8 +44,10 @@ function matchesQuery(ad, regex) {
 function sortItems(items, sortKey, hasGeoContext) {
   const sorted = [...items];
   switch (sortKey) {
+    case 'cheapest':
     case 'price_asc':
       return sorted.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+    case 'expensive':
     case 'price_desc':
       return sorted.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
     case 'distance':
@@ -58,6 +60,8 @@ function sortItems(items, sortKey, hasGeoContext) {
         });
       }
       return sorted;
+    case 'popular':
+      return sorted.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
     case 'newest':
     default:
       return sorted.sort(
@@ -76,6 +80,8 @@ router.get('/search', async (req, res) => {
       lat,
       lng,
       maxDistanceKm,
+      minPrice,
+      maxPrice,
       sort = 'newest',
       limit,
     } = req.query;
@@ -90,6 +96,15 @@ router.get('/search', async (req, res) => {
     if (categoryId) baseQuery.categoryId = categoryId;
     if (subcategoryId) baseQuery.subcategoryId = subcategoryId;
     if (seasonCode) baseQuery.seasonCode = seasonCode;
+
+    const minPriceNumber = parseNumber(minPrice);
+    const maxPriceNumber = parseNumber(maxPrice);
+    if (minPriceNumber != null && Number.isFinite(minPriceNumber)) {
+      baseQuery.price = { ...baseQuery.price, $gte: minPriceNumber };
+    }
+    if (maxPriceNumber != null && Number.isFinite(maxPriceNumber)) {
+      baseQuery.price = { ...baseQuery.price, $lte: maxPriceNumber };
+    }
 
     const ads = await Ad.find(baseQuery).sort({ createdAt: -1 }).limit(FETCH_LIMIT).lean();
 
