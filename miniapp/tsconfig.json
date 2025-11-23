@@ -6,11 +6,10 @@
       "@/*": ["./src/*"]
     },
     "typeRoots": ["../node_modules/@types", "./node_modules/@types"],
-    "types": ["vite/client"],
     "jsx": "react-jsx",
     "moduleResolution": "bundler",
     "skipLibCheck": true
   },
-  "include": ["src"],
+  "include": ["src", "vite-env.d.ts"],
   "exclude": ["dist", "node_modules"]
 }
