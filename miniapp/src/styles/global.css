@@ -143,6 +143,22 @@ button.secondary {
   background: #eef2ff;
 }
 
+input.input {
+  width: 100%;
+  border: 1px solid #d0d5dd;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 1rem;
+  font-family: inherit;
+  background: #fff;
+  color: #0f172a;
+}
+
+input.input:focus {
+  outline: 2px solid #2563eb;
+  outline-offset: 0;
+}
+
 .topbar {
   background: linear-gradient(135deg, #1d4ed8, #7c3aed);
   color: #fff;
