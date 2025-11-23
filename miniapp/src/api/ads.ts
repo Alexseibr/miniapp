@@ -68,6 +68,7 @@ export interface CreateAdPayload {
   currency?: string;
   photos?: string[];
   sellerTelegramId: number;
+  city?: string;
   deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup';
   deliveryRadiusKm?: number;
   location?: {

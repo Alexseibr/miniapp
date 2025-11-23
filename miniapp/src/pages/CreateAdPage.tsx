@@ -23,6 +23,7 @@ export default function CreateAdPage() {
   const [categoryId, setCategoryId] = useState('');
   const [subcategoryId, setSubcategoryId] = useState('');
   const [price, setPrice] = useState('');
+  const [city, setCity] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   const [photoInput, setPhotoInput] = useState('');
   const [deliveryType, setDeliveryType] = useState<'pickup_only' | 'delivery_only' | 'delivery_and_pickup'>('pickup_only');
@@ -90,6 +91,7 @@ export default function CreateAdPage() {
       subcategoryId: subcategoryId || categoryId,
       price: priceNum,
       currency: 'BYN',
+      city: city.trim() || undefined,
       photos: photos.length > 0 ? photos : undefined,
       sellerTelegramId: user.telegramId,
       deliveryType,
@@ -233,6 +235,24 @@ export default function CreateAdPage() {
               </select>
             </div>
           )}
+
+          <div style={{ marginBottom: 16 }}>
+            <label htmlFor="city" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
+              Город
+            </label>
+            <input
+              id="city"
+              type="text"
+              className="input"
+              value={city}
+              onChange={(e) => setCity(e.target.value)}
+              placeholder="Например: Минск"
+              data-testid="input-city"
+            />
+            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
+              Будет отображаться в карточке объявления
+            </div>
+          </div>
 
           <div style={{ marginBottom: 0 }}>
             <label htmlFor="price" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>

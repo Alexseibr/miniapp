@@ -53,6 +53,7 @@ export interface AdPreview {
   categoryId: string;
   subcategoryId: string;
   sellerTelegramId: number;
+  city?: string | null;
   status?: string;
   seasonCode?: string | null;
   favoritesCount?: number;

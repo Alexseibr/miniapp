@@ -190,6 +190,7 @@ async function validateCreateAd(req, res, next) {
       photos,
       attributes,
       sellerTelegramId,
+      city: payload.city ? normalizeString(payload.city) : null,
       deliveryType,
       deliveryRadiusKm,
       location,

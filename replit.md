@@ -16,7 +16,7 @@ The backend uses Node.js with Express.js, orchestrating an API server and Telegr
 
 ### Data Architecture
 
-MongoDB Atlas is used with Mongoose for data modeling. Key entities include User, Category (hierarchical with `parentSlug`), Season, Ad (product listings), and Order. Categories feature a slug-based parent-child relationship for intuitive URLs and support for 3D rendered PNG icons across multiple hierarchy levels, mirroring Kufar.by's taxonomy. Ad documents store photos as URL arrays, and Order items are denormalized to preserve historical data.
+MongoDB Atlas is used with Mongoose for data modeling. Key entities include User, Category (hierarchical with `parentSlug`), Season, Ad (product listings), and Order. Categories feature a slug-based parent-child relationship for intuitive URLs and support for 3D rendered PNG icons across multiple hierarchy levels, mirroring Kufar.by's taxonomy. Ad documents store photos as URL arrays, `city` field for seller's city display, geolocation (lat/lng + GeoJSON Point) for distance-based search, and Order items are denormalized to preserve historical data.
 
 **Real Estate (Недвижимость) Category Structure:**
 - `realty` (Недвижимость)
