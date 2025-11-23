@@ -74,6 +74,7 @@ export interface Ad extends AdPreview {
   lifetimeDays: number;
   validUntil?: string;
   updatedAt?: string;
+  views?: number;
 }
 
 export interface FavoriteItem {

@@ -1,10 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Compass, Heart, User } from 'lucide-react';
+import { Home, Compass, ShoppingBag, Heart, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const tabs = [
   { path: '/', label: 'Главная', Icon: Home },
   { path: '/feed', label: 'Лента', Icon: Compass },
+  { path: '/my-ads', label: 'Мои', Icon: ShoppingBag },
   { path: '/favorites', label: 'Избранное', Icon: Heart },
   { path: '/profile', label: 'Профиль', Icon: User },
 ];
