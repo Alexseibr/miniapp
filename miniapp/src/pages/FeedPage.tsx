@@ -5,6 +5,7 @@ import { fetchCategories } from '@/api/categories';
 import AdCard from '@/components/AdCard';
 import FilterDrawer from '@/components/FilterDrawer';
 import SeasonBanners from '@/components/SeasonBanners';
+import CategoryScroll from '@/components/CategoryScroll';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview, CategoryNode } from '@/types';
 import { useGeo } from '@/utils/geo';
@@ -142,40 +143,69 @@ export default function FeedPage() {
 
       <div style={{ padding: 16 }}>
         {topCategories.length > 0 && (
-          <div style={{ marginBottom: 20 }}>
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: 12,
-              }}
-            >
-              {topCategories.map((category) => (
-                <Link
-                  key={category.slug}
-                  to={`/feed?categoryId=${category.slug}`}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    padding: 16,
-                    borderRadius: 12,
-                    backgroundColor: '#f9fafb',
-                    textDecoration: 'none',
-                    color: '#111827',
-                  }}
-                  data-testid={`category-card-${category.slug}`}
-                >
-                  {category.icon && <div style={{ fontSize: 32 }} data-testid={`icon-category-${category.slug}`}>{category.icon}</div>}
-                  <div style={{ flex: 1, fontSize: 14, fontWeight: 500 }} data-testid={`text-category-name-${category.slug}`}>{category.name}</div>
-                </Link>
-              ))}
-            </div>
+          <div style={{ marginBottom: 16 }}>
+            <CategoryScroll categories={topCategories} />
           </div>
         )}
 
-        <div style={{ marginBottom: 20 }}>
+        <div style={{ marginBottom: 16 }}>
           <SeasonBanners />
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' }}>
+          <button
+            className="secondary"
+            style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14 }}
+            data-testid="button-filter-categories"
+          >
+            Категории
+          </button>
+          <button
+            className="secondary"
+            style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14 }}
+            data-testid="button-filter-location"
+          >
+            Вся Беларусь
+          </button>
+          <button
+            className="secondary"
+            style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontSize: 14 }}
+            data-testid="button-filter-sort"
+          >
+            По новизне
+          </button>
+        </div>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+          <button
+            className="primary"
+            style={{ 
+              padding: '16px', 
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4
+            }}
+            data-testid="button-all-ads"
+          >
+            <span style={{ fontSize: 16, fontWeight: 600 }}>Всего</span>
+            <span style={{ fontSize: 14, opacity: 0.9 }}>{ads.length} объявлений</span>
+          </button>
+          <button
+            className="primary"
+            style={{ 
+              padding: '16px', 
+              textAlign: 'left',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+              backgroundColor: '#10b981'
+            }}
+            data-testid="button-company-ads"
+          >
+            <span style={{ fontSize: 16, fontWeight: 600 }}>Товары компаний</span>
+            <span style={{ fontSize: 14, opacity: 0.9 }}>0 объявлений</span>
+          </button>
         </div>
 
         <div style={{ marginBottom: 12 }}>
