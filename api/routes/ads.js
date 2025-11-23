@@ -1081,6 +1081,8 @@ router.post('/:id/debug-notify-favorites', requireInternalAuth, async (req, res)
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
+    const { lat, lng } = req.query;
+    
     const ad = await Ad.findById(id);
     
     if (!ad) {
@@ -1091,7 +1093,27 @@ router.get('/:id', async (req, res, next) => {
     ad.views += 1;
     await ad.save();
     
-    res.json(ad);
+    // Добавляем расстояние если переданы координаты покупателя
+    const adObj = ad.toObject();
+    
+    const buyerLat = Number(lat);
+    const buyerLng = Number(lng);
+    
+    if (
+      Number.isFinite(buyerLat) &&
+      Number.isFinite(buyerLng) &&
+      adObj.location?.lat != null &&
+      adObj.location?.lng != null
+    ) {
+      const distKm = haversineDistanceKm(
+        { lat: buyerLat, lng: buyerLng },
+        { lat: adObj.location.lat, lng: adObj.location.lng }
+      );
+      adObj.distanceKm = distKm;
+      adObj.distanceMeters = Math.round(distKm * 1000);
+    }
+    
+    res.json(adObj);
   } catch (error) {
     next(error);
   }
