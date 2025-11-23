@@ -441,6 +441,13 @@ router.get('/search', async (req, res, next) => {
           distanceKm: {
             $cond: [{ $ifNull: ['$distance', false] }, { $divide: ['$distance', 1000] }, null],
           },
+          city: { $ifNull: ['$city', null] },
+        },
+      });
+    } else {
+      pipeline.push({
+        $addFields: {
+          city: { $ifNull: ['$city', null] },
         },
       });
     }
