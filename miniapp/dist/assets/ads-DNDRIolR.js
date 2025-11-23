@@ -1,0 +1,1 @@
+import{h as a}from"./index-DK3NXmw2.js";async function n(s={}){return(await a.get("/api/ads/search",{params:s})).data}async function r(s){return(await a.get(`/api/ads/${s}`)).data}async function o(s){return(await a.get("/api/ads/nearby",{params:s})).data}export{n as a,r as g,o as l};

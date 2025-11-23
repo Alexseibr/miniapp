@@ -32,10 +32,6 @@ localPort = 36763
 externalPort = 3002
 
 [[ports]]
-localPort = 38429
-externalPort = 6000
-
-[[ports]]
 localPort = 40005
 externalPort = 3001
 
@@ -78,3 +74,5 @@ integrations = ["javascript_database:1.0.0", "javascript_object_storage:1.0.0"]
 
 [userenv.shared]
 MINIAPP_URL = "https://07992b17-3400-4b4a-9b37-e944f49f93fa-00-2g6o2va3pbvu4.spock.replit.dev/miniapp"
+MINIAPP_PRODUCTION = "true"
+NODE_ENV = "production"

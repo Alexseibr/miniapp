@@ -147,20 +147,36 @@ async function start() {
       // Serve MiniApp static assets from miniapp/dist
       const miniappDistPath = path.resolve(__dirname, 'miniapp/dist');
       if (fs.existsSync(miniappDistPath)) {
-        // Serve static files first
-        app.use('/miniapp', express.static(miniappDistPath));
+        // Serve static files with aggressive caching for hashed assets
+        app.use('/miniapp', express.static(miniappDistPath, {
+          setHeaders: (res, filePath) => {
+            const normalizedPath = path.normalize(filePath);
+            const relativePath = path.relative(miniappDistPath, normalizedPath);
+            
+            // Hashed assets (in /assets/ directory) get long-term caching
+            if (relativePath.startsWith('assets' + path.sep) || relativePath.startsWith('assets/')) {
+              res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            }
+            // index.html gets no-cache to always fetch latest version
+            else if (relativePath === 'index.html') {
+              res.setHeader('Cache-Control', 'no-cache, max-age=0, must-revalidate');
+            }
+          },
+          etag: true,
+        }));
         
         // SPA fallback ONLY for HTML navigation (not assets/APIs)
         app.get('/miniapp/*', (req, res, next) => {
           // Only serve index.html for HTML requests without file extensions
           const hasFileExtension = path.extname(req.path);
           if (!hasFileExtension && req.accepts('html')) {
+            res.setHeader('Cache-Control', 'no-cache, max-age=0, must-revalidate');
             res.sendFile(path.resolve(miniappDistPath, 'index.html'));
           } else {
             next(); // Let 404 handler or other routes handle this
           }
         });
-        console.log('✅ MiniApp static assets configured');
+        console.log('✅ MiniApp static assets configured with aggressive caching');
       } else {
         console.warn('⚠️  MiniApp dist folder not found, /miniapp will not work');
       }

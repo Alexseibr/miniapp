@@ -1,0 +1,1 @@
+import{h as a}from"./index-DK3NXmw2.js";async function o(){return(await a.get("/api/seasons")).data}async function r(s,e={}){return(await a.get(`/api/seasons/${s}/ads`,{params:e})).data}export{r as a,o as f};
