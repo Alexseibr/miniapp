@@ -1,40 +1,16 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
+import { Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
 import CategoryGrid from '@/components/CategoryGrid';
-import { fetchCategories } from '@/api/categories';
-import { CategoryNode } from '@/types';
 import EmptyState from '@/widgets/EmptyState';
-import { getTelegramWebApp } from '@/utils/telegram';
+import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 
 export default function HomePage() {
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [debug, setDebug] = useState<string>('');
+  const { categories, loading, loadCategories } = useCategoriesStore();
 
   useEffect(() => {
-    const tg = getTelegramWebApp();
-    console.log('🔍 Telegram WebApp:', tg);
-    console.log('🔍 InitData:', tg?.initData);
-    console.log('🔍 User:', tg?.initDataUnsafe?.user);
-    
-    setDebug(`WebApp: ${tg ? 'загружен' : 'не найден'}, User: ${tg?.initDataUnsafe?.user?.first_name || 'нет'}`);
-    
-    async function loadCategories() {
-      try {
-        setLoading(true);
-        console.log('📦 Загружаем категории...');
-        const list = await fetchCategories();
-        console.log('✅ Категории загружены:', list.length);
-        setCategories(list);
-      } catch (error) {
-        console.error('❌ Ошибка загрузки категорий:', error);
-        setCategories([]);
-      } finally {
-        setLoading(false);
-      }
-    }
     loadCategories();
-  }, []);
+  }, [loadCategories]);
 
   return (
     <div style={{ paddingBottom: '80px' }}>
@@ -42,7 +18,9 @@ export default function HomePage() {
       <div style={{ paddingTop: '16px' }}>
         {loading ? (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
+            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+              <Loader2 size={48} color="#4F46E5" style={{ animation: 'spin 1s linear infinite' }} data-testid="icon-loading" />
+            </div>
             <h3 style={{ margin: '0 0 8px' }}>Загружаем категории</h3>
             <p style={{ color: '#6b7280', margin: 0 }}>Подождите несколько секунд</p>
           </div>
