@@ -69,6 +69,7 @@ async function start() {
           },
         },
         appType: 'custom',
+        base: '/miniapp/',
         root: path.resolve(__dirname, 'miniapp'),
         resolve: {
           alias: {

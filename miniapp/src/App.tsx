@@ -15,13 +15,13 @@ export default function App() {
             <p className="muted">Проверьте API, категории и объявления прямо из браузера.</p>
           </div>
           <div className="topbar__links">
-            <NavLink to="/dashboard" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
+            <NavLink to="dashboard" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
               /dashboard
             </NavLink>
-            <NavLink to="/categories" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
+            <NavLink to="categories" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
               /categories
             </NavLink>
-            <NavLink to="/ads" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
+            <NavLink to="ads" className={({ isActive }) => (isActive ? 'link link--active' : 'link')}>
               /ads
             </NavLink>
           </div>
@@ -31,11 +31,11 @@ export default function App() {
       <main>
         <div className="container">
           <Routes>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route path="/dashboard" element={<DashboardPage />} />
-            <Route path="/categories" element={<CategoriesPage />} />
-            <Route path="/ads" element={<AdsPage />} />
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/" element={<Navigate to="dashboard" replace />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="categories" element={<CategoriesPage />} />
+            <Route path="ads" element={<AdsPage />} />
+            <Route path="*" element={<Navigate to="dashboard" replace />} />
           </Routes>
         </div>
       </main>
