@@ -36,29 +36,29 @@ export default function AdCard({ ad, onSelect }: Props) {
     <article className="card" style={{ display: 'flex', gap: 12 }}>
       <div style={{ flex: 1 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <Link to={`/ads/${ad._id}`} onClick={handleDetails} style={{ fontWeight: 600 }}>
+          <Link to={`/ads/${ad._id}`} onClick={handleDetails} style={{ fontWeight: 600, fontSize: 15 }}>
             {ad.title}
           </Link>
           <FavoriteButton adId={ad._id} />
         </div>
-        <p style={{ margin: '4px 0', color: '#475467', fontSize: '0.9rem' }}>
+        <p style={{ margin: '4px 0', color: '#6b7280', fontSize: 13 }}>
           {ad.categoryId}
           {ad.subcategoryId ? ` / ${ad.subcategoryId}` : ''}
         </p>
-        <p style={{ margin: '8px 0', color: '#475467' }}>
+        <p style={{ margin: '8px 0', color: '#6b7280', fontSize: 14 }}>
           {(ad.description || 'Описание появится позже').slice(0, 140)}
           {ad.description && ad.description.length > 140 ? '…' : ''}
         </p>
-        <p style={{ margin: '4px 0 0', fontSize: '1.1rem', fontWeight: 600 }}>
+        <p style={{ margin: '4px 0 0', fontSize: 17, fontWeight: 600 }}>
           {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
         </p>
         {ad.distanceKm != null && (
-          <p style={{ margin: '4px 0', fontSize: '0.85rem', color: '#64748b' }}>
+          <p style={{ margin: '4px 0', fontSize: 13, color: '#9ca3af' }}>
             {formatDistance(ad.distanceKm)} от вас
           </p>
         )}
         {ad.createdAt && (
-          <p style={{ margin: '2px 0 0', fontSize: '0.85rem', color: '#94a3b8' }}>
+          <p style={{ margin: '2px 0 0', fontSize: 12, color: '#9ca3af' }}>
             Опубликовано {formatRelativeTime(ad.createdAt)}
           </p>
         )}

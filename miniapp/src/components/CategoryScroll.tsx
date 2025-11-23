@@ -61,7 +61,7 @@ export default function CategoryScroll({ categories }: Props) {
           </div>
           <span
             style={{
-              fontSize: '0.85rem',
+              fontSize: '0.75rem',
               textAlign: 'center',
               color: '#111827',
               fontWeight: 500,
