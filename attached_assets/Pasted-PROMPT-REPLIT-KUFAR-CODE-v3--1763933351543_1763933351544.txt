@@ -1,0 +1,267 @@
+PROMPT ДЛЯ REPLIT: KUFAR-CODE v3 (совместимый с уже существующим проектом)
+
+Хочу, чтобы ты продолжил разработку моего проекта KUFAR-CODE на базе уже существующего кода.
+Нужно не создавать всё с нуля, а дополнить и улучшить, сохраняя:
+
+текущую монорепо структуру
+
+backend (Express + MongoDB)
+
+бот (Telegraf)
+
+миниапп (React + Vite)
+
+web (React + Vite)
+
+поддержку GeoJSON, 2dsphere
+
+поддержку seasonCode
+
+layout-конфигурации блоков
+
+initData авторизацию
+
+систему городов
+
+рекомендации
+
+🎯 Цели PROMPT’а
+
+Добавить и доработать архитектурные элементы, которых ещё не хватает, чтобы проект стал полноценной платформой:
+
+✔ Server-Driven UI (блоки экранов из backend)
+✔ многогородовость (City + CityLayout)
+✔ сезонные витрины (seasonCode)
+✔ geo-search + recommendations
+✔ интеграция MiniApp ↔ Bot
+✔ web + miniapp читают одинаковые layout’ы
+✔ чистая структура файлов
+✔ единые типы (shared/)
+✔ совместимость с нашим текущим кодом на GitHub
+📦 1. Структура (оставляем текущую, но дополняем нужными папками)
+root/
+ ├─ backend/
+ │   ├─ src/
+ │   │   ├─ models/
+ │   │   ├─ routes/
+ │   │   ├─ controllers/
+ │   │   ├─ services/
+ │   │   ├─ middlewares/
+ │   │   ├─ utils/
+ │   │   ├─ config/
+ │   │   └─ app.js
+ ├─ bot/
+ │   ├─ index.js
+ │   └─ modules/
+ ├─ miniapp/
+ │   ├─ src/
+ │   └─ vite.config.js
+ ├─ web/
+ │   ├─ src/
+ │   └─ vite.config.js
+ ├─ shared/
+ │   ├─ types/
+ │   ├─ constants/
+ │   └─ utils/
+ └─ README.md
+
+🧩 2. Backend модели (учитывают наш старый код + новые фичи)
+✔ City (как у нас обсуждалось)
+City {
+  code: string;
+  name: string;
+  theme: {
+    primaryColor: string;
+    logoUrl: string;
+  };
+  features: {
+    enableFarmers: boolean;
+    enableCrafts: boolean;
+    enableTaxi: boolean;
+  };
+}
+
+✔ CityLayout (с поддержкой сезонных блоков)
+CityLayout {
+  cityCode: string;
+  screen: string;
+  variant?: string; // A/B
+  seasonCode?: string; // например: march8_tulips
+  blocks: [
+    {
+      type: string;
+      slotId?: string;
+      title?: string;
+      subtitle?: string;
+      source?: string;
+      categoryIds?: string[];
+      limit?: number;
+      layout?: string; // horizontal/vertical/grid
+    }
+  ];
+}
+
+✔ ContentSlot
+ContentSlot {
+  slotId: string;
+  data: {
+    title?: string;
+    subtitle?: string;
+    imageUrl?: string;
+    link?: string;
+  };
+}
+
+✔ Ad (с GeoJSON и seasonCode)
+Ad {
+  title: string;
+  description: string;
+  price: number;
+  categoryId: string;
+  subcategoryId: string;
+  cityCode: string;
+
+  seasonCode?: string;
+
+  geo: {
+    type: "Point",
+    coordinates: [lng, lat];
+  };
+
+  createdAt: Date;
+  views: number;
+}
+
+
+Добавь 2dsphere индекс:
+
+AdSchema.index({ geo: "2dsphere" });
+
+📡 3. Backend маршруты (дописать)
+✔ /api/layout?cityCode=&screen=home&variant=A
+
+Возвращает блоки экранов.
+
+✔ /api/content/slot/:slotId
+
+Баннеры и динамические блоки.
+
+✔ /api/ads/nearby?lat=&lng=&radiusKm=&categoryId=
+
+Геопоиск.
+
+✔ /api/ads/trending?cityCode=
+
+Популярные в городе.
+
+✔ /api/ads?seasonCode=march8_tulips
+
+Сезонные подборки.
+
+✔ /api/user/initData
+
+Авторизация MiniApp (подпись initDataUnsafe).
+
+💬 4. Telegram Bot (расширить)
+
+В боте добавить:
+
+стартовые кнопки:
+
+Открыть маркетплейс
+
+Фермерский рынок
+
+Ремесленники
+
+Ярмарка 8 марта
+
+каждая кнопка открывает MiniApp через web_app
+
+Добавить deep-links:
+
+https://t.me/YourBot?startapp=season_march8
+
+📱 5. MiniApp (React + Telegram WebApp API)
+
+Фронт делает:
+
+const initData = Telegram.WebApp.initDataUnsafe;
+const cityCode = resolveCity(initData);
+const layout = await api.getLayout(cityCode, "home");
+
+
+Страница Home:
+
+<RenderBlocks blocks={layout.blocks} />
+
+🧠 6. Server-Driven UI — обязателен
+
+В miniapp и web создаём:
+
+src/layout/RenderBlocks.jsx
+
+
+С маппером:
+
+switch(block.type) {
+  case "hero_banner":
+  case "category_grid":
+  case "ad_list":
+  case "promo_banner":
+  case "map_block":
+}
+
+🧲 7. Автоматически определять город
+
+по initData (если в боте выбран город)
+
+по поиску IP / domain
+
+по геолокации
+
+fallback: brest
+
+🔥 8. Учесть, что проект уже существует
+
+Нужно:
+
+НЕ ПЕРЕПИСЫВАТЬ существующие файлы
+
+ДОПОЛНИТЬ проект новыми модулями
+
+делать всё совместимым с нашим текущим кодом
+
+🛠 9. Конечная задача
+
+После выполнения промта на выходе должен быть:
+
+полностью рабочий backend
+
+расширенный bot
+
+miniapp, который открывается и грузит layout
+
+web-версия с теми же компонентами
+
+модели City, CityLayout, ContentSlot, Ad
+
+маршруты API
+
+блоки, которые управляются сервером
+
+система городов
+
+сезонные сценарии
+
+📌 В конце:
+
+Сгенерируй:
+
+все файлы
+
+полный код
+
+инструкции запуска
+
+примеры layout’ов для Бреста, Минска и Гродно
