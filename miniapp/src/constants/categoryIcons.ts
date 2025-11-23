@@ -45,6 +45,22 @@ import hotelsIcon from '@/assets/categories/subcategories/gostinitsy-oteli.png';
 import bicyclesIcon from '@/assets/categories/subcategories/velosipedy.png';
 import resumeIcon from '@/assets/categories/subcategories/rezyume.png';
 
+import oneRoomIcon from '@/assets/categories/level3/1-komnatnye.png';
+import twoRoomIcon from '@/assets/categories/level3/2-komnatnye.png';
+import threeRoomIcon from '@/assets/categories/level3/3-komnatnye.png';
+import studioIcon from '@/assets/categories/level3/studii.png';
+import sedanIcon from '@/assets/categories/level3/sedan.png';
+import suvIcon from '@/assets/categories/level3/vnedorozhnik.png';
+import hatchbackIcon from '@/assets/categories/level3/hetchbek.png';
+import coupeIcon from '@/assets/categories/level3/kupe.png';
+import wagonIcon from '@/assets/categories/level3/universal.png';
+import smartphoneIcon from '@/assets/categories/level3/smartfony.png';
+import tabletIcon from '@/assets/categories/level3/planshety.png';
+
+import withRenovationIcon from '@/assets/categories/level4/s-remontom.png';
+import noRenovationIcon from '@/assets/categories/level4/bez-remonta.png';
+import newBuildingIcon from '@/assets/categories/level4/novostroyka.png';
+
 export const CATEGORY_ICONS: Record<string, string> = {
   'nedvizhimost': realEstateIcon,
   'uslugi': servicesIcon,
@@ -91,4 +107,20 @@ export const CATEGORY_ICONS: Record<string, string> = {
   'gostinitsy-oteli': hotelsIcon,
   'velosipedy': bicyclesIcon,
   'rezyume': resumeIcon,
+  
+  '1-komnatnye': oneRoomIcon,
+  '2-komnatnye': twoRoomIcon,
+  '3-komnatnye': threeRoomIcon,
+  'studii': studioIcon,
+  'sedan': sedanIcon,
+  'vnedorozhnik': suvIcon,
+  'hetchbek': hatchbackIcon,
+  'kupe': coupeIcon,
+  'universal': wagonIcon,
+  'smartfony': smartphoneIcon,
+  'planshety': tabletIcon,
+  
+  's-remontom': withRenovationIcon,
+  'bez-remonta': noRenovationIcon,
+  'novostroyka': newBuildingIcon,
 };
