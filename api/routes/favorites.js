@@ -1,6 +1,7 @@
 import express from 'express';
-const Favorite = require('../../models/Favorite');
-const Ad = require('../../models/Ad');
+import { Router } from 'express';
+import Favorite from '../../models/Favorite.js';
+import Ad from '../../models/Ad.js';
 
 const router = Router();
 

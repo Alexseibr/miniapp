@@ -1,10 +1,10 @@
 require('dotenv/config');
-const mongoose = require('mongoose');
-const connectDB = require('../services/db');
-const AdChange = require('../models/AdChange');
-const User = require('../models/User');
-const Notification = require('../models/Notification');
-const Ad = require('../models/Ad');
+import mongoose from 'mongoose';
+import connectDB from '../services/db.js';
+import AdChange from '../models/AdChange.js';
+import User from '../models/User.js';
+import Notification from '../models/Notification.js';
+import Ad from '../models/Ad.js';
 
 async function processChanges() {
   await connectDB();

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import config from '../config/config.js';
+import * as config from '../config/config.js';
 
 const TULIPS_SESSION_KEY = 'awaitingTulipLocation';
 
@@ -74,4 +74,4 @@ function registerSeasonHandlers(bot, { apiUrl } = {}) {
   });
 }
 
-module.exports = registerSeasonHandlers;
+export default registerSeasonHandlers;

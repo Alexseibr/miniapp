@@ -1,8 +1,8 @@
 import { Router } from 'express';
-const Season = require('../../models/Season.js');
-const Ad = require('../../models/Ad.js');
-const { haversineDistanceKm } = require('../../utils/distance');
-const asyncHandler = require('../middleware/asyncHandler.js');
+import Season from '../../models/Season.js';
+import Ad from '../../models/Ad.js';
+import { haversineDistanceKm } from '../../utils/distance.js';
+import asyncHandler from '../middleware/asyncHandler.js';
 
 const router = Router();
 

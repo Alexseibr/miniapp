@@ -1,5 +1,5 @@
 import { Router } from 'express';
-const Subscription = require('../../models/Subscription');
+import Subscription from '../../models/Subscription.js';
 
 const router = Router();
 

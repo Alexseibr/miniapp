@@ -1,4 +1,4 @@
-import * as config from '../../config/config.js';
+import config from '../../config/config.js';
 
 export function logErrors(err, req, _res, next) {
   console.error(`❌ API error on ${req.method} ${req.originalUrl}:`, err);

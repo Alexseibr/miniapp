@@ -2,137 +2,90 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
 function parseBoolean(value) {
-  if (typeof value === 'string') {
-    const normalized = value.trim().toLowerCase();
-    return ['true', '1', 'yes', 'on'].includes(normalized);
+  if (value === 'true' || value === true || value === '1' || value === 1) {
+    return true;
   }
-
-  if (typeof value === 'number') {
-    return value !== 0;
+  if (value === 'false' || value === false || value === '0' || value === 0) {
+    return false;
   }
-
-  return Boolean(value);
+  return null;
 }
 
 function normalizeSeasonCode(code) {
-  if (typeof code !== 'string') {
-    return undefined;
-  }
-
-  const trimmed = code.trim();
-  return trimmed ? trimmed.toLowerCase() : undefined;
+  if (!code) return null;
+  return String(code).toLowerCase();
 }
 
 function parseNumber(value) {
-  const num = Number(value);
-  return Number.isFinite(num) ? num : null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
 }
 
 function buildAdQuery(query = {}) {
-  const filters = { moderationStatus: 'approved' };
-  const sort = {};
-  let sortBy = 'date_desc';
-
   const {
-    categoryId,
-    subcategoryId,
-    seasonCode,
+    category,
+    lat,
+    lng,
+    distance,
     minPrice,
     maxPrice,
-    search,
-    q,
+    status,
     sellerId,
-    sellerTelegramId,
-    sortBy: sortByQuery,
-    sort: legacySort,
-    page: pageRaw,
-    limit: limitRaw,
-    includeExpired,
+    season,
+    limit,
+    offset,
   } = query;
 
-  const includeExpiredFlag = parseBoolean(includeExpired);
-  if (includeExpiredFlag) {
-    filters.status = { $in: ['active', 'expired'] };
-  } else {
-    filters.status = 'active';
+  const filter = {};
+
+  if (category) {
+    filter.category = category;
   }
 
-  if (categoryId) {
-    filters.categoryId = categoryId;
+  if (status) {
+    filter.status = status;
   }
 
-  if (subcategoryId) {
-    filters.subcategoryId = subcategoryId;
+  if (sellerId) {
+    filter.sellerId = Number(sellerId);
   }
 
-  const normalizedSeason = normalizeSeasonCode(seasonCode);
-  if (normalizedSeason) {
-    filters.seasonCode = normalizedSeason;
+  if (season) {
+    const normalizedSeason = normalizeSeasonCode(season);
+    if (normalizedSeason) {
+      filter.seasonCodes = normalizedSeason;
+    }
   }
 
+  const priceFilter = {};
   const minPriceNumber = parseNumber(minPrice);
   const maxPriceNumber = parseNumber(maxPrice);
-  if (minPriceNumber != null || maxPriceNumber != null) {
-    filters.price = { ...filters.price };
-    if (minPriceNumber != null) {
-      filters.price.$gte = minPriceNumber;
-    }
-    if (maxPriceNumber != null) {
-      filters.price.$lte = maxPriceNumber;
-    }
+
+  if (minPriceNumber !== null) {
+    priceFilter.$gte = minPriceNumber;
   }
 
-  const searchTerm = search || q;
-  if (searchTerm) {
-    const regex = new RegExp(searchTerm, 'i');
-    filters.$or = [{ title: regex }, { description: regex }];
+  if (maxPriceNumber !== null) {
+    priceFilter.$lte = maxPriceNumber;
   }
 
-  const sellerNumber = parseNumber(sellerId ?? sellerTelegramId);
-  if (sellerNumber != null && sellerNumber > 0) {
-    filters.sellerTelegramId = sellerNumber;
+  if (Object.keys(priceFilter).length > 0) {
+    filter.price = priceFilter;
   }
 
-  const requestedSort = (sortByQuery || legacySort || '').toLowerCase();
-  switch (requestedSort) {
-    case 'date_asc':
-      sort.createdAt = 1;
-      sortBy = 'date_asc';
-      break;
-    case 'price_asc':
-      sort.price = 1;
-      sortBy = 'price_asc';
-      break;
-    case 'price_desc':
-      sort.price = -1;
-      sortBy = 'price_desc';
-      break;
-    case 'distance':
-      sort.createdAt = -1;
-      sortBy = 'distance';
-      break;
-    case 'date_desc':
-    default:
-      sort.createdAt = -1;
-      sortBy = 'date_desc';
-      break;
-  }
+  const parsedLimit = parseNumber(limit);
+  const parsedOffset = parseNumber(offset);
 
-  const parsedPage = parseNumber(pageRaw);
-  const page = parsedPage && parsedPage > 0 ? Math.floor(parsedPage) : 1;
+  const finalLimit =
+    parsedLimit !== null && parsedLimit > 0 ? Math.min(parsedLimit, MAX_LIMIT) : DEFAULT_LIMIT;
 
-  const parsedLimit = parseNumber(limitRaw);
-  const limit = parsedLimit && parsedLimit > 0 ? Math.min(Math.floor(parsedLimit), MAX_LIMIT) : DEFAULT_LIMIT;
+  const finalOffset = parsedOffset !== null && parsedOffset >= 0 ? parsedOffset : 0;
 
   return {
-    filters,
-    sort,
-    page,
-    limit,
-    sortBy,
+    filter,
+    limit: finalLimit,
+    offset: finalOffset,
   };
 }
 
-module.exports = {
-  buildAdQuery,
-};
+export { buildAdQuery };

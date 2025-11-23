@@ -1,6 +1,6 @@
 import crypto from 'crypto';
-import config from '../config/config.js';
-import User from '../models/User.js.js';
+import * as config from '../config/config.js';
+import User from '../models/User.js';
 
 const DEFAULT_TTL_SECONDS = Number(process.env.TELEGRAM_INITDATA_TTL || 60 * 60 * 24); // 24 часа по умолчанию
 

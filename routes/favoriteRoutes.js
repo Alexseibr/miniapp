@@ -1,7 +1,8 @@
 import express from 'express';
-const { telegramInitDataMiddleware } = require('../middleware/telegramAuth');
-const requireAuth = require('../middleware/requireAuth');
-const Favorite = require('../models/Favorite');
+import { Router } from 'express';
+import { telegramInitDataMiddleware } from '../middleware/telegramAuth.js';
+import requireAuth from '../middleware/requireAuth.js';
+import Favorite from '../models/Favorite.js';
 
 const router = Router();
 

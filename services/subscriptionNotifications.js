@@ -1,4 +1,4 @@
-import Subscription from '../models/Subscription.js.js';
+import Subscription from '../models/Subscription.js';
 import { haversineDistanceKm } from '../utils/haversine.js';
 
 async function findMatchingSubscriptions(ad) {
@@ -131,8 +131,4 @@ ${description ? `\n${description}` : ''}
   `.trim();
 }
 
-module.exports = {
-  findMatchingSubscriptions,
-  sendSubscriptionNotifications,
-  shouldNotifySubscription,
-};
+export { findMatchingSubscriptions,sendSubscriptionNotifications,shouldNotifySubscription };

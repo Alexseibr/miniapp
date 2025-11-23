@@ -1,1 +1,1 @@
-module.exports = require('../notifications/watcher');
+export default require('../notifications/watcher');

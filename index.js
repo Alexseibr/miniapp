@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
 import axios from 'axios';
-import config from './config/config.js';
+import * as config from './config/config.js';
 import connectDB from './services/db.js';
 import app from './api/server.js';
 import { bot } from './bot/bot.js';

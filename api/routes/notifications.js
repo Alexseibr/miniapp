@@ -1,5 +1,6 @@
 import express from 'express';
-const Notification = require('../../models/Notification');
+import { Router } from 'express';
+import Notification from '../../models/Notification.js';
 
 const router = Router();
 

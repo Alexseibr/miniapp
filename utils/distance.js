@@ -1,4 +1,4 @@
-import { haversineDistanceKm: rawHaversineDistanceKm } from './haversine.js';
+import { haversineDistanceKm as rawHaversineDistanceKm } from './haversine.js';
 
 function normalizePoint(point) {
   if (!point || typeof point !== 'object') {
@@ -31,6 +31,5 @@ function haversineDistanceKm(pointA, pointB) {
   );
 }
 
-module.exports = {
-  haversineDistanceKm,
-};
+export { haversineDistanceKm };
+export default haversineDistanceKm;

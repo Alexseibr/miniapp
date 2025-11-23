@@ -17,7 +17,7 @@ function extractProvidedSecret(req) {
   return undefined;
 }
 
-module.exports = function requireInternalAuth(req, res, next) {
+export default function requireInternalAuth(req, res, next) {
   if (!INTERNAL_SECRET) {
     console.error('Internal API secret is not configured');
     return res.status(503).json({ error: 'Internal access is not configured' });

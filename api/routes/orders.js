@@ -1,10 +1,10 @@
 import { Router } from 'express';
-const Order = require('../../models/Order.js');
-const Ad = require('../../models/Ad.js');
-const {
-  notifySellerAboutOrder,
-  notifyAdminAboutError,
-} = require('../../services/notificationService.js');
+import Order from '../../models/Order.js';
+import Ad from '../../models/Ad.js';
+// import {
+//   notifySellerAboutOrder,
+//   notifyAdminAboutError,
+// } from '../../services/notificationService.js';
 
 const router = Router();
 
@@ -122,13 +122,13 @@ router.post('/', async (req, res, next) => {
     if (botInstance && sellerIds.length) {
       for (const sellerId of sellerIds) {
         try {
-          await notifySellerAboutOrder(order, sellerId, botInstance);
+          //           await notifySellerAboutOrder(order, sellerId, botInstance);
         } catch (error) {
           console.error('notifySellerAboutOrder error:', error);
-          await notifyAdminAboutError(
-            `Не удалось уведомить продавца ${sellerId} по заказу ${order._id}: ${error.message}`,
-            botInstance
-          );
+          //           await notifyAdminAboutError(
+          //             `Не удалось уведомить продавца ${sellerId} по заказу ${order._id}: ${error.message}`,
+          //             botInstance
+          //           );
         }
       }
     } else if (!botInstance) {

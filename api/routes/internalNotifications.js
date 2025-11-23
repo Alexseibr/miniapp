@@ -1,5 +1,6 @@
 import express from 'express';
-const requireInternalAuth = require('../../middleware/internalAuth');
+import { Router } from 'express';
+import requireInternalAuth from '../../middleware/internalAuth.js';
 
 const router = Router();
 

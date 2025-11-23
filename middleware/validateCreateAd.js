@@ -1,4 +1,4 @@
-import Season from '../models/Season.js.js';
+import Season from '../models/Season.js';
 
 const ALLOWED_DELIVERY_TYPES = ['pickup_only', 'delivery_only', 'delivery_and_pickup'];
 const CATEGORY_DEFAULT_LIFETIME = {
@@ -229,8 +229,4 @@ async function validateCreateAd(req, res, next) {
   }
 }
 
-module.exports = {
-  validateCreateAd,
-  getDefaultLifetimeDays,
-  calculateValidUntil,
-};
+export { validateCreateAd,getDefaultLifetimeDays,calculateValidUntil };

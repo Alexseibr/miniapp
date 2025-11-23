@@ -1,7 +1,7 @@
 // telegram/commands/favorites.js
-import Favorite from '../../models/Favorite.js.js';
+import Favorite from '../../models/Favorite.js';
 
-module.exports = (bot) => {
+export default (bot) => {
   bot.command('favorites', async (ctx) => {
     const userTelegramId = String(ctx.from.id);
 

@@ -25,7 +25,4 @@ function haversineDistanceKm(lat1, lng1, lat2, lng2) {
   return EARTH_RADIUS_KM * c;
 }
 
-module.exports = {
-  deg2rad,
-  haversineDistanceKm,
-};
+export { deg2rad, haversineDistanceKm };

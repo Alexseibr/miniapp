@@ -20,6 +20,4 @@ async function sendMessageToTelegramId(telegramId, text, extra = {}) {
   }
 }
 
-module.exports = {
-  sendMessageToTelegramId,
-};
+export { sendMessageToTelegramId };

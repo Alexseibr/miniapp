@@ -1,4 +1,4 @@
-import User from '../models/User.js.js';
+import User from '../models/User.js';
 
 function buildChangeSummary(adBefore = {}, adAfter = {}) {
   const priceChanged =
@@ -72,6 +72,4 @@ async function findUsersToNotifyOnAdChange(adBefore, adAfter) {
   return notifications;
 }
 
-module.exports = {
-  findUsersToNotifyOnAdChange,
-};
+export { findUsersToNotifyOnAdChange };

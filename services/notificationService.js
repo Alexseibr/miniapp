@@ -1,6 +1,6 @@
 // services/notificationService.js
-import Favorite from '../models/Favorite.js.js';
-import NotificationQueue from '../models/NotificationQueue.js.js';
+import Favorite from '../models/Favorite.js';
+import NotificationQueue from '../models/NotificationQueue.js';
 
 async function handlePriceChange(ad, oldPrice, newPrice) {
   const favorites = await Favorite.find({
@@ -42,7 +42,4 @@ async function handleStatusChange(ad, oldStatus, newStatus) {
   await NotificationQueue.insertMany(docs);
 }
 
-module.exports = {
-  handlePriceChange,
-  handleStatusChange,
-};
+export { handlePriceChange, handleStatusChange };

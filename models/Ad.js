@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-const NotificationEvent = require('./NotificationEvent');
-const AdChange = require('./AdChange');
+import NotificationEvent from './NotificationEvent.js';
+import AdChange from './AdChange.js';
 
 const priceHistorySchema = new mongoose.Schema(
   {

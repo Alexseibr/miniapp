@@ -1,5 +1,6 @@
 import express from 'express';
-const Alert = require('../../models/Alert');
+import { Router } from 'express';
+import Alert from '../../models/Alert.js';
 
 const router = Router();
 

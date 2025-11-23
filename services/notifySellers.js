@@ -88,4 +88,4 @@ async function notifySellers(order, bot) {
   return results;
 }
 
-module.exports = notifySellers;
+export default notifySellers;

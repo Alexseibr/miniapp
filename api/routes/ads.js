@@ -1,15 +1,15 @@
 import { Router } from 'express';
-const Ad = require('../../models/Ad.js');
-const { haversineDistanceKm } = require('../../utils/distance');
-const { buildAdQuery } = require('../../utils/queryBuilder');
-const { notifySubscribers } = require('../../services/notifications');
-const { findUsersToNotifyOnAdChange } = require('../../services/favoritesNotifications');
-const { sendPriceStatusChangeNotifications } = require('../../services/notificationSender');
-const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
-const { validateCreateAd } = require('../../middleware/validateCreateAd');
-const requireInternalAuth = require('../../middleware/internalAuth');
-const { findMatchingSubscriptions, sendSubscriptionNotifications } = require('../../services/subscriptionNotifications');
-const { bot } = require('../../telegram/bot');
+import Ad from '../../models/Ad.js';
+import { haversineDistanceKm } from '../../utils/distance.js';
+import { buildAdQuery } from '../../utils/queryBuilder.js';
+import { notifySubscribers } from '../../services/notifications.js';
+import { findUsersToNotifyOnAdChange } from '../../services/favoritesNotifications.js';
+import { sendPriceStatusChangeNotifications } from '../../services/notificationSender.js';
+import { updateAdPrice, updateAdStatus } from '../../services/adUpdateService.js';
+import { validateCreateAd } from '../../middleware/validateCreateAd.js';
+import requireInternalAuth from '../../middleware/internalAuth.js';
+import { findMatchingSubscriptions, sendSubscriptionNotifications } from '../../services/subscriptionNotifications.js';
+import { bot } from '../../telegram/bot.js';
 
 const router = Router();
 

@@ -1,6 +1,7 @@
 import express from 'express';
-const Ad = require('../../models/Ad');
-const { haversineDistanceKm } = require('../../utils/haversine');
+import { Router } from 'express';
+import Ad from '../../models/Ad.js';
+import { haversineDistanceKm } from '../../utils/haversine.js';
 
 const router = Router();
 const DEFAULT_LIMIT = 100;

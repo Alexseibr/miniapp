@@ -1,6 +1,7 @@
 import express from 'express';
-const { telegramInitDataMiddleware } = require('../middleware/telegramAuth');
-const requireAuth = require('../middleware/requireAuth');
+import { Router } from 'express';
+import { telegramInitDataMiddleware } from '../middleware/telegramAuth.js';
+import requireAuth from '../middleware/requireAuth.js';
 
 const router = Router();
 

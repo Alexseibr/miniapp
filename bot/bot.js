@@ -1,5 +1,5 @@
 import { Telegraf, Markup, session } from 'telegraf';
-import config from '../config/config.js';
+import * as config from '../config/config.js';
 import axios from 'axios';
 import registerSeasonHandlers from './seasonHandlers.js';
 

@@ -28,6 +28,4 @@ async function sendPriceStatusChangeNotifications(notifications = []) {
   }
 }
 
-module.exports = {
-  sendPriceStatusChangeNotifications,
-};
+export { sendPriceStatusChangeNotifications };

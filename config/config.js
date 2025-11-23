@@ -27,12 +27,4 @@ if (!miniAppUrl) {
   warn('ℹ️ MINIAPP_URL не задан — кнопки WebApp будут вести на значение по умолчанию.');
 }
 
-export default {
-  mongoUrl,
-  botToken,
-  miniAppUrl,
-  port,
-  apiBaseUrl,
-  adminTelegramId,
-  nodeEnv: process.env.NODE_ENV || 'development',
-};
+export { mongoUrl, botToken, miniAppUrl, port, apiBaseUrl, adminTelegramId };

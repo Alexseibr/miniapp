@@ -1,11 +1,16 @@
-import fs from 'fs';
+import { fileURLToPath } from 'url';
 import path from 'path';
-import User from '../models/User.js.js';
-import Alert from '../models/Alert.js.js';
-import config from '../config/config.js';
+import fs from 'fs';
+import User from '../models/User.js';
+import Ad from '../models/Ad.js';
+import Alert from '../models/Alert.js';
+import * as config from '../config/config.js';
 import { sendMessageToTelegramId } from '../bot/messenger.js';
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 const LOG_FILE_PATH = path.join(__dirname, '..', 'logs', 'favorites.log');
+
 
 function ensureLogFile() {
   const dir = path.dirname(LOG_FILE_PATH);
@@ -220,6 +225,4 @@ async function checkFavoritesForChanges() {
   }
 }
 
-module.exports = {
-  checkFavoritesForChanges,
-};
+export { checkFavoritesForChanges };

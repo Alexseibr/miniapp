@@ -1,6 +1,6 @@
 import { Router } from 'express';
-const Category = require('../../models/Category.js');
-const asyncHandler = require('../middleware/asyncHandler.js');
+import Category from '../../models/Category.js';
+import asyncHandler from '../middleware/asyncHandler.js';
 
 const router = Router();
 

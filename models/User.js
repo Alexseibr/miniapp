@@ -99,7 +99,6 @@ const userSchema = new mongoose.Schema(
   }
 );
 
-userSchema.index({ telegramId: 1 });
 userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });

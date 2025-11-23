@@ -1,5 +1,5 @@
 // telegram/commands/notifications.js
-import UserSettings from '../../models/UserSettings.js.js';
+import UserSettings from '../../models/UserSettings.js';
 
 async function getOrCreateSettings(userTelegramId) {
   let settings = await UserSettings.findOne({ userTelegramId });
@@ -9,7 +9,7 @@ async function getOrCreateSettings(userTelegramId) {
   return settings;
 }
 
-module.exports = (bot) => {
+export default (bot) => {
   bot.command('notifications', async (ctx) => {
     const userTelegramId = String(ctx.from.id);
     const settings = await getOrCreateSettings(userTelegramId);

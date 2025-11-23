@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import Favorite from '../models/Favorite.js.js';
+import Favorite from '../models/Favorite.js';
 import { sendMessageToTelegramId } from '../bot/messenger.js';
 
 async function notifySubscribers(adId, message) {
@@ -32,6 +32,4 @@ async function notifySubscribers(adId, message) {
   }
 }
 
-module.exports = {
-  notifySubscribers,
-};
+export { notifySubscribers };

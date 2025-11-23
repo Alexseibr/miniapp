@@ -1,6 +1,6 @@
 // services/adUpdateService.js
-import Ad from '../models/Ad.js.js';
-import notificationService from './notificationService.js';
+import Ad from '../models/Ad.js';
+import * as notificationService from './notificationService.js';
 
 async function updateAdPrice(adId, newPrice) {
   const ad = await Ad.findById(adId);
@@ -49,7 +49,4 @@ async function updateAdStatus(adId, newStatus) {
   return ad;
 }
 
-module.exports = {
-  updateAdPrice,
-  updateAdStatus,
-};
+export { updateAdPrice,updateAdStatus };

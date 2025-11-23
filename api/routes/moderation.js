@@ -1,9 +1,10 @@
 import express from 'express';
-const axios = require('axios');
-const jwt = require('jsonwebtoken');
-const Ad = require('../../models/Ad');
-const User = require('../../models/User');
-const config = require('../../config/config');
+import { Router } from 'express';
+import axios from 'axios';
+import jwt from 'jsonwebtoken';
+import Ad from '../../models/Ad.js';
+import User from '../../models/User.js';
+import * as config from '../../config/config.js';
 
 const router = Router();
 

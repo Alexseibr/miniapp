@@ -1,5 +1,5 @@
 // workers/notificationWorker.js
-import NotificationQueue from '../models/NotificationQueue.js.js';
+import NotificationQueue from '../models/NotificationQueue.js';
 import { bot } from '../telegram/bot.js';
 
 async function processNotificationBatch(limit = 50) {
@@ -30,6 +30,4 @@ function startNotificationWorker() {
   }, 30 * 1000);
 }
 
-module.exports = {
-  startNotificationWorker,
-};
+export { startNotificationWorker };

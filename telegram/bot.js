@@ -5,4 +5,5 @@ import notificationsCommand from './commands/notifications.js';
 favoritesCommand(baseBot);
 notificationsCommand(baseBot);
 
-module.exports = { bot: baseBot };
+export const bot = baseBot;
+export default bot;

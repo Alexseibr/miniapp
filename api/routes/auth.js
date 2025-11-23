@@ -1,8 +1,9 @@
 import express from 'express';
-const crypto = require('crypto');
-const User = require('../../models/User.js');
-const config = require('../../config/config.js');
-const { validateTelegramInitData, extractInitDataFromRequest } = require('../../middleware/telegramAuth.js');
+import { Router } from 'express';
+import crypto from 'crypto';
+import User from '../../models/User.js';
+import * as config from '../../config/config.js';
+import { validateTelegramInitData, extractInitDataFromRequest } from '../../middleware/telegramAuth.js';
 
 const router = Router();
 

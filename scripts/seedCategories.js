@@ -1,8 +1,8 @@
 require('dotenv').config();
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
-const Category = require('../models/Category');
-const Season = require('../models/Season');
+import Category from '../models/Category.js';
+import Season from '../models/Season.js';
 
 async function main() {
   const uri = process.env.MONGO_URL || process.env.MONGODB_URI;
