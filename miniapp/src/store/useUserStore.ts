@@ -34,7 +34,7 @@ export const useUserStore = create<UserState>((set, get) => ({
       if (response.user) {
         set({ 
           user: response.user as UserProfile,
-          cityCode: response.cityCode || 'brest'
+          cityCode: (response as any).cityCode || 'brest'
         });
         await get().refreshFavorites();
       }

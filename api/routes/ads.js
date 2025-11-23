@@ -289,6 +289,32 @@ router.get('/', async (req, res, next) => {
   }
 });
 
+router.get('/by-ids', async (req, res, next) => {
+  try {
+    const { ids } = req.query;
+    
+    if (!ids) {
+      return res.json({ ads: [] });
+    }
+
+    const idArray = typeof ids === 'string' ? ids.split(',') : (Array.isArray(ids) ? ids : []);
+    
+    if (idArray.length === 0) {
+      return res.json({ ads: [] });
+    }
+
+    const ads = await Ad.find({
+      _id: { $in: idArray },
+      status: 'active'
+    }).limit(50);
+
+    res.json({ ads });
+  } catch (error) {
+    console.error('Error fetching ads by IDs:', error);
+    next(error);
+  }
+});
+
 router.get('/search', async (req, res, next) => {
   try {
     const {

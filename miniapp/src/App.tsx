@@ -1,9 +1,11 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
+import { QueryClientProvider } from '@tanstack/react-query';
 import BottomTabs from '@/components/BottomTabs';
 import HomePage from '@/pages/HomePage';
 import { useUserStore } from '@/store/useUserStore';
 import { getTelegramWebApp } from '@/utils/telegram';
+import { queryClient } from '@/lib/queryClient';
 import { Loader2 } from 'lucide-react';
 
 const FeedPage = lazy(() => import('@/pages/FeedPage'));
@@ -104,38 +106,40 @@ export default function App() {
   }
 
   return (
-    <div className="app-shell">
-      <main>
-        <Suspense fallback={
-          <div style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            height: '100vh',
-            background: '#FFFFFF'
-          }}>
-            <Loader2 className="w-8 h-8 animate-spin text-gray-600" />
-          </div>
-        }>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/category/:slug" element={<SubcategoryPage />} />
-            <Route path="/feed" element={<FeedPage />} />
-            <Route path="/favorites" element={<FavoritesPage />} />
-            <Route path="/profile" element={<ProfilePage />} />
-            <Route path="/orders" element={<OrdersPage />} />
-            <Route path="/seasons" element={<SeasonsPage />} />
-            <Route path="/seasons/:code" element={<SeasonViewPage />} />
-            <Route path="/categories/:slug" element={<CategoryPage />} />
-            <Route path="/ads/:id" element={<AdPage />} />
-            <Route path="/my-ads" element={<MyAdsPage />} />
-            <Route path="/ads/create" element={<CreateAdPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
+    <QueryClientProvider client={queryClient}>
+      <div className="app-shell">
+        <main>
+          <Suspense fallback={
+            <div style={{
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              height: '100vh',
+              background: '#FFFFFF'
+            }}>
+              <Loader2 className="w-8 h-8 animate-spin text-gray-600" />
+            </div>
+          }>
+            <Routes>
+              <Route path="/" element={<HomePage />} />
+              <Route path="/category/:slug" element={<SubcategoryPage />} />
+              <Route path="/feed" element={<FeedPage />} />
+              <Route path="/favorites" element={<FavoritesPage />} />
+              <Route path="/profile" element={<ProfilePage />} />
+              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/seasons" element={<SeasonsPage />} />
+              <Route path="/seasons/:code" element={<SeasonViewPage />} />
+              <Route path="/categories/:slug" element={<CategoryPage />} />
+              <Route path="/ads/:id" element={<AdPage />} />
+              <Route path="/my-ads" element={<MyAdsPage />} />
+              <Route path="/ads/create" element={<CreateAdPage />} />
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </main>
 
-      <BottomTabs />
-    </div>
+        <BottomTabs />
+      </div>
+    </QueryClientProvider>
   );
 }

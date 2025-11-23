@@ -29,14 +29,18 @@ export default function PromoBanner(props: PromoBannerProps) {
     enabled: !!slotId,
   });
 
-  const title = props.title || props.config?.title || slotData?.data?.title;
-  const subtitle = props.subtitle || props.config?.subtitle || slotData?.data?.subtitle;
-  const imageUrl = props.imageUrl || props.config?.imageUrl || slotData?.data?.imageUrl;
-  const link = props.link || props.config?.link || slotData?.data?.link;
+  const title = slotData?.data?.title || props.title || props.config?.title;
+  const subtitle = slotData?.data?.subtitle || props.subtitle || props.config?.subtitle;
+  const imageUrl = slotData?.data?.imageUrl || props.imageUrl || props.config?.imageUrl;
+  const link = slotData?.data?.link || props.link || props.config?.link;
   const backgroundColor = props.backgroundColor || props.config?.backgroundColor || 'var(--bg-tertiary)';
   const textColor = props.textColor || props.config?.textColor || 'var(--color-primary)';
 
-  if (!title && !imageUrl) {
+  if (!title && !imageUrl && !slotId) {
+    return null;
+  }
+  
+  if (slotId && !slotData && !title && !imageUrl) {
     return null;
   }
 

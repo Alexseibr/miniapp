@@ -1,6 +1,7 @@
 import { useLocation } from 'react-router-dom';
 import { useUserStore } from '@/store/useUserStore';
 import { parseAppMode } from '@/utils/telegram';
+import { LogoFull } from './Logo';
 
 export default function Header() {
   const { search } = useLocation();
@@ -19,6 +20,10 @@ export default function Header() {
 
   return (
     <header className="card" style={{ margin: '16px', marginBottom: 8 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+        <LogoFull width={140} />
+      </div>
+      
       <p className="badge" style={{ marginBottom: 8 }}>
         {mode.season ? 'Сезон' : mode.niche ? 'Ниша' : 'Маркетплейс'}
       </p>
