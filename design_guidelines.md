@@ -248,12 +248,32 @@
 
 ## Logo Integration
 
-*Pending: Awaiting logo files to generate variants*
+**Brand Color**: KETMAR logo uses `#3B73FC` (bright blue) - integrated as `--color-accent-highlight`
 
-Once logos are provided, will create:
-- Full horizontal logo
-- Compact icon version
-- Favicon (32x32, 64x64, 128x128)
-- App icon (1024x1024)
-- MiniApp icon (512x512)
-- Splash screen graphic
+**Available Logo Variants**:
+- **Full Logo RGB**: `ketmar_logo_rgb.svg` - Full horizontal logo with brand blue
+- **Full Logo Monochrome**: `ketmar_logo_monochrome.svg` - Grayscale version
+- **Sign RGB**: `ketmar_sign_rgb.svg` - Icon/sign only with brand blue
+- **Sign Monochrome**: `ketmar_sign_monochrome.svg` - Grayscale icon
+
+**React Components**:
+```tsx
+import Logo, { LogoFull, LogoSign, LogoFullMono, LogoSignMono } from '@/components/Logo';
+
+// Full color logo
+<LogoFull width={200} height={60} />
+
+// Icon/sign only
+<LogoSign width={48} height={48} />
+
+// Monochrome variants
+<LogoFullMono width={150} />
+<LogoSignMono width={40} />
+```
+
+**Usage Guidelines**:
+- Use full logo in headers, splash screens
+- Use sign/icon for app icons, favicons, small spaces
+- Prefer RGB variants on light backgrounds
+- Use monochrome when color conflicts arise
+- Minimum size: 120px wide for full logo, 32px for sign

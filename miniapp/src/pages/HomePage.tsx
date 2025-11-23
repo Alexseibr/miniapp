@@ -13,8 +13,10 @@ export default function HomePage() {
     initialize();
   }, [initialize]);
 
+  const currentCityCode = cityCode || 'brest';
+  
   const { data: layoutData, isLoading } = useQuery<any>({
-    queryKey: ['/api/layout', { cityCode: cityCode || 'brest', screen: 'home' }],
+    queryKey: ['/api/layout', { cityCode: currentCityCode, screen: 'home' }],
     enabled: userStatus !== 'loading',
   });
 

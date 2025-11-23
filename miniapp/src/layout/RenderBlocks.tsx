@@ -1,6 +1,8 @@
+import { ComponentType } from 'react';
 import HeroBanner from './blocks/HeroBanner.tsx';
 import CategoryGrid from './blocks/CategoryGrid.tsx';
 import AdCarousel from './blocks/AdCarousel.tsx';
+import AdList from './blocks/AdList.tsx';
 import PromoBanner from './blocks/PromoBanner.tsx';
 import MapBlock from './blocks/MapBlock.tsx';
 
@@ -17,11 +19,11 @@ interface RenderBlocksProps {
   cityCode?: string;
 }
 
-const BLOCK_COMPONENTS: Record<string, React.ComponentType<any>> = {
+const BLOCK_COMPONENTS: Record<string, ComponentType<any>> = {
   hero_banner: HeroBanner,
   category_grid: CategoryGrid,
   ad_carousel: AdCarousel,
-  ad_list: AdCarousel,
+  ad_list: AdList,
   promo_banner: PromoBanner,
   map_block: MapBlock,
 };
