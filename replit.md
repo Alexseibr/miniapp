@@ -72,7 +72,16 @@ The bot provides these core interactions:
   - ✅ **Approve**: Approve ad and notify seller
   - ❌ **Reject**: Reject ad with optional comment, notify seller
   - 🔍 **Open Ad**: View full ad details
+- Legacy commands: `/mod_pending`, `/mod_approve_{id}`, `/mod_reject_{id}`
 - Requires `isModerator: true` or `role: 'moderator'/'admin'` in User model
+
+**Moderation Security** (November 2025):
+- **Production-ready JWT authentication** for bot-to-API moderation requests
+- Flow: Bot requests JWT token → API validates bot token + moderator role → Issues short-lived JWT (1h)
+- All moderation endpoints require `Authorization: Bearer {JWT}` header
+- JWT payload contains moderator `telegramId` signed with `JWT_SECRET`
+- No fallback authentication - JWT is mandatory for all moderation operations
+- Prevents impersonation attacks by cryptographically binding moderator identity to tokens
 
 **Design Rationale**: The bot acts as the primary user interface for mobile users, while the web admin panel serves marketplace operators. This dual-interface approach optimizes for the mobile-first nature of Telegram while providing robust management tools.
 
@@ -112,6 +121,12 @@ The bot provides these core interactions:
 - `POST /api/orders` - Create new order with automatic price calculation
 - `PATCH /api/orders/:id` - Update order status
 
+**Moderation Endpoints** (Requires JWT authentication):
+- `POST /api/mod/token` - Issue JWT token for moderators (requires bot token)
+- `GET /api/mod/pending` - List pending advertisements
+- `POST /api/mod/approve` - Approve advertisement
+- `POST /api/mod/reject` - Reject advertisement with comment
+
 **Design Rationale**: The API supports both the Telegram bot and web frontend with the same endpoints. Query parameters enable flexible filtering for different use cases (e.g., filtering ads by season for promotional campaigns).
 
 ### Configuration Management
@@ -119,10 +134,16 @@ The bot provides these core interactions:
 **Environment Variables**: Supports dual naming conventions for compatibility:
 - `MONGO_URL` or `MONGODB_URI` for database connection
 - `BOT_TOKEN` or `TELEGRAM_BOT_TOKEN` for Telegram API access
+- `JWT_SECRET` or `SESSION_SECRET` for JWT token signing (moderation authentication)
 - `PORT` for API server (default: 3000)
 - `API_BASE_URL` for bot-to-API communication
 
 **Rationale**: The dual variable support ensures compatibility with different deployment platforms (Replit, Heroku, local development) without requiring code changes.
+
+**Security Notes**:
+- `JWT_SECRET` is used to sign moderation JWT tokens - must be kept secure
+- Bot-to-API moderation uses production-ready JWT authentication with 1-hour token expiry
+- All moderation operations require valid JWT tokens - no bypass mechanisms
 
 ### Database Design Decisions
 
