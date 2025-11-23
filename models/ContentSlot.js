@@ -10,6 +10,12 @@ const contentSlotSchema = new mongoose.Schema(
       lowercase: true,
       index: true,
     },
+    type: {
+      type: String,
+      required: true,
+      enum: ['hero_banner', 'promo_banner', 'seasonal_banner', 'category_banner'],
+      default: 'hero_banner',
+    },
     data: {
       title: {
         type: String,
@@ -24,6 +30,10 @@ const contentSlotSchema = new mongoose.Schema(
         trim: true,
       },
       link: {
+        type: String,
+        trim: true,
+      },
+      actionText: {
         type: String,
         trim: true,
       },
