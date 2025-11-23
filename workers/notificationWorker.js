@@ -1,6 +1,6 @@
 // workers/notificationWorker.js
-const NotificationQueue = require('../models/NotificationQueue');
-const { bot } = require('../telegram/bot');
+import NotificationQueue from '../models/NotificationQueue.js.js';
+import { bot } from '../telegram/bot.js';
 
 async function processNotificationBatch(limit = 50) {
   const pending = await NotificationQueue.find({ status: 'pending' })

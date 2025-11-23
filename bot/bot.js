@@ -1,7 +1,7 @@
-const { Telegraf, Markup, session } = require('telegraf');
-const config = require('../config/config.js');
-const axios = require('axios');
-const registerSeasonHandlers = require('./seasonHandlers');
+import { Telegraf, Markup, session } from 'telegraf';
+import config from '../config/config.js';
+import axios from 'axios';
+import registerSeasonHandlers from './seasonHandlers.js';
 
 const bot = new Telegraf(config.botToken);
 
@@ -2227,5 +2227,5 @@ bot.catch((err, ctx) => {
 
 bot.sendFavoriteUpdateNotification = sendFavoriteUpdateNotification;
 
-module.exports = bot;
-module.exports.bot = bot;
+export default bot;
+export { bot };

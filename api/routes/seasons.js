@@ -1,4 +1,4 @@
-const { Router } = require('express');
+import { Router } from 'express';
 const Season = require('../../models/Season.js');
 const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
@@ -200,4 +200,4 @@ router.get(
   })
 );
 
-module.exports = router;
+export default router;

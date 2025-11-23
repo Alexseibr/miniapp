@@ -1,12 +1,18 @@
-const express = require('express');
-const config = require('./config/config.js');
-const connectDB = require('./services/db.js');
-const app = require('./api/server.js');
-const { bot } = require('./telegram/bot');
-const { checkFavoritesForChanges } = require('./notifications/watcher');
-const { startNotificationWorker } = require('./workers/notificationWorker');
-const path = require('path');
-const fs = require('fs');
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import fs from 'fs';
+import axios from 'axios';
+import config from './config/config.js';
+import connectDB from './services/db.js';
+import app from './api/server.js';
+import { bot } from './bot/bot.js';
+import { checkFavoritesForChanges } from './notifications/watcher.js';
+import { startNotificationWorker } from './workers/notificationWorker.js';
+import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const PORT = config.port;
 
@@ -232,7 +238,6 @@ async function start() {
       try {
         // Проверяем валидность токена через HTTP запрос
         console.log('   Проверка токена...');
-        const axios = require('axios');
         const testResponse = await axios.get(`https://api.telegram.org/bot${config.botToken}/getMe`, {
           timeout: 10000
         });
@@ -292,7 +297,6 @@ async function start() {
     startNotificationWorker();
     
     // Регистрируем error handlers в самом конце, после всех middleware
-    const { logErrors, notFoundHandler, errorHandler } = require('./api/middleware/errorHandlers.js');
     app.use(logErrors);
     app.use(notFoundHandler);
     app.use(errorHandler);

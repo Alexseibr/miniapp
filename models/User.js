@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const LocationSchema = new mongoose.Schema(
   {
@@ -104,4 +104,4 @@ userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });
 
-module.exports = mongoose.model('User', userSchema);
+export default mongoose.model('User', userSchema);

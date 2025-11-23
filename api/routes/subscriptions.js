@@ -1,4 +1,4 @@
-const { Router } = require('express');
+import { Router } from 'express';
 const Subscription = require('../../models/Subscription');
 
 const router = Router();
@@ -109,4 +109,4 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

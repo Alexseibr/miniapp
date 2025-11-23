@@ -1,4 +1,4 @@
-const bot = require('../bot/bot');
+import bot from '../bot/bot.js';
 
 async function sendPriceStatusChangeNotifications(notifications = []) {
   if (!Array.isArray(notifications) || notifications.length === 0) {

@@ -1,10 +1,10 @@
-const express = require('express');
+import express from 'express';
 const crypto = require('crypto');
 const User = require('../../models/User.js');
 const config = require('../../config/config.js');
 const { validateTelegramInitData, extractInitDataFromRequest } = require('../../middleware/telegramAuth.js');
 
-const router = express.Router();
+const router = Router();
 
 function buildSessionToken(telegramId) {
   const secret = process.env.SESSION_SECRET || config.botToken || 'ketmar-market-secret';
@@ -82,4 +82,4 @@ router.post('/telegram', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

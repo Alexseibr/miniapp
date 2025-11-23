@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 const NotificationEvent = require('./NotificationEvent');
 const AdChange = require('./AdChange');
 
@@ -371,4 +371,4 @@ function resolveCoordinatesFromLocation(location) {
   return null;
 }
 
-module.exports = mongoose.model('Ad', adSchema);
+export default mongoose.model('Ad', adSchema);

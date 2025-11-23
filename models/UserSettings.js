@@ -1,5 +1,5 @@
 // models/UserSettings.js
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const userSettingsSchema = new mongoose.Schema({
   userTelegramId: { type: String, required: true, unique: true },
@@ -7,4 +7,4 @@ const userSettingsSchema = new mongoose.Schema({
   notifyOnStatusChange: { type: Boolean, default: true },
 });
 
-module.exports = mongoose.model('UserSettings', userSettingsSchema);
+export default mongoose.model('UserSettings', userSettingsSchema);

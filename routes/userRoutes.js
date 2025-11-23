@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const { telegramInitDataMiddleware } = require('../middleware/telegramAuth');
 const requireAuth = require('../middleware/requireAuth');
 
-const router = express.Router();
+const router = Router();
 
 router.use(telegramInitDataMiddleware, requireAuth);
 
@@ -46,4 +46,4 @@ router.post('/me/location', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

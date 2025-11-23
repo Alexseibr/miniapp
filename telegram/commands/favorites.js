@@ -1,5 +1,5 @@
 // telegram/commands/favorites.js
-const Favorite = require('../../models/Favorite');
+import Favorite from '../../models/Favorite.js.js';
 
 module.exports = (bot) => {
   bot.command('favorites', async (ctx) => {

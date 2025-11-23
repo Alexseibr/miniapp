@@ -1,4 +1,4 @@
-const { Router } = require('express');
+import { Router } from 'express';
 const Category = require('../../models/Category.js');
 const asyncHandler = require('../middleware/asyncHandler.js');
 
@@ -72,4 +72,4 @@ router.get(
   })
 );
 
-module.exports = router;
+export default router;

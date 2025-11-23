@@ -1,6 +1,6 @@
-const baseBot = require('../bot/bot');
-const favoritesCommand = require('./commands/favorites');
-const notificationsCommand = require('./commands/notifications');
+import baseBot from '../bot/bot.js';
+import favoritesCommand from './commands/favorites.js';
+import notificationsCommand from './commands/notifications.js';
 
 favoritesCommand(baseBot);
 notificationsCommand(baseBot);

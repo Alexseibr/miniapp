@@ -1,5 +1,5 @@
 // models/NotificationQueue.js
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const notificationQueueSchema = new mongoose.Schema({
   userTelegramId: { type: String, required: true, index: true },
@@ -29,4 +29,4 @@ const notificationQueueSchema = new mongoose.Schema({
   errorMessage: { type: String },
 });
 
-module.exports = mongoose.model('NotificationQueue', notificationQueueSchema);
+export default mongoose.model('NotificationQueue', notificationQueueSchema);

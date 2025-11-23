@@ -1,8 +1,8 @@
-const express = require('express');
+import express from 'express';
 const Favorite = require('../../models/Favorite');
 const Ad = require('../../models/Ad');
 
-const router = express.Router();
+const router = Router();
 
 function getUserTelegramId(req) {
   const fromUser = req.user?.telegramId;
@@ -76,4 +76,4 @@ router.delete('/:adId', async (req, res, next) => {
   }
 });
 
-module.exports = router;
+export default router;

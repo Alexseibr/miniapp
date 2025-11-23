@@ -1,4 +1,4 @@
-const bot = require('./bot');
+import bot from './bot.js';
 
 async function sendMessageToTelegramId(telegramId, text, extra = {}) {
   if (!bot || !bot.telegram) {

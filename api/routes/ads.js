@@ -1,4 +1,4 @@
-const { Router } = require('express');
+import { Router } from 'express';
 const Ad = require('../../models/Ad.js');
 const { haversineDistanceKm } = require('../../utils/distance');
 const { buildAdQuery } = require('../../utils/queryBuilder');
@@ -1298,4 +1298,4 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
-module.exports = router;
+export default router;

@@ -1,20 +1,20 @@
-const express = require('express');
-const { logErrors, notFoundHandler, errorHandler } = require('./middleware/errorHandlers.js');
-const adsSearchRoutes = require('./routes/search.js');
-const adsRoutes = require('./routes/ads.js');
-const categoriesRoutes = require('./routes/categories.js');
-const seasonsRoutes = require('./routes/seasons.js');
-const ordersRoutes = require('./routes/orders.js');
-const favoritesRoutes = require('./routes/favorites.js');
-const alertsRoutes = require('./routes/alerts.js');
-const notificationsRoutes = require('./routes/notifications.js');
-const moderationRoutes = require('./routes/moderation.js');
-const authRoutes = require('./routes/auth.js');
-const subscriptionsRoutes = require('./routes/subscriptions.js');
-const { telegramAuthMiddleware } = require('../middleware/telegramAuth.js');
-const userRoutes = require('../routes/userRoutes');
-const miniAppFavoriteRoutes = require('../routes/favoriteRoutes');
-const miniAppOrderRoutes = require('../routes/orderRoutes');
+import express from 'express';
+import { logErrors, notFoundHandler, errorHandler } from './middleware/errorHandlers.js';
+import adsSearchRoutes from './routes/search.js';
+import adsRoutes from './routes/ads.js';
+import categoriesRoutes from './routes/categories.js';
+import seasonsRoutes from './routes/seasons.js';
+import ordersRoutes from './routes/orders.js';
+import favoritesRoutes from './routes/favorites.js';
+import alertsRoutes from './routes/alerts.js';
+import notificationsRoutes from './routes/notifications.js';
+import moderationRoutes from './routes/moderation.js';
+import authRoutes from './routes/auth.js';
+import subscriptionsRoutes from './routes/subscriptions.js';
+import { telegramAuthMiddleware } from '../middleware/telegramAuth.js';
+import userRoutes from '../routes/userRoutes.js';
+import miniAppFavoriteRoutes from '../routes/favoriteRoutes.js';
+import miniAppOrderRoutes from '../routes/orderRoutes.js';
 
 const app = express();
 
@@ -26,7 +26,7 @@ app.use(express.urlencoded({ extended: true }));
 app.get('/api', (_req, res) => {
   res.json({
     message: 'KETMAR API',
-    version: pkg.version || '1.0.0',
+    version: '1.0.0',
     endpoints: {
       categories: '/api/categories',
       seasons: '/api/seasons',
@@ -63,4 +63,4 @@ app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 app.use('/auth', authRoutes);
 
-module.exports = app;
+export default app;

@@ -1,4 +1,4 @@
-const mongoose = require('mongoose');
+import mongoose from 'mongoose';
 
 const alertSchema = new mongoose.Schema(
   {
@@ -31,4 +31,4 @@ const alertSchema = new mongoose.Schema(
 
 alertSchema.index({ userTelegramId: 1, createdAt: -1 });
 
-module.exports = mongoose.model('Alert', alertSchema);
+export default mongoose.model('Alert', alertSchema);

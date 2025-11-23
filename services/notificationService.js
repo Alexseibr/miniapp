@@ -1,6 +1,6 @@
 // services/notificationService.js
-const Favorite = require('../models/Favorite');
-const NotificationQueue = require('../models/NotificationQueue');
+import Favorite from '../models/Favorite.js.js';
+import NotificationQueue from '../models/NotificationQueue.js.js';
 
 async function handlePriceChange(ad, oldPrice, newPrice) {
   const favorites = await Favorite.find({

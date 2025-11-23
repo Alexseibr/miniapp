@@ -1,4 +1,4 @@
-require('dotenv').config();
+import 'dotenv/config';
 
 const warn = (message) => {
   if (process.env.NODE_ENV !== 'test') {
@@ -27,7 +27,7 @@ if (!miniAppUrl) {
   warn('ℹ️ MINIAPP_URL не задан — кнопки WebApp будут вести на значение по умолчанию.');
 }
 
-module.exports = {
+export default {
   mongoUrl,
   botToken,
   miniAppUrl,

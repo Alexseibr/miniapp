@@ -1,5 +1,5 @@
 // telegram/commands/notifications.js
-const UserSettings = require('../../models/UserSettings');
+import UserSettings from '../../models/UserSettings.js.js';
 
 async function getOrCreateSettings(userTelegramId) {
   let settings = await UserSettings.findOne({ userTelegramId });
