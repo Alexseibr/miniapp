@@ -49,11 +49,22 @@ The data model supports a marketplace with the following entities:
 
 1. **User**: Stores Telegram user information (telegramId, username, firstName, lastName, phone, role, privacy settings)
 2. **Category**: Hierarchical category system using `parentSlug` for tree structure, with `sortOrder` for display ordering
+   - **Kufar.by-style taxonomy** (November 2025): 94 categories mirroring Kufar.by structure
+   - **Icon system**: `icon` field stores lucide-react component names (e.g., "Home", "Car", "Smartphone")
+   - **Descriptions**: Each category has descriptive text for UX tooltips
+   - Icons rendered as SVG in MiniApp via dynamic mapping: `icon: "Home"` → `<Home />` component
+   - Seeding script: `scripts/seedKufarCategories.js` (re-runnable, overwrites existing categories)
 3. **Season**: Time-bounded promotional periods with start/end dates and active status
 4. **Ad** (Product Listing): User-generated listings with title, description, price, photos, category/subcategory references, and optional season association
 5. **Order**: Shopping cart system with multiple order items, buyer information, status tracking, and total price calculation
 
 **Key Architectural Decision**: Categories use a slug-based parent-child relationship rather than ObjectId references, making URLs more readable and API responses more intuitive. The `buildTree()` helper function in the categories route reconstructs the hierarchical structure from flat data.
+
+**Category Icon Architecture** (November 2025):
+- **No emoji policy**: All icons stored as lucide-react component name strings, never emoji characters
+- **Dynamic rendering**: MiniApp's CategoryScroll maps icon names to Lucide React components at runtime
+- **Fallback handling**: Missing/unknown icons gracefully render as null (no visual component)
+- **Icon selection**: 14 main categories each have unique icons (Home, Wrench, Plane, Hammer, Car, Dumbbell, Smartphone, Microwave, Shirt, TreePine, Baby, PawPrint, Sparkles, Briefcase)
 
 ### Telegram Bot Interface
 
