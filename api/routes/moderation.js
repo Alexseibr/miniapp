@@ -15,9 +15,34 @@ function getAuthenticatedTelegramId(req) {
   return parseTelegramId(req.telegramAuth?.user?.id);
 }
 
+function verifyBotInternal(req) {
+  const internalSecret = process.env.INTERNAL_API_SECRET || process.env.SESSION_SECRET;
+  
+  if (!internalSecret) {
+    return false;
+  }
+  
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return false;
+  }
+  
+  const providedToken = authHeader.slice(7);
+  
+  return providedToken === internalSecret;
+}
+
 async function checkModerator(req, res, next) {
   try {
-    const telegramId = getAuthenticatedTelegramId(req);
+    const isBotAuthenticated = verifyBotInternal(req);
+    let telegramId;
+    
+    if (isBotAuthenticated) {
+      telegramId = parseTelegramId(req.headers['x-telegram-id']);
+    } else {
+      telegramId = getAuthenticatedTelegramId(req);
+    }
 
     if (!telegramId) {
       return res.status(401).json({ error: 'Unauthorized' });
