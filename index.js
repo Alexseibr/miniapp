@@ -80,19 +80,32 @@ async function start() {
         },
       });
       
-      // MiniApp route handler BEFORE client Vite middleware
-      app.use('/miniapp*', async (req, res, next) => {
+      // Handle MiniApp assets with miniappVite FIRST (JS, CSS, images, etc.)
+      app.use('/miniapp', miniappVite.middlewares);
+      
+      // MiniApp HTML route handler - only for HTML navigation (no file extension)
+      app.get('/miniapp*', async (req, res, next) => {
         const url = req.originalUrl;
-        console.log(`📱 MiniApp handler: ${url}`);
+        
+        // Skip asset requests (anything with a file extension or starting with @)
+        const hasFileExtension = path.extname(req.path) || req.path.includes('/@');
+        if (hasFileExtension) {
+          return next();
+        }
+        
+        // Only serve HTML for actual page navigation
+        if (!req.accepts('html')) {
+          return next();
+        }
+        
+        console.log(`📱 MiniApp HTML: ${url}`);
         
         try {
           const template = await fs.promises.readFile(
             path.resolve(__dirname, 'miniapp/index.html'),
             'utf-8'
           );
-          console.log('📱 MiniApp: transforming HTML...');
           const html = await miniappVite.transformIndexHtml(url, template);
-          console.log('📱 MiniApp: sending response');
           res.status(200).set({ 'Content-Type': 'text/html' }).end(html);
         } catch (e) {
           console.error('📱 MiniApp error:', e);
@@ -100,9 +113,6 @@ async function start() {
           next(e);
         }
       });
-      
-      // Handle MiniApp assets with miniappVite
-      app.use('/miniapp', miniappVite.middlewares);
 
       // Client Vite middleware should be AFTER API routes
       app.use(clientVite.middlewares);
