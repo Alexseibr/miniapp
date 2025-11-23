@@ -1,18 +1,20 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, lazy, Suspense } from 'react';
 import BottomTabs from '@/components/BottomTabs';
 import HomePage from '@/pages/HomePage';
-import FeedPage from '@/pages/FeedPage';
-import FavoritesPage from '@/pages/FavoritesPage';
-import ProfilePage from '@/pages/ProfilePage';
-import CategoryPage from '@/pages/CategoryPage';
-import SubcategoryPage from '@/pages/SubcategoryPage';
-import AdPage from '@/pages/AdPage';
-import OrdersPage from '@/pages/OrdersPage';
-import SeasonsPage from '@/pages/SeasonsPage';
-import SeasonViewPage from '@/pages/SeasonViewPage';
 import { useUserStore } from '@/store/useUserStore';
 import { getTelegramWebApp } from '@/utils/telegram';
+import { Loader2 } from 'lucide-react';
+
+const FeedPage = lazy(() => import('@/pages/FeedPage'));
+const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'));
+const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
+const CategoryPage = lazy(() => import('@/pages/CategoryPage'));
+const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
+const AdPage = lazy(() => import('@/pages/AdPage'));
+const OrdersPage = lazy(() => import('@/pages/OrdersPage'));
+const SeasonsPage = lazy(() => import('@/pages/SeasonsPage'));
+const SeasonViewPage = lazy(() => import('@/pages/SeasonViewPage'));
 
 export default function App() {
   const location = useLocation();
@@ -71,7 +73,7 @@ export default function App() {
         fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif'
       }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '32px', marginBottom: '16px' }}>🛍️</div>
+          <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
           <div style={{ fontSize: '16px', color: '#666' }}>Загрузка...</div>
         </div>
       </div>
@@ -81,19 +83,31 @@ export default function App() {
   return (
     <div className="app-shell">
       <main>
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/category/:slug" element={<SubcategoryPage />} />
-          <Route path="/feed" element={<FeedPage />} />
-          <Route path="/favorites" element={<FavoritesPage />} />
-          <Route path="/profile" element={<ProfilePage />} />
-          <Route path="/orders" element={<OrdersPage />} />
-          <Route path="/seasons" element={<SeasonsPage />} />
-          <Route path="/seasons/:code" element={<SeasonViewPage />} />
-          <Route path="/categories/:slug" element={<CategoryPage />} />
-          <Route path="/ads/:id" element={<AdPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <Suspense fallback={
+          <div style={{
+            display: 'flex',
+            justifyContent: 'center',
+            alignItems: 'center',
+            height: '100vh',
+            background: '#FFFFFF'
+          }}>
+            <Loader2 className="w-8 h-8 animate-spin text-gray-600" />
+          </div>
+        }>
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/category/:slug" element={<SubcategoryPage />} />
+            <Route path="/feed" element={<FeedPage />} />
+            <Route path="/favorites" element={<FavoritesPage />} />
+            <Route path="/profile" element={<ProfilePage />} />
+            <Route path="/orders" element={<OrdersPage />} />
+            <Route path="/seasons" element={<SeasonsPage />} />
+            <Route path="/seasons/:code" element={<SeasonViewPage />} />
+            <Route path="/categories/:slug" element={<CategoryPage />} />
+            <Route path="/ads/:id" element={<AdPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </Suspense>
       </main>
 
       <BottomTabs />
