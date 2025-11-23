@@ -125,6 +125,57 @@ function truncateText(text, maxLength = 160) {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
+async function finalizeAdCreation(ctx) {
+  if (!ctx.session || !ctx.session.sell) {
+    return ctx.reply("⚠️ Ошибка: диалог создания объявления не найден.");
+  }
+
+  const sell = ctx.session.sell;
+  const payload = {
+    title: sell.data.title,
+    description: sell.data.description,
+    categoryId: sell.data.categoryId,
+    subcategoryId: sell.data.subcategoryId,
+    price: sell.data.price,
+    currency: "BYN",
+    attributes: {},
+    photos: [],
+    sellerTelegramId: ctx.from.id,
+    deliveryType: "pickup_only",
+    deliveryRadiusKm: null,
+    location: sell.data.location || null,
+    seasonCode: null,
+    lifetimeDays: 7,
+  };
+
+  try {
+    const res = await axios.post(`${API_URL}/api/ads`, payload);
+    const ad = res.data;
+
+    ctx.session.sell = null;
+
+    const locationInfo = ad.location 
+      ? `\n📍 С геолокацией: ${ad.location.lat.toFixed(4)}, ${ad.location.lng.toFixed(4)}`
+      : '';
+
+    await ctx.reply(
+      "✅ Объявление создано!\n\n" +
+      `Заголовок: ${ad.title}\n` +
+      `Цена: ${ad.price} ${ad.currency || "BYN"}${locationInfo}\n\n` +
+      "Посмотреть свои объявления: /my_ads",
+      {
+        reply_markup: {
+          remove_keyboard: true,
+        },
+      }
+    );
+  } catch (err) {
+    console.error("Ошибка при создании объявления через /sell:", err.response?.data || err.message);
+    ctx.session.sell = null;
+    await ctx.reply("⚠️ Произошла ошибка при создании объявления. Попробуй позже.");
+  }
+}
+
 const MARKET_PAGE_SIZE = 5;
 
 function buildMiniAppUrl(params = {}) {
@@ -1596,6 +1647,120 @@ bot.action(/sell_subcat:(.+)/, async (ctx) => {
   }
 });
 
+// Обработка запроса геолокации при создании объявления
+bot.action("sell_location_yes", async (ctx) => {
+  try {
+    if (!ctx.session || !ctx.session.sell) {
+      return ctx.answerCbQuery("Диалог создания объявления не активен. Введи /sell.");
+    }
+
+    ctx.session.sell.step = "waiting_location";
+
+    await ctx.answerCbQuery("Отправь свою геолокацию");
+    await ctx.reply(
+      "📍 Отправь своё местоположение через кнопку 📎 (скрепка) → Геопозиция.\n\n" +
+      "Или нажми /cancel чтобы отменить создание объявления.",
+      {
+        reply_markup: {
+          keyboard: [
+            [
+              {
+                text: "📍 Отправить геопозицию",
+                request_location: true,
+              },
+            ],
+            [{ text: "/cancel" }],
+          ],
+          resize_keyboard: true,
+          one_time_keyboard: true,
+        },
+      }
+    );
+  } catch (err) {
+    console.error("sell_location_yes error:", err.response?.data || err.message);
+    ctx.reply("⚠️ Ошибка. Попробуй ещё раз /sell.");
+  }
+});
+
+// Пропуск геолокации при создании объявления
+bot.action("sell_location_skip", async (ctx) => {
+  try {
+    if (!ctx.session || !ctx.session.sell) {
+      return ctx.answerCbQuery("Диалог создания объявления не активен. Введи /sell.");
+    }
+
+    await ctx.answerCbQuery("Геолокация пропущена");
+    
+    ctx.session.sell.data.location = null;
+    ctx.session.sell.step = "finalize";
+
+    await finalizeAdCreation(ctx);
+  } catch (err) {
+    console.error("sell_location_skip error:", err.response?.data || err.message);
+    ctx.reply("⚠️ Ошибка. Попробуй ещё раз /sell.");
+  }
+});
+
+// Обработка входящей геолокации
+bot.on("location", async (ctx) => {
+  try {
+    if (!ctx.session || !ctx.session.sell || ctx.session.sell.step !== "waiting_location") {
+      return;
+    }
+
+    const { latitude, longitude } = ctx.message.location;
+
+    // Строгая валидация координат
+    if (
+      typeof latitude !== 'number' ||
+      typeof longitude !== 'number' ||
+      !Number.isFinite(latitude) ||
+      !Number.isFinite(longitude) ||
+      latitude < -90 ||
+      latitude > 90 ||
+      longitude < -180 ||
+      longitude > 180
+    ) {
+      console.warn('Invalid location coordinates received:', {
+        latitude,
+        longitude,
+        userId: ctx.from?.id,
+      });
+      ctx.session.sell = null;
+      return ctx.reply(
+        "⚠️ Получены некорректные координаты. Попробуй ещё раз /sell.",
+        {
+          reply_markup: {
+            remove_keyboard: true,
+          },
+        }
+      );
+    }
+
+    ctx.session.sell.data.location = {
+      lat: latitude,
+      lng: longitude,
+    };
+
+    ctx.session.sell.step = "finalize";
+
+    await ctx.reply(
+      `✅ Местоположение получено:\n📍 ${latitude.toFixed(6)}, ${longitude.toFixed(6)}\n\n` +
+      "Создаю объявление...",
+      {
+        reply_markup: {
+          remove_keyboard: true,
+        },
+      }
+    );
+
+    await finalizeAdCreation(ctx);
+  } catch (err) {
+    console.error("location handler error:", err.response?.data || err.message);
+    ctx.reply("⚠️ Ошибка при обработке геолокации. Попробуй ещё раз /sell.");
+  }
+});
+
 // Обработка текстовых сообщений в процессе /sell и оформления заказа
 bot.on("text", async (ctx) => {
   const text = ctx.message.text.trim();
@@ -1710,44 +1875,29 @@ bot.on("text", async (ctx) => {
       }
 
       sell.data.price = priceNumber;
+      sell.step = "location";
 
-      // формируем payload
-      const payload = {
-        title: sell.data.title,
-        description: sell.data.description,
-        categoryId: sell.data.categoryId,
-        subcategoryId: sell.data.subcategoryId,
-        price: sell.data.price,
-        currency: "BYN",
-        attributes: {},
-        photos: [],
-        sellerTelegramId: ctx.from.id,
-        deliveryType: "pickup_only",
-        deliveryRadiusKm: null,
-        location: null,
-        seasonCode: null,
-      lifetimeDays: 7,
-    };
+      // Предлагаем указать геолокацию
+      await ctx.reply(
+        "📍 Шаг 6/6 — Хочешь указать местоположение товара?\n\n" +
+        "Это поможет покупателям найти товар рядом с собой.",
+        {
+          reply_markup: {
+            inline_keyboard: [
+              [
+                { text: "✅ Да, указать", callback_data: "sell_location_yes" },
+                { text: "⏭ Пропустить", callback_data: "sell_location_skip" },
+              ],
+            ],
+          },
+        }
+      );
+      return;
+    }
 
-    try {
-        const res = await axios.post(`${API_URL}/api/ads`, payload);
-        const ad = res.data;
-
-        // очищаем мастер
-        ctx.session.sell = null;
-
-        await ctx.reply(
-          "✅ Объявление создано!\n\n" +
-          `Заголовок: ${ad.title}\n` +
-          `Цена: ${ad.price} ${ad.currency || "BYN"}\n\n` +
-          "Посмотреть свои объявления: /my_ads"
-        );
-      } catch (err) {
-        console.error("Ошибка при создании объявления через /sell:", err.response?.data || err.message);
-        ctx.session.sell = null;
-        await ctx.reply("⚠️ Произошла ошибка при создании объявления. Попробуй позже.");
-      }
-
+    // Шаг: завершение (после геолокации или пропуска)
+    if (sell.step === "finalize") {
+      await finalizeAdCreation(ctx);
       return;
     }
   }
