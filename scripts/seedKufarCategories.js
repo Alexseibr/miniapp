@@ -163,6 +163,28 @@ const kufarCategories = [
   { slug: 'rabota', name: 'Работа', icon: 'Briefcase', description: 'Вакансии и резюме', parentSlug: null, sortOrder: 14 },
   { slug: 'vakansii', name: 'Вакансии', parentSlug: 'rabota', sortOrder: 1 },
   { slug: 'rezyume', name: 'Резюме', parentSlug: 'rabota', sortOrder: 2 },
+
+  // 3-й уровень: Квартиры
+  { slug: '1-komnatnye', name: '1-комнатные', parentSlug: 'kvartiry', sortOrder: 1 },
+  { slug: '2-komnatnye', name: '2-комнатные', parentSlug: 'kvartiry', sortOrder: 2 },
+  { slug: '3-komnatnye', name: '3-комнатные', parentSlug: 'kvartiry', sortOrder: 3 },
+  { slug: 'studii', name: 'Студии', parentSlug: 'kvartiry', sortOrder: 4 },
+
+  // 3-й уровень: Легковые автомобили
+  { slug: 'sedan', name: 'Седан', parentSlug: 'legkovye-avtomobili', sortOrder: 1 },
+  { slug: 'vnedorozhnik', name: 'Внедорожник', parentSlug: 'legkovye-avtomobili', sortOrder: 2 },
+  { slug: 'hetchbek', name: 'Хэтчбек', parentSlug: 'legkovye-avtomobili', sortOrder: 3 },
+  { slug: 'kupe', name: 'Купе', parentSlug: 'legkovye-avtomobili', sortOrder: 4 },
+  { slug: 'universal', name: 'Универсал', parentSlug: 'legkovye-avtomobili', sortOrder: 5 },
+
+  // 3-й уровень: Телефоны и планшеты
+  { slug: 'smartfony', name: 'Смартфоны', parentSlug: 'telefony-planshety', sortOrder: 1 },
+  { slug: 'planshety', name: 'Планшеты', parentSlug: 'telefony-planshety', sortOrder: 2 },
+
+  // 4-й уровень: 1-комнатные
+  { slug: 's-remontom', name: 'С ремонтом', parentSlug: '1-komnatnye', sortOrder: 1 },
+  { slug: 'bez-remonta', name: 'Без ремонта', parentSlug: '1-komnatnye', sortOrder: 2 },
+  { slug: 'novostroyka', name: 'Новостройка', parentSlug: '1-komnatnye', sortOrder: 3 },
 ];
 
 async function seedCategories() {
