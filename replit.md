@@ -6,6 +6,12 @@ KETMAR Market is a Telegram-based marketplace application for buying and selling
 1. **Client App** (React + Vite): Admin panel for marketplace management (/)
 2. **MiniApp** (React + Vite): Telegram MiniApp for mobile users (/miniapp)
 
+**MiniApp Integration** (November 2025):
+- ✅ WebApp кнопки в боте @KetmarM_bot (команда /start)
+- ✅ Прямые ссылки на категории (Фермеры, Ремесленники)
+- ✅ Сезонные MiniApp (например "8 марта — тюльпаны")
+- ✅ Полная интеграция с Telegram WebApp SDK
+
 ## User Preferences
 
 Preferred communication style: Simple, everyday language.
