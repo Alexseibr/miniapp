@@ -33,3 +33,14 @@ export function formatDistance(distanceKm?: number) {
   }
   return `${distanceKm.toFixed(1)} км`;
 }
+
+export function formatCityDistance(city?: string | null, distanceKm?: number) {
+  const cityPart = city || '';
+  const distancePart = distanceKm != null
+    ? (distanceKm < 1
+        ? `${Math.round(distanceKm * 1000)} м от вас`
+        : `${distanceKm.toFixed(1)} км от вас`)
+    : '';
+  
+  return [cityPart, distancePart].filter(Boolean).join(' • ');
+}

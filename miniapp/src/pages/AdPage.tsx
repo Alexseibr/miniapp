@@ -1,24 +1,28 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
+import { MapPin } from 'lucide-react';
 import { getAd } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
 import { useCartStore } from '@/store/cart';
+import { formatCityDistance, useGeo } from '@/utils/geo';
 
 export default function AdPage() {
   const { id } = useParams();
   const [ad, setAd] = useState<AdPreview | null>(null);
   const [loading, setLoading] = useState(true);
   const addItem = useCartStore((state) => state.addItem);
+  const { coords } = useGeo(false);
 
   useEffect(() => {
     if (!id) return;
-    getAd(id)
+    const params = coords ? { lat: coords.lat, lng: coords.lng } : {};
+    getAd(id, params)
       .then(setAd)
       .catch(() => setAd(null))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, coords]);
 
   if (loading) {
     return <EmptyState title="Загружаем объявление" />;
@@ -51,6 +55,12 @@ export default function AdPage() {
         <p style={{ fontSize: '1.8rem', fontWeight: 700 }}>
           {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
         </p>
+        {(ad.city || ad.distanceKm != null) && (
+          <p style={{ margin: '8px 0', fontSize: 14, color: '#6b7280', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <MapPin size={16} />
+            {formatCityDistance(ad.city, ad.distanceKm)}
+          </p>
+        )}
         {ad.attributes && (
           <ul style={{ listStyle: 'none', padding: 0, margin: '12px 0', color: '#475467' }}>
             {Object.entries(ad.attributes).map(([key, value]) => (
