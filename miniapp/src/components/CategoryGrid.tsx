@@ -19,7 +19,7 @@ export default function CategoryGrid({ categories }: Props) {
           className="card"
           style={{ textAlign: 'left' }}
         >
-          <div style={{ fontSize: '1.8rem' }}>{category.icon || '🛒'}</div>
+          {category.icon && <div style={{ fontSize: '1.8rem' }}>{category.icon}</div>}
           <h3 style={{ margin: '8px 0 4px', fontSize: '1rem' }}>{category.name}</h3>
           <p style={{ margin: 0, color: '#475467', fontSize: '0.85rem' }}>
             {category.description || 'Объявления этой категории.'}
