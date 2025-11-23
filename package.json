@@ -1,6 +1,7 @@
 {
   "name": "rest-express",
   "version": "1.0.0",
+  "type": "module",
   "license": "MIT",
   "scripts": {
     "dev": "PORT=5000 node index.js",
