@@ -31,23 +31,23 @@ export default function BottomTabs() {
             to={tab.path}
             data-testid={`tab-${tab.label.toLowerCase()}`}
             className={({ isActive }) => (isActive ? 'active' : '')}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 4,
+              padding: '10px',
+              textDecoration: 'none',
+              color: 'inherit',
+            }}
           >
             {({ isActive }) => (
-              <button
-                type="button"
-                className={isActive ? 'active' : undefined}
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 4,
-                }}
-              >
+              <>
                 <tab.Icon size={20} strokeWidth={isActive ? 2.5 : 2} />
                 <span style={{ fontSize: '0.75rem', fontWeight: isActive ? 600 : 500 }}>
                   {tab.label}
                 </span>
-              </button>
+              </>
             )}
           </NavLink>
         ))}
