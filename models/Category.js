@@ -14,6 +14,14 @@ const categorySchema = new mongoose.Schema(
       required: true,
       trim: true,
     },
+    icon: {
+      type: String,
+      default: null,
+    },
+    description: {
+      type: String,
+      default: null,
+    },
     parentSlug: {
       type: String,
       default: null,

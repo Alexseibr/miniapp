@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import * as LucideIcons from 'lucide-react';
 import { CategoryNode } from '@/types';
 
 interface Props {
@@ -9,6 +10,13 @@ export default function CategoryScroll({ categories }: Props) {
   if (!categories.length) {
     return null;
   }
+
+  const getIcon = (iconName?: string | null) => {
+    if (!iconName) return null;
+    const Icon = (LucideIcons as any)[iconName];
+    if (!Icon) return null;
+    return <Icon size={32} strokeWidth={1.5} />;
+  };
 
   return (
     <div
@@ -45,11 +53,11 @@ export default function CategoryScroll({ categories }: Props) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              fontSize: '2rem',
+              color: '#6b7280',
               marginBottom: 8,
             }}
           >
-            {category.icon}
+            {getIcon(category.icon)}
           </div>
           <span
             style={{

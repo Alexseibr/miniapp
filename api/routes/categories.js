@@ -33,6 +33,8 @@ function buildTree(categories) {
   const stripInternal = (node) => ({
     slug: node.slug,
     name: node.name,
+    icon: node.icon,
+    description: node.description,
     parentSlug: node.parentSlug,
     subcategories: node.subcategories.map(stripInternal),
   });
