@@ -65,7 +65,11 @@ The bot provides these core interactions:
 - `/start`: Welcome message and command list
 - `/myid`: Display user's Telegram ID and profile information  
 - `/categories`: Hierarchical category browser with inline keyboards
-- `/sell`: Interactive wizard for creating advertisements (category → subcategory → title → description → price)
+- `/sell`: Interactive wizard for creating advertisements (category → subcategory → title → description → price → **geolocation** ✨)
+  - **Geolocation Feature** (November 2025): After entering price, users can optionally share their location via Telegram's native location picker
+  - Coordinates validated strictly (lat ∈ [-90, 90], lng ∈ [-180, 180]) to prevent data corruption
+  - Invalid coordinates rejected with user-friendly error message and security logging
+  - Enables geo-proximity search in MiniApp feed
 - `/my_ads`: View and manage user's own advertisements (edit price, photos, extend, hide/show)
 - `/market`: Browse marketplace feed with filters
 - `/catalog`: Browse ads by category
