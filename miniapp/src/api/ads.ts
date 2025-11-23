@@ -29,8 +29,8 @@ export async function listAds(params: ListAdsParams = {}): Promise<AdsResponse> 
   return response.data;
 }
 
-export async function getAd(id: string): Promise<Ad> {
-  const response = await http.get(`/api/ads/${id}`);
+export async function getAd(id: string, params?: { lat?: number; lng?: number }): Promise<Ad> {
+  const response = await http.get(`/api/ads/${id}`, { params });
   return response.data;
 }
 

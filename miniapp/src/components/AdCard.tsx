@@ -1,8 +1,9 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { Truck, MapPin } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
 import { AdPreview } from '@/types';
-import { formatDistance } from '@/utils/geo';
+import { formatCityDistance } from '@/utils/geo';
 import { formatRelativeTime } from '@/utils/time';
 import { useCartStore } from '@/store/cart';
 
@@ -52,9 +53,9 @@ export default function AdCard({ ad, onSelect }: Props) {
         <p style={{ margin: '4px 0 0', fontSize: 17, fontWeight: 600 }}>
           {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
         </p>
-        {ad.distanceKm != null && (
+        {(ad.city || ad.distanceKm != null) && (
           <p style={{ margin: '4px 0', fontSize: 13, color: '#9ca3af' }}>
-            {formatDistance(ad.distanceKm)} от вас
+            {formatCityDistance(ad.city, ad.distanceKm)}
           </p>
         )}
         {ad.createdAt && (
@@ -64,13 +65,15 @@ export default function AdCard({ ad, onSelect }: Props) {
         )}
         <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
           {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
-            <span className="badge" style={{ background: '#ecfeff', color: '#0ea5e9' }}>
-              🚚 Доставка
+            <span className="badge" style={{ background: '#ecfeff', color: '#0ea5e9', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Truck size={14} />
+              Доставка
             </span>
           )}
           {ad.isLiveSpot && (
-            <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>
-              📍 На ярмарке
+            <span className="badge" style={{ background: '#fef3c7', color: '#92400e', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <MapPin size={14} />
+              На ярмарке
             </span>
           )}
         </div>
