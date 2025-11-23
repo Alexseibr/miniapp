@@ -2,52 +2,37 @@ import mongoose from 'mongoose';
 
 const blockSchema = new mongoose.Schema(
   {
+    id: {
+      type: String,
+      trim: true,
+    },
     type: {
       type: String,
       required: true,
       enum: [
+        'search_bar',
         'hero_banner',
         'category_grid',
         'ad_list',
+        'ad_carousel',
         'promo_banner',
-        'map_block',
+        'promo_island',
+        'seasonal_showcase',
         'seasonal_promo',
+        'map_block',
         'trending_ads',
         'farmers_market',
         'crafts_market',
       ],
     },
-    slotId: {
-      type: String,
-      trim: true,
-    },
-    title: {
-      type: String,
-      trim: true,
-    },
-    subtitle: {
-      type: String,
-      trim: true,
-    },
-    source: {
-      type: String,
-      trim: true,
-    },
-    categoryIds: {
-      type: [String],
-      default: [],
-    },
-    limit: {
+    order: {
       type: Number,
-      default: 10,
-    },
-    layout: {
-      type: String,
-      enum: ['horizontal', 'vertical', 'grid', 'carousel'],
-      default: 'horizontal',
+      required: true,
+      default: 0,
     },
     config: {
       type: mongoose.Schema.Types.Mixed,
+      required: true,
       default: {},
     },
   },

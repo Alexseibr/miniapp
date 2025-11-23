@@ -8,9 +8,12 @@ router.get('/', async (req, res, next) => {
   try {
     const { cityCode = 'brest', screen = 'home', variant, seasonCode } = req.query;
 
+    const normalizedCityCode = cityCode.toLowerCase().trim();
+    const normalizedScreen = screen.toLowerCase().trim();
+
     const query = {
-      cityCode: cityCode.toLowerCase().trim(),
-      screen: screen.toLowerCase().trim(),
+      cityCode: normalizedCityCode,
+      screen: normalizedScreen,
       isActive: true,
     };
 
@@ -27,17 +30,29 @@ router.get('/', async (req, res, next) => {
     if (!layout) {
       return res.status(404).json({
         error: 'Layout not found',
-        cityCode,
-        screen,
+        cityCode: normalizedCityCode,
+        screen: normalizedScreen,
         variant,
         seasonCode,
       });
     }
 
-    const city = await City.findOne({ code: cityCode, isActive: true }).lean();
+    const city = await City.findOne({ code: normalizedCityCode, isActive: true }).lean();
+
+    const normalizedBlocks = (layout.blocks || []).map((block, index) => ({
+      id: block.id || `${block.type}_${index}`,
+      type: block.type,
+      order: block.order,
+      config: block.config || {},
+      ...block.config,
+    }));
 
     return res.json({
-      layout,
+      cityCode: layout.cityCode,
+      screen: layout.screen,
+      variant: layout.variant,
+      seasonCode: layout.seasonCode,
+      blocks: normalizedBlocks,
       city: city || null,
     });
   } catch (error) {
