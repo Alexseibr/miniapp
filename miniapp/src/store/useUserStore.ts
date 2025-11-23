@@ -5,16 +5,19 @@ import { FavoriteItem, UserProfile } from '@/types';
 
 export interface UserState {
   user: UserProfile | null;
+  cityCode: string | null;
   status: 'idle' | 'loading' | 'ready' | 'error';
   error?: string;
   favorites: FavoriteItem[];
   initialize: () => Promise<void>;
   refreshFavorites: () => Promise<void>;
   toggleFavorite: (adId: string, isFavorite: boolean) => Promise<void>;
+  setCityCode: (cityCode: string) => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
   user: null,
+  cityCode: null,
   status: 'idle',
   error: undefined,
   favorites: [],
@@ -22,21 +25,27 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (get().status === 'loading') return;
     const initData = window.Telegram?.WebApp?.initData;
     if (!initData) {
-      set({ status: 'ready' });
+      set({ status: 'ready', cityCode: 'brest' });
       return;
     }
     try {
       set({ status: 'loading', error: undefined });
       const response = await validateSession(initData);
       if (response.user) {
-        set({ user: response.user as UserProfile });
+        set({ 
+          user: response.user as UserProfile,
+          cityCode: response.cityCode || 'brest'
+        });
         await get().refreshFavorites();
       }
       set({ status: 'ready' });
     } catch (error) {
       console.error('MiniApp auth error', error);
-      set({ status: 'error', error: 'Не удалось пройти авторизацию' });
+      set({ status: 'error', error: 'Не удалось пройти авторизацию', cityCode: 'brest' });
     }
+  },
+  setCityCode(cityCode: string) {
+    set({ cityCode });
   },
   async refreshFavorites() {
     const telegramId = get().user?.telegramId;

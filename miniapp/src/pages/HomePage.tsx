@@ -1,35 +1,59 @@
-import { useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
-import CategoryGrid from '@/components/CategoryGrid';
+import RenderBlocks from '@/layout/RenderBlocks.tsx';
 import EmptyState from '@/widgets/EmptyState';
-import { useCategoriesStore } from '@/hooks/useCategoriesStore';
+import { useUserStore } from '@/store/useUserStore';
+import { useEffect } from 'react';
 
 export default function HomePage() {
-  const { categories, loading, loadCategories } = useCategoriesStore();
-
+  const { cityCode, initialize, status: userStatus } = useUserStore();
+  
   useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
+    initialize();
+  }, [initialize]);
+
+  const { data: layoutData, isLoading } = useQuery<any>({
+    queryKey: ['/api/layout', { cityCode: cityCode || 'brest', screen: 'home' }],
+    enabled: userStatus !== 'loading',
+  });
+
+  const blocks = layoutData?.blocks || [];
+  const city = layoutData?.city;
 
   return (
-    <div style={{ paddingBottom: '80px' }}>
+    <div className="app-shell">
       <Header />
-      <div style={{ paddingTop: '16px' }}>
-        {loading ? (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-              <Loader2 size={48} color="#4F46E5" style={{ animation: 'spin 1s linear infinite' }} data-testid="icon-loading" />
+      
+      <main style={{ paddingBottom: '80px' }}>
+        <div className="container">
+          {isLoading || userStatus === 'loading' ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+                <Loader2 
+                  size={48} 
+                  color="var(--color-primary)" 
+                  className="loading-spinner"
+                  data-testid="icon-loading" 
+                />
+              </div>
+              <h3 style={{ margin: '0 0 8px', color: 'var(--color-primary)' }}>
+                Загружаем контент
+              </h3>
+              <p style={{ color: 'var(--color-secondary)', margin: 0 }}>
+                {city?.displayName || 'Настраиваем маркетплейс'} • Подождите несколько секунд
+              </p>
             </div>
-            <h3 style={{ margin: '0 0 8px' }}>Загружаем категории</h3>
-            <p style={{ color: '#6b7280', margin: 0 }}>Подождите несколько секунд</p>
-          </div>
-        ) : categories.length > 0 ? (
-          <CategoryGrid categories={categories} />
-        ) : (
-          <EmptyState title="Категории не найдены" description="Попробуйте обновить страницу" />
-        )}
-      </div>
+          ) : blocks.length > 0 ? (
+            <RenderBlocks blocks={blocks} cityCode={cityCode || 'brest'} />
+          ) : (
+            <EmptyState 
+              title="Контент недоступен" 
+              description="Не удалось загрузить блоки для главной страницы. Попробуйте обновить страницу" 
+            />
+          )}
+        </div>
+      </main>
 
       <div
         style={{
@@ -37,38 +61,55 @@ export default function HomePage() {
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: '#FFFFFF',
-          borderTop: '1px solid #E5E7EB',
-          padding: '12px 16px',
+          backgroundColor: 'var(--bg-primary)',
+          borderTop: '1px solid var(--color-secondary-soft)',
+          padding: '12px clamp(16px, 3vw, 28px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.05)',
+          boxShadow: 'var(--shadow-md)',
           zIndex: 50,
         }}
         data-testid="bottom-bar"
       >
         <div style={{ display: 'flex', flexDirection: 'column' }} data-testid="bottom-bar-branding">
-          <span style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '2px' }} data-testid="text-marketplace-label">
-            Маркетплейс
+          <span 
+            style={{ 
+              fontSize: '0.75rem', 
+              color: 'var(--color-secondary)', 
+              marginBottom: '2px' 
+            }} 
+            data-testid="text-marketplace-label"
+          >
+            {city?.displayName || 'Маркетплейс'}
           </span>
-          <span style={{ fontSize: '1rem', fontWeight: 600, color: '#111827' }} data-testid="text-brand-name">
+          <span 
+            style={{ 
+              fontSize: '1rem', 
+              fontWeight: 600, 
+              color: 'var(--color-primary)' 
+            }} 
+            data-testid="text-brand-name"
+          >
             KETMAR Market
           </span>
         </div>
-        <div
-          style={{
-            backgroundColor: '#4F46E5',
-            color: '#FFFFFF',
-            padding: '10px 20px',
-            borderRadius: '12px',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}
-          data-testid="badge-category-count"
-        >
-          {categories.length} категорий
-        </div>
+        
+        {blocks.length > 0 && (
+          <div
+            style={{
+              backgroundColor: 'var(--color-primary)',
+              color: '#FFFFFF',
+              padding: '8px 16px',
+              borderRadius: 'var(--radius-full)',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+            data-testid="badge-block-count"
+          >
+            {blocks.length} {blocks.length === 1 ? 'блок' : blocks.length < 5 ? 'блока' : 'блоков'}
+          </div>
+        )}
       </div>
     </div>
   );
