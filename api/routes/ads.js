@@ -8,6 +8,8 @@ const { sendPriceStatusChangeNotifications } = require('../../services/notificat
 const { updateAdPrice, updateAdStatus } = require('../../services/adUpdateService');
 const { validateCreateAd } = require('../../middleware/validateCreateAd');
 const requireInternalAuth = require('../../middleware/internalAuth');
+const { findMatchingSubscriptions, sendSubscriptionNotifications } = require('../../services/subscriptionNotifications');
+const { bot } = require('../../telegram/bot');
 
 const router = Router();
 
@@ -525,7 +527,7 @@ router.get('/near', async (req, res) => {
 // GET /api/ads/nearby
 router.get('/nearby', async (req, res, next) => {
   try {
-    const { lat, lng, radiusKm, categoryId, subcategoryId, limit } = req.query;
+    const { lat, lng, radiusKm, categoryId, subcategoryId, limit, minPrice, maxPrice, sort } = req.query;
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({ error: 'lat и lng обязательны' });
@@ -555,6 +557,15 @@ router.get('/nearby', async (req, res, next) => {
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
 
+    const minPriceNumber = Number(minPrice);
+    const maxPriceNumber = Number(maxPrice);
+    if (Number.isFinite(minPriceNumber) && minPriceNumber >= 0) {
+      baseFilter.price = { ...baseFilter.price, $gte: minPriceNumber };
+    }
+    if (Number.isFinite(maxPriceNumber) && maxPriceNumber >= 0) {
+      baseFilter.price = { ...baseFilter.price, $lte: maxPriceNumber };
+    }
+
     const fetchLimit = Math.max(finalLimit * 3, finalLimit);
     const candidates = await Ad.find(baseFilter)
       .sort({ createdAt: -1 })
@@ -583,7 +594,15 @@ router.get('/nearby', async (req, res, next) => {
       itemsWithinRadius.push(plain);
     }
 
-    itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+    if (sort === 'cheapest') {
+      itemsWithinRadius.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+    } else if (sort === 'expensive') {
+      itemsWithinRadius.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+    } else if (sort === 'popular') {
+      itemsWithinRadius.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+    } else {
+      itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+    }
 
     return res.json({ items: itemsWithinRadius.slice(0, finalLimit) });
   } catch (error) {
@@ -1087,6 +1106,20 @@ router.post('/', validateCreateAd, async (req, res, next) => {
     }
 
     const ad = await Ad.create(payload);
+    
+    if (ad.moderationStatus === 'approved') {
+      setImmediate(async () => {
+        try {
+          const matchingSubscriptions = await findMatchingSubscriptions(ad);
+          if (matchingSubscriptions.length > 0) {
+            await sendSubscriptionNotifications(bot, ad, matchingSubscriptions);
+          }
+        } catch (error) {
+          console.error('Error sending subscription notifications:', error);
+        }
+      });
+    }
+
     res.status(201).json(ad);
   } catch (error) {
     next(error);
