@@ -2,6 +2,7 @@ import express from 'express';
 import { Router } from 'express';
 import { telegramInitDataMiddleware } from '../middleware/telegramAuth.js';
 import requireAuth from '../middleware/requireAuth.js';
+import { resolveCityCode } from '../utils/cityResolver.js';
 
 const router = Router();
 
@@ -43,6 +44,35 @@ router.post('/me/location', async (req, res) => {
     return res.json({ success: true, location: req.currentUser.location });
   } catch (error) {
     console.error('Failed to update user location', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.post('/initData', telegramInitDataMiddleware, requireAuth, async (req, res) => {
+  try {
+    const user = req.currentUser;
+    const { geoCoordinates, preferredCity } = req.body || {};
+
+    const cityCode = await resolveCityCode({
+      initData: req.telegramInitData,
+      geoCoordinates,
+      preferredCity,
+    });
+
+    return res.json({
+      user: {
+        id: user._id,
+        telegramId: user.telegramId,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        location: user.location || null,
+      },
+      cityCode,
+      timestamp: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error('Failed to process initData', error);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });

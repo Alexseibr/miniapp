@@ -1327,4 +1327,38 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+router.get('/trending', async (req, res, next) => {
+  try {
+    const { cityCode, limit = 20, offset = 0 } = req.query;
+
+    const filter = {
+      status: 'active',
+      moderationStatus: 'approved',
+    };
+
+    if (cityCode) {
+      filter.cityCode = cityCode.toLowerCase().trim();
+    }
+
+    const finalLimit = Math.max(1, Math.min(Number(limit) || 20, 100));
+    const finalOffset = Math.max(0, Number(offset) || 0);
+
+    const items = await Ad.find(filter)
+      .sort({ views: -1, createdAt: -1 })
+      .skip(finalOffset)
+      .limit(finalLimit)
+      .lean();
+
+    const total = await Ad.countDocuments(filter);
+
+    return res.json({
+      items,
+      total,
+      hasMore: finalOffset + items.length < total,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 export default router;

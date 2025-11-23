@@ -97,6 +97,13 @@ const adSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    cityCode: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
     deliveryType: {
       type: String,
       enum: ['pickup_only', 'delivery_only', 'delivery_and_pickup'],

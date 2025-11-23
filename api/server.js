@@ -15,6 +15,8 @@ import { telegramAuthMiddleware } from '../middleware/telegramAuth.js';
 import userRoutes from '../routes/userRoutes.js';
 import miniAppFavoriteRoutes from '../routes/favoriteRoutes.js';
 import miniAppOrderRoutes from '../routes/orderRoutes.js';
+import layoutRoutes from './routes/layout.js';
+import contentRoutes from './routes/content.js';
 
 const app = express();
 
@@ -37,6 +39,8 @@ app.get('/api', (_req, res) => {
       notifications: '/api/notifications',
       moderation: '/api/mod',
       auth: '/auth/telegram',
+      layout: '/api/layout',
+      content: '/api/content',
       health: '/health',
     },
   });
@@ -61,6 +65,8 @@ app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
 app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
+app.use('/api/layout', layoutRoutes);
+app.use('/api/content', contentRoutes);
 app.use('/auth', authRoutes);
 
 export default app;
