@@ -40,18 +40,8 @@ export async function listNearbyAds(params: ListAdsParams): Promise<AdsResponse>
 }
 
 export async function getNearbyAds(params: NearbyAdsParams): Promise<AdsResponse> {
-  const query = new URLSearchParams({
-    lat: String(params.lat),
-    lng: String(params.lng),
-    radiusKm: String(params.radiusKm),
-    ...(params.limit ? { limit: String(params.limit) } : {}),
-  });
-
-  const response = await fetch(`/api/ads/nearby?${query.toString()}`);
-  if (!response.ok) {
-    throw new Error('Failed to fetch nearby ads');
-  }
-  return response.json();
+  const response = await http.get('/api/ads/nearby', { params });
+  return response.data;
 }
 
 export async function listSeasonAds(code: string, params: Record<string, unknown> = {}) {
