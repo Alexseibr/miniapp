@@ -201,7 +201,7 @@ export default function FeedPage() {
         {loading ? (
           <EmptyState title="Загружаем объявления" description="Подождите немного" />
         ) : ads.length ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div className="ads-grid">
             {ads.map((ad) => (
               <AdCard key={ad._id} ad={ad} />
             ))}

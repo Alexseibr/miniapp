@@ -148,13 +148,13 @@ export default function SubcategoryPage() {
         </div>
 
         {adsLoading ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="skeleton" style={{ height: '120px', borderRadius: 'var(--radius-md)' }} />
+          <div className="ads-grid">
+            {[...Array(6)].map((_, i) => (
+              <div key={i} className="skeleton" style={{ aspectRatio: '1 / 1.3', borderRadius: 'var(--radius-md)' }} />
             ))}
           </div>
         ) : ads.length > 0 ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="ads-grid">
             {ads.map((ad: any) => (
               <AdCard key={ad._id} ad={ad} />
             ))}

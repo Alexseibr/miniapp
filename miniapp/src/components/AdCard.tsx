@@ -47,18 +47,11 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
 
   return (
     <article
-      className="card"
+      className="ad-card-compact"
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
       data-testid={`ad-card-${ad._id}`}
-      style={{
-        cursor: 'pointer',
-        transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
@@ -66,185 +59,41 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
         }
       }}
     >
-      <div style={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)' }}>
+      <div className="ad-card-image">
         <img
           src={previewImage}
           alt={ad.title}
           loading="lazy"
           decoding="async"
           data-testid={`ad-image-${ad._id}`}
-          style={{
-            width: '100%',
-            height: '200px',
-            objectFit: 'cover',
-            display: 'block',
-          }}
         />
-        <div
-          style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            zIndex: 10,
-          }}
-        >
+        <div className="ad-card-favorite">
           <FavoriteButton adId={ad._id} />
         </div>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <h3
-          data-testid={`ad-title-${ad._id}`}
-          style={{
-            margin: 0,
-            fontSize: '15px',
-            fontWeight: 600,
-            color: 'var(--color-primary)',
-            overflow: 'hidden',
-            textOverflow: 'ellipsis',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            lineHeight: '1.4',
-          }}
-        >
-          {ad.title}
-        </h3>
-
-        <p
-          data-testid={`ad-category-${ad._id}`}
-          style={{
-            margin: 0,
-            fontSize: '13px',
-            color: 'var(--color-secondary)',
-          }}
-        >
-          {ad.categoryId}
-          {ad.subcategoryId ? ` / ${ad.subcategoryId}` : ''}
-        </p>
-
-        {ad.description && (
-          <p
-            data-testid={`ad-description-${ad._id}`}
-            style={{
-              margin: 0,
-              fontSize: '14px',
-              color: 'var(--color-secondary)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              lineHeight: '1.4',
-            }}
-          >
-            {ad.description.slice(0, 100)}
-            {ad.description.length > 100 ? '…' : ''}
-          </p>
-        )}
-
+      <div className="ad-card-content">
         <p
           data-testid={`ad-price-${ad._id}`}
-          style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: 700,
-            color: 'var(--color-primary)',
-          }}
+          className="ad-card-price"
         >
           {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
         </p>
 
-        {(ad.city || ad.distanceKm != null) && (
+        <h3
+          data-testid={`ad-title-${ad._id}`}
+          className="ad-card-title"
+        >
+          {ad.title}
+        </h3>
+
+        {ad.city && (
           <p
             data-testid={`ad-location-${ad._id}`}
-            style={{
-              margin: 0,
-              fontSize: '13px',
-              color: 'var(--color-secondary-light)',
-            }}
+            className="ad-card-location"
           >
-            {formatCityDistance(ad.city, ad.distanceKm)}
+            {ad.city}
           </p>
-        )}
-
-        {ad.createdAt && (
-          <p
-            data-testid={`ad-time-${ad._id}`}
-            style={{
-              margin: 0,
-              fontSize: '12px',
-              color: 'var(--color-secondary-light)',
-            }}
-          >
-            Опубликовано {formatRelativeTime(ad.createdAt)}
-          </p>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-          {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
-            <span
-              className="badge"
-              data-testid={`ad-delivery-badge-${ad._id}`}
-              style={{
-                background: 'var(--color-info-bg)',
-                color: 'var(--color-info)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Truck size={14} />
-              Доставка
-            </span>
-          )}
-          {ad.isLiveSpot && (
-            <span
-              className="badge"
-              data-testid={`ad-livespot-badge-${ad._id}`}
-              style={{
-                background: 'var(--color-warning-bg)',
-                color: 'var(--color-warning)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <MapPin size={14} />
-              На ярмарке
-            </span>
-          )}
-        </div>
-
-        {showActions && (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleAddToCart}
-              data-testid={`button-add-to-cart-${ad._id}`}
-              style={{ flex: 1, minWidth: '140px' }}
-            >
-              В корзину
-            </button>
-            <a
-              className="secondary"
-              href={`tg://user?id=${ad.sellerTelegramId}`}
-              onClick={handleContactSeller}
-              data-testid={`button-contact-seller-${ad._id}`}
-              style={{
-                flex: 1,
-                minWidth: '140px',
-                textAlign: 'center',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              Продавцу
-            </a>
-          </div>
         )}
       </div>
     </article>
