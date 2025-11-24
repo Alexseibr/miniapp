@@ -1,6 +1,6 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Search } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
 import CategoryGrid from '@/components/CategoryGrid';
@@ -19,6 +19,7 @@ export default function SubcategoryPage() {
 
   const category = useMemo(() => getCategoryBySlug(slug || ''), [slug, categories, getCategoryBySlug]);
   const subcategories = useMemo(() => category?.subcategories || [], [category]);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const { data: adsData, isLoading: adsLoading } = useQuery<any>({
     queryKey: ['/api/ads/search', { 
@@ -28,13 +29,23 @@ export default function SubcategoryPage() {
     enabled: !!slug && !!category,
   });
 
-  const ads = Array.isArray(adsData)
+  const allAds = Array.isArray(adsData)
     ? adsData
     : Array.isArray(adsData?.ads)
       ? adsData.ads
       : Array.isArray(adsData?.items)
         ? adsData.items
         : [];
+
+  const ads = useMemo(() => {
+    if (!searchQuery.trim()) return allAds;
+    const query = searchQuery.toLowerCase();
+    return allAds.filter((ad: any) => 
+      ad.title?.toLowerCase().includes(query) ||
+      ad.description?.toLowerCase().includes(query) ||
+      ad.city?.toLowerCase().includes(query)
+    );
+  }, [allAds, searchQuery]);
 
   if (loading) {
     return (
@@ -110,6 +121,47 @@ export default function SubcategoryPage() {
           Назад
         </button>
         <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
+      </div>
+
+      <div style={{ padding: '16px', backgroundColor: '#fff' }}>
+        <div style={{ position: 'relative' }}>
+          <Search 
+            size={20} 
+            style={{ 
+              position: 'absolute', 
+              left: '16px', 
+              top: '50%', 
+              transform: 'translateY(-50%)',
+              color: '#64748b',
+              pointerEvents: 'none'
+            }} 
+          />
+          <input
+            type="text"
+            placeholder="Поиск объявлений"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            style={{
+              width: '100%',
+              padding: '12px 16px 12px 48px',
+              fontSize: '1rem',
+              border: '1px solid #e5e7eb',
+              borderRadius: '12px',
+              outline: 'none',
+              transition: 'border-color 0.2s',
+              backgroundColor: '#f8fafc',
+            }}
+            onFocus={(e) => {
+              e.target.style.borderColor = '#3B73FC';
+              e.target.style.backgroundColor = '#fff';
+            }}
+            onBlur={(e) => {
+              e.target.style.borderColor = '#e5e7eb';
+              e.target.style.backgroundColor = '#f8fafc';
+            }}
+            data-testid="input-search"
+          />
+        </div>
       </div>
 
       {subcategories.length > 0 && (
