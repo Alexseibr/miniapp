@@ -7,7 +7,7 @@ const DEFAULT_TTL_SECONDS = Number(process.env.TELEGRAM_INITDATA_TTL || 60 * 60 
 function buildDataCheckString(searchParams) {
   const pairs = [];
   for (const [key, value] of searchParams.entries()) {
-    if (key === 'hash') {
+    if (key === 'hash' || key === 'signature') {
       continue;
     }
     pairs.push(`${key}=${value}`);
