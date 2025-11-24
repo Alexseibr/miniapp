@@ -20,6 +20,8 @@ router.post('/telegram', async (req, res) => {
     console.log('📱 POST /auth/telegram called');
     const initData = extractInitDataFromRequest(req);
     console.log('🔍 InitData extracted:', !!initData);
+    console.log('🔍 InitData length:', initData?.length);
+    console.log('🔍 InitData preview:', initData?.substring(0, 100) + '...');
     const validation = validateTelegramInitData(initData);
     console.log('✅ Validation result:', validation.ok, validation.error);
 

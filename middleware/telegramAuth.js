@@ -46,7 +46,9 @@ export function validateTelegramInitData(rawInitData) {
   const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
   console.log('🔐 Validation Debug:');
+  console.log('   Bot token length:', config.botToken?.length);
   console.log('   Bot token (first 10 chars):', config.botToken?.substring(0, 10));
+  console.log('   Data check string:', dataCheckString.substring(0, 200));
   console.log('   Received hash:', hash);
   console.log('   Computed hash:', computedHash);
   console.log('   Match:', computedHash === hash);
