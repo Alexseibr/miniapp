@@ -8,6 +8,7 @@ interface Props {
 export default function FavoriteButton({ adId }: Props) {
   const { isFavorite, toggleFavorite } = useFavorites();
   const [pending, setPending] = useState(false);
+  const favorite = isFavorite(adId);
 
   const handleClick = async () => {
     setPending(true);
@@ -23,13 +24,13 @@ export default function FavoriteButton({ adId }: Props) {
       style={{
         border: 'none',
         background: 'transparent',
-        color: isFavorite ? '#ef4444' : '#94a3b8',
+        color: favorite ? '#ef4444' : '#94a3b8',
         fontSize: '1.4rem',
         cursor: 'pointer',
       }}
-      aria-label={isFavorite ? 'Удалить из избранного' : 'Добавить в избранное'}
+      aria-label={favorite ? 'Удалить из избранного' : 'Добавить в избранное'}
     >
-      {isFavorite ? '❤️' : '🤍'}
+      {favorite ? '❤️' : '🤍'}
     </button>
   );
 }
