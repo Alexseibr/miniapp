@@ -107,16 +107,13 @@ export default function App() {
         <div style={{ textAlign: 'center' }}>
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
           <div style={{ fontSize: '16px', color: '#666' }}>Загрузка...</div>
-          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>Status: {userStatus}</div>
         </div>
       </div>
     );
   }
 
   // Показываем запрос номера телефона если нужен
-  console.log('🎯 App.tsx current userStatus:', userStatus);
   if (userStatus === 'need_phone') {
-    console.log('📱 Rendering PhoneAuthRequest screen');
     return (
       <QueryClientProvider client={queryClient}>
         <PhoneAuthRequest 
@@ -129,26 +126,6 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {/* DEBUG INFO */}
-      <div style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        background: 'rgba(0,0,0,0.8)',
-        color: 'white',
-        padding: '4px 8px',
-        fontSize: '9px',
-        zIndex: 9999,
-        fontFamily: 'monospace',
-        maxWidth: '350px',
-        lineHeight: '1.4'
-      }}>
-        Status: {userStatus} | Init: {isInitialized ? 'Y' : 'N'}<br/>
-        User: {user ? `ID:${user.telegramId}` : 'null'}<br/>
-        Phone: {user?.phone || 'NO PHONE'}<br/>
-        TG: {window.Telegram?.WebApp?.initData ? 'HAS_DATA' : 'NO_DATA'}<br/>
-        TG_ID: {window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'none'}
-      </div>
       <div className="app-shell">
         <main>
           <Suspense fallback={
