@@ -1,13 +1,17 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { BrowserRouter } from 'react-router-dom';
-import App from './App';
-import './styles/global.css';
+
+function TestApp() {
+  return (
+    <div style={{ padding: '20px', fontSize: '24px', color: 'black' }}>
+      <h1>Hello from React!</h1>
+      <p>If you see this, React is working.</p>
+    </div>
+  );
+}
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <BrowserRouter basename="/miniapp">
-      <App />
-    </BrowserRouter>
+    <TestApp />
   </React.StrictMode>
 );
