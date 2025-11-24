@@ -106,6 +106,7 @@ export default function App() {
         <div style={{ textAlign: 'center' }}>
           <Loader2 className="w-8 h-8 animate-spin mx-auto mb-4 text-gray-600" />
           <div style={{ fontSize: '16px', color: '#666' }}>Загрузка...</div>
+          <div style={{ fontSize: '12px', color: '#999', marginTop: '8px' }}>Status: {userStatus}</div>
         </div>
       </div>
     );
@@ -127,6 +128,20 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      {/* DEBUG INFO */}
+      <div style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        background: 'rgba(0,0,0,0.8)',
+        color: 'white',
+        padding: '4px 8px',
+        fontSize: '10px',
+        zIndex: 9999,
+        fontFamily: 'monospace'
+      }}>
+        Status: {userStatus} | Init: {isInitialized ? 'Y' : 'N'}
+      </div>
       <div className="app-shell">
         <main>
           <Suspense fallback={
