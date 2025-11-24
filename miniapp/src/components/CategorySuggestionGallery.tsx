@@ -47,7 +47,7 @@ export default function CategorySuggestionGallery({
             key={suggestion.slug}
             onClick={() => onSelectCategory(suggestion)}
             className="group relative rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden"
-            style={{ aspectRatio: '1', minHeight: 0 }}
+            style={{ aspectRatio: '1', minHeight: 0, maxHeight: '100px' }}
             data-testid={`suggestion-card-${suggestion.slug}`}
           >
             {suggestion.icon3d && (
