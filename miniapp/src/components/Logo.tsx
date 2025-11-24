@@ -1,3 +1,5 @@
+import logoRgb from '@/assets/ketmar_logo_rgb.svg';
+
 interface LogoProps {
   variant?: 'full' | 'sign' | 'full-mono' | 'sign-mono';
   className?: string;
@@ -14,10 +16,10 @@ export default function Logo({
   height 
 }: LogoProps) {
   const logoMap = {
-    'full': '/logos/ketmar_logo_rgb.svg',
-    'sign': '/logos/ketmar_sign_rgb.svg',
-    'full-mono': '/logos/ketmar_logo_monochrome.svg',
-    'sign-mono': '/logos/ketmar_sign_monochrome.svg',
+    'full': logoRgb,
+    'sign': logoRgb,
+    'full-mono': logoRgb,
+    'sign-mono': logoRgb,
   };
 
   const logoSrc = logoMap[variant];
