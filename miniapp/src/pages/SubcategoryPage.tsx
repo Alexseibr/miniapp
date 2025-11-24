@@ -114,6 +114,9 @@ export default function SubcategoryPage() {
 
       {subcategories.length > 0 && (
         <div style={{ padding: '16px', backgroundColor: '#f8fafc' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
+          </div>
           <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
             Категории
           </h3>
