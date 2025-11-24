@@ -210,10 +210,7 @@ function getMiniAppKeyboard() {
 
   return {
     keyboard: [
-      [{ text: 'Открыть KETMAR Market', web_app: { url: buildMiniAppUrl() } }],
-      [{ text: 'Фермеры', web_app: { url: buildMiniAppUrl({ niche: 'farm' }) } }],
-      [{ text: 'Ремесленники', web_app: { url: buildMiniAppUrl({ niche: 'craft' }) } }],
-      [{ text: '8 марта — тюльпаны', web_app: { url: buildMiniAppUrl({ season: 'march8_tulips' }) } }],
+      [{ text: '🛍️ Открыть KETMAR Market', web_app: { url: buildMiniAppUrl() } }],
     ],
     resize_keyboard: true,
     one_time_keyboard: false,
@@ -562,31 +559,12 @@ async function getActiveSeason() {
 // /start - приветствие
 bot.command('start', async (ctx) => {
   const firstName = ctx.from.first_name || 'друг';
-
-  const activeSeason = await getActiveSeason();
-  const seasonText = activeSeason
-    ? `\n\n🌟 Сейчас активна: **${activeSeason.name}**!`
-    : '';
-
   const startKeyboard = getMiniAppKeyboard();
-
-  const seasonInfo = activeSeason ? `\n\n🌟 Сейчас активна: ${activeSeason.name}!` : '';
   
   await ctx.reply(
     `👋 Привет, ${firstName}!\n\n` +
-    `Добро пожаловать в KETMAR Market! 🛍️${seasonInfo}\n\n` +
-    `Доступные команды:\n\n` +
-    `/sell - 🏪 Создать объявление\n` +
-    `/my_ads - 📋 Мои объявления\n` +
-    `/catalog - 📦 Каталог объявлений\n` +
-    `/market - 🛒 Лента объявлений\n` +
-    `/rental - 🏠 Краткосрочная аренда\n` +
-    `/fav_list - ⭐ Избранное\n` +
-    `/season - 🌟 Сезонные предложения\n` +
-    `/categories - 📂 Категории\n` +
-    `/myid - 🆔 Ваш Telegram ID\n` +
-    `/new_test_ad - ➕ Тестовое объявление` +
-    (startKeyboard ? '\n\n🔗 Используйте кнопки ниже для открытия приложения.' : ''),
+    `Добро пожаловать в KETMAR Market — маркетплейс для покупки и продажи товаров! 🛍️\n\n` +
+    `Нажмите кнопку ниже, чтобы открыть приложение.`,
     {
       ...(startKeyboard ? { reply_markup: startKeyboard } : {}),
     }
