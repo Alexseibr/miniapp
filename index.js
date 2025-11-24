@@ -16,6 +16,11 @@ const __dirname = path.dirname(__filename);
 
 const PORT = config.port;
 
+// Делимся базовым URL API с фронтендами через Vite
+if (process.env.VITE_API_BASE_URL == null && config.apiBaseUrl) {
+  process.env.VITE_API_BASE_URL = config.apiBaseUrl;
+}
+
 // Главная функция запуска приложения
 let favoritesInterval;
 
