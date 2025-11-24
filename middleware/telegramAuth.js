@@ -45,6 +45,12 @@ export function validateTelegramInitData(rawInitData) {
   const secretKey = crypto.createHash('sha256').update(config.botToken).digest();
   const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
 
+  console.log('🔐 Validation Debug:');
+  console.log('   Bot token (first 10 chars):', config.botToken?.substring(0, 10));
+  console.log('   Received hash:', hash);
+  console.log('   Computed hash:', computedHash);
+  console.log('   Match:', computedHash === hash);
+
   if (computedHash !== hash) {
     return { ok: false, error: 'Invalid Telegram signature' };
   }
