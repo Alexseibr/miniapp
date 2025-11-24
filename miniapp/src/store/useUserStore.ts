@@ -6,7 +6,7 @@ import { FavoriteItem, UserProfile } from '@/types';
 export interface UserState {
   user: UserProfile | null;
   cityCode: string | null;
-  status: 'idle' | 'loading' | 'ready' | 'error' | 'need_phone';
+  status: 'idle' | 'loading' | 'ready' | 'error' | 'need_phone' | 'guest';
   error?: string;
   favorites: FavoriteItem[];
   initialize: () => Promise<void>;
@@ -14,6 +14,7 @@ export interface UserState {
   toggleFavorite: (adId: string, isFavorite: boolean) => Promise<void>;
   setCityCode: (cityCode: string) => void;
   submitPhone: (phone: string) => Promise<void>;
+  skipPhoneRequest: () => void;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -29,15 +30,30 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ status: 'ready', cityCode: 'brest' });
       return;
     }
+    
+    // Проверяем localStorage - отказался ли пользователь от номера
+    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    const phoneSkipped = localStorage.getItem(`phone_skipped_${telegramId}`);
+    
     try {
       set({ status: 'loading', error: undefined });
       const response = await validateSession(initData);
       if (response.user) {
         // Проверяем есть ли номер телефона
-        if (!response.user.phone) {
+        if (!response.user.phone && !phoneSkipped) {
           set({ status: 'need_phone', cityCode: 'brest' });
           return;
         }
+        
+        // Если номер пропущен - режим гостя
+        if (!response.user.phone && phoneSkipped) {
+          set({ 
+            status: 'guest',
+            cityCode: 'brest'
+          });
+          return;
+        }
+        
         set({ 
           user: response.user as UserProfile,
           cityCode: (response as any).cityCode || 'brest'
@@ -75,6 +91,13 @@ export const useUserStore = create<UserState>((set, get) => ({
       console.error('Phone submit error', error);
       set({ status: 'error', error: 'Не удалось сохранить номер телефона' });
     }
+  },
+  skipPhoneRequest() {
+    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+    if (telegramId) {
+      localStorage.setItem(`phone_skipped_${telegramId}`, 'true');
+    }
+    set({ status: 'guest', cityCode: 'brest' });
   },
   setCityCode(cityCode: string) {
     set({ cityCode });

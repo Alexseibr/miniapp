@@ -1056,3 +1056,27 @@ input.input:focus {
     font-size: 1.25rem;
   }
 }
+
+.phone-auth-skip-button {
+  width: 100%;
+  padding: 12px 24px;
+  background: transparent;
+  color: #64748b;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  margin-top: 12px;
+}
+
+.phone-auth-skip-button:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.phone-auth-skip-button:active {
+  transform: scale(0.98);
+}

@@ -27,6 +27,7 @@ export default function App() {
   const location = useLocation();
   const initialize = useUserStore((state) => state.initialize);
   const submitPhone = useUserStore((state) => state.submitPhone);
+  const skipPhoneRequest = useUserStore((state) => state.skipPhoneRequest);
   const userStatus = useUserStore((state) => state.status);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -116,10 +117,7 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <PhoneAuthRequest 
           onPhoneReceived={submitPhone}
-          onCancel={() => {
-            // Пользователь отменил - можно попробовать продолжить без телефона
-            console.log('Phone request cancelled by user');
-          }}
+          onSkip={skipPhoneRequest}
         />
       </QueryClientProvider>
     );

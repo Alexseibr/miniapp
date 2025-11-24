@@ -4,10 +4,10 @@ import { getTelegramWebApp } from '@/utils/telegram';
 
 interface PhoneAuthRequestProps {
   onPhoneReceived: (phone: string) => void;
-  onCancel?: () => void;
+  onSkip: () => void;
 }
 
-export default function PhoneAuthRequest({ onPhoneReceived, onCancel }: PhoneAuthRequestProps) {
+export default function PhoneAuthRequest({ onPhoneReceived, onSkip }: PhoneAuthRequestProps) {
   const [isRequesting, setIsRequesting] = useState(false);
 
   const handleRequestPhone = () => {
@@ -31,9 +31,7 @@ export default function PhoneAuthRequest({ onPhoneReceived, onCancel }: PhoneAut
           onPhoneReceived(contact.phone_number);
         } else {
           console.log('❌ Phone request cancelled');
-          if (onCancel) {
-            onCancel();
-          }
+          setIsRequesting(false);
         }
       });
     } else {
@@ -85,8 +83,17 @@ export default function PhoneAuthRequest({ onPhoneReceived, onCancel }: PhoneAut
           {isRequesting ? 'Ожидание...' : 'Поделиться номером телефона'}
         </button>
 
+        <button
+          type="button"
+          className="phone-auth-skip-button"
+          onClick={onSkip}
+          data-testid="button-skip-phone"
+        >
+          Пропустить (режим просмотра)
+        </button>
+
         <p className="phone-auth-footer">
-          Нажимая кнопку, вы подтверждаете, что ознакомились с условиями использования сервиса
+          В режиме просмотра вы сможете смотреть объявления, но не сможете создавать свои или добавлять в избранное
         </p>
       </div>
     </div>
