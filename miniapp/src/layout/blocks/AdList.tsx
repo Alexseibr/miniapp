@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import AdCard from '@/components/AdCard';
 
 interface AdListProps {
   title?: string;
@@ -21,7 +21,6 @@ interface AdListProps {
 }
 
 export default function AdList(props: AdListProps) {
-  const navigate = useNavigate();
 
   const title = props.title || props.config?.title || 'Объявления';
   const dataSource = props.dataSource || props.config?.dataSource || 'search';
@@ -77,9 +76,9 @@ export default function AdList(props: AdListProps) {
         <h3 style={{ margin: '0 0 12px', fontSize: '1.125rem', fontWeight: 600 }}>
           {title}
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="skeleton" style={{ height: '120px', borderRadius: 'var(--radius-md)' }} />
+        <div className="ads-grid">
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="skeleton" style={{ aspectRatio: '1 / 1.3', borderRadius: 'var(--radius-md)' }} />
           ))}
         </div>
       </div>
@@ -92,93 +91,26 @@ export default function AdList(props: AdListProps) {
 
   return (
     <div data-testid="ad-list">
-      <h3
-        style={{
-          margin: '0 0 12px',
-          fontSize: '1.125rem',
-          fontWeight: 600,
-          color: 'var(--color-primary)',
-        }}
-        data-testid="ad-list-title"
-      >
-        {title}
-      </h3>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <h3
+          style={{
+            margin: 0,
+            fontSize: '1.125rem',
+            fontWeight: 600,
+            color: 'var(--color-primary)',
+          }}
+          data-testid="ad-list-title"
+        >
+          {title}
+        </h3>
+        <span style={{ fontSize: '0.875rem', color: 'var(--color-secondary)' }}>
+          {ads.length} {ads.length === 1 ? 'объявление' : ads.length < 5 ? 'объявления' : 'объявлений'}
+        </span>
+      </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      <div className="ads-grid">
         {ads.map((ad: any) => (
-          <div
-            key={ad._id}
-            onClick={() => navigate(`/ads/${ad._id}`)}
-            className="card"
-            style={{
-              cursor: 'pointer',
-              padding: '12px',
-              display: 'flex',
-              gap: '12px',
-              transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-            }}
-            data-testid={`ad-item-${ad._id}`}
-          >
-            {ad.photos && ad.photos.length > 0 && (
-              <img
-                src={ad.photos[0]}
-                alt={ad.title}
-                loading="lazy"
-                decoding="async"
-                style={{
-                  width: '100px',
-                  height: '100px',
-                  objectFit: 'cover',
-                  borderRadius: 'var(--radius-md)',
-                  flexShrink: 0,
-                }}
-              />
-            )}
-
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <h4
-                style={{
-                  margin: '0 0 4px',
-                  fontSize: '1rem',
-                  fontWeight: 600,
-                  color: 'var(--color-primary)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-                data-testid={`ad-title-${ad._id}`}
-              >
-                {ad.title}
-              </h4>
-
-              <p
-                style={{
-                  margin: '0 0 8px',
-                  fontSize: '1.25rem',
-                  fontWeight: 700,
-                  color: 'var(--color-accent-highlight)',
-                }}
-                data-testid={`ad-price-${ad._id}`}
-              >
-                {ad.price} BYN
-              </p>
-
-              <p
-                style={{
-                  margin: 0,
-                  fontSize: '0.875rem',
-                  color: 'var(--color-secondary)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                }}
-              >
-                {ad.description}
-              </p>
-            </div>
-          </div>
+          <AdCard key={ad._id} ad={ad} showActions={false} />
         ))}
       </div>
     </div>
