@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Loader2 } from 'lucide-react';
+import { ArrowLeft, Loader2, Home } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
 import CategoryGrid from '@/components/CategoryGrid';
@@ -115,7 +115,36 @@ export default function SubcategoryPage() {
       {subcategories.length > 0 && (
         <div style={{ padding: '16px', backgroundColor: '#f8fafc' }}>
           <div style={{ marginBottom: '16px' }}>
-            <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
+            <button
+              onClick={() => navigate('/')}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 20px',
+                backgroundColor: '#3B73FC',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: '12px',
+                fontSize: '0.9375rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                boxShadow: '0 4px 12px rgba(59, 115, 252, 0.3)',
+                transition: 'all 0.2s',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-2px)';
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 115, 252, 0.4)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 115, 252, 0.3)';
+              }}
+              data-testid="button-home"
+            >
+              <Home size={20} />
+              <span>Главная</span>
+            </button>
           </div>
           <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
             Категории

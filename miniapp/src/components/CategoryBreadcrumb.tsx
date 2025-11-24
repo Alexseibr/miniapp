@@ -65,7 +65,6 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
         alignItems: 'center', 
         gap: 8, 
         overflowX: 'auto',
-        paddingBottom: '4px',
       }}
       data-testid="breadcrumb-navigation"
     >
@@ -75,7 +74,7 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
         
         return (
           <div key={category.slug} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            {index > 0 && <ChevronRight size={16} color="#cbd5e1" />}
+            {index > 0 && <ChevronRight size={16} color="#9ca3af" />}
             
             <Link 
               to={`/category/${category.slug}`}
@@ -83,35 +82,17 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
                 display: 'flex',
                 alignItems: 'center',
                 gap: 8,
-                padding: '8px 16px',
-                borderRadius: 12,
-                background: isLast 
-                  ? 'linear-gradient(135deg, #3B73FC 0%, #5B8EFF 100%)'
-                  : '#ffffff',
-                border: isLast ? 'none' : '1.5px solid #e5e7eb',
-                boxShadow: isLast ? '0 4px 12px rgba(59, 115, 252, 0.25)' : '0 2px 4px rgba(0, 0, 0, 0.05)',
+                padding: '6px 12px',
+                borderRadius: 8,
+                backgroundColor: isLast ? '#f3f4f6' : 'transparent',
                 textDecoration: 'none',
-                color: isLast ? '#ffffff' : '#1f2937',
+                color: isLast ? '#1f2937' : '#6b7280',
                 fontSize: 14,
                 fontWeight: isLast ? 600 : 500,
                 whiteSpace: 'nowrap',
                 transition: 'all 0.2s',
               }}
               data-testid={`breadcrumb-${category.slug}`}
-              onMouseEnter={(e) => {
-                if (!isLast) {
-                  e.currentTarget.style.borderColor = '#3B73FC';
-                  e.currentTarget.style.boxShadow = '0 4px 8px rgba(59, 115, 252, 0.15)';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }
-              }}
-              onMouseLeave={(e) => {
-                if (!isLast) {
-                  e.currentTarget.style.borderColor = '#e5e7eb';
-                  e.currentTarget.style.boxShadow = '0 2px 4px rgba(0, 0, 0, 0.05)';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }
-              }}
             >
                 {iconSrc ? (
                   <img 
@@ -121,12 +102,11 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
                       width: 24, 
                       height: 24, 
                       objectFit: 'contain',
-                      flexShrink: 0,
-                      filter: isLast ? 'brightness(0) invert(1)' : 'none'
+                      flexShrink: 0 
                     }}
                   />
                 ) : (
-                  <Package size={20} color={isLast ? '#ffffff' : '#3B73FC'} style={{ flexShrink: 0 }} />
+                  <Package size={20} color={isLast ? '#3B73FC' : '#9ca3af'} style={{ flexShrink: 0 }} />
                 )}
                 <span>{category.name}</span>
             </Link>
