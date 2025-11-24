@@ -17,6 +17,8 @@ import miniAppFavoriteRoutes from '../routes/favoriteRoutes.js';
 import miniAppOrderRoutes from '../routes/orderRoutes.js';
 import layoutRoutes from './routes/layout.js';
 import contentRoutes from './routes/content.js';
+import phoneAuthRoutes from './routes/phoneAuth.js';
+import chatRoutes from './routes/chat.js';
 
 const app = express();
 
@@ -39,6 +41,8 @@ app.get('/api', (_req, res) => {
       notifications: '/api/notifications',
       moderation: '/api/mod',
       auth: '/auth/telegram',
+      phoneAuth: '/api/auth/sms/*',
+      chat: '/api/chat/*',
       layout: '/api/layout',
       content: '/api/content',
       health: '/health',
@@ -68,5 +72,7 @@ app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 app.use('/api/layout', layoutRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/auth', authRoutes);
+app.use('/api/auth', phoneAuthRoutes);
+app.use('/api/chat', chatRoutes);
 
 export default app;
