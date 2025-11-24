@@ -1,0 +1,78 @@
+Переключиться на ветку replit или создать её
+git checkout -b replit
+
+# 2. Запушить в origin/replit
+git push origin replit
+Switched to a new branch 'replit'
+error: Unable to create '/home/runner/workspace/.git/packed-refs.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+error: Unable to create '/home/runner/workspace/.git/packed-refs.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+To https://github.com/Alexseibr/miniapp.git
+ ! [rejected]        replit -> replit (fetch first)
+error: failed to push some refs to 'https://github.com/Alexseibr/miniapp.git'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+~/workspace$ # 1. Переключиться на ветку replit или создать её
+git checkout -b replit
+
+# 2. Запушить в origin/replit
+git push origin replit
+fatal: a branch named 'replit' already exists
+To https://github.com/Alexseibr/miniapp.git
+ ! [rejected]        replit -> replit (fetch first)
+error: failed to push some refs to 'https://github.com/Alexseibr/miniapp.git'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+~/workspace$ git checkout replit
+git merge main  # или текущую ветку с изменениями
+git push origin replit
+M   .replit
+Already on 'replit'
+error: Unable to create '/home/runner/workspace/.git/packed-refs.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+error: Unable to create '/home/runner/workspace/.git/packed-refs.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+Already up to date.
+error: Unable to create '/home/runner/workspace/.git/packed-refs.lock': File exists.
+
+Another git process seems to be running in this repository, e.g.
+an editor opened by 'git commit'. Please make sure all processes
+are terminated then try again. If it still fails, a git process
+may have crashed in this repository earlier:
+remove the file manually to continue.
+To https://github.com/Alexseibr/miniapp.git
+ ! [rejected]        replit -> replit (fetch first)
+error: failed to push some refs to 'https://github.com/Alexseibr/miniapp.git'
+hint: Updates were rejected because the remote contains work that you do not
+hint: have locally. This is usually caused by another repository pushing to
+hint: the same ref. If you want to integrate the remote changes, use
+hint: 'git pull' before pushing again.
+hint: See the 'Note about fast-forwards' in 'git push --help' for details.
+~/workspace$ 
