@@ -8,11 +8,19 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, 'src'),
+      '@assets': path.resolve(__dirname, '../attached_assets'),
     },
   },
   server: {
     host: '0.0.0.0',
     port: Number(process.env.MINIAPP_PORT || 4174),
+    hmr: {
+      clientPort: 443,
+    },
+  },
+  preview: {
+    host: '0.0.0.0',
+    port: 4173,
   },
   build: {
     outDir: 'dist',

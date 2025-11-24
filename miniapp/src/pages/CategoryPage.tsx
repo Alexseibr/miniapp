@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'wouter';
+import { useParams } from 'react-router-dom';
 import { fetchCategories } from '@/api/categories';
 import CategoryGrid from '@/components/CategoryGrid';
 import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
@@ -21,8 +21,7 @@ function flattenCategories(tree: CategoryNode[]): CategoryNode[] {
 }
 
 export default function CategoryPage() {
-  const params = useParams();
-  const slug = params.slug;
+  const { slug } = useParams<{ slug: string }>();
   const [tree, setTree] = useState<CategoryNode[]>([]);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearch, Link } from 'wouter';
+import { useSearchParams } from 'react-router-dom';
 import { listAds, listNearbyAds } from '@/api/ads';
 import { fetchCategories } from '@/api/categories';
 import AdCard from '@/components/AdCard';
@@ -11,15 +11,14 @@ import { useGeo } from '@/utils/geo';
 import { SlidersHorizontal } from 'lucide-react';
 
 export default function FeedPage() {
-  const search = useSearch();
-  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
+  const [searchParams] = useSearchParams();
   const [ads, setAds] = useState<AdPreview[]>([]);
   const [sort, setSort] = useState<'newest' | 'cheapest' | 'expensive' | 'popular' | 'distance'>(() => {
     const sortParam = searchParams.get('sort');
     const validSorts = ['newest', 'cheapest', 'expensive', 'popular', 'distance'];
     return sortParam && validSorts.includes(sortParam) ? (sortParam as 'newest' | 'cheapest' | 'expensive' | 'popular' | 'distance') : 'newest';
   });
-  const [search, setSearch] = useState(() => searchParams.get('q') || '');
+  const [queryText, setQueryText] = useState(() => searchParams.get('q') || '');
   const [minPrice, setMinPrice] = useState<string>(() => searchParams.get('minPrice') || '');
   const [maxPrice, setMaxPrice] = useState<string>(() => searchParams.get('maxPrice') || '');
   const [loading, setLoading] = useState(true);
@@ -37,22 +36,22 @@ export default function FeedPage() {
     if (sortParam && validSorts.includes(sortParam)) {
       setSort(sortParam as typeof sort);
     }
-    setSearch(searchParams.get('q') || '');
+    setQueryText(searchParams.get('q') || '');
     setMinPrice(searchParams.get('minPrice') || '');
     setMaxPrice(searchParams.get('maxPrice') || '');
-  }, [search, searchParams]);
+  }, [searchParams]);
 
   const params = useMemo(
     () => ({
       sort,
-      search,
+      search: queryText,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
       categoryId: searchParams.get('categoryId') || undefined,
       subcategoryId: searchParams.get('subcategoryId') || undefined,
       seasonCode: searchParams.get('season') || undefined,
     }),
-    [sort, search, minPrice, maxPrice, searchParams]
+    [sort, queryText, minPrice, maxPrice, searchParams]
   );
 
   useEffect(() => {
@@ -66,7 +65,7 @@ export default function FeedPage() {
               lng: coords.lng,
               radiusKm,
               sort: 'distance',
-              q: search,
+              q: queryText,
               limit: 40,
               minPrice: params.minPrice,
               maxPrice: params.maxPrice,
@@ -76,7 +75,7 @@ export default function FeedPage() {
             })
           : await listAds({
               sort,
-              q: search,
+              q: queryText,
               limit: 40,
               lat: coords?.lat,
               lng: coords?.lng,
@@ -106,14 +105,6 @@ export default function FeedPage() {
 
   const currentCategorySlug = searchParams.get('categoryId');
 
-  useEffect(() => {
-    console.log('[FeedPage] Breadcrumb check:', {
-      currentCategorySlug,
-      categoriesLength: categories.length,
-      shouldShow: currentCategorySlug && categories.length > 0
-    });
-  }, [currentCategorySlug, categories]);
-
   return (
     <div>
       <div
@@ -132,8 +123,8 @@ export default function FeedPage() {
               className="input"
               type="search"
               placeholder="Поиск объявлений"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={queryText}
+              onChange={(e) => setQueryText(e.target.value)}
               data-testid="input-search"
               style={{ fontSize: 15, padding: '10px 14px' }}
             />
@@ -160,12 +151,8 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {currentCategorySlug && categories.length > 0 ? (
+      {currentCategorySlug && categories.length > 0 && (
         <CategoryBreadcrumb categorySlug={currentCategorySlug} categories={categories} />
-      ) : (
-        <div style={{ padding: 8, backgroundColor: '#fee', color: '#c00', fontSize: 12 }}>
-          DEBUG: categorySlug={currentCategorySlug || 'NULL'}, categories={categories.length}
-        </div>
       )}
 
       <div style={{ padding: 16 }}>

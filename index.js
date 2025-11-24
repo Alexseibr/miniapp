@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -38,6 +39,9 @@ async function start() {
     
     console.log(`✅ Telegram webhook endpoint зарегистрирован: ${webhookPath}`);
     
+    // 1.7 Создание HTTP сервера (перед Vite чтобы передать его для HMR)
+    const server = http.createServer(app);
+    
     // 2. Настройка Vite dev server для фронтенда (только в dev mode)
     if (process.env.NODE_ENV !== 'production') {
       console.log('\n🎨 Настройка Vite dev server...');
@@ -50,9 +54,8 @@ async function start() {
         plugins: [react.default()],
         server: { 
           middlewareMode: true,
-          hmr: {
-            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
-          },
+          allowedHosts: true,
+          hmr: { server },
         },
         appType: 'custom',
         root: path.resolve(__dirname, 'client'),
@@ -70,9 +73,8 @@ async function start() {
         plugins: [react.default()],
         server: { 
           middlewareMode: true,
-          hmr: {
-            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
-          },
+          allowedHosts: true,
+          hmr: { server },
         },
         appType: 'custom',
         base: '/miniapp/',
@@ -228,9 +230,9 @@ async function start() {
       }
     }
     
-    // 3. Запуск Express API сервера
+    // 3. Запуск HTTP сервера на прослушивание
     console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       const publicUrl = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : `http://localhost:${PORT}`;

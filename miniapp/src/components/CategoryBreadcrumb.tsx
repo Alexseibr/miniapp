@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Link } from 'wouter';
+import { Link } from 'react-router-dom';
 import { ChevronRight, Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
@@ -79,24 +79,24 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
           <div key={category.slug} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {index > 0 && <ChevronRight size={16} color="#9ca3af" />}
             
-            <Link href={`/miniapp/category/${category.slug}`}>
-              <a
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '6px 12px',
-                  borderRadius: 8,
-                  backgroundColor: isLast ? '#f3f4f6' : 'transparent',
-                  textDecoration: 'none',
-                  color: isLast ? '#1f2937' : '#6b7280',
-                  fontSize: 14,
-                  fontWeight: isLast ? 600 : 500,
-                  whiteSpace: 'nowrap',
-                  transition: 'all 0.2s',
-                }}
-                data-testid={`breadcrumb-${category.slug}`}
-              >
+            <Link 
+              to={`/feed?categoryId=${category.slug}`}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 12px',
+                borderRadius: 8,
+                backgroundColor: isLast ? '#f3f4f6' : 'transparent',
+                textDecoration: 'none',
+                color: isLast ? '#1f2937' : '#6b7280',
+                fontSize: 14,
+                fontWeight: isLast ? 600 : 500,
+                whiteSpace: 'nowrap',
+                transition: 'all 0.2s',
+              }}
+              data-testid={`breadcrumb-${category.slug}`}
+            >
                 {iconSrc ? (
                   <img 
                     src={iconSrc} 
@@ -112,7 +112,6 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
                   <Package size={20} color={isLast ? '#3B73FC' : '#9ca3af'} style={{ flexShrink: 0 }} />
                 )}
                 <span>{category.name}</span>
-              </a>
             </Link>
           </div>
         );
