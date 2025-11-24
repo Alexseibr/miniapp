@@ -36,8 +36,8 @@ export default function CategoryGrid({ categories }: Props) {
     <section
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(min(140px, 100%), 1fr))',
-        gap: '12px',
+        gridTemplateColumns: 'repeat(2, 1fr)',
+        gap: '16px',
       }}
     >
       {categories.map((category) => (
@@ -49,15 +49,15 @@ export default function CategoryGrid({ categories }: Props) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'flex-start',
-            padding: '16px 12px',
-            borderRadius: '16px',
+            justifyContent: 'center',
+            padding: '24px 16px',
+            borderRadius: '20px',
             backgroundColor: '#FFFFFF',
             border: '1px solid #E5E7EB',
             textDecoration: 'none',
             transition: 'all 0.2s ease',
-            minHeight: '140px',
-            height: '100%',
+            minHeight: '160px',
+            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
           }}
           onMouseDown={(e) => {
             e.currentTarget.style.transform = 'scale(0.97)';
@@ -78,15 +78,15 @@ export default function CategoryGrid({ categories }: Props) {
         >
           <div
             style={{
-              width: '72px',
-              height: '72px',
-              borderRadius: '16px',
+              width: '88px',
+              height: '88px',
+              borderRadius: '20px',
               backgroundColor: '#F5F7FA',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '12px',
-              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06)',
+              marginBottom: '16px',
+              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
               overflow: 'hidden',
             }}
           >
@@ -109,7 +109,7 @@ export default function CategoryGrid({ categories }: Props) {
           </div>
           <span
             style={{
-              fontSize: '0.875rem',
+              fontSize: '0.9375rem',
               textAlign: 'center',
               color: '#111827',
               fontWeight: 500,
@@ -119,7 +119,6 @@ export default function CategoryGrid({ categories }: Props) {
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               wordBreak: 'break-word',
-              hyphens: 'auto',
             }}
           >
             {category.name}
