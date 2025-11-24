@@ -80,6 +80,7 @@ export interface Ad extends AdPreview {
   validUntil?: string;
   updatedAt?: string;
   views?: number;
+  sellerName?: string;
 }
 
 export interface FavoriteItem {

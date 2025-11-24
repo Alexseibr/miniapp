@@ -95,3 +95,18 @@ export async function createAd(payload: CreateAdPayload) {
   const response = await http.post('/api/ads', payload);
   return response.data as Ad;
 }
+
+export async function getSimilarAds(adId: string, subcategoryId: string, limit: number = 6): Promise<AdsResponse> {
+  const response = await http.get('/api/ads/search', {
+    params: {
+      subcategoryId,
+      limit,
+      sort: 'createdAt_desc'
+    }
+  });
+  const items = (response.data.items || []).filter((item: AdPreview) => item._id !== adId);
+  return {
+    ...response.data,
+    items: items.slice(0, limit)
+  };
+}
