@@ -227,6 +227,27 @@ export default function AdminLoginPage() {
               </form>
             </Form>
           )}
+          
+          <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground mb-2">или</p>
+            <a 
+              href="https://t.me/KetmarM_bot" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="inline-block"
+            >
+              <Button 
+                variant="link" 
+                className="text-[#3B73FC]" 
+                data-testid="button-telegram-login"
+              >
+                Войти через Telegram
+              </Button>
+            </a>
+            <p className="text-xs text-muted-foreground mt-1">
+              Отправьте команду /admin_login боту
+            </p>
+          </div>
         </CardContent>
       </Card>
     </div>

@@ -12,6 +12,7 @@ import moderationRoutes from './routes/moderation.js';
 import authRoutes from './routes/auth.js';
 import subscriptionsRoutes from './routes/subscriptions.js';
 import adminRoutes from './routes/admin.js';
+import adminAuthRoutes from './routes/adminAuth.js';
 import { telegramAuthMiddleware } from '../middleware/telegramAuth.js';
 import { adminAuth } from '../middleware/adminAuth.js';
 import userRoutes from '../routes/userRoutes.js';
@@ -72,6 +73,9 @@ app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
 app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
+// Public admin auth endpoints (NOT protected by adminAuth)
+app.use('/api/admin/auth', adminAuthRoutes);
+// Protected admin endpoints
 app.use('/api/admin', adminAuth, adminRoutes);
 app.use('/api/layout', layoutRoutes);
 app.use('/api/content', contentRoutes);

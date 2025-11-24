@@ -40,6 +40,10 @@ localPort = 40379
 externalPort = 4200
 
 [[ports]]
+localPort = 42237
+externalPort = 6000
+
+[[ports]]
 localPort = 42335
 externalPort = 5173
 
@@ -76,3 +80,4 @@ integrations = ["javascript_database:1.0.0", "javascript_object_storage:1.0.0"]
 MINIAPP_URL = "https://07992b17-3400-4b4a-9b37-e944f49f93fa-00-2g6o2va3pbvu4.spock.replit.dev/miniapp"
 MINIAPP_PRODUCTION = "true"
 NODE_ENV = "production"
+BASE_URL = "https://07992b17-3400-4b4a-9b37-e944f49f93fa-00-2g6o2va3pbvu4.spock.replit.dev"

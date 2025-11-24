@@ -1,7 +1,10 @@
 import { Telegraf, Markup, session } from 'telegraf';
 import * as config from '../config/config.js';
 import axios from 'axios';
+import crypto from 'crypto';
 import registerSeasonHandlers from './seasonHandlers.js';
+import User from '../models/User.js';
+import AdminLoginToken from '../models/AdminLoginToken.js';
 
 const bot = new Telegraf(config.botToken);
 
@@ -600,6 +603,50 @@ bot.command('myid', async (ctx) => {
     `📝 Имя: ${user.first_name || ''} ${user.last_name || ''}`,
     { parse_mode: 'Markdown' }
   );
+});
+
+// /admin_login - генерация ссылки для входа в админ-панель
+bot.command('admin_login', async (ctx) => {
+  try {
+    const telegramId = ctx.from.id;
+    
+    // Find user
+    const user = await User.findOne({ telegramId });
+    if (!user) {
+      return ctx.reply('❌ Пользователь не найден. Пожалуйста, сначала зарегистрируйтесь.');
+    }
+    
+    // Check admin role
+    if (user.role !== 'admin') {
+      return ctx.reply('❌ Доступ запрещен. Команда доступна только администраторам.');
+    }
+    
+    // Generate one-time token
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 5 * 60 * 1000); // 5 minutes
+    
+    // Save to DB
+    await AdminLoginToken.create({
+      token,
+      userId: user._id,
+      expiresAt
+    });
+    
+    // Generate login link
+    const baseUrl = process.env.BASE_URL || config.baseUrl || 'https://yourdomain.replit.dev';
+    const loginLink = `${baseUrl}/admin/auth?token=${token}`;
+    
+    await ctx.reply(
+      `🔐 Вход в админ-панель\n\n` +
+      `Перейдите по ссылке для автоматического входа:\n` +
+      `${loginLink}\n\n` +
+      `⏱ Ссылка действительна 5 минут`
+    );
+    
+  } catch (error) {
+    console.error('Error in /admin_login:', error);
+    ctx.reply('❌ Произошла ошибка. Попробуйте позже.');
+  }
 });
 
 bot.command('fav_add', async (ctx) => {
