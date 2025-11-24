@@ -67,6 +67,35 @@ Environment variables are used for configuration, supporting dual naming convent
 
 - **@uppy/core** + **@uppy/aws-s3**: Configured for future S3-compatible file storage for product images.
 
+## Recent Changes (November 24, 2025)
+
+### Phone Authentication System
+- **Backend**: Implemented SMS-based phone auth with 4-digit codes (5-minute TTL)
+  - API Routes: `/api/auth/sms/requestCode`, `/api/auth/sms/login`
+  - Model: `SmsLoginCode` with automatic expiration
+  - Security: SMS codes logged server-side only, never returned in API responses
+  - JWT tokens with 7-day expiration
+  - TODO: Integrate real SMS provider (Twilio/SMS.ru) for production
+
+### Chat Messaging System
+- **Backend**: Real-time chat with 3-second polling
+  - API Routes: `/api/chat/*` (requires JWT auth)
+  - Models: `Conversation` (2 participants + ad reference), `Message` (read status tracking)
+  - Middleware: `middleware/auth.js` validates Bearer tokens, checks user.isBlocked
+  - Endpoints: `/start`, `/my`, `/:id/messages`, `/:id/poll`
+
+- **Frontend (MiniApp)**: 
+  - Pages: `ChatPage.tsx` (real-time chat), `ConversationsPage.tsx` (chat list)
+  - Components: `AdCard.tsx` (favorites, delivery badges), `AdGallery.tsx` (Swiper carousel), `AdsMap.tsx` (Leaflet maps)
+  - Routes: `/chats`, `/chat/:conversationId`
+  - Enhanced: AdPage with "Chat with Seller" button
+  - Dependencies: swiper, leaflet, react-leaflet@4
+
+### Security Improvements
+- Fixed critical vulnerability: Removed SMS code exposure from API responses
+- JWT authentication enforced on all chat endpoints
+- User blocking support in auth middleware
+
 ## MiniApp Performance Optimizations (November 2025)
 
 ### Production Build & Code Splitting
