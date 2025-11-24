@@ -19,6 +19,8 @@ const SeasonsPage = lazy(() => import('@/pages/SeasonsPage'));
 const SeasonViewPage = lazy(() => import('@/pages/SeasonViewPage'));
 const MyAdsPage = lazy(() => import('@/pages/MyAdsPage'));
 const CreateAdPage = lazy(() => import('@/pages/CreateAdPage'));
+const ConversationsPage = lazy(() => import('@/pages/ConversationsPage'));
+const ChatPage = lazy(() => import('@/pages/ChatPage'));
 
 export default function App() {
   const location = useLocation();
@@ -133,6 +135,8 @@ export default function App() {
               <Route path="/ads/:id" element={<AdPage />} />
               <Route path="/my-ads" element={<MyAdsPage />} />
               <Route path="/ads/create" element={<CreateAdPage />} />
+              <Route path="/chats" element={<ConversationsPage />} />
+              <Route path="/chat/:conversationId" element={<ChatPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

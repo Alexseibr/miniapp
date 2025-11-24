@@ -1,17 +1,22 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { MapPin, MessageCircle } from 'lucide-react';
 import { getAd } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
 import { useCartStore } from '@/store/cart';
 import { formatCityDistance, useGeo } from '@/utils/geo';
+import http from '@/api/http';
+import { useUserStore } from '@/store/useUserStore';
 
 export default function AdPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
+  const user = useUserStore((state) => state.user);
   const [ad, setAd] = useState<AdPreview | null>(null);
   const [loading, setLoading] = useState(true);
+  const [startingChat, setStartingChat] = useState(false);
   const addItem = useCartStore((state) => state.addItem);
   const { coords } = useGeo(false);
 
@@ -23,6 +28,24 @@ export default function AdPage() {
       .catch(() => setAd(null))
       .finally(() => setLoading(false));
   }, [id, coords]);
+
+  const startChat = async () => {
+    if (!user) {
+      navigate('/profile');
+      return;
+    }
+    if (!ad?._id) return;
+    setStartingChat(true);
+    try {
+      const { data } = await http.post('/api/chat/start', { adId: ad._id });
+      navigate(`/chat/${data._id}`);
+    } catch (error) {
+      console.error('Failed to start chat:', error);
+      alert('Не удалось начать чат. Попробуйте позже.');
+    } finally {
+      setStartingChat(false);
+    }
+  };
 
   if (loading) {
     return <EmptyState title="Загружаем объявление" />;
@@ -71,9 +94,22 @@ export default function AdPage() {
           </ul>
         )}
         <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <a className="primary" href={`tg://user?id=${ad.sellerTelegramId}`} style={{ textAlign: 'center', textDecoration: 'none' }}>
-            Написать продавцу
-          </a>
+          <button
+            type="button"
+            className="primary"
+            onClick={startChat}
+            disabled={startingChat}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '8px',
+            }}
+            data-testid="button-start-chat"
+          >
+            <MessageCircle size={20} />
+            {startingChat ? 'Открываем чат...' : 'Написать продавцу'}
+          </button>
           <button
             type="button"
             className="secondary"
@@ -87,6 +123,7 @@ export default function AdPage() {
                 photo: ad.photos?.[0],
               })
             }
+            data-testid="button-add-to-cart"
           >
             Добавить в корзину
           </button>
