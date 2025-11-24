@@ -21,7 +21,7 @@ export default function Header() {
   return (
     <header className="card" style={{ margin: '16px', marginBottom: 8 }}>
       <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-        <LogoFull width={140} />
+        <LogoFull width={220} />
       </div>
       
       <p className="badge" style={{ marginBottom: 8 }}>
