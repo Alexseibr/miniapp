@@ -25,20 +25,6 @@ export const useCategoriesStore = create<CategoriesState>((set, get) => ({
     try {
       const data = await fetchCategories();
       set({ categories: data, loading: false });
-      
-      // Prefetch category icons
-      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => {
-          data.forEach((cat: CategoryNode) => {
-            if (cat.icon3d) {
-              const img = new Image();
-              img.src = cat.icon3d.startsWith('/attached_assets/') 
-                ? `${window.location.origin}${cat.icon3d}` 
-                : cat.icon3d;
-            }
-          });
-        });
-      }
     } catch (error) {
       console.error('Failed to load categories:', error);
       set({ error: 'Не удалось загрузить категории', loading: false });

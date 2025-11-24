@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -17,6 +17,9 @@ export default function SubcategoryPage() {
     loadCategories();
   }, [loadCategories]);
 
+  const category = useMemo(() => getCategoryBySlug(slug || ''), [slug, categories, getCategoryBySlug]);
+  const subcategories = useMemo(() => category?.subcategories || [], [category]);
+
   if (loading || categories.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px' }}>
@@ -28,9 +31,6 @@ export default function SubcategoryPage() {
       </div>
     );
   }
-
-  const category = getCategoryBySlug(slug || '');
-  const subcategories = category?.subcategories || [];
 
   // Fetch ads for this category and all its descendants
   const { data: adsData, isLoading: adsLoading } = useQuery<any>({

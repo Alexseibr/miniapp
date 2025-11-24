@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { Link } from 'react-router-dom';
 import { Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
@@ -7,7 +8,7 @@ interface Props {
   categories: CategoryNode[];
 }
 
-export default function CategoryGrid({ categories }: Props) {
+const CategoryGrid = memo(({ categories }: Props) => {
   if (!categories.length) {
     return <p>Категории пока не загружены.</p>;
   }
@@ -96,7 +97,6 @@ export default function CategoryGrid({ categories }: Props) {
                 alt={category.name}
                 loading="lazy"
                 decoding="async"
-                fetchPriority="low"
                 style={{
                   width: '100%',
                   height: '100%',
@@ -139,4 +139,8 @@ export default function CategoryGrid({ categories }: Props) {
       ))}
     </section>
   );
-}
+});
+
+CategoryGrid.displayName = 'CategoryGrid';
+
+export default CategoryGrid;
