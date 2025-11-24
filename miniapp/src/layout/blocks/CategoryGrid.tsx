@@ -98,6 +98,7 @@ export default function CategoryGrid(props: CategoryGridProps) {
       className="category-grid"
       style={{
         display: 'grid',
+        gridTemplateColumns: `repeat(${columns}, 1fr)`,
         gap: '12px',
       }}
       data-testid="category-grid"
