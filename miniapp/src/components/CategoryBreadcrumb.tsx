@@ -108,7 +108,7 @@ export default function CategoryBreadcrumb({ categorySlug, categories }: Categor
                 ) : (
                   <Package size={20} color={isLast ? '#3B73FC' : '#9ca3af'} style={{ flexShrink: 0 }} />
                 )}
-                <span>{category.name}</span>
+                <span className="breadcrumb-text">{category.name}</span>
             </Link>
           </div>
         );
