@@ -4,11 +4,14 @@
   "version": "1.0.0",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "mobile"
   ],
   "scripts": {
     "dev:bot": "pnpm --filter ./apps/bot dev",
     "dev:api": "pnpm --filter ./apps/api dev",
-    "dev:miniapp": "pnpm --filter ./apps/miniapp dev"
+    "dev:miniapp": "pnpm --filter ./apps/miniapp dev",
+    "dev:mobile": "cd mobile && npm run dev",
+    "build:mobile": "cd mobile && npm run build"
   }
 }
