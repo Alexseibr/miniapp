@@ -23,8 +23,14 @@ const userSchema = new mongoose.Schema(
   {
     telegramId: {
       type: Number,
-      required: true,
       unique: true,
+      sparse: true,
+      index: true,
+    },
+    mobileNumericId: {
+      type: Number,
+      unique: true,
+      sparse: true,
       index: true,
     },
     favoritesCount: {
@@ -38,6 +44,11 @@ const userSchema = new mongoose.Schema(
     username: {
       type: String,
       trim: true,
+    },
+    avatar: {
+      type: String,
+      trim: true,
+      default: null,
     },
     firstName: {
       type: String,
@@ -54,6 +65,11 @@ const userSchema = new mongoose.Schema(
     phoneVerified: {
       type: Boolean,
       default: false,
+    },
+    preferredCity: {
+      type: String,
+      trim: true,
+      default: null,
     },
     role: {
       type: String,
@@ -81,6 +97,11 @@ const userSchema = new mongoose.Schema(
       },
     },
     location: LocationSchema,
+    notificationSettings: {
+      push: { type: Boolean, default: true },
+      email: { type: Boolean, default: false },
+      telegram: { type: Boolean, default: true },
+    },
     isActive: {
       type: Boolean,
       default: true,
