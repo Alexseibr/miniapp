@@ -1,30 +1,21 @@
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
-import CategoryScroll from '@/components/CategoryScroll';
+import CategoryGrid from '@/components/CategoryGrid';
 import AdCard from '@/components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
-import { CATEGORY_ICONS } from '@/constants/categoryIcons';
 
 export default function SubcategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { categories, loading, loadCategories, getCategoryBySlug } = useCategoriesStore();
-  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(
-    searchParams.get('subcategory')
-  );
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
-
-  useEffect(() => {
-    setSelectedSubcategory(searchParams.get('subcategory'));
-  }, [searchParams]);
 
   if (loading) {
     return (
@@ -40,13 +31,11 @@ export default function SubcategoryPage() {
 
   const category = getCategoryBySlug(slug || '');
   const subcategories = category?.subcategories || [];
-  const iconPath = slug ? CATEGORY_ICONS[slug] : null;
 
-  // Fetch ads for this category
+  // Fetch ads for this category and all its descendants
   const { data: adsData, isLoading: adsLoading } = useQuery<any>({
     queryKey: ['/api/ads/search', { 
       categorySlug: slug,
-      ...(selectedSubcategory && { subcategorySlug: selectedSubcategory }),
       limit: 50 
     }],
     enabled: !!slug,
@@ -59,22 +48,6 @@ export default function SubcategoryPage() {
       : Array.isArray(adsData?.items)
         ? adsData.items
         : [];
-
-  const handleSubcategoryClick = (subSlug: string | null) => {
-    if (subSlug === selectedSubcategory) {
-      // Deselect
-      setSelectedSubcategory(null);
-      searchParams.delete('subcategory');
-    } else {
-      setSelectedSubcategory(subSlug);
-      if (subSlug) {
-        searchParams.set('subcategory', subSlug);
-      } else {
-        searchParams.delete('subcategory');
-      }
-    }
-    setSearchParams(searchParams);
-  };
 
   if (!category) {
     return (
@@ -119,7 +92,7 @@ export default function SubcategoryPage() {
           position: 'sticky',
           top: 0,
           backgroundColor: '#FFFFFF',
-          borderBottom: '1px solid #E5E7EB',
+          borderBottom: '1px solid var(--color-secondary-soft)',
           zIndex: 10,
           padding: '12px 16px',
         }}
@@ -147,24 +120,21 @@ export default function SubcategoryPage() {
         <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
       </div>
 
-      {/* Subcategories Filter */}
+      {/* Subcategories Grid */}
       {subcategories.length > 0 && (
-        <div style={{ padding: '12px 0', backgroundColor: 'var(--bg-secondary)' }}>
-          <CategoryScroll
-            categories={subcategories}
-            selectedSlug={selectedSubcategory}
-            onCategoryClick={handleSubcategoryClick}
-          />
+        <div style={{ padding: '16px', backgroundColor: 'var(--bg-secondary)' }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+            Категории
+          </h3>
+          <CategoryGrid categories={subcategories} />
         </div>
       )}
 
       {/* Ads List */}
-      <div style={{ padding: '16px' }}>
+      <div style={{ padding: '16px', backgroundColor: 'var(--bg-primary)' }}>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-primary)' }}>
-            {selectedSubcategory 
-              ? `${subcategories.find(s => s.slug === selectedSubcategory)?.name || 'Фильтр'}`
-              : 'Все объявления'}
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+            Все объявления
           </h3>
           <span style={{ fontSize: '0.875rem', color: 'var(--color-secondary)' }}>
             {ads.length} {ads.length === 1 ? 'объявление' : ads.length < 5 ? 'объявления' : 'объявлений'}
@@ -186,7 +156,7 @@ export default function SubcategoryPage() {
         ) : (
           <EmptyState 
             title="Объявлений не найдено" 
-            description="Попробуйте изменить фильтры или выбрать другую категорию" 
+            description="В этой категории пока нет объявлений" 
           />
         )}
       </div>
