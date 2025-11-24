@@ -17,16 +17,22 @@ function buildSessionToken(telegramId) {
 
 router.post('/telegram', async (req, res) => {
   try {
+    console.log('📱 POST /auth/telegram called');
     const initData = extractInitDataFromRequest(req);
+    console.log('🔍 InitData extracted:', !!initData);
     const validation = validateTelegramInitData(initData);
+    console.log('✅ Validation result:', validation.ok, validation.error);
 
     if (!validation.ok) {
+      console.log('❌ Validation failed:', validation.error);
       return res.status(400).json({ ok: false, error: validation.error || 'Invalid initData' });
     }
 
     const telegramUser = validation.data.user;
+    console.log('👤 Telegram user:', telegramUser);
 
     if (!telegramUser?.id) {
+      console.log('❌ No telegram user ID');
       return res.status(400).json({ ok: false, error: 'Telegram user payload is missing' });
     }
 
@@ -66,7 +72,7 @@ router.post('/telegram', async (req, res) => {
 
     const sessionToken = buildSessionToken(telegramUser.id);
 
-    return res.json({
+    const responseData = {
       ok: true,
       token: sessionToken,
       user: {
@@ -91,9 +97,12 @@ router.post('/telegram', async (req, res) => {
         authDate: validation.data.authDate,
         hash: validation.data.payload?.hash,
       },
-    });
+    };
+    
+    console.log('✅ Sending response with user:', responseData.user.telegramId, 'phone:', responseData.user.phone);
+    return res.json(responseData);
   } catch (error) {
-    console.error('POST /auth/telegram error:', error);
+    console.error('❌ POST /auth/telegram error:', error);
     return res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
