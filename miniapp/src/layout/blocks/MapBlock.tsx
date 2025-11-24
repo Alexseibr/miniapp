@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 
 interface MapBlockProps {
   title?: string;
@@ -21,7 +21,7 @@ interface MapBlockProps {
 }
 
 export default function MapBlock(props: MapBlockProps) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const title = props.title || props.config?.title;
   const center = props.center || props.config?.center;
   const geoRadius = props.geoRadius || props.config?.geoRadius;
@@ -105,7 +105,7 @@ export default function MapBlock(props: MapBlockProps) {
             {ads.slice(0, 3).map((ad: any) => (
               <div
                 key={ad._id}
-                onClick={() => navigate(`/ads/${ad._id}`)}
+                onClick={() => setLocation(`/ads/${ad._id}`)}
                 className="card"
                 style={{
                   cursor: 'pointer',

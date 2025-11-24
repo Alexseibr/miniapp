@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'wouter';
 import { Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';

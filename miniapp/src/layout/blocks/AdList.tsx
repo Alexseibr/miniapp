@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 
 interface AdListProps {
   title?: string;
@@ -21,7 +21,7 @@ interface AdListProps {
 }
 
 export default function AdList(props: AdListProps) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
 
   const title = props.title || props.config?.title || 'Объявления';
   const dataSource = props.dataSource || props.config?.dataSource || 'search';
@@ -100,7 +100,7 @@ export default function AdList(props: AdListProps) {
         {ads.map((ad: any) => (
           <div
             key={ad._id}
-            onClick={() => navigate(`/ads/${ad._id}`)}
+            onClick={() => setLocation(`/ads/${ad._id}`)}
             className="card"
             style={{
               cursor: 'pointer',

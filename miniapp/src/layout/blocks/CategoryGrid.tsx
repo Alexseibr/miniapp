@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { Package } from 'lucide-react';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
 
@@ -34,7 +34,7 @@ function flattenCategories(tree: any[]): any[] {
 }
 
 export default function CategoryGrid(props: CategoryGridProps) {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   
   const categories = props.categories || props.config?.categories || [];
   const parentSlug = props.parentSlug || props.config?.parentSlug;
@@ -108,7 +108,7 @@ export default function CategoryGrid(props: CategoryGridProps) {
         return (
           <div
             key={category.slug}
-            onClick={() => navigate(getCategoryLink())}
+            onClick={() => setLocation(getCategoryLink())}
             className="card"
             style={{
               cursor: 'pointer',
