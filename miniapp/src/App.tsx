@@ -137,15 +137,17 @@ export default function App() {
         background: 'rgba(0,0,0,0.8)',
         color: 'white',
         padding: '4px 8px',
-        fontSize: '10px',
+        fontSize: '9px',
         zIndex: 9999,
         fontFamily: 'monospace',
-        maxWidth: '300px',
-        lineHeight: '1.3'
+        maxWidth: '350px',
+        lineHeight: '1.4'
       }}>
         Status: {userStatus} | Init: {isInitialized ? 'Y' : 'N'}<br/>
         User: {user ? `ID:${user.telegramId}` : 'null'}<br/>
-        Phone: {user?.phone || 'NO PHONE'}
+        Phone: {user?.phone || 'NO PHONE'}<br/>
+        TG: {window.Telegram?.WebApp?.initData ? 'HAS_DATA' : 'NO_DATA'}<br/>
+        TG_ID: {window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 'none'}
       </div>
       <div className="app-shell">
         <main>
