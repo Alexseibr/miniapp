@@ -8,11 +8,11 @@ import { getTelegramWebApp } from '@/utils/telegram';
 import { queryClient } from '@/lib/queryClient';
 import { Loader2 } from 'lucide-react';
 
+import SubcategoryPage from '@/pages/SubcategoryPage';
 const FeedPage = lazy(() => import('@/pages/FeedPage'));
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const CategoryPage = lazy(() => import('@/pages/CategoryPage'));
-const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
 const AdPage = lazy(() => import('@/pages/AdPage'));
 const OrdersPage = lazy(() => import('@/pages/OrdersPage'));
 const SeasonsPage = lazy(() => import('@/pages/SeasonsPage'));
