@@ -157,6 +157,8 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 8px;
+  width: 100%;
+  margin: 0 auto;
 }
 
 @media (min-width: 640px) {
@@ -223,7 +225,7 @@ main {
 .container {
   width: 100%;
   margin: 0 auto;
-  padding: 16px clamp(16px, 3vw, 28px) 120px;
+  padding: 16px;
   max-width: 1200px;
 }
 
