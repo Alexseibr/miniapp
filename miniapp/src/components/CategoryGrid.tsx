@@ -34,9 +34,9 @@ export default function CategoryGrid({ categories }: Props) {
 
   return (
     <section
+      className="category-grid"
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
         gap: '16px',
       }}
     >
@@ -96,12 +96,24 @@ export default function CategoryGrid({ categories }: Props) {
                 alt={category.name}
                 loading="lazy"
                 decoding="async"
+                fetchPriority="low"
                 style={{
                   width: '100%',
                   height: '100%',
                   objectFit: 'cover',
+                  imageRendering: 'crisp-edges',
                 }}
                 data-testid={`category-icon-${category.slug}`}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none';
+                  const parent = e.currentTarget.parentElement;
+                  if (parent) {
+                    const fallback = document.createElement('div');
+                    fallback.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;';
+                    fallback.innerHTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>';
+                    parent.appendChild(fallback);
+                  }
+                }}
               />
             ) : (
               <Package size={36} strokeWidth={1.5} color="#9ca3af" data-testid={`category-icon-fallback-${category.slug}`} />
