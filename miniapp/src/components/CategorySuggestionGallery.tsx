@@ -42,16 +42,16 @@ export default function CategorySuggestionGallery({
       </div>
 
       <div className="grid grid-cols-3 gap-2">
-        {suggestions.map((suggestion) => (
+        {suggestions.map((suggestion, index) => (
           <button
-            key={suggestion.slug}
+            key={`${suggestion.slug}-${index}`}
             onClick={() => onSelectCategory(suggestion)}
             className="group relative rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden"
-            style={{ aspectRatio: '1', minHeight: 0, maxHeight: '100px' }}
+            style={{ height: '80px', width: '100%' }}
             data-testid={`suggestion-card-${suggestion.slug}`}
           >
             {suggestion.icon3d && (
-              <div className="absolute inset-0 flex items-center justify-center p-2">
+              <div className="absolute inset-0 flex items-center justify-center p-1.5">
                 <img
                   src={suggestion.icon3d}
                   alt={suggestion.name}
@@ -63,16 +63,16 @@ export default function CategorySuggestionGallery({
               </div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1.5">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1">
               <p
-                className="text-[10px] font-medium text-white truncate leading-tight"
+                className="text-[9px] font-medium text-white truncate leading-tight"
                 data-testid={`suggestion-name-${suggestion.slug}`}
               >
                 {suggestion.name}
               </p>
             </div>
 
-            <div className="absolute top-1 right-1 px-1 py-0.5 rounded bg-primary/90 text-[9px] text-white font-medium">
+            <div className="absolute top-0.5 right-0.5 px-1 py-0.5 rounded bg-primary/90 text-[8px] text-white font-medium">
               {suggestion.score}%
             </div>
           </button>
