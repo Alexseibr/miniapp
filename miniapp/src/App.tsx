@@ -126,6 +126,8 @@ export default function App() {
     );
   }
 
+  const user = useUserStore((state) => state.user);
+  
   return (
     <QueryClientProvider client={queryClient}>
       {/* DEBUG INFO */}
@@ -138,9 +140,13 @@ export default function App() {
         padding: '4px 8px',
         fontSize: '10px',
         zIndex: 9999,
-        fontFamily: 'monospace'
+        fontFamily: 'monospace',
+        maxWidth: '300px',
+        lineHeight: '1.3'
       }}>
-        Status: {userStatus} | Init: {isInitialized ? 'Y' : 'N'}
+        Status: {userStatus} | Init: {isInitialized ? 'Y' : 'N'}<br/>
+        User: {user ? `ID:${user.telegramId}` : 'null'}<br/>
+        Phone: {user?.phone || 'NO PHONE'}
       </div>
       <div className="app-shell">
         <main>
