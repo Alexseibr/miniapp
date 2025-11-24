@@ -177,190 +177,74 @@ export default function CreateAdPage() {
   }
 
   return (
-    <div className="container">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+    <div style={{ background: '#F9FAFB', minHeight: '100vh', paddingBottom: 80 }}>
+      <div style={{ 
+        background: '#fff', 
+        borderBottom: '1px solid #E5E7EB',
+        padding: '12px 16px',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 12,
+        position: 'sticky',
+        top: 0,
+        zIndex: 10
+      }}>
         <button
           onClick={() => navigate(-1)}
-          className="secondary"
-          style={{ width: 'auto', padding: '12px', borderRadius: 12 }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 8,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center'
+          }}
           data-testid="button-back"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={24} color="#111827" />
         </button>
-        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Создать объявление</h1>
+        <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Подача объявления</h1>
       </div>
 
-      <form onSubmit={handleSubmit} data-testid="form-create-ad">
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16 }}>Основная информация</h3>
-
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="title" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-              Название <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <input
-              id="title"
-              type="text"
-              className="input"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Например: iPhone 13 Pro 128GB"
-              maxLength={120}
-              required
-              data-testid="input-title"
-            />
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-              {title.length}/120
-            </div>
+      <form onSubmit={handleSubmit} data-testid="form-create-ad" style={{ background: '#fff', padding: '16px' }}>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ 
+            fontSize: 16, 
+            fontWeight: 600, 
+            marginBottom: 12,
+            color: '#111827'
+          }}>
+            Фотографии
           </div>
-
-          {title.length >= 3 && (
-            <div style={{ marginBottom: 16 }}>
-              <CategorySuggestionGallery
-                suggestions={suggestions}
-                isLoading={suggestionsLoading}
-                onSelectCategory={handleSelectSuggestedCategory}
-                hasHighConfidence={hasHighConfidence}
-              />
-            </div>
-          )}
-
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="description" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-              Описание
-            </label>
-            <textarea
-              id="description"
-              className="input"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Подробное описание товара..."
-              rows={4}
-              style={{ resize: 'vertical', fontFamily: 'inherit' }}
-              data-testid="input-description"
-            />
-          </div>
-
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="category" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-              Категория <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <select
-              id="category"
-              className="input"
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              required
-              data-testid="select-category"
-            >
-              <option value="">Выберите категорию</option>
-              {categories.map((cat) => (
-                <option key={cat.slug} value={cat.slug}>
-                  {cat.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {subcategories.length > 0 && (
-            <div style={{ marginBottom: 16 }}>
-              <label htmlFor="subcategory" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-                Подкатегория <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <select
-                id="subcategory"
-                className="input"
-                value={subcategoryId}
-                onChange={(e) => setSubcategoryId(e.target.value)}
-                required
-                data-testid="select-subcategory"
-              >
-                <option value="">Выберите подкатегорию</option>
-                {subcategories.map((sub) => (
-                  <option key={sub.slug} value={sub.slug}>
-                    {sub.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="city" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-              Город
-            </label>
-            <input
-              id="city"
-              type="text"
-              className="input"
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              placeholder="Например: Минск"
-              data-testid="input-city"
-            />
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-              Будет отображаться в карточке объявления
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 0 }}>
-            <label htmlFor="price" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-              Цена <span style={{ color: '#ef4444' }}>*</span>
-            </label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-              <input
-                id="price"
-                type="number"
-                className="input"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                placeholder="0"
-                min="0"
-                step="0.01"
-                required
-                style={{ flex: 1 }}
-                data-testid="input-price"
-              />
-              <span style={{ fontWeight: 600, color: '#6b7280' }}>BYN</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16 }}>Фотографии</h3>
-
-          <div style={{ marginBottom: 12 }}>
-            <ImageUploader onUpload={handlePhotoUpload} maxSizeMB={10} />
+          <div style={{ 
+            fontSize: 13, 
+            color: '#6B7280', 
+            marginBottom: 12 
+          }}>
+            Загружено {photos.length} из 9
           </div>
 
           <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#6b7280' }}>
-              Или добавьте по ссылке
-            </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <input
-                type="url"
-                className="input"
-                value={photoInput}
-                onChange={(e) => setPhotoInput(e.target.value)}
-                placeholder="URL фотографии"
-                style={{ flex: 1 }}
-                data-testid="input-photo"
-              />
-              <button
-                type="button"
-                className="secondary"
-                onClick={addPhoto}
-                style={{ width: 'auto', padding: '12px 20px' }}
-                data-testid="button-add-photo"
-              >
-                Добавить
-              </button>
-            </div>
+            <ImageUploader onUpload={handlePhotoUpload} maxSizeMB={20} />
+          </div>
+
+          <div style={{ 
+            background: '#ECFDF5', 
+            border: '1px solid #A7F3D0',
+            borderRadius: 8,
+            padding: 12,
+            display: 'flex',
+            gap: 8,
+            marginBottom: 12
+          }}>
+            <span style={{ fontSize: 20 }}>⚡</span>
+            <span style={{ fontSize: 13, color: '#065F46', lineHeight: 1.5 }}>
+              Качественные фотографии привлекают покупателей, а их количество увеличивает шансы на продажу
+            </span>
           </div>
 
           {photos.length > 0 && (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(80px, 1fr))', gap: 8 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
               {photos.map((photo, index) => (
                 <div key={index} style={{ position: 'relative', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', background: '#f3f4f6' }}>
                   <img
@@ -398,128 +282,317 @@ export default function CreateAdPage() {
           )}
         </div>
 
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16 }}>Доставка</h3>
-
-          <div style={{ marginBottom: 16 }}>
-            <label style={{ display: 'block', marginBottom: 8, fontWeight: 600 }}>Тип доставки</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="deliveryType"
-                  value="pickup_only"
-                  checked={deliveryType === 'pickup_only'}
-                  onChange={(e) => setDeliveryType(e.target.value as any)}
-                  data-testid="radio-pickup-only"
-                />
-                <span>Только самовывоз</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="deliveryType"
-                  value="delivery_and_pickup"
-                  checked={deliveryType === 'delivery_and_pickup'}
-                  onChange={(e) => setDeliveryType(e.target.value as any)}
-                  data-testid="radio-delivery-and-pickup"
-                />
-                <span>Доставка и самовывоз</span>
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="deliveryType"
-                  value="delivery_only"
-                  checked={deliveryType === 'delivery_only'}
-                  onChange={(e) => setDeliveryType(e.target.value as any)}
-                  data-testid="radio-delivery-only"
-                />
-                <span>Только доставка</span>
-              </label>
-            </div>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 13, color: '#6B7280', marginBottom: 4 }}>
+            Название товара/услуги<span style={{ color: '#EF4444' }}>*</span>
           </div>
+          <input
+            id="title"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Например, телевизор Horizont"
+            maxLength={50}
+            required
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: 'none',
+              borderBottom: '1px solid #E5E7EB',
+              fontSize: 16,
+              outline: 'none',
+              fontFamily: 'inherit'
+            }}
+            data-testid="input-title"
+          />
+          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+            {title.length}/50
+          </div>
+          <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>
+            Обязательное поле
+          </div>
+        </div>
 
-          {deliveryType !== 'pickup_only' && (
-            <div>
-              <label htmlFor="deliveryRadius" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>
-                Радиус доставки (км)
-              </label>
+        {title.length >= 3 && (
+          <CategorySuggestionGallery
+            suggestions={suggestions}
+            isLoading={suggestionsLoading}
+            onSelectCategory={handleSelectSuggestedCategory}
+            hasHighConfidence={hasHighConfidence}
+          />
+        )}
+
+        <div style={{ marginBottom: 24 }}>
+          <button
+            type="button"
+            onClick={() => {}}
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
+            data-testid="button-select-category"
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+              <line x1="7" y1="7" x2="7.01" y2="7" />
+            </svg>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 16, fontWeight: 400, color: '#111827' }}>
+                Категории
+              </div>
+            </div>
+            <div style={{ fontSize: 14, color: categoryId ? '#3B73FC' : '#9CA3AF' }}>
+              {categoryId 
+                ? categories.find(c => c.slug === categoryId)?.name || 'Выберите категорию'
+                : 'Выберите категорию'}
+            </div>
+          </button>
+          <select
+            id="category"
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            required
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: 'none',
+              fontSize: 16,
+              outline: 'none',
+              fontFamily: 'inherit',
+              background: '#F9FAFB',
+              borderRadius: 8,
+              marginTop: 8
+            }}
+            data-testid="select-category"
+          >
+            <option value="">Выберите категорию</option>
+            {categories.map((cat) => (
+              <option key={cat.slug} value={cat.slug}>
+                {cat.name}
+              </option>
+            ))}
+          </select>
+
+          {subcategories.length > 0 && (
+            <select
+              id="subcategory"
+              value={subcategoryId}
+              onChange={(e) => setSubcategoryId(e.target.value)}
+              required
+              style={{
+                width: '100%',
+                padding: '12px 16px',
+                border: 'none',
+                fontSize: 16,
+                outline: 'none',
+                fontFamily: 'inherit',
+                background: '#F9FAFB',
+                borderRadius: 8,
+                marginTop: 8
+              }}
+              data-testid="select-subcategory"
+            >
+              <option value="">Выберите подкатегорию</option>
+              {subcategories.map((sub) => (
+                <option key={sub.slug} value={sub.slug}>
+                  {sub.name}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 16, fontWeight: 400, color: '#111827', marginBottom: 8 }}>
+            Описание
+          </div>
+          <div style={{ fontSize: 13, color: '#9CA3AF', marginBottom: 8 }}>
+            Обязательное поле
+          </div>
+          <textarea
+            id="description"
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            placeholder="Подробное описание товара..."
+            rows={4}
+            style={{
+              width: '100%',
+              padding: '12px',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              fontSize: 14,
+              outline: 'none',
+              fontFamily: 'inherit',
+              resize: 'vertical'
+            }}
+            data-testid="input-description"
+          />
+          <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+            {description.length}/4000
+          </div>
+        </div>
+
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+            <button
+              type="button"
+              onClick={() => setPrice('')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: price === '' ? '#3B73FC' : '#F3F4F6',
+                color: price === '' ? '#fff' : '#6B7280',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 15,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+              data-testid="button-price-type-paid"
+            >
+              Цена
+            </button>
+            <button
+              type="button"
+              onClick={() => setPrice('0')}
+              style={{
+                flex: 1,
+                padding: '12px',
+                background: price === '0' ? '#3B73FC' : '#F3F4F6',
+                color: price === '0' ? '#fff' : '#6B7280',
+                border: 'none',
+                borderRadius: 8,
+                fontSize: 15,
+                fontWeight: 500,
+                cursor: 'pointer'
+              }}
+              data-testid="button-price-type-free"
+            >
+              Бесплатно
+            </button>
+          </div>
+          {price !== '0' && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <input
-                id="deliveryRadius"
+                id="price"
                 type="number"
-                className="input"
-                value={deliveryRadiusKm}
-                onChange={(e) => setDeliveryRadiusKm(e.target.value)}
-                placeholder="Например: 10"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Например: 0,99"
                 min="0"
-                step="1"
-                data-testid="input-delivery-radius"
+                step="0.01"
+                required
+                style={{
+                  flex: 1,
+                  padding: '12px',
+                  border: '1px solid #E5E7EB',
+                  borderRadius: 8,
+                  fontSize: 16,
+                  outline: 'none',
+                  fontFamily: 'inherit'
+                }}
+                data-testid="input-price"
               />
+              <span style={{ fontSize: 14, color: '#6B7280', minWidth: 40 }}>р.</span>
             </div>
           )}
         </div>
 
-        <div className="card" style={{ marginBottom: 16 }}>
-          <h3 style={{ marginTop: 0, marginBottom: 16 }}>Местоположение</h3>
-
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, cursor: 'pointer' }}>
-            <input
-              type="checkbox"
-              checked={useLocation}
-              onChange={(e) => setUseLocation(e.target.checked)}
-              data-testid="checkbox-use-location"
-            />
-            <span>Использовать мою геопозицию</span>
-          </label>
-
-          {useLocation && (
-            <div>
-              {!coords ? (
-                <button
-                  type="button"
-                  className="secondary"
-                  onClick={requestLocation}
-                  disabled={geoStatus === 'loading'}
-                  data-testid="button-request-location"
-                >
-                  {geoStatus === 'loading' ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin inline mr-2" />
-                      Получаем координаты...
-                    </>
-                  ) : (
-                    <>
-                      <MapPin size={16} className="inline mr-2" />
-                      Разрешить доступ к геопозиции
-                    </>
-                  )}
-                </button>
-              ) : (
-                <div style={{ padding: '12px', background: '#f0fdf4', borderRadius: 8, fontSize: 14 }}>
-                  ✅ Геопозиция добавлена: {coords.lat.toFixed(4)}, {coords.lng.toFixed(4)}
-                </div>
-              )}
+        <div style={{ marginBottom: 24 }}>
+          <button
+            type="button"
+            onClick={() => {}}
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: '1px solid #E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              cursor: 'pointer',
+              textAlign: 'left'
+            }}
+            data-testid="button-select-city"
+          >
+            <MapPin size={20} color="#3B73FC" />
+            <div style={{ flex: 1 }}>
+              <div style={{ fontSize: 16, fontWeight: 400, color: '#111827' }}>
+                Город / Район
+              </div>
             </div>
-          )}
+            <div style={{ fontSize: 14, color: city ? '#111827' : '#3B73FC' }}>
+              {city || 'Брест'}
+            </div>
+          </button>
+          <input
+            id="city"
+            type="text"
+            value={city}
+            onChange={(e) => setCity(e.target.value)}
+            placeholder="Город"
+            style={{
+              width: '100%',
+              padding: '12px 16px',
+              border: 'none',
+              fontSize: 16,
+              outline: 'none',
+              fontFamily: 'inherit',
+              background: '#F9FAFB',
+              borderRadius: 8,
+              marginTop: 8
+            }}
+            data-testid="input-city"
+          />
+          <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>
+            Обязательное поле
+          </div>
         </div>
 
         {error && (
-          <div className="card" style={{ marginBottom: 16, background: '#fee2e2', border: '1px solid #fca5a5' }}>
-            <p style={{ color: '#991b1b', margin: 0 }}>{error}</p>
+          <div style={{ 
+            marginBottom: 16, 
+            background: '#FEE2E2', 
+            border: '1px solid #FCA5A5',
+            padding: 12,
+            borderRadius: 8
+          }}>
+            <p style={{ color: '#991B1B', margin: 0, fontSize: 14 }}>{error}</p>
           </div>
         )}
 
         <button
           type="submit"
-          className="primary"
           disabled={submitting}
+          style={{
+            width: '100%',
+            padding: '14px',
+            background: submitting ? '#9CA3AF' : '#3B73FC',
+            color: '#fff',
+            border: 'none',
+            borderRadius: 8,
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: submitting ? 'not-allowed' : 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 8
+          }}
           data-testid="button-submit"
-          style={{ marginBottom: 80 }}
         >
           {submitting ? (
             <>
-              <Loader2 className="w-5 h-5 animate-spin inline mr-2" />
+              <Loader2 className="w-5 h-5 animate-spin" />
               Создаём объявление...
             </>
           ) : (

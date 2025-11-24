@@ -1,5 +1,4 @@
 import { CategorySuggestion } from '@/hooks/useCategorySuggestions';
-import { Sparkles, ChevronRight } from 'lucide-react';
 
 interface CategorySuggestionGalleryProps {
   suggestions: CategorySuggestion[];
@@ -12,18 +11,9 @@ export default function CategorySuggestionGallery({
   suggestions,
   isLoading,
   onSelectCategory,
-  hasHighConfidence,
 }: CategorySuggestionGalleryProps) {
   if (isLoading) {
-    return (
-      <div
-        className="flex items-center justify-center gap-2 py-8 text-muted-foreground"
-        data-testid="suggestion-loading"
-      >
-        <div className="animate-spin rounded-full h-4 w-4 border-2 border-current border-t-transparent" />
-        <span className="text-sm">Подбираем категорию...</span>
-      </div>
-    );
+    return null;
   }
 
   if (suggestions.length === 0) {
@@ -31,59 +21,45 @@ export default function CategorySuggestionGallery({
   }
 
   return (
-    <div className="space-y-3" data-testid="suggestion-gallery">
-      <div className="flex items-center gap-2">
-        <Sparkles className="w-4 h-4 text-primary" />
-        <span className="text-sm font-medium text-foreground">
-          {hasHighConfidence
-            ? 'Рекомендуемая категория:'
-            : `Подходящие категории (${suggestions.length}):`}
-        </span>
+    <div style={{ marginBottom: 16 }} data-testid="suggestion-gallery">
+      <div style={{ 
+        fontSize: 13, 
+        color: '#9CA3AF', 
+        marginBottom: 8,
+        fontWeight: 400
+      }}>
+        Возможные категории
       </div>
-
-      <div className="grid grid-cols-3 gap-1.5" style={{ maxWidth: '100%' }}>
+      <div style={{ 
+        display: 'flex', 
+        flexWrap: 'wrap', 
+        gap: '4px',
+        alignItems: 'center'
+      }}>
         {suggestions.map((suggestion, index) => (
-          <button
-            key={`${suggestion.slug}-${index}`}
-            onClick={() => onSelectCategory(suggestion)}
-            className="group relative rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden flex-shrink-0"
-            style={{ height: '75px', width: '100%', maxWidth: '100%' }}
-            data-testid={`suggestion-card-${suggestion.slug}`}
-          >
-            {suggestion.icon3d && (
-              <div className="absolute inset-0 flex items-center justify-center p-1.5">
-                <img
-                  src={suggestion.icon3d}
-                  alt={suggestion.name}
-                  className="w-full h-full object-contain"
-                  loading="lazy"
-                  decoding="async"
-                  data-testid={`suggestion-icon-${suggestion.slug}`}
-                />
-              </div>
+          <span key={`${suggestion.slug}-${index}`} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+            <button
+              onClick={() => onSelectCategory(suggestion)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: '#3B73FC',
+                fontSize: 14,
+                fontWeight: 400,
+                cursor: 'pointer',
+                padding: 0,
+                textDecoration: 'none'
+              }}
+              data-testid={`suggestion-link-${suggestion.slug}`}
+            >
+              {suggestion.name}
+            </button>
+            {index < suggestions.length - 1 && (
+              <span style={{ color: '#D1D5DB', fontSize: 14 }}>·</span>
             )}
-
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1">
-              <p
-                className="text-[9px] font-medium text-white truncate leading-tight"
-                data-testid={`suggestion-name-${suggestion.slug}`}
-              >
-                {suggestion.name}
-              </p>
-            </div>
-
-            <div className="absolute top-0.5 right-0.5 px-1 py-0.5 rounded bg-primary/90 text-[8px] text-white font-medium">
-              {suggestion.score}%
-            </div>
-          </button>
+          </span>
         ))}
       </div>
-
-      {!hasHighConfidence && suggestions.length > 1 && (
-        <p className="text-xs text-muted-foreground">
-          Выберите наиболее подходящую категорию из предложенных вариантов
-        </p>
-      )}
     </div>
   );
 }
