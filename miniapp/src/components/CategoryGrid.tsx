@@ -36,9 +36,8 @@ export default function CategoryGrid({ categories }: Props) {
     <section
       style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(2, 1fr)',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(min(140px, 100%), 1fr))',
         gap: '12px',
-        padding: '0 16px',
       }}
     >
       {categories.map((category) => (
@@ -50,14 +49,15 @@ export default function CategoryGrid({ categories }: Props) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px 12px',
+            justifyContent: 'flex-start',
+            padding: '16px 12px',
             borderRadius: '16px',
             backgroundColor: '#FFFFFF',
             border: '1px solid #E5E7EB',
             textDecoration: 'none',
             transition: 'all 0.2s ease',
             minHeight: '140px',
+            height: '100%',
           }}
           onMouseDown={(e) => {
             e.currentTarget.style.transform = 'scale(0.97)';
@@ -114,6 +114,12 @@ export default function CategoryGrid({ categories }: Props) {
               color: '#111827',
               fontWeight: 500,
               lineHeight: 1.3,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+              wordBreak: 'break-word',
+              hyphens: 'auto',
             }}
           >
             {category.name}
