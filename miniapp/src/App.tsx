@@ -29,6 +29,7 @@ export default function App() {
   const submitPhone = useUserStore((state) => state.submitPhone);
   const skipPhoneRequest = useUserStore((state) => state.skipPhoneRequest);
   const userStatus = useUserStore((state) => state.status);
+  const user = useUserStore((state) => state.user);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -126,8 +127,6 @@ export default function App() {
     );
   }
 
-  const user = useUserStore((state) => state.user);
-  
   return (
     <QueryClientProvider client={queryClient}>
       {/* DEBUG INFO */}
