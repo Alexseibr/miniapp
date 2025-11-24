@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { logErrors, notFoundHandler, errorHandler } from './middleware/errorHandlers.js';
 import adsSearchRoutes from './routes/search.js';
 import adsRoutes from './routes/ads.js';
@@ -19,12 +20,20 @@ import layoutRoutes from './routes/layout.js';
 import contentRoutes from './routes/content.js';
 import phoneAuthRoutes from './routes/phoneAuth.js';
 import chatRoutes from './routes/chat.js';
+import { registerMobileApi } from './mobile/index.js';
 
 const app = express();
 
 // Middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(
+  cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-telegram-init-data'],
+  })
+);
 
 // Базовые маршруты
 app.get('/api', (_req, res) => {
@@ -74,5 +83,6 @@ app.use('/api/content', contentRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/auth', phoneAuthRoutes);
 app.use('/api/chat', chatRoutes);
+registerMobileApi(app);
 
 export default app;
