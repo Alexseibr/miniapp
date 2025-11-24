@@ -87,65 +87,49 @@ export default function SubcategoryPage() {
           borderBottom: '1px solid #cbd5e1',
           zIndex: 10,
           padding: '12px 16px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
         }}
       >
         <button
           onClick={() => navigate('/')}
           style={{
-            display: 'flex',
+            display: 'inline-flex',
             alignItems: 'center',
             gap: '8px',
+            padding: '8px 16px',
+            backgroundColor: '#3B73FC',
+            color: '#ffffff',
             border: 'none',
-            background: 'none',
-            cursor: 'pointer',
-            padding: 0,
+            borderRadius: '12px',
             fontSize: '0.875rem',
-            color: '#0f172a',
-            fontWeight: 500,
-            marginBottom: '12px',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(59, 115, 252, 0.25)',
+            transition: 'all 0.2s',
+            flexShrink: 0,
           }}
-          data-testid="button-back"
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 115, 252, 0.35)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 115, 252, 0.25)';
+          }}
+          data-testid="button-home"
         >
-          <ArrowLeft size={18} />
-          Назад
+          <Home size={18} />
+          <span>Главная</span>
         </button>
-        <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
+        <div style={{ flex: 1, overflow: 'hidden' }}>
+          <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
+        </div>
       </div>
 
       {subcategories.length > 0 && (
         <div style={{ padding: '16px', backgroundColor: '#f8fafc' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <button
-              onClick={() => navigate('/')}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '8px',
-                padding: '10px 20px',
-                backgroundColor: '#3B73FC',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: '12px',
-                fontSize: '0.9375rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                boxShadow: '0 4px 12px rgba(59, 115, 252, 0.3)',
-                transition: 'all 0.2s',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow = '0 6px 16px rgba(59, 115, 252, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 115, 252, 0.3)';
-              }}
-              data-testid="button-home"
-            >
-              <Home size={20} />
-              <span>Главная</span>
-            </button>
-          </div>
           <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
             Категории
           </h3>
