@@ -24,9 +24,14 @@ export const useUserStore = create<UserState>((set, get) => ({
   error: undefined,
   favorites: [],
   async initialize() {
-    if (get().status === 'loading') return;
+    console.log('🔄 UserStore.initialize() started');
+    if (get().status === 'loading') {
+      console.log('⚠️ Already loading, skipping');
+      return;
+    }
     const initData = window.Telegram?.WebApp?.initData;
     if (!initData) {
+      console.log('⚠️ No Telegram initData, setting ready');
       set({ status: 'ready', cityCode: 'brest' });
       return;
     }
@@ -34,19 +39,29 @@ export const useUserStore = create<UserState>((set, get) => ({
     // Проверяем localStorage - отказался ли пользователь от номера
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const phoneSkipped = localStorage.getItem(`phone_skipped_${telegramId}`);
+    console.log('📱 Telegram ID:', telegramId);
+    console.log('🔍 Phone skipped:', phoneSkipped);
     
     try {
       set({ status: 'loading', error: undefined });
+      console.log('📡 Calling validateSession...');
       const response = await validateSession(initData);
+      console.log('✅ ValidateSession response:', response);
+      
       if (response.user) {
+        console.log('👤 User data:', response.user);
+        console.log('📞 User phone:', response.user.phone);
+        
         // Проверяем есть ли номер телефона
         if (!response.user.phone && !phoneSkipped) {
+          console.log('🚨 NO PHONE & NOT SKIPPED → setting need_phone');
           set({ status: 'need_phone', cityCode: 'brest' });
           return;
         }
         
         // Если номер пропущен - режим гостя
         if (!response.user.phone && phoneSkipped) {
+          console.log('👁️ NO PHONE & SKIPPED → setting guest mode');
           set({ 
             status: 'guest',
             cityCode: 'brest'
@@ -54,6 +69,7 @@ export const useUserStore = create<UserState>((set, get) => ({
           return;
         }
         
+        console.log('✅ User has phone → setting ready');
         set({ 
           user: response.user as UserProfile,
           cityCode: (response as any).cityCode || 'brest'
@@ -61,10 +77,11 @@ export const useUserStore = create<UserState>((set, get) => ({
         await get().refreshFavorites();
         set({ status: 'ready' });
       } else {
+        console.log('⚠️ No user in response → setting ready');
         set({ status: 'ready' });
       }
     } catch (error) {
-      console.error('MiniApp auth error', error);
+      console.error('❌ MiniApp auth error', error);
       set({ status: 'error', error: 'Не удалось пройти авторизацию', cityCode: 'brest' });
     }
   },

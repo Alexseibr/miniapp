@@ -112,7 +112,9 @@ export default function App() {
   }
 
   // Показываем запрос номера телефона если нужен
+  console.log('🎯 App.tsx current userStatus:', userStatus);
   if (userStatus === 'need_phone') {
+    console.log('📱 Rendering PhoneAuthRequest screen');
     return (
       <QueryClientProvider client={queryClient}>
         <PhoneAuthRequest 
