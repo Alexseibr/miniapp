@@ -19,12 +19,36 @@ export default function SubcategoryPage() {
 
   const category = useMemo(() => {
     const cat = getCategoryBySlug(slug || '');
+    console.log('🔍 Category lookup:', { slug, found: !!cat, name: cat?.name });
     return cat;
   }, [slug, categories, getCategoryBySlug]);
   
   const subcategories = useMemo(() => category?.subcategories || [], [category]);
 
+  console.log('📊 SubcategoryPage state:', { 
+    loading, 
+    categoriesCount: categories.length, 
+    slug, 
+    hasCategory: !!category,
+    categoryName: category?.name,
+    subcategoriesCount: subcategories.length
+  });
+
   if (loading) {
+    console.log('⏳ Showing loader...');
+    return (
+      <div style={{ textAlign: 'center', padding: '40px 20px', backgroundColor: '#fff', minHeight: '100vh' }}>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
+          <Loader2 size={48} color="#4F46E5" style={{ animation: 'spin 1s linear infinite' }} data-testid="icon-loading" />
+        </div>
+        <h3 style={{ margin: '0 0 8px' }}>Загружаем категории</h3>
+        <p style={{ color: '#6b7280', margin: 0 }}>Подождите несколько секунд</p>
+      </div>
+    );
+  }
+
+  if (!category) {
+    console.log('❌ Category not found, showing error...');
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px' }}>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
@@ -54,8 +78,9 @@ export default function SubcategoryPage() {
         : [];
 
   if (!category) {
+    console.log('❌ Category not found, showing error...');
     return (
-      <div style={{ paddingBottom: '80px' }}>
+      <div style={{ paddingBottom: '80px', backgroundColor: '#fff', minHeight: '100vh' }}>
         <div
           style={{
             padding: '16px',
@@ -83,13 +108,20 @@ export default function SubcategoryPage() {
             Назад
           </button>
         </div>
-        <EmptyState title="Категория не найдена" description="Вернитесь на главную страницу" />
+        <div style={{ padding: '40px 20px', textAlign: 'center' }}>
+          <h3>Категория не найдена</h3>
+          <p>Slug: {slug}</p>
+          <p>Всего категорий: {categories.length}</p>
+          <button onClick={() => navigate('/')}>Вернуться на главную</button>
+        </div>
       </div>
     );
   }
 
+  console.log('✅ Rendering category page:', category.name);
+
   return (
-    <div style={{ paddingBottom: '80px' }}>
+    <div style={{ paddingBottom: '80px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       {/* Header with Breadcrumb */}
       <div
         style={{
