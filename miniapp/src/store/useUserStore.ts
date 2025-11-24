@@ -63,6 +63,7 @@ export const useUserStore = create<UserState>((set, get) => ({
         if (!response.user.phone && phoneSkipped) {
           console.log('👁️ NO PHONE & SKIPPED → setting guest mode');
           set({ 
+            user: response.user as UserProfile,
             status: 'guest',
             cityCode: 'brest'
           });
@@ -110,11 +111,30 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
   skipPhoneRequest() {
-    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    if (telegramId) {
-      localStorage.setItem(`phone_skipped_${telegramId}`, 'true');
+    const telegramData = window.Telegram?.WebApp?.initDataUnsafe?.user;
+    if (telegramData?.id) {
+      localStorage.setItem(`phone_skipped_${telegramData.id}`, 'true');
+      
+      // Создаем минимальный объект пользователя из Telegram данных
+      const guestUser: UserProfile = {
+        id: '', // Будет установлен после первого API вызова
+        telegramId: telegramData.id,
+        username: telegramData.username || '',
+        firstName: telegramData.first_name || '',
+        lastName: telegramData.last_name || '',
+        phone: undefined,
+        phoneVerified: false,
+        role: 'buyer'
+      };
+      
+      set({ 
+        user: guestUser,
+        status: 'guest', 
+        cityCode: 'brest' 
+      });
+    } else {
+      set({ status: 'guest', cityCode: 'brest' });
     }
-    set({ status: 'guest', cityCode: 'brest' });
   },
   setCityCode(cityCode: string) {
     set({ cityCode });
