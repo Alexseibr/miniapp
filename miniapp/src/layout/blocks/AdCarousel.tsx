@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
-import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useState, useRef} from 'react';
 
 interface AdCarouselProps {
   title?: string;
@@ -22,7 +22,7 @@ interface AdCarouselProps {
 }
 
 export default function AdCarousel(props: AdCarouselProps) {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -151,7 +151,7 @@ export default function AdCarousel(props: AdCarouselProps) {
         {ads.map((ad: any) => (
           <div
             key={ad._id}
-            onClick={() => setLocation(`/ads/${ad._id}`)}
+            onClick={() => navigate(`/ads/${ad._id}`)}
             className="card"
             style={{
               minWidth: '200px',

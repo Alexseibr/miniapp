@@ -1,13 +1,13 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-import { Router } from 'wouter';
+import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles/global.css';
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <React.StrictMode>
-    <Router base="/miniapp">
+    <BrowserRouter basename="/miniapp">
       <App />
-    </Router>
+    </BrowserRouter>
   </React.StrictMode>
 );
