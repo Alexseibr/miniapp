@@ -89,6 +89,14 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    blockReason: {
+      type: String,
+      trim: true,
+    },
     favorites: {
       type: [FavoriteSchema],
       default: [],

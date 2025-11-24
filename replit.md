@@ -69,6 +69,23 @@ Environment variables are used for configuration, supporting dual naming convent
 
 ## Recent Changes (November 24, 2025)
 
+### Admin Panel (Web Client)
+- **Frontend**: Complete admin interface with tabbed design
+  - Components: `AdminAdsTab.tsx`, `AdminUsersTab.tsx`
+  - Pages: `admin.tsx` with shadcn/ui Tabs
+  - HTTP Client: `client/src/lib/http.ts` with JWT Bearer authentication
+  - Features: Ads moderation (approve/reject/block), user management (roles, blocking)
+  - Filters: Status, role, phone/username search
+  - TanStack Query integration with proper pagination handling
+
+- **Backend**: Complete admin API with authentication
+  - Routes: `/api/admin/*` (all protected by adminAuth middleware)
+  - Middleware: `adminAuth.js` validates JWT + admin role
+  - Endpoints: GET /ads, PUT /ads/:id/status, GET /users, PUT /users/:id/role, PUT /users/:id/block
+  - Model Updates: User.isBlocked, User.blockReason fields
+  - Security: JWT required, admin role verified, blocked users rejected in auth flow
+  - TODO: Implement admin login page for web client
+
 ### Phone Authentication System
 - **Backend**: Implemented SMS-based phone auth with 4-digit codes (5-minute TTL)
   - API Routes: `/api/auth/sms/requestCode`, `/api/auth/sms/login`

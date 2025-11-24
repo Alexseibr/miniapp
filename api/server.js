@@ -11,7 +11,9 @@ import notificationsRoutes from './routes/notifications.js';
 import moderationRoutes from './routes/moderation.js';
 import authRoutes from './routes/auth.js';
 import subscriptionsRoutes from './routes/subscriptions.js';
+import adminRoutes from './routes/admin.js';
 import { telegramAuthMiddleware } from '../middleware/telegramAuth.js';
+import { adminAuth } from '../middleware/adminAuth.js';
 import userRoutes from '../routes/userRoutes.js';
 import miniAppFavoriteRoutes from '../routes/favoriteRoutes.js';
 import miniAppOrderRoutes from '../routes/orderRoutes.js';
@@ -40,6 +42,7 @@ app.get('/api', (_req, res) => {
       alerts: '/api/alerts',
       notifications: '/api/notifications',
       moderation: '/api/mod',
+      admin: '/api/admin/*',
       auth: '/auth/telegram',
       phoneAuth: '/api/auth/sms/*',
       chat: '/api/chat/*',
@@ -69,6 +72,7 @@ app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
 app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
+app.use('/api/admin', adminAuth, adminRoutes);
 app.use('/api/layout', layoutRoutes);
 app.use('/api/content', contentRoutes);
 app.use('/auth', authRoutes);
