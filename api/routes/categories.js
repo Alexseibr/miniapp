@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Category from '../../models/Category.js';
 import asyncHandler from '../middleware/asyncHandler.js';
+import categoryMatchingService from '../services/categoryMatching.js';
 
 const router = Router();
 
@@ -72,6 +73,71 @@ router.get(
     res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
     res.set('X-Cache', 'MISS');
     res.json(tree);
+  })
+);
+
+// Новый endpoint для умного подбора категорий
+router.get(
+  '/suggest',
+  asyncHandler(async (req, res) => {
+    const { query } = req.query;
+
+    // Валидация
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.status(422).json({ 
+        ok: false, 
+        error: 'Query parameter is required and must be non-empty string' 
+      });
+    }
+
+    if (query.length > 200) {
+      return res.status(422).json({
+        ok: false,
+        error: 'Query too long (max 200 characters)'
+      });
+    }
+
+    try {
+      const matches = await categoryMatchingService.scoreCandidates(query);
+
+      // Обогащаем результаты полными путями и top-level родителями
+      const enrichedMatches = await Promise.all(
+        matches.map(async (match) => {
+          const displayPath = await categoryMatchingService.buildCategoryPath(match.category.slug);
+          const topLevelParentSlug = await categoryMatchingService.findTopLevelParent(match.category.slug);
+          const directSubcategorySlug = await categoryMatchingService.findDirectSubcategory(match.category.slug);
+          
+          return {
+            slug: match.category.slug,
+            name: match.category.name,
+            icon3d: match.category.icon3d,
+            level: match.category.level,
+            isLeaf: match.category.isLeaf,
+            parentSlug: match.category.parentSlug,
+            topLevelParentSlug,
+            directSubcategorySlug,
+            score: match.score,
+            matchType: match.matchType,
+            disambiguationReason: match.reason,
+            displayPath: displayPath.join(' → ')
+          };
+        })
+      );
+
+      res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
+      res.json({
+        ok: true,
+        query,
+        matches: enrichedMatches,
+        count: enrichedMatches.length
+      });
+    } catch (error) {
+      console.error('Category suggestion error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to suggest categories'
+      });
+    }
   })
 );
 

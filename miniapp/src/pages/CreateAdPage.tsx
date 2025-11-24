@@ -7,6 +7,8 @@ import { CategoryNode } from '@/types';
 import EmptyState from '@/widgets/EmptyState';
 import { ArrowLeft, Camera, MapPin, Loader2 } from 'lucide-react';
 import { useGeo } from '@/utils/geo';
+import { useCategorySuggestions } from '@/hooks/useCategorySuggestions';
+import CategorySuggestionGallery from '@/components/CategorySuggestionGallery';
 
 export default function CreateAdPage() {
   const navigate = useNavigate();
@@ -31,6 +33,9 @@ export default function CreateAdPage() {
   const [useLocation, setUseLocation] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [pendingSubcategoryId, setPendingSubcategoryId] = useState<string | null>(null);
+
+  const { suggestions, isLoading: suggestionsLoading, hasHighConfidence } = useCategorySuggestions(title, 500);
 
   useEffect(() => {
     fetchCategories()
@@ -43,10 +48,22 @@ export default function CreateAdPage() {
     if (categoryId) {
       const category = categories.find((c) => c.slug === categoryId);
       setSelectedCategory(category || null);
-      setSubcategories(category?.subcategories || []);
-      setSubcategoryId('');
+      const loadedSubcategories = category?.subcategories || [];
+      setSubcategories(loadedSubcategories);
+      
+      if (pendingSubcategoryId) {
+        const exists = loadedSubcategories.some(sub => sub.slug === pendingSubcategoryId);
+        if (exists) {
+          setSubcategoryId(pendingSubcategoryId);
+        } else {
+          setSubcategoryId('');
+        }
+        setPendingSubcategoryId(null);
+      } else {
+        setSubcategoryId('');
+      }
     }
-  }, [categoryId, categories]);
+  }, [categoryId, categories, pendingSubcategoryId]);
 
   const addPhoto = () => {
     if (photoInput.trim() && !photos.includes(photoInput.trim())) {
@@ -57,6 +74,20 @@ export default function CreateAdPage() {
 
   const removePhoto = (index: number) => {
     setPhotos(photos.filter((_, i) => i !== index));
+  };
+
+  const handleSelectSuggestedCategory = (suggestion: any) => {
+    const topLevelSlug = suggestion.topLevelParentSlug || suggestion.slug;
+    
+    if (suggestion.level === 1) {
+      setCategoryId(topLevelSlug);
+      setSubcategoryId('');
+      setPendingSubcategoryId(null);
+    } else {
+      const subcatSlug = suggestion.directSubcategorySlug || suggestion.slug;
+      setPendingSubcategoryId(subcatSlug);
+      setCategoryId(topLevelSlug);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -175,6 +206,17 @@ export default function CreateAdPage() {
               {title.length}/120
             </div>
           </div>
+
+          {title.length >= 3 && (
+            <div style={{ marginBottom: 16 }}>
+              <CategorySuggestionGallery
+                suggestions={suggestions}
+                isLoading={suggestionsLoading}
+                onSelectCategory={handleSelectSuggestedCategory}
+                hasHighConfidence={hasHighConfidence}
+              />
+            </div>
+          )}
 
           <div style={{ marginBottom: 16 }}>
             <label htmlFor="description" style={{ display: 'block', marginBottom: 6, fontWeight: 600 }}>

@@ -48,6 +48,15 @@ const categorySchema = new mongoose.Schema(
       type: String,
       default: null,
     },
+    keywordTokens: {
+      type: [String],
+      default: [],
+      index: true,
+    },
+    boostWeight: {
+      type: Number,
+      default: 1.0,
+    },
   },
   {
     timestamps: true,
