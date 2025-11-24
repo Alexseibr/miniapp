@@ -32,6 +32,22 @@ const categorySchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    level: {
+      type: Number,
+      required: true,
+      default: 1,
+      index: true,
+    },
+    isLeaf: {
+      type: Boolean,
+      required: true,
+      default: false,
+      index: true,
+    },
+    icon3d: {
+      type: String,
+      default: null,
+    },
   },
   {
     timestamps: true,
