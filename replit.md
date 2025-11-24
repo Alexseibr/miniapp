@@ -1,245 +1,46 @@
 # KETMAR Market
 
 ## Overview
-
-KETMAR Market is a Telegram-based marketplace application for buying and selling goods, featuring seasonal promotions and hierarchical product categories. It comprises a REST API backend (Express.js, MongoDB), a Telegram bot interface (Telegraf), a React-based admin panel for marketplace management, and a React-based Telegram MiniApp for mobile users.
+KETMAR Market is a Telegram-based marketplace application for buying and selling goods, featuring seasonal promotions and hierarchical product categories. It integrates a REST API backend, a Telegram bot, a React-based admin panel for marketplace management, and a React-based Telegram MiniApp for mobile users. The project aims to provide a comprehensive and user-friendly platform for e-commerce within the Telegram ecosystem, with a focus on intuitive navigation, efficient ad management, and engaging user experiences through features like 3D icons and real-time chat.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Backend Architecture
+### Backend
+The backend uses Node.js with Express.js, supporting an API server and Telegram bot logic. It follows a modular design, separating API routes, bot functions, database interactions, and configuration. The API is RESTful with JSON payloads, serving both the Telegram bot and web frontends, and includes JWT authentication for secured endpoints like moderation.
 
-The backend uses Node.js with Express.js, orchestrating an API server and Telegram bot. It supports a dual Vite server setup for client and MiniApp frontends. The architecture is modular, separating API, bot logic, database services, and configuration. The API follows a route-based modular pattern with centralized error handling.
+### Data Model
+MongoDB Atlas with Mongoose is used for data persistence. Key entities include User, Category (hierarchical with `parentSlug` and support for 3D rendered PNG/WebP icons), Ad (product listings with photo URLs, city, and geolocation), and Order (denormalized for historical data). A permanent `short_term_rental` Season is configured as a promotional block for daily rentals.
 
-### Data Architecture
+### Telegram Bot
+Built with Telegraf, the bot handles user commands for navigation, selling, ad management, and accessing specific categories like short-term rentals. It also features a moderation panel with JWT-authenticated workflows for ad approval/rejection.
 
-MongoDB Atlas is used with Mongoose for data modeling. Key entities include User, Category (hierarchical with `parentSlug`), Season, Ad (product listings), and Order. Categories feature a slug-based parent-child relationship for intuitive URLs and support for 3D rendered PNG icons across multiple hierarchy levels, mirroring Kufar.by's taxonomy. Ad documents store photos as URL arrays, `city` field for seller's city display, geolocation (lat/lng + GeoJSON Point) for distance-based search, and Order items are denormalized to preserve historical data.
+### Frontend
+The project includes two React applications built with TypeScript and Vite:
+- **Web Admin Panel**: Manages products, categories, ads (moderation), and users. It uses shadcn/ui (Radix UI), TanStack Query for state, Wouter for routing, and Tailwind CSS for styling. Admin authentication supports Telegram Login Widget, one-time links via bot commands, and phone-based SMS codes, all secured with JWT.
+- **Telegram MiniApp**: The mobile user interface, featuring lazy-loaded pages, optimized 3D WebP category icons, and a real-time chat system with 3-second polling for seller-buyer communication. Performance is optimized with Vite production builds, code splitting, and HTTP caching strategies for assets and lazy chunks.
 
-**Real Estate (Недвижимость) Category Structure:**
-- `realty` (Недвижимость)
-  - `realty_rent` (Аренда)
-    - `realty_rent_daily` (Посуточно) - Short-term/daily rentals
-    - `realty_rent_long` (Долгосрочная) - Long-term rentals
-  - Legacy categories: `rent_flat`, `rent_house`, `country_base`
-
-**Short-Term Rental Promo Block:**
-A permanent Season (`short_term_rental`) is configured as a promotional "island" for daily rentals (`realty_rent_daily`). This block is featured prominently in both the MiniApp and bot, and can be accessed via deep link for dedicated bot instances.
-
-### Telegram Bot Interface
-
-Built with Telegraf, the bot handles user commands like `/start`, `/categories`, `/sell` (including geolocation), `/my_ads`, `/market`, and `/rental`. The `/rental` command provides quick access to short-term (daily) rental listings with deep links to the MiniApp. The bot also features a moderation panel with JWT-authenticated approval/rejection workflows for ads. The bot is the primary mobile interface, complementing the web admin panel.
-
-### Frontend Architecture (Web Admin)
-
-The admin panel is a React 18 application built with TypeScript and Vite. It leverages shadcn/ui (based on Radix UI) for components, TanStack Query for state management, Wouter for routing, and Tailwind CSS for styling. It provides product, category, and dashboard management tools.
-
-### API Design
-
-A RESTful HTTP API with JSON payloads serves both the Telegram bot and web frontends. Key endpoints manage categories, seasons, ads (with filtering), and orders. Moderation endpoints are secured with JWT authentication.
-
-### Configuration Management
-
-Environment variables are used for configuration, supporting dual naming conventions (e.g., `MONGO_URL` or `MONGODB_URI`) for deployment flexibility. `JWT_SECRET` is crucial for securing moderation tokens.
+### UI/UX Decisions
+- **Category Icons**: Utilizes 3D WebP icons for all categories across hierarchy levels, with lazy loading and async decoding for performance.
+- **Admin Panel**: Tabbed design with robust filtering and management tools.
+- **MiniApp**: Designed for mobile compatibility within Telegram, with features like `Swiper` for image carousels and `Leaflet` for maps.
 
 ## External Dependencies
 
 ### Database Services
-
-- **MongoDB Atlas**: Cloud-hosted NoSQL database, managed via Mongoose.
+- **MongoDB Atlas**: Cloud-hosted NoSQL database.
 
 ### Third-Party APIs
-
-- **Telegram Bot API**: Used for all bot interactions, authenticated with `BOT_TOKEN`.
+- **Telegram Bot API**: Core for all bot interactions.
 
 ### Cloud Services
-
 - **Replit**: Optional deployment platform.
 
-### NPM Packages (Key Dependencies)
+### NPM Packages (Key)
+- **Backend**: `express`, `mongoose`, `telegraf`, `dotenv`.
+- **Frontend**: `react`, `react-dom`, `@tanstack/react-query`, `@radix-ui/*`, `tailwindcss`, `wouter`, `zod`, `react-hook-form`, `vite`, `swiper`, `leaflet`, `react-leaflet`.
 
-**Backend**: `express`, `mongoose`, `telegraf`, `dotenv`.
-**Frontend**: `react`, `react-dom`, `@tanstack/react-query`, `@radix-ui/*`, `tailwindcss`, `wouter`, `zod`, `react-hook-form`, `vite`.
-
-### File Upload
-
-- **@uppy/core** + **@uppy/aws-s3**: Configured for future S3-compatible file storage for product images.
-
-## Recent Changes (November 24, 2025)
-
-### Admin Panel (Web Client)
-- **Frontend**: Complete admin interface with tabbed design
-  - Components: `AdminAdsTab.tsx`, `AdminUsersTab.tsx`
-  - Pages: `admin.tsx` with shadcn/ui Tabs, `admin-login.tsx` with three auth methods
-  - HTTP Client: `client/src/lib/http.ts` with JWT Bearer authentication
-  - Features: Ads moderation (approve/reject/block), user management (roles, blocking)
-  - Filters: Status, role, phone/username search
-  - TanStack Query integration with proper pagination handling
-
-- **Backend**: Complete admin API with authentication
-  - Routes: `/api/admin/*` (all protected by adminAuth middleware)
-  - Middleware: `adminAuth.js` validates JWT + admin role
-  - Endpoints: GET /ads, PUT /ads/:id/status, GET /users, PUT /users/:id/role, PUT /users/:id/block
-  - Model Updates: User.isBlocked, User.blockReason fields
-  - Security: JWT required, admin role verified, blocked users rejected in auth flow
-
-### Admin Authentication System
-Implemented **three parallel authentication methods** for Admin Panel, all with server-side admin role validation and JWT-based sessions (7-day expiration):
-
-**Method #1: Telegram Login Widget** (Official)
-- **Frontend**: `TelegramLoginWidget` component integrated on `/admin/login` page
-- **Backend**: `/api/admin/auth/telegram-login` endpoint
-  - HMAC validation using bot token (verifies Telegram signature)
-  - Timestamp check (auth data < 1 hour old, prevents replay attacks)
-  - Finds user by telegramId, verifies admin role, issues JWT
-  - Fixed critical bug: excludes undefined/null fields from data check string
-- **Security**: Cryptographic signature validation, replay attack prevention
-- **Status**: Production-ready (requires BotFather `/setdomain` configuration)
-
-**Method #2: Bot /admin_login Command** (One-Time Links)
-- **Bot**: `/admin_login` command in `bot/bot.js`
-  - Checks admin role, generates one-time token (crypto.randomBytes(32))
-  - Saves to `AdminLoginToken` model with 5-minute expiration + TTL index
-  - Sends secure link: `https://domain.com/admin/auth?token=...`
-- **Backend**: `/api/admin/auth/verify-token` (public endpoint)
-  - Validates token (exists, not expired, not used), marks as used
-  - Verifies admin role, issues JWT
-- **Frontend**: `/admin/auth` callback route (`admin-auth-callback.tsx`)
-  - Extracts token, calls verify-token, saves JWT, redirects to `/admin`
-- **Security**: One-time use, 5-minute expiration, server-side role verification
-- **Status**: Production-ready
-
-**Method #3: Phone Auth with SMS Codes**
-- **Frontend**: Two-step form on `/admin/login` (phone → SMS code)
-- **Backend**: 
-  - `/api/auth/sms/requestCode` - sends 4-digit SMS code (5-minute TTL)
-  - `/api/auth/admin/login` - validates code + admin role, issues JWT
-  - Model: `SmsLoginCode` with automatic expiration
-- **Security**: SMS code verification, server-side admin role validation
-- **Status**: Functional (uses console logging; needs SMS provider for production)
-
-**Routing Architecture:**
-- `/api/admin/auth/*` → PUBLIC endpoints (verify-token, telegram-login)
-- `/api/admin/*` → PROTECTED by adminAuth middleware
-- Critical: Public auth endpoints registered BEFORE protected routes in `api/server.js`
-
-**Shared Infrastructure:**
-- JWT tokens: 7-day expiration, includes userId, phone, role
-- `setAuthToken()`: Saves JWT to localStorage
-- `adminAuth` middleware: Validates all protected admin routes
-- Toast notifications: Consistent success/error UX across all methods
-
-### Chat Messaging System
-- **Backend**: Real-time chat with 3-second polling
-  - API Routes: `/api/chat/*` (requires JWT auth)
-  - Models: `Conversation` (2 participants + ad reference), `Message` (read status tracking)
-  - Middleware: `middleware/auth.js` validates Bearer tokens, checks user.isBlocked
-  - Endpoints: `/start`, `/my`, `/:id/messages`, `/:id/poll`
-
-- **Frontend (MiniApp)**: 
-  - Pages: `ChatPage.tsx` (real-time chat), `ConversationsPage.tsx` (chat list)
-  - Components: `AdCard.tsx` (favorites, delivery badges), `AdGallery.tsx` (Swiper carousel), `AdsMap.tsx` (Leaflet maps)
-  - Routes: `/chats`, `/chat/:conversationId`
-  - Enhanced: AdPage with "Chat with Seller" button
-  - Dependencies: swiper, leaflet, react-leaflet@4
-
-### Security Improvements
-- Fixed critical vulnerability: Removed SMS code exposure from API responses
-- JWT authentication enforced on all chat endpoints
-- User blocking support in auth middleware
-
-## MiniApp Performance Optimizations (November 2025)
-
-### Production Build & Code Splitting
-
-- **Build System**: Vite production build with esbuild minification
-- **Code Splitting Strategy**:
-  - Manual vendor chunks: vendor-react (164KB/53KB gzipped), vendor-ui (3.72KB/1.63KB gzipped)
-  - Lazy-loaded pages: 9 pages using React.lazy + Suspense
-  - Main bundle: 57.91KB (23.02KB gzipped)
-  - Lazy chunks: FeedPage (13.78KB/4.55KB gzipped), SubcategoryPage (3.86KB/1.58KB gzipped), ProfilePage (3.25KB/1.46KB gzipped), etc.
-- **Total Bundle Size**: ~217KB raw (~74KB gzipped total)
-- **Performance Impact**: 
-  - Initial load: ~600ms DOMContentLoaded
-  - Lazy chunk load: <200ms first time
-  - Total reduction: Main bundle reduced from ~85KB to ~58KB (35% reduction)
-
-### HTTP Caching Strategy
-
-- **Hashed Assets Caching** (/miniapp/assets/*.js, *.css, *.webp):
-  - `Cache-Control: public, max-age=31536000, immutable`
-  - Long-term caching (1 year) for all hashed assets
-  - Safe because Vite includes content hash in filenames
-  - ETag enabled for validation
-- **HTML Revalidation** (index.html):
-  - `Cache-Control: no-cache, max-age=0, must-revalidate`
-  - Always revalidates to get latest version after deployments
-- **Lazy Chunk Caching**:
-  - Lazy-loaded pages (FeedPage, ProfilePage, etc.) cached with immutable headers
-  - Browser back/forward navigation uses cache (no re-download)
-  - Navigation performance: instant for cached routes
-- **Implementation**: Express.js middleware with path-based header logic
-- **Environment**: Requires NODE_ENV=production and MINIAPP_PRODUCTION=true
-- **Performance Impact**: Cached reload <50ms (14x faster than initial load)
-
-### Category System Complete (SUPER-PROMPT Implementation)
-
-**Category Hierarchy:** 
-- **Total Categories**: 111 (100% coverage)
-- **Level Distribution**: 14 (L1) + 81 (L2) + 13 (L3) + 3 (L4) = 111 total
-- **Leaf Categories**: 92 (display ads)
-- **Non-Leaf Categories**: 19 (display subcategories)
-- **Model Fields**: Added `level`, `isLeaf`, `icon3d` to Category model
-- **Processing Script**: `scripts/populateCategories.js` calculated all hierarchy metadata
-
-**3D Icon Generation & Optimization:**
-- **Coverage**: 111/111 categories (100%)
-- **Format**: WebP 256x256 (converted from PNG using cwebp)
-- **Generation**: 133 icons created in 9 batches via generate_image_tool
-- **Conversion**: All PNG icons converted to WebP with `cwebp -q 85 -resize 256 256`
-- **Compression Ratio**: ~60-70% size reduction vs original PNG
-- **Quality**: WebP q=85 compression maintains high visual quality
-- **Database**: All 111 categories reference .webp paths in icon3d field
-- **Scripts**: 
-  - `scripts/updateAllIcons.js` - Icon path mapping
-  - `scripts/convertIconsToWebP.js` - PNG to WebP batch conversion
-- **Loading Optimizations**:
-  - Lazy loading: `loading="lazy"` attribute on all category icons
-  - Async decoding: `decoding="async"` for non-blocking image rendering
-  - Browser caching for instant subsequent page loads
-
-**Test Data Generation:**
-- **Total Ads**: 360 (exceeds SUPER-PROMPT requirement of 276)
-- **Coverage**: All 92 leaf categories (3-6 ads each)
-- **Quality**: Realistic Russian titles, detailed descriptions, proper pricing
-- **Cities**: Distributed across 6 Belarus cities with geolocation
-- **Script**: `scripts/createAllTestAds.js` - Comprehensive ad generator
-- **Status**: All ads approved and active
-
-**Documentation:**
-- **JSON Report**: `reports/category-report.json` - Complete category tree with statistics
-- **Documentation**: `CATEGORY_SYSTEM_COMPLETE.md` - Full implementation guide
-- **Statistics**: 
-  ```json
-  {
-    "totalCategories": 111,
-    "leafCategories": 92,
-    "with3DIcons": 111,
-    "iconCoverage": "100.0%",
-    "totalTestAds": 360,
-    "categoriesWithAds": 92
-  }
-  ```
-
-**Impact**: Category system 100% complete with full icon coverage, comprehensive test data, and production-ready WebP optimization
-
-### Overall Performance Results
-
-- **Initial Page Load**: ~600ms DOMContentLoaded (production build)
-- **Cached Reload**: <50ms DOMContentLoaded (HTTP caching)
-- **Total JavaScript**: ~217KB raw (~74KB gzipped)
-- **Total Images**: ~2.5-3MB WebP (all 111 category icons)
-- **Navigation**: Instant for cached routes, <200ms for first-time lazy loads
-- **Telegram WebView Compatibility**: Full HTTP caching support, no service worker needed
+### File Storage
+- **@uppy/core** + **@uppy/aws-s3**: Configured for future S3-compatible image storage.

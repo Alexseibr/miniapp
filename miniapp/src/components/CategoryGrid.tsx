@@ -13,10 +13,12 @@ export default function CategoryGrid({ categories }: Props) {
   }
 
   const getCategoryIcon = (category: CategoryNode) => {
-    if (category.icon3d) {
-      return category.icon3d;
+    let iconSrc = category.icon3d || CATEGORY_ICONS[category.slug] || null;
+    // Convert icon3d path to absolute URL if it starts with /attached_assets
+    if (iconSrc && iconSrc.startsWith('/attached_assets/')) {
+      iconSrc = `${window.location.origin}${iconSrc}`;
     }
-    return CATEGORY_ICONS[category.slug] || null;
+    return iconSrc;
   };
 
   const getCategoryLink = (category: CategoryNode): string => {

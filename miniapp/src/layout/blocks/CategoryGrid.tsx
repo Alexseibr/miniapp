@@ -16,6 +16,23 @@ interface CategoryGridProps {
   };
 }
 
+// Flatten hierarchical tree to array
+function flattenCategories(tree: any[]): any[] {
+  const result: any[] = [];
+  
+  function traverse(nodes: any[]) {
+    for (const node of nodes) {
+      result.push(node);
+      if (node.subcategories && node.subcategories.length > 0) {
+        traverse(node.subcategories);
+      }
+    }
+  }
+  
+  traverse(tree);
+  return result;
+}
+
 export default function CategoryGrid(props: CategoryGridProps) {
   const [, setLocation] = useLocation();
   
@@ -28,7 +45,9 @@ export default function CategoryGrid(props: CategoryGridProps) {
     queryKey: ['/api/categories'],
   });
 
-  let displayCategories: any[] = categoriesData || [];
+  // Flatten hierarchical tree to work with all categories
+  const flatCategories = categoriesData ? flattenCategories(categoriesData) : [];
+  let displayCategories: any[] = flatCategories;
 
   if (parentSlug) {
     displayCategories = displayCategories.filter(
@@ -79,7 +98,12 @@ export default function CategoryGrid(props: CategoryGridProps) {
           return `/category/${encodeURIComponent(category.slug)}`;
         };
 
-        const iconSrc = category.icon3d || CATEGORY_ICONS[category.slug] || null;
+        // Convert icon3d path to absolute URL if it starts with /attached_assets
+        let iconSrc = category.icon3d || CATEGORY_ICONS[category.slug] || null;
+        if (iconSrc && iconSrc.startsWith('/attached_assets/')) {
+          // Use window.location.origin to build absolute URL
+          iconSrc = `${window.location.origin}${iconSrc}`;
+        }
 
         return (
           <div
