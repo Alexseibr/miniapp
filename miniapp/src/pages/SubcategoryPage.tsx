@@ -17,10 +17,14 @@ export default function SubcategoryPage() {
     loadCategories();
   }, [loadCategories]);
 
-  const category = useMemo(() => getCategoryBySlug(slug || ''), [slug, categories, getCategoryBySlug]);
+  const category = useMemo(() => {
+    const cat = getCategoryBySlug(slug || '');
+    return cat;
+  }, [slug, categories, getCategoryBySlug]);
+  
   const subcategories = useMemo(() => category?.subcategories || [], [category]);
 
-  if (loading || categories.length === 0) {
+  if (loading) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px' }}>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
