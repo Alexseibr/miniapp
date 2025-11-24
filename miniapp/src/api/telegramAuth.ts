@@ -11,7 +11,7 @@ export interface AuthResponse {
 
 export async function validateSession(initData?: string, phone?: string): Promise<AuthResponse> {
   const response = await http.post('/auth/telegram', 
-    phone ? { phone } : null, 
+    phone ? { phone } : {}, 
     {
       headers: initData
         ? {
