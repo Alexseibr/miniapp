@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Truck, MapPin } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
@@ -22,6 +23,7 @@ const NO_PHOTO_PLACEHOLDER =
 export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps) {
   const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   
   const photos = ad.photos && ad.photos.length > 0 ? ad.photos : [NO_PHOTO_PLACEHOLDER];
 
@@ -71,6 +73,7 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
             dynamicBullets: true,
           }}
           style={{ width: '100%', height: '100%' }}
+          onSlideChange={(swiper) => setCurrentPhotoIndex(swiper.activeIndex)}
           onClick={(swiper, e) => {
             e.stopPropagation();
           }}
@@ -95,6 +98,14 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
         <div className="ad-card-favorite">
           <FavoriteButton adId={ad._id} />
         </div>
+        {photos.length > 1 && (
+          <div 
+            className="ad-card-photo-counter"
+            data-testid={`photo-counter-${ad._id}`}
+          >
+            {currentPhotoIndex + 1}/{photos.length}
+          </div>
+        )}
       </div>
 
       <div className="ad-card-content">
