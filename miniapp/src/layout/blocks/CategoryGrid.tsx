@@ -124,11 +124,11 @@ export default function CategoryGrid(props: CategoryGridProps) {
             style={{
               cursor: 'pointer',
               textAlign: 'center',
-              padding: '16px 12px',
+              padding: '12px',
               borderRadius: '16px',
               backgroundColor: '#FFFFFF',
               border: '1px solid #E5E7EB',
-              minHeight: '140px',
+              aspectRatio: '1',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
@@ -166,12 +166,12 @@ export default function CategoryGrid(props: CategoryGridProps) {
               </div>
             )}
             <div
+              className="category-name"
               style={{
                 fontSize: '0.8125rem',
                 fontWeight: 500,
                 color: '#111827',
                 lineHeight: 1.25,
-                display: '-webkit-box',
                 WebkitLineClamp: 3,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',

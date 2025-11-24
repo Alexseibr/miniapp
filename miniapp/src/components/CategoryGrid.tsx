@@ -51,13 +51,13 @@ const CategoryGrid = memo(({ categories }: Props) => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '16px 12px',
+            padding: '12px',
             borderRadius: '16px',
             backgroundColor: '#FFFFFF',
             border: '1px solid #E5E7EB',
             textDecoration: 'none',
             transition: 'all 0.2s ease',
-            minHeight: '140px',
+            aspectRatio: '1',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
           }}
           onMouseDown={(e) => {
@@ -120,13 +120,13 @@ const CategoryGrid = memo(({ categories }: Props) => {
             )}
           </div>
           <span
+            className="category-name"
             style={{
               fontSize: '0.8125rem',
               textAlign: 'center',
               color: '#111827',
               fontWeight: 500,
               lineHeight: 1.25,
-              display: '-webkit-box',
               WebkitLineClamp: 3,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
