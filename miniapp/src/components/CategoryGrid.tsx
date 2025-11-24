@@ -38,6 +38,7 @@ const CategoryGrid = memo(({ categories }: Props) => {
       className="category-grid"
       style={{
         display: 'grid',
+        gridTemplateColumns: 'repeat(3, minmax(0, 1fr))',
         gap: '12px',
       }}
     >
@@ -51,8 +52,8 @@ const CategoryGrid = memo(({ categories }: Props) => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '12px',
-            borderRadius: '16px',
+            padding: '10px 8px',
+            borderRadius: '12px',
             backgroundColor: '#FFFFFF',
             border: '1px solid #E5E7EB',
             textDecoration: 'none',
@@ -79,15 +80,15 @@ const CategoryGrid = memo(({ categories }: Props) => {
         >
           <div
             style={{
-              width: '72px',
-              height: '72px',
-              borderRadius: '16px',
+              width: '56px',
+              height: '56px',
+              borderRadius: '12px',
               backgroundColor: '#F5F7FA',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '12px',
-              boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
+              marginBottom: '8px',
+              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.06)',
               overflow: 'hidden',
             }}
           >
@@ -110,24 +111,24 @@ const CategoryGrid = memo(({ categories }: Props) => {
                   if (parent) {
                     const fallback = document.createElement('div');
                     fallback.style.cssText = 'display:flex;align-items:center;justify-content:center;width:100%;height:100%;';
-                    fallback.innerHTML = '<svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>';
+                    fallback.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>';
                     parent.appendChild(fallback);
                   }
                 }}
               />
             ) : (
-              <Package size={36} strokeWidth={1.5} color="#9ca3af" data-testid={`category-icon-fallback-${category.slug}`} />
+              <Package size={28} strokeWidth={1.5} color="#9ca3af" data-testid={`category-icon-fallback-${category.slug}`} />
             )}
           </div>
           <span
             className="category-name"
             style={{
-              fontSize: '0.8125rem',
+              fontSize: '0.75rem',
               textAlign: 'center',
               color: '#111827',
               fontWeight: 500,
               lineHeight: 1.25,
-              WebkitLineClamp: 3,
+              WebkitLineClamp: 2,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               wordBreak: 'break-word',
