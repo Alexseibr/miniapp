@@ -14,8 +14,8 @@ export default function Header() {
   const name = user?.firstName || user?.username || 'Гость';
 
   return (
-    <header className="card" style={{ margin: '16px', marginBottom: 8, padding: '16px' }}>
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '16px' }}>
+    <header className="card" style={{ margin: '16px 16px 8px', padding: '12px 16px' }}>
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '8px' }}>
         <LogoFull width={220} />
       </div>
       
