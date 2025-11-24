@@ -43,4 +43,7 @@ The project includes two React applications built with TypeScript and Vite:
 - **Frontend**: `react`, `react-dom`, `@tanstack/react-query`, `@radix-ui/*`, `tailwindcss`, `wouter`, `zod`, `react-hook-form`, `vite`, `swiper`, `leaflet`, `react-leaflet`.
 
 ### File Storage
-- **@uppy/core** + **@uppy/aws-s3**: Configured for future S3-compatible image storage.
+- **Replit Object Storage**: Using @google-cloud/storage for photo uploads. Photos stored in public bucket (`PUBLIC_OBJECT_SEARCH_PATHS`) for immediate accessibility.
+- **ObjectStorageService** (api/services/objectStorage.js): Handles presigned URL generation for direct browser uploads and returns permanent public URLs.
+- **Photo Upload API**: POST /api/uploads/presigned-url endpoint protected by Telegram auth, returns both upload URL and public URL.
+- **ImageUploader Component** (miniapp/src/components/ImageUploader.tsx): Supports file selection and camera capture with client-side validation (10MB max).
