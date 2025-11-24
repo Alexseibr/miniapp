@@ -1,7 +1,10 @@
-import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Loader2 } from 'lucide-react';
-import CategoryGrid from '@/components/CategoryGrid';
+import { useQuery } from '@tanstack/react-query';
+import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
+import CategoryScroll from '@/components/CategoryScroll';
+import AdCard from '@/components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
@@ -9,11 +12,19 @@ import { CATEGORY_ICONS } from '@/constants/categoryIcons';
 export default function SubcategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { categories, loading, loadCategories, getCategoryBySlug } = useCategoriesStore();
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(
+    searchParams.get('subcategory')
+  );
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  useEffect(() => {
+    setSelectedSubcategory(searchParams.get('subcategory'));
+  }, [searchParams]);
 
   if (loading) {
     return (
@@ -30,6 +41,40 @@ export default function SubcategoryPage() {
   const category = getCategoryBySlug(slug || '');
   const subcategories = category?.subcategories || [];
   const iconPath = slug ? CATEGORY_ICONS[slug] : null;
+
+  // Fetch ads for this category
+  const { data: adsData, isLoading: adsLoading } = useQuery<any>({
+    queryKey: ['/api/ads/search', { 
+      categorySlug: slug,
+      ...(selectedSubcategory && { subcategorySlug: selectedSubcategory }),
+      limit: 50 
+    }],
+    enabled: !!slug,
+  });
+
+  const ads = Array.isArray(adsData)
+    ? adsData
+    : Array.isArray(adsData?.ads)
+      ? adsData.ads
+      : Array.isArray(adsData?.items)
+        ? adsData.items
+        : [];
+
+  const handleSubcategoryClick = (subSlug: string | null) => {
+    if (subSlug === selectedSubcategory) {
+      // Deselect
+      setSelectedSubcategory(null);
+      searchParams.delete('subcategory');
+    } else {
+      setSelectedSubcategory(subSlug);
+      if (subSlug) {
+        searchParams.set('subcategory', subSlug);
+      } else {
+        searchParams.delete('subcategory');
+      }
+    }
+    setSearchParams(searchParams);
+  };
 
   if (!category) {
     return (
@@ -68,11 +113,15 @@ export default function SubcategoryPage() {
 
   return (
     <div style={{ paddingBottom: '80px' }}>
+      {/* Header with Breadcrumb */}
       <div
         style={{
-          padding: '16px',
-          borderBottom: '1px solid #E5E7EB',
+          position: 'sticky',
+          top: 0,
           backgroundColor: '#FFFFFF',
+          borderBottom: '1px solid #E5E7EB',
+          zIndex: 10,
+          padding: '12px 16px',
         }}
       >
         <button
@@ -85,102 +134,61 @@ export default function SubcategoryPage() {
             background: 'none',
             cursor: 'pointer',
             padding: 0,
-            fontSize: '1rem',
-            color: '#4F46E5',
+            fontSize: '0.875rem',
+            color: 'var(--color-primary)',
             fontWeight: 500,
-            marginBottom: '16px',
+            marginBottom: '12px',
           }}
           data-testid="button-back"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={18} />
           Назад
         </button>
+        <CategoryBreadcrumb categories={categories} categorySlug={slug || ''} />
+      </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          {iconPath && (
-            <div
-              style={{
-                width: '48px',
-                height: '48px',
-                borderRadius: '12px',
-                backgroundColor: '#F5F7FA',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-              }}
-              data-testid="category-icon-header"
-            >
-              <img
-                src={iconPath}
-                alt={category.name}
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'cover',
-                }}
-              />
-            </div>
-          )}
-          <div>
-            <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 600, color: '#111827' }} data-testid="text-category-name">
-              {category.name}
-            </h2>
-            {category.description && (
-              <p style={{ margin: '4px 0 0', fontSize: '0.875rem', color: '#6B7280' }} data-testid="text-category-description">
-                {category.description}
-              </p>
-            )}
+      {/* Subcategories Filter */}
+      {subcategories.length > 0 && (
+        <div style={{ padding: '12px 0', backgroundColor: 'var(--bg-secondary)' }}>
+          <CategoryScroll
+            categories={subcategories}
+            selectedSlug={selectedSubcategory}
+            onCategoryClick={handleSubcategoryClick}
+          />
+        </div>
+      )}
+
+      {/* Ads List */}
+      <div style={{ padding: '16px' }}>
+        <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+            {selectedSubcategory 
+              ? `${subcategories.find(s => s.slug === selectedSubcategory)?.name || 'Фильтр'}`
+              : 'Все объявления'}
+          </h3>
+          <span style={{ fontSize: '0.875rem', color: 'var(--color-secondary)' }}>
+            {ads.length} {ads.length === 1 ? 'объявление' : ads.length < 5 ? 'объявления' : 'объявлений'}
+          </span>
+        </div>
+
+        {adsLoading ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {[...Array(5)].map((_, i) => (
+              <div key={i} className="skeleton" style={{ height: '120px', borderRadius: 'var(--radius-md)' }} />
+            ))}
           </div>
-        </div>
-      </div>
-
-      <div style={{ paddingTop: '16px' }}>
-        {subcategories.length > 0 ? (
-          <CategoryGrid categories={subcategories} />
+        ) : ads.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {ads.map((ad: any) => (
+              <AdCard key={ad._id} ad={ad} />
+            ))}
+          </div>
         ) : (
-          <EmptyState title="Подкатегории отсутствуют" description="В этой категории нет подкатегорий" />
+          <EmptyState 
+            title="Объявлений не найдено" 
+            description="Попробуйте изменить фильтры или выбрать другую категорию" 
+          />
         )}
-      </div>
-
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: '#FFFFFF',
-          borderTop: '1px solid #E5E7EB',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.05)',
-          zIndex: 50,
-        }}
-        data-testid="bottom-bar"
-      >
-        <div style={{ display: 'flex', flexDirection: 'column' }} data-testid="bottom-bar-branding">
-          <span style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '2px' }} data-testid="text-marketplace-label">
-            Маркетплейс
-          </span>
-          <span style={{ fontSize: '1rem', fontWeight: 600, color: '#111827' }} data-testid="text-brand-name">
-            KETMAR Market
-          </span>
-        </div>
-        <div
-          style={{
-            backgroundColor: '#4F46E5',
-            color: '#FFFFFF',
-            padding: '10px 20px',
-            borderRadius: '12px',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}
-          data-testid="badge-subcategory-count"
-        >
-          {subcategories.length} {subcategories.length === 1 ? 'категория' : 'категорий'}
-        </div>
       </div>
     </div>
   );
