@@ -1,1 +1,0 @@
-function i(f){if(!f)return"";const e=typeof f=="string"?new Date(f):f;if(Number.isNaN(e.getTime()))return"";const o=Date.now()-e.getTime(),t=Math.floor(o/(1e3*60));if(t<1)return"только что";if(t<60)return`${t} мин назад`;const r=Math.floor(t/60);return r<24?`${r} ч назад`:`${Math.floor(r/24)} дн назад`}function s(f){return i(f)}export{i as a,s as f};

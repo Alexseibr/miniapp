@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { useSearch, Link } from 'wouter';
 import { listAds, listNearbyAds } from '@/api/ads';
 import { fetchCategories } from '@/api/categories';
 import AdCard from '@/components/AdCard';
 import FilterDrawer from '@/components/FilterDrawer';
-import SeasonBanners from '@/components/SeasonBanners';
-import CategoryScroll from '@/components/CategoryScroll';
+import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview, CategoryNode } from '@/types';
 import { useGeo } from '@/utils/geo';
 import { SlidersHorizontal } from 'lucide-react';
 
 export default function FeedPage() {
-  const { search: locationSearch } = useLocation();
-  const searchParams = useMemo(() => new URLSearchParams(locationSearch), [locationSearch]);
+  const search = useSearch();
+  const searchParams = useMemo(() => new URLSearchParams(search), [search]);
   const [ads, setAds] = useState<AdPreview[]>([]);
   const [sort, setSort] = useState<'newest' | 'cheapest' | 'expensive' | 'popular' | 'distance'>(() => {
     const sortParam = searchParams.get('sort');
@@ -41,7 +40,7 @@ export default function FeedPage() {
     setSearch(searchParams.get('q') || '');
     setMinPrice(searchParams.get('minPrice') || '');
     setMaxPrice(searchParams.get('maxPrice') || '');
-  }, [locationSearch]);
+  }, [search, searchParams]);
 
   const params = useMemo(
     () => ({
@@ -105,7 +104,15 @@ export default function FeedPage() {
     };
   }, [params, coords, radiusKm]);
 
-  const topCategories = useMemo(() => categories.slice(0, 6), [categories]);
+  const currentCategorySlug = searchParams.get('categoryId');
+
+  useEffect(() => {
+    console.log('[FeedPage] Breadcrumb check:', {
+      currentCategorySlug,
+      categoriesLength: categories.length,
+      shouldShow: currentCategorySlug && categories.length > 0
+    });
+  }, [currentCategorySlug, categories]);
 
   return (
     <div>
@@ -153,75 +160,19 @@ export default function FeedPage() {
         </div>
       </div>
 
+      {currentCategorySlug && categories.length > 0 ? (
+        <CategoryBreadcrumb categorySlug={currentCategorySlug} categories={categories} />
+      ) : (
+        <div style={{ padding: 8, backgroundColor: '#fee', color: '#c00', fontSize: 12 }}>
+          DEBUG: categorySlug={currentCategorySlug || 'NULL'}, categories={categories.length}
+        </div>
+      )}
+
       <div style={{ padding: 16 }}>
-        {topCategories.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <CategoryScroll categories={topCategories} />
-          </div>
-        )}
-
-        <div style={{ marginBottom: 16 }}>
-          <SeasonBanners />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-          <button
-            className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
-            data-testid="button-filter-categories"
-          >
-            Категории
-          </button>
-          <button
-            className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
-            data-testid="button-filter-location"
-          >
-            Вся Беларусь
-          </button>
-          <button
-            className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
-            data-testid="button-filter-sort"
-          >
-            По новизне
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          <button
-            className="primary"
-            style={{ 
-              padding: '14px', 
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4
-            }}
-            data-testid="button-all-ads"
-          >
-            <span style={{ fontSize: 15, fontWeight: 600 }}>Всего</span>
-            <span style={{ fontSize: 13, opacity: 0.9 }}>{ads.length} объявлений</span>
-          </button>
-          <button
-            className="primary"
-            style={{ 
-              padding: '14px', 
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              backgroundColor: '#10b981'
-            }}
-            data-testid="button-company-ads"
-          >
-            <span style={{ fontSize: 15, fontWeight: 600 }}>Товары компаний</span>
-            <span style={{ fontSize: 13, opacity: 0.9 }}>0 объявлений</span>
-          </button>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }} data-testid="text-all-ads-title">Все объявления</h2>
+        <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h2 style={{ margin: 0, fontSize: 18, fontWeight: 600 }} data-testid="text-all-ads-title">
+            {ads.length} {ads.length === 1 ? 'объявление' : 'объявлений'}
+          </h2>
         </div>
 
         {loading ? (
