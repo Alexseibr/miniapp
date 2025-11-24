@@ -3,6 +3,7 @@ import { useEffect, useState, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BottomTabs from '@/components/BottomTabs';
 import HomePage from '@/pages/HomePage';
+import PhoneAuthRequest from '@/components/PhoneAuthRequest';
 import { useUserStore } from '@/store/useUserStore';
 import { getTelegramWebApp } from '@/utils/telegram';
 import { queryClient } from '@/lib/queryClient';
@@ -25,6 +26,8 @@ const ChatPage = lazy(() => import('@/pages/ChatPage'));
 export default function App() {
   const location = useLocation();
   const initialize = useUserStore((state) => state.initialize);
+  const submitPhone = useUserStore((state) => state.submitPhone);
+  const userStatus = useUserStore((state) => state.status);
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
@@ -104,6 +107,21 @@ export default function App() {
           <div style={{ fontSize: '16px', color: '#666' }}>Загрузка...</div>
         </div>
       </div>
+    );
+  }
+
+  // Показываем запрос номера телефона если нужен
+  if (userStatus === 'need_phone') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <PhoneAuthRequest 
+          onPhoneReceived={submitPhone}
+          onCancel={() => {
+            // Пользователь отменил - можно попробовать продолжить без телефона
+            console.log('Phone request cancelled by user');
+          }}
+        />
+      </QueryClientProvider>
     );
   }
 

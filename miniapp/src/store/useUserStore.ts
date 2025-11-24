@@ -6,13 +6,14 @@ import { FavoriteItem, UserProfile } from '@/types';
 export interface UserState {
   user: UserProfile | null;
   cityCode: string | null;
-  status: 'idle' | 'loading' | 'ready' | 'error';
+  status: 'idle' | 'loading' | 'ready' | 'error' | 'need_phone';
   error?: string;
   favorites: FavoriteItem[];
   initialize: () => Promise<void>;
   refreshFavorites: () => Promise<void>;
   toggleFavorite: (adId: string, isFavorite: boolean) => Promise<void>;
   setCityCode: (cityCode: string) => void;
+  submitPhone: (phone: string) => Promise<void>;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -32,16 +33,47 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ status: 'loading', error: undefined });
       const response = await validateSession(initData);
       if (response.user) {
+        // Проверяем есть ли номер телефона
+        if (!response.user.phone) {
+          set({ status: 'need_phone', cityCode: 'brest' });
+          return;
+        }
         set({ 
           user: response.user as UserProfile,
           cityCode: (response as any).cityCode || 'brest'
         });
         await get().refreshFavorites();
+        set({ status: 'ready' });
+      } else {
+        set({ status: 'ready' });
       }
-      set({ status: 'ready' });
     } catch (error) {
       console.error('MiniApp auth error', error);
       set({ status: 'error', error: 'Не удалось пройти авторизацию', cityCode: 'brest' });
+    }
+  },
+  async submitPhone(phone: string) {
+    const initData = window.Telegram?.WebApp?.initData;
+    if (!initData) {
+      set({ status: 'error', error: 'Telegram данные недоступны' });
+      return;
+    }
+    try {
+      set({ status: 'loading', error: undefined });
+      const response = await validateSession(initData, phone);
+      if (response.user) {
+        set({ 
+          user: response.user as UserProfile,
+          cityCode: (response as any).cityCode || 'brest',
+          status: 'ready'
+        });
+        await get().refreshFavorites();
+      } else {
+        set({ status: 'error', error: 'Не удалось сохранить номер телефона' });
+      }
+    } catch (error) {
+      console.error('Phone submit error', error);
+      set({ status: 'error', error: 'Не удалось сохранить номер телефона' });
     }
   },
   setCityCode(cityCode: string) {

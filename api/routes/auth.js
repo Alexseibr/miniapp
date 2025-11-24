@@ -38,6 +38,13 @@ router.post('/telegram', async (req, res) => {
       lastActiveAt: new Date(),
     };
 
+    // Обработка номера телефона если передан
+    const phoneFromRequest = req.body?.phone;
+    if (phoneFromRequest) {
+      updatePayload.phone = phoneFromRequest;
+      updatePayload.phoneVerified = true; // Считаем подтвержденным т.к. от Telegram
+    }
+
     let user = await User.findOne({ telegramId: telegramUser.id });
 
     if (user) {
@@ -45,6 +52,13 @@ router.post('/telegram', async (req, res) => {
       user.firstName = updatePayload.firstName;
       user.lastName = updatePayload.lastName;
       user.lastActiveAt = updatePayload.lastActiveAt;
+      
+      // Обновляем телефон если передан
+      if (updatePayload.phone) {
+        user.phone = updatePayload.phone;
+        user.phoneVerified = true;
+      }
+      
       await user.save();
     } else {
       user = await User.create(updatePayload);
@@ -61,6 +75,7 @@ router.post('/telegram', async (req, res) => {
         username: user.username,
         firstName: user.firstName,
         lastName: user.lastName,
+        phone: user.phone,
         phoneVerified: user.phoneVerified,
         role: user.role,
         privacy: user.privacy,
