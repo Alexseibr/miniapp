@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { listAds, listNearbyAds } from '@/api/ads';
 import { fetchCategories } from '@/api/categories';
 import AdCard from '@/components/AdCard';
@@ -8,10 +8,11 @@ import CategoryBreadcrumb from '@/components/CategoryBreadcrumb';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview, CategoryNode } from '@/types';
 import { useGeo } from '@/utils/geo';
-import { SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal, Home } from 'lucide-react';
 
 export default function FeedPage() {
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [ads, setAds] = useState<AdPreview[]>([]);
   const [sort, setSort] = useState<'newest' | 'cheapest' | 'expensive' | 'popular' | 'distance'>(() => {
     const sortParam = searchParams.get('sort');
@@ -106,54 +107,89 @@ export default function FeedPage() {
   const currentCategorySlug = searchParams.get('categoryId');
 
   return (
-    <div>
+    <div style={{ paddingBottom: '80px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
       <div
         style={{
           position: 'sticky',
           top: 0,
           backgroundColor: 'white',
           zIndex: 10,
-          padding: '10px 16px',
           borderBottom: '1px solid #e5e7eb',
         }}
       >
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <input
-              className="input"
-              type="search"
-              placeholder="Поиск объявлений"
-              value={queryText}
-              onChange={(e) => setQueryText(e.target.value)}
-              data-testid="input-search"
-              style={{ fontSize: 15, padding: '10px 14px' }}
-            />
-          </div>
+        <div style={{ padding: '12px 16px', display: 'flex', alignItems: 'center', gap: '12px', borderBottom: currentCategorySlug ? '1px solid #e5e7eb' : 'none' }}>
           <button
-            type="button"
-            onClick={() => setShowFilters(true)}
-            data-testid="button-open-filters"
+            onClick={() => navigate('/')}
             style={{
-              padding: 10,
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              cursor: 'pointer',
-              display: 'flex',
+              display: 'inline-flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              minWidth: 40,
-              height: 40,
+              gap: '8px',
+              padding: '8px 16px',
+              backgroundColor: '#3B73FC',
+              color: '#ffffff',
+              border: 'none',
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+              cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(59, 115, 252, 0.25)',
+              transition: 'all 0.2s',
+              flexShrink: 0,
             }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-1px)';
+              e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 115, 252, 0.35)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 115, 252, 0.25)';
+            }}
+            data-testid="button-home"
           >
-            <SlidersHorizontal size={20} color="#6b7280" />
+            <Home size={18} />
+            <span>Главная</span>
           </button>
+          {currentCategorySlug && categories.length > 0 && (
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <CategoryBreadcrumb categorySlug={currentCategorySlug} categories={categories} />
+            </div>
+          )}
+        </div>
+        <div style={{ padding: '10px 16px' }}>
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+            <div style={{ position: 'relative', flex: 1 }}>
+              <input
+                className="input"
+                type="search"
+                placeholder="Поиск объявлений"
+                value={queryText}
+                onChange={(e) => setQueryText(e.target.value)}
+                data-testid="input-search"
+                style={{ fontSize: 15, padding: '10px 14px' }}
+              />
+            </div>
+            <button
+              type="button"
+              onClick={() => setShowFilters(true)}
+              data-testid="button-open-filters"
+              style={{
+                padding: 10,
+                backgroundColor: '#f3f4f6',
+                border: '1px solid #e5e7eb',
+                borderRadius: 8,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minWidth: 40,
+                height: 40,
+              }}
+            >
+              <SlidersHorizontal size={20} color="#6b7280" />
+            </button>
+          </div>
         </div>
       </div>
-
-      {currentCategorySlug && categories.length > 0 && (
-        <CategoryBreadcrumb categorySlug={currentCategorySlug} categories={categories} />
-      )}
 
       <div style={{ padding: 16 }}>
         <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
