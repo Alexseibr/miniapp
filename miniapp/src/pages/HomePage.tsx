@@ -27,7 +27,7 @@ export default function HomePage() {
     <div className="app-shell">
       <Header />
       
-      <main style={{ paddingBottom: '80px' }}>
+      <main style={{ paddingBottom: '16px' }}>
         <div className="container">
           {isLoading || userStatus === 'loading' ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Phone, Shield, CheckCircle2 } from 'lucide-react';
 import { getTelegramWebApp } from '@/utils/telegram';
 
@@ -11,6 +11,7 @@ export default function PhoneAuthRequest({ onPhoneReceived, onSkip }: PhoneAuthR
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [useManualInput, setUseManualInput] = useState(false);
+  const [autoRequested, setAutoRequested] = useState(false);
 
   const handleRequestPhone = () => {
     const tg = getTelegramWebApp();
@@ -38,6 +39,16 @@ export default function PhoneAuthRequest({ onPhoneReceived, onSkip }: PhoneAuthR
       setUseManualInput(true);
     }
   };
+
+  useEffect(() => {
+    if (!autoRequested) {
+      setAutoRequested(true);
+      const timer = setTimeout(() => {
+        handleRequestPhone();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoRequested]);
 
   const handleManualSubmit = async () => {
     if (!phoneNumber.trim()) {
