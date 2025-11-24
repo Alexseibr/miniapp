@@ -314,47 +314,20 @@ export default function CreateAdPage() {
         </div>
 
         {title.length >= 3 && (
-          <CategorySuggestionGallery
-            suggestions={suggestions}
-            isLoading={suggestionsLoading}
-            onSelectCategory={handleSelectSuggestedCategory}
-            hasHighConfidence={hasHighConfidence}
-          />
+          <div style={{ marginBottom: 24 }}>
+            <CategorySuggestionGallery
+              suggestions={suggestions}
+              isLoading={suggestionsLoading}
+              onSelectCategory={handleSelectSuggestedCategory}
+              hasHighConfidence={hasHighConfidence}
+            />
+          </div>
         )}
 
         <div style={{ marginBottom: 24 }}>
-          <button
-            type="button"
-            onClick={() => {}}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              background: 'none',
-              border: 'none',
-              borderBottom: '1px solid #E5E7EB',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              cursor: 'pointer',
-              textAlign: 'left'
-            }}
-            data-testid="button-select-category"
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-              <line x1="7" y1="7" x2="7.01" y2="7" />
-            </svg>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 16, fontWeight: 400, color: '#111827' }}>
-                Категории
-              </div>
-            </div>
-            <div style={{ fontSize: 14, color: categoryId ? '#3B73FC' : '#9CA3AF' }}>
-              {categoryId 
-                ? categories.find(c => c.slug === categoryId)?.name || 'Выберите категорию'
-                : 'Выберите категорию'}
-            </div>
-          </button>
+          <div style={{ fontSize: 16, fontWeight: 400, color: '#111827', marginBottom: 8 }}>
+            Категория<span style={{ color: '#EF4444' }}>*</span>
+          </div>
           <select
             id="category"
             value={categoryId}
@@ -363,13 +336,12 @@ export default function CreateAdPage() {
             style={{
               width: '100%',
               padding: '12px 16px',
-              border: 'none',
+              border: '1px solid #E5E7EB',
               fontSize: 16,
               outline: 'none',
               fontFamily: 'inherit',
-              background: '#F9FAFB',
-              borderRadius: 8,
-              marginTop: 8
+              background: '#fff',
+              borderRadius: 8
             }}
             data-testid="select-category"
           >
@@ -380,33 +352,43 @@ export default function CreateAdPage() {
               </option>
             ))}
           </select>
+          <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>
+            Обязательное поле
+          </div>
 
           {subcategories.length > 0 && (
-            <select
-              id="subcategory"
-              value={subcategoryId}
-              onChange={(e) => setSubcategoryId(e.target.value)}
-              required
-              style={{
-                width: '100%',
-                padding: '12px 16px',
-                border: 'none',
-                fontSize: 16,
-                outline: 'none',
-                fontFamily: 'inherit',
-                background: '#F9FAFB',
-                borderRadius: 8,
-                marginTop: 8
-              }}
-              data-testid="select-subcategory"
-            >
-              <option value="">Выберите подкатегорию</option>
-              {subcategories.map((sub) => (
-                <option key={sub.slug} value={sub.slug}>
-                  {sub.name}
-                </option>
-              ))}
-            </select>
+            <>
+              <div style={{ fontSize: 16, fontWeight: 400, color: '#111827', marginTop: 16, marginBottom: 8 }}>
+                Подкатегория<span style={{ color: '#EF4444' }}>*</span>
+              </div>
+              <select
+                id="subcategory"
+                value={subcategoryId}
+                onChange={(e) => setSubcategoryId(e.target.value)}
+                required
+                style={{
+                  width: '100%',
+                  padding: '12px 16px',
+                  border: '1px solid #E5E7EB',
+                  fontSize: 16,
+                  outline: 'none',
+                  fontFamily: 'inherit',
+                  background: '#fff',
+                  borderRadius: 8
+                }}
+                data-testid="select-subcategory"
+              >
+                <option value="">Выберите подкатегорию</option>
+                {subcategories.map((sub) => (
+                  <option key={sub.slug} value={sub.slug}>
+                    {sub.name}
+                  </option>
+                ))}
+              </select>
+              <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>
+                Обязательное поле
+              </div>
+            </>
           )}
         </div>
 
