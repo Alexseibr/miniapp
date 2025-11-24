@@ -9,6 +9,11 @@ import { useCartStore } from '@/store/cart';
 import { formatCityDistance, useGeo } from '@/utils/geo';
 import http from '@/api/http';
 import { useUserStore } from '@/store/useUserStore';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination, Navigation } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import 'swiper/css/navigation';
 
 export default function AdPage() {
   const { id } = useParams();
@@ -107,16 +112,35 @@ export default function AdPage() {
             <FavoriteButton adId={ad._id} />
           </div>
         <p style={{ color: '#475467' }}>{ad.description}</p>
-        {ad.photos?.length && (
-          <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px 0' }}>
-            {ad.photos.map((photo) => (
-              <img
-                key={photo}
-                src={photo}
-                alt={ad.title}
-                style={{ width: 140, height: 100, objectFit: 'cover', borderRadius: 12 }}
-              />
-            ))}
+        {ad.photos && ad.photos.length > 0 && (
+          <div style={{ margin: '16px 0', borderRadius: '12px', overflow: 'hidden' }}>
+            <Swiper
+              modules={[Pagination, Navigation]}
+              pagination={{ 
+                clickable: true,
+                dynamicBullets: true,
+              }}
+              navigation={ad.photos.length > 1}
+              style={{ 
+                width: '100%', 
+                aspectRatio: '16/9',
+                borderRadius: '12px',
+              }}
+            >
+              {ad.photos.map((photo, index) => (
+                <SwiperSlide key={index}>
+                  <img
+                    src={photo}
+                    alt={`${ad.title} - фото ${index + 1}`}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover',
+                    }}
+                  />
+                </SwiperSlide>
+              ))}
+            </Swiper>
           </div>
         )}
         <p style={{ fontSize: '1.8rem', fontWeight: 700 }}>

@@ -638,3 +638,41 @@ input.input:focus {
   0% { background-position: 200% 0; }
   100% { background-position: -200% 0; }
 }
+
+.ad-card-image .swiper {
+  width: 100%;
+  height: 100%;
+}
+
+.ad-card-image .swiper-pagination {
+  bottom: 8px !important;
+  z-index: 10;
+}
+
+.ad-card-image .swiper-pagination-bullet {
+  background: #ffffff;
+  opacity: 0.6;
+  width: 6px;
+  height: 6px;
+}
+
+.ad-card-image .swiper-pagination-bullet-active {
+  opacity: 1;
+  background: #3B73FC;
+}
+
+.swiper-button-next,
+.swiper-button-prev {
+  color: #3B73FC !important;
+  background: rgba(255, 255, 255, 0.9);
+  width: 40px !important;
+  height: 40px !important;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.swiper-button-next::after,
+.swiper-button-prev::after {
+  font-size: 16px !important;
+  font-weight: bold;
+}

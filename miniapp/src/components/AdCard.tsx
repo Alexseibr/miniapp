@@ -5,6 +5,10 @@ import { AdPreview } from '@/types';
 import { formatCityDistance } from '@/utils/geo';
 import { formatRelativeTime } from '@/utils/time';
 import { useCartStore } from '@/store/cart';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
 
 interface AdCardProps {
   ad: AdPreview;
@@ -19,7 +23,7 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
   const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
   
-  const previewImage = (ad.photos && ad.photos.length > 0 ? ad.photos[0] : null) || NO_PHOTO_PLACEHOLDER;
+  const photos = ad.photos && ad.photos.length > 0 ? ad.photos : [NO_PHOTO_PLACEHOLDER];
 
   const handleCardClick = () => {
     if (onSelect) {
@@ -59,14 +63,35 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
         }
       }}
     >
-      <div className="ad-card-image">
-        <img
-          src={previewImage}
-          alt={ad.title}
-          loading="lazy"
-          decoding="async"
-          data-testid={`ad-image-${ad._id}`}
-        />
+      <div className="ad-card-image" onClick={(e) => e.stopPropagation()}>
+        <Swiper
+          modules={[Pagination]}
+          pagination={{ 
+            clickable: true,
+            dynamicBullets: true,
+          }}
+          style={{ width: '100%', height: '100%' }}
+          onClick={(swiper, e) => {
+            e.stopPropagation();
+          }}
+          onTap={(swiper, e) => {
+            e.stopPropagation();
+          }}
+        >
+          {photos.map((photo, index) => (
+            <SwiperSlide key={index}>
+              <img
+                src={photo}
+                alt={`${ad.title} - фото ${index + 1}`}
+                loading="lazy"
+                decoding="async"
+                data-testid={`ad-image-${ad._id}-${index}`}
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                onClick={handleCardClick}
+              />
+            </SwiperSlide>
+          ))}
+        </Swiper>
         <div className="ad-card-favorite">
           <FavoriteButton adId={ad._id} />
         </div>
