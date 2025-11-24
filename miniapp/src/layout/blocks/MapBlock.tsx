@@ -36,7 +36,15 @@ export default function MapBlock(props: MapBlockProps) {
     enabled: adIds.length > 0,
   });
 
-  const ads = adsData?.ads || [];
+  const ads: any[] = Array.isArray(adsData)
+    ? adsData
+    : Array.isArray(adsData?.ads)
+      ? adsData.ads
+      : Array.isArray(adsData?.items)
+        ? adsData.items
+        : Array.isArray(adsData?.data)
+          ? adsData.data
+          : [];
 
   return (
     <div data-testid="map-block">

@@ -59,9 +59,17 @@ export default function AdList(props: AdListProps) {
 
   const isLoading = dataSource === 'manual' ? isLoadingManual : isLoadingQuery;
   
-  const ads: any[] = dataSource === 'manual'
-    ? (manualAdsData?.ads || [])
-    : (adsData?.ads || adsData || []);
+  const rawData = dataSource === 'manual' ? manualAdsData : adsData;
+  
+  const ads: any[] = Array.isArray(rawData)
+    ? rawData
+    : Array.isArray(rawData?.ads)
+      ? rawData.ads
+      : Array.isArray(rawData?.items)
+        ? rawData.items
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : [];
 
   if (isLoading) {
     return (

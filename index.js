@@ -88,6 +88,19 @@ async function start() {
         },
       });
       
+      // Serve category icons and attached assets (before Vite middlewares)
+      const attachedAssetsPath = path.resolve(__dirname, 'attached_assets');
+      if (fs.existsSync(attachedAssetsPath)) {
+        app.use('/attached_assets', express.static(attachedAssetsPath, {
+          setHeaders: (res, filePath) => {
+            if (filePath.endsWith('.webp') || filePath.endsWith('.png')) {
+              res.set('Cache-Control', 'public, max-age=31536000, immutable');
+            }
+          },
+        }));
+        console.log('✅ Attached assets доступны по /attached_assets');
+      }
+      
       // Handle MiniApp assets with miniappVite FIRST (JS, CSS, images, etc.)
       app.use('/miniapp', miniappVite.middlewares);
       

@@ -56,9 +56,15 @@ export default function AdCarousel(props: AdCarouselProps) {
     enabled: dataSource !== 'manual' && queryKey.length > 0,
   });
 
-  const ads: any[] = dataSource === 'manual' && adIds.length > 0
-    ? []
-    : adsData?.ads || adsData || [];
+  const ads: any[] = Array.isArray(adsData)
+    ? adsData
+    : Array.isArray(adsData?.ads)
+      ? adsData.ads
+      : Array.isArray(adsData?.items)
+        ? adsData.items
+        : Array.isArray(adsData?.data)
+          ? adsData.data
+          : [];
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
