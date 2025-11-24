@@ -14,10 +14,10 @@ export default function Logo({
   height 
 }: LogoProps) {
   const logoMap = {
-    'full': '/miniapp/logos/ketmar_logo_rgb.svg',
-    'sign': '/miniapp/logos/ketmar_sign_rgb.svg',
-    'full-mono': '/miniapp/logos/ketmar_logo_monochrome.svg',
-    'sign-mono': '/miniapp/logos/ketmar_sign_monochrome.svg',
+    'full': '/logos/ketmar_logo_rgb.svg',
+    'sign': '/logos/ketmar_sign_rgb.svg',
+    'full-mono': '/logos/ketmar_logo_monochrome.svg',
+    'sign-mono': '/logos/ketmar_sign_monochrome.svg',
   };
 
   const logoSrc = logoMap[variant];
