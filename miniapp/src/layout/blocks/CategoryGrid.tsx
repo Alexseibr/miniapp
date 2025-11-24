@@ -8,11 +8,13 @@ interface CategoryGridProps {
   parentSlug?: string;
   columns?: number;
   showIcons?: boolean;
+  showOnlyTopLevel?: boolean;
   config?: {
     categories?: string[];
     parentSlug?: string;
     columns?: number;
     showIcons?: boolean;
+    showOnlyTopLevel?: boolean;
   };
 }
 
@@ -40,6 +42,7 @@ export default function CategoryGrid(props: CategoryGridProps) {
   const parentSlug = props.parentSlug || props.config?.parentSlug;
   const columns = props.columns || props.config?.columns || 3;
   const showIcons = props.showIcons !== undefined ? props.showIcons : (props.config?.showIcons ?? true);
+  const showOnlyTopLevel = props.showOnlyTopLevel ?? props.config?.showOnlyTopLevel ?? false;
 
   const { data: categoriesData, isLoading } = useQuery<any[]>({
     queryKey: ['/api/categories'],
@@ -49,12 +52,21 @@ export default function CategoryGrid(props: CategoryGridProps) {
   const flatCategories = categoriesData ? flattenCategories(categoriesData) : [];
   let displayCategories: any[] = flatCategories;
 
+  // Фильтр: только категории верхнего уровня
+  if (showOnlyTopLevel) {
+    displayCategories = displayCategories.filter(
+      (cat: any) => !cat.parentSlug || cat.parentSlug === null
+    );
+  }
+
+  // Фильтр: по родительской категории
   if (parentSlug) {
     displayCategories = displayCategories.filter(
       (cat: any) => cat.parentSlug === parentSlug
     );
   }
 
+  // Фильтр: конкретные категории по slug
   if (categories.length > 0) {
     displayCategories = displayCategories.filter((cat: any) =>
       categories.includes(cat.slug)
