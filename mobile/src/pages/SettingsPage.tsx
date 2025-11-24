@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../auth/useAuth';
 import { cityApi, City } from '../api/cityApi';
+import { useResolvedCity } from '../hooks/useResolvedCity';
 
 export default function SettingsPage() {
   const { logout, user } = useAuth();
+  const { city, changeCity } = useResolvedCity();
   const [cities, setCities] = useState<City[]>([]);
   const [selected, setSelected] = useState(user?.cityCode || '');
   const [notifications, setNotifications] = useState(true);
@@ -20,6 +22,20 @@ export default function SettingsPage() {
     loadCities();
   }, []);
 
+  useEffect(() => {
+    if (city?.code) {
+      setSelected(city.code);
+    }
+  }, [city?.code]);
+
+  const handleCityChange = (code: string) => {
+    setSelected(code);
+    const matchedCity = cities.find((item) => item.code === code);
+    if (matchedCity) {
+      changeCity(matchedCity);
+    }
+  };
+
   return (
     <div className="p-4 space-y-4">
       <h1 className="text-xl font-semibold">Настройки</h1>
@@ -29,7 +45,7 @@ export default function SettingsPage() {
         <select
           className="w-full border rounded-lg px-3 py-3"
           value={selected}
-          onChange={(e) => setSelected(e.target.value)}
+          onChange={(e) => handleCityChange(e.target.value)}
         >
           {cities.map((city) => (
             <option key={city.code} value={city.code}>
