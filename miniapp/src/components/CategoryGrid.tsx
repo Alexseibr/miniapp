@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link } from 'wouter';
 import { Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
@@ -12,11 +12,17 @@ export default function CategoryGrid({ categories }: Props) {
     return <p>Категории пока не загружены.</p>;
   }
 
-  const getCategoryIcon = (categorySlug: string) => {
-    return CATEGORY_ICONS[categorySlug] || null;
+  const getCategoryIcon = (category: CategoryNode) => {
+    if (category.icon3d) {
+      return category.icon3d;
+    }
+    return CATEGORY_ICONS[category.slug] || null;
   };
 
   const getCategoryLink = (category: CategoryNode): string => {
+    if (category.isLeaf) {
+      return `/feed?categoryId=${encodeURIComponent(category.slug)}`;
+    }
     const hasSubcategories = category.subcategories && category.subcategories.length > 0;
     if (hasSubcategories) {
       return `/category/${encodeURIComponent(category.slug)}`;
@@ -82,9 +88,9 @@ export default function CategoryGrid({ categories }: Props) {
               overflow: 'hidden',
             }}
           >
-            {getCategoryIcon(category.slug) ? (
+            {getCategoryIcon(category) ? (
               <img
-                src={getCategoryIcon(category.slug)!}
+                src={getCategoryIcon(category)!}
                 alt={category.name}
                 loading="lazy"
                 decoding="async"

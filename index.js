@@ -150,6 +150,21 @@ async function start() {
       // Production mode: serve static built assets
       console.log('\n📦 Production mode: serving static assets...');
       
+      // Serve category icons and other attached assets
+      const attachedAssetsPath = path.resolve(__dirname, 'attached_assets');
+      if (fs.existsSync(attachedAssetsPath)) {
+        app.use('/attached_assets', express.static(attachedAssetsPath, {
+          setHeaders: (res, filePath) => {
+            // Long-term caching for generated images (WebP icons)
+            if (filePath.endsWith('.webp') || filePath.endsWith('.png')) {
+              res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            }
+          },
+          etag: true,
+        }));
+        console.log('✅ Attached assets (category icons) configured');
+      }
+      
       // Serve MiniApp static assets from miniapp/dist
       const miniappDistPath = path.resolve(__dirname, 'miniapp/dist');
       if (fs.existsSync(miniappDistPath)) {

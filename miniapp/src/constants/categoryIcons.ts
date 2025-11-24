@@ -1,3 +1,5 @@
+// DEPRECATED: Use icon3d from API instead
+// This file is kept as fallback for categories without icon3d field
 // 3D Category Icons Mapping (WebP optimized)
 import realEstateIcon from '@/assets/categories/real-estate.webp';
 import servicesIcon from '@/assets/categories/services.webp';

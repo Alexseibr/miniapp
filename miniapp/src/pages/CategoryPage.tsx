@@ -15,7 +15,7 @@ export default function CategoryPage() {
 
   const category = useMemo(() => tree.find((node) => node.slug === slug), [tree, slug]);
 
-  if (!category) {
+  if (!category || category.isLeaf) {
     return <FeedPage />;
   }
 

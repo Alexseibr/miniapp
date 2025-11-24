@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
+import { Package } from 'lucide-react';
+import { CATEGORY_ICONS } from '@/constants/categoryIcons';
 
 interface CategoryGridProps {
   categories?: string[];
@@ -69,44 +71,60 @@ export default function CategoryGrid(props: CategoryGridProps) {
       }}
       data-testid="category-grid"
     >
-      {displayCategories.map((category: any) => (
-        <div
-          key={category.slug}
-          onClick={() => setLocation(`/category/${category.slug}`)}
-          className="card"
-          style={{
-            cursor: 'pointer',
-            textAlign: 'center',
-            padding: '16px',
-            transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
-          data-testid={`category-item-${category.slug}`}
-        >
-          {showIcons && category.iconUrl && (
-            <img
-              src={category.iconUrl}
-              alt={category.name}
-              loading="lazy"
-              decoding="async"
-              style={{
-                width: '48px',
-                height: '48px',
-                margin: '0 auto 8px',
-                objectFit: 'contain',
-              }}
-            />
-          )}
+      {displayCategories.map((category: any) => {
+        const getCategoryLink = () => {
+          if (category.isLeaf) {
+            return `/feed?categoryId=${encodeURIComponent(category.slug)}`;
+          }
+          return `/category/${encodeURIComponent(category.slug)}`;
+        };
+
+        const iconSrc = category.icon3d || CATEGORY_ICONS[category.slug] || null;
+
+        return (
           <div
+            key={category.slug}
+            onClick={() => setLocation(getCategoryLink())}
+            className="card"
             style={{
-              fontSize: '0.875rem',
-              fontWeight: 600,
-              color: 'var(--color-primary)',
+              cursor: 'pointer',
+              textAlign: 'center',
+              padding: '16px',
+              transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
             }}
+            data-testid={`category-item-${category.slug}`}
           >
-            {category.name}
+            {showIcons && (
+              <div style={{ width: '48px', height: '48px', margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {iconSrc ? (
+                  <img
+                    src={iconSrc}
+                    alt={category.name}
+                    loading="lazy"
+                    decoding="async"
+                    style={{
+                      width: '48px',
+                      height: '48px',
+                      objectFit: 'contain',
+                    }}
+                  />
+                ) : (
+                  <Package size={32} strokeWidth={1.5} color="#9ca3af" />
+                )}
+              </div>
+            )}
+            <div
+              style={{
+                fontSize: '0.875rem',
+                fontWeight: 600,
+                color: 'var(--color-primary)',
+              }}
+            >
+              {category.name}
+            </div>
           </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

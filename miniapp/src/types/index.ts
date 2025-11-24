@@ -34,6 +34,10 @@ export interface CategoryNode {
   slug: string;
   description?: string;
   icon?: string;
+  icon3d?: string | null;
+  level?: number;
+  isLeaf?: boolean;
+  parentSlug?: string | null;
   sortOrder?: number;
   subcategories?: CategoryNode[];
 }
