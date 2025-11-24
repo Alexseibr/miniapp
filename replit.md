@@ -72,7 +72,7 @@ Environment variables are used for configuration, supporting dual naming convent
 ### Admin Panel (Web Client)
 - **Frontend**: Complete admin interface with tabbed design
   - Components: `AdminAdsTab.tsx`, `AdminUsersTab.tsx`
-  - Pages: `admin.tsx` with shadcn/ui Tabs
+  - Pages: `admin.tsx` with shadcn/ui Tabs, `admin-login.tsx` with three auth methods
   - HTTP Client: `client/src/lib/http.ts` with JWT Bearer authentication
   - Features: Ads moderation (approve/reject/block), user management (roles, blocking)
   - Filters: Status, role, phone/username search
@@ -84,15 +84,52 @@ Environment variables are used for configuration, supporting dual naming convent
   - Endpoints: GET /ads, PUT /ads/:id/status, GET /users, PUT /users/:id/role, PUT /users/:id/block
   - Model Updates: User.isBlocked, User.blockReason fields
   - Security: JWT required, admin role verified, blocked users rejected in auth flow
-  - TODO: Implement admin login page for web client
 
-### Phone Authentication System
-- **Backend**: Implemented SMS-based phone auth with 4-digit codes (5-minute TTL)
-  - API Routes: `/api/auth/sms/requestCode`, `/api/auth/sms/login`
+### Admin Authentication System
+Implemented **three parallel authentication methods** for Admin Panel, all with server-side admin role validation and JWT-based sessions (7-day expiration):
+
+**Method #1: Telegram Login Widget** (Official)
+- **Frontend**: `TelegramLoginWidget` component integrated on `/admin/login` page
+- **Backend**: `/api/admin/auth/telegram-login` endpoint
+  - HMAC validation using bot token (verifies Telegram signature)
+  - Timestamp check (auth data < 1 hour old, prevents replay attacks)
+  - Finds user by telegramId, verifies admin role, issues JWT
+  - Fixed critical bug: excludes undefined/null fields from data check string
+- **Security**: Cryptographic signature validation, replay attack prevention
+- **Status**: Production-ready (requires BotFather `/setdomain` configuration)
+
+**Method #2: Bot /admin_login Command** (One-Time Links)
+- **Bot**: `/admin_login` command in `bot/bot.js`
+  - Checks admin role, generates one-time token (crypto.randomBytes(32))
+  - Saves to `AdminLoginToken` model with 5-minute expiration + TTL index
+  - Sends secure link: `https://domain.com/admin/auth?token=...`
+- **Backend**: `/api/admin/auth/verify-token` (public endpoint)
+  - Validates token (exists, not expired, not used), marks as used
+  - Verifies admin role, issues JWT
+- **Frontend**: `/admin/auth` callback route (`admin-auth-callback.tsx`)
+  - Extracts token, calls verify-token, saves JWT, redirects to `/admin`
+- **Security**: One-time use, 5-minute expiration, server-side role verification
+- **Status**: Production-ready
+
+**Method #3: Phone Auth with SMS Codes**
+- **Frontend**: Two-step form on `/admin/login` (phone → SMS code)
+- **Backend**: 
+  - `/api/auth/sms/requestCode` - sends 4-digit SMS code (5-minute TTL)
+  - `/api/auth/admin/login` - validates code + admin role, issues JWT
   - Model: `SmsLoginCode` with automatic expiration
-  - Security: SMS codes logged server-side only, never returned in API responses
-  - JWT tokens with 7-day expiration
-  - TODO: Integrate real SMS provider (Twilio/SMS.ru) for production
+- **Security**: SMS code verification, server-side admin role validation
+- **Status**: Functional (uses console logging; needs SMS provider for production)
+
+**Routing Architecture:**
+- `/api/admin/auth/*` → PUBLIC endpoints (verify-token, telegram-login)
+- `/api/admin/*` → PROTECTED by adminAuth middleware
+- Critical: Public auth endpoints registered BEFORE protected routes in `api/server.js`
+
+**Shared Infrastructure:**
+- JWT tokens: 7-day expiration, includes userId, phone, role
+- `setAuthToken()`: Saves JWT to localStorage
+- `adminAuth` middleware: Validates all protected admin routes
+- Toast notifications: Consistent success/error UX across all methods
 
 ### Chat Messaging System
 - **Backend**: Real-time chat with 3-second polling
