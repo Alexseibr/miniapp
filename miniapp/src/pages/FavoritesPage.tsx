@@ -27,7 +27,7 @@ export default function FavoritesPage() {
 
   return (
     <div className="container">
-      <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
+      <div className="ads-grid">
         {favorites.map((favorite) => favorite.ad && <AdCard key={favorite.adId} ad={favorite.ad} />)}
       </div>
     </div>

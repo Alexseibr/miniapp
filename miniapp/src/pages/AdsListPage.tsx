@@ -135,7 +135,7 @@ export default function AdsListPage() {
       {loading ? (
         <EmptyState title="Загружаем объявления" description="Подождите немного" />
       ) : filteredAds.length ? (
-        <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
+        <div className="ads-grid">
           {filteredAds.map((ad) => (
             <AdCard key={ad._id} ad={ad} onSelect={(item) => setSelectedAdId(item._id)} />
           ))}
