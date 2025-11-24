@@ -43,7 +43,9 @@ The project includes two React applications built with TypeScript and Vite:
 - **Frontend**: `react`, `react-dom`, `@tanstack/react-query`, `@radix-ui/*`, `tailwindcss`, `wouter`, `zod`, `react-hook-form`, `vite`, `swiper`, `leaflet`, `react-leaflet`.
 
 ### File Storage
-- **Replit Object Storage**: Using @google-cloud/storage for photo uploads. Photos stored in public bucket (`PUBLIC_OBJECT_SEARCH_PATHS`) for immediate accessibility.
-- **ObjectStorageService** (api/services/objectStorage.js): Handles presigned URL generation for direct browser uploads and returns permanent public URLs.
-- **Photo Upload API**: POST /api/uploads/presigned-url endpoint protected by Telegram auth, returns both upload URL and public URL.
+- **Replit Object Storage**: Using @google-cloud/storage for photo uploads with server-side media proxy.
+- **ObjectStorageService** (api/services/objectStorage.js): Handles presigned URL generation for direct browser uploads. Returns proxy URLs (`/api/media/{bucket}/{object}`) instead of direct GCS links.
+- **Media Proxy** (api/routes/media.js): GET /api/media/:bucketName/:objectPath(*) streams files from private GCS bucket with proper Content-Type, Cache-Control (1 year), and ETag headers.
+- **Photo Upload API**: POST /api/uploads/presigned-url endpoint protected by Telegram auth, returns both upload URL (presigned) and public URL (proxy).
 - **ImageUploader Component** (miniapp/src/components/ImageUploader.tsx): Supports file selection and camera capture with client-side validation (10MB max).
+- **Architecture Note**: Direct GCS public access is prevented by bucket policy. All photo access flows through server-side proxy for authentication and caching.

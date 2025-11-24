@@ -60,9 +60,9 @@ export class ObjectStorageService {
       ttlSec: 900,
     });
 
-    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    const publicURL = `/api/media/${bucketName}/${objectName}`;
     
-    return { uploadURL: signedUrl, publicURL: publicUrl };
+    return { uploadURL: signedUrl, publicURL };
   }
 
   normalizeObjectPath(rawPath) {
