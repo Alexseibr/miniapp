@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, MessageCircle } from 'lucide-react';
+import { MapPin, MessageCircle, ArrowLeft } from 'lucide-react';
 import { getAd } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { AdPreview } from '@/types';
@@ -56,12 +56,56 @@ export default function AdPage() {
   }
 
   return (
-    <div className="container">
-      <article className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h2 style={{ margin: 0 }}>{ad.title}</h2>
-          <FavoriteButton adId={ad._id} />
-        </div>
+    <div style={{ paddingBottom: '80px', backgroundColor: '#f8fafc', minHeight: '100vh' }}>
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          backgroundColor: '#FFFFFF',
+          borderBottom: '1px solid #e5e7eb',
+          zIndex: 10,
+          padding: '12px 16px',
+        }}
+      >
+        <button
+          onClick={() => navigate(-1)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            padding: '12px 20px',
+            backgroundColor: '#3B73FC',
+            color: '#ffffff',
+            border: 'none',
+            borderRadius: '12px',
+            fontSize: '1rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            boxShadow: '0 2px 8px rgba(59, 115, 252, 0.25)',
+            transition: 'all 0.2s',
+            width: '100%',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-1px)';
+            e.currentTarget.style.boxShadow = '0 4px 12px rgba(59, 115, 252, 0.35)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)';
+            e.currentTarget.style.boxShadow = '0 2px 8px rgba(59, 115, 252, 0.25)';
+          }}
+          data-testid="button-back"
+        >
+          <ArrowLeft size={24} />
+          <span style={{ fontSize: '1.125rem' }}>Назад</span>
+        </button>
+      </div>
+
+      <div className="container" style={{ paddingTop: '16px' }}>
+        <article className="card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <h2 style={{ margin: 0 }}>{ad.title}</h2>
+            <FavoriteButton adId={ad._id} />
+          </div>
         <p style={{ color: '#475467' }}>{ad.description}</p>
         {ad.photos?.length && (
           <div style={{ display: 'flex', gap: 8, overflowX: 'auto', margin: '12px 0' }}>
@@ -128,7 +172,8 @@ export default function AdPage() {
             Добавить в корзину
           </button>
         </div>
-      </article>
+        </article>
+      </div>
     </div>
   );
 }
