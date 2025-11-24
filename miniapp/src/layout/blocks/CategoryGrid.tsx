@@ -98,7 +98,7 @@ export default function CategoryGrid(props: CategoryGridProps) {
       className="category-grid"
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${columns}, 1fr)`,
+        gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
         gap: '12px',
       }}
       data-testid="category-grid"
@@ -125,8 +125,8 @@ export default function CategoryGrid(props: CategoryGridProps) {
             style={{
               cursor: 'pointer',
               textAlign: 'center',
-              padding: '12px',
-              borderRadius: '16px',
+              padding: '10px 8px',
+              borderRadius: '12px',
               backgroundColor: '#FFFFFF',
               border: '1px solid #E5E7EB',
               aspectRatio: '1',
@@ -148,7 +148,7 @@ export default function CategoryGrid(props: CategoryGridProps) {
             }}
           >
             {showIcons && (
-              <div style={{ width: '72px', height: '72px', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '16px', backgroundColor: '#F5F7FA', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)', overflow: 'hidden' }}>
+              <div style={{ width: '56px', height: '56px', margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '12px', backgroundColor: '#F5F7FA', boxShadow: '0 1px 2px rgba(0, 0, 0, 0.06)', overflow: 'hidden' }}>
                 {iconSrc ? (
                   <img
                     src={iconSrc}
@@ -162,18 +162,18 @@ export default function CategoryGrid(props: CategoryGridProps) {
                     }}
                   />
                 ) : (
-                  <Package size={36} strokeWidth={1.5} color="#9ca3af" />
+                  <Package size={28} strokeWidth={1.5} color="#9ca3af" />
                 )}
               </div>
             )}
             <div
               className="category-name"
               style={{
-                fontSize: '0.8125rem',
+                fontSize: '0.75rem',
                 fontWeight: 500,
                 color: '#111827',
                 lineHeight: 1.25,
-                WebkitLineClamp: 3,
+                WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
                 overflow: 'hidden',
                 wordBreak: 'break-word',
