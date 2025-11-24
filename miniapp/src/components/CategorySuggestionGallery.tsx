@@ -41,13 +41,13 @@ export default function CategorySuggestionGallery({
         </span>
       </div>
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-1.5" style={{ maxWidth: '100%' }}>
         {suggestions.map((suggestion, index) => (
           <button
             key={`${suggestion.slug}-${index}`}
             onClick={() => onSelectCategory(suggestion)}
-            className="group relative rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden"
-            style={{ height: '80px', width: '100%' }}
+            className="group relative rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden flex-shrink-0"
+            style={{ height: '75px', width: '100%', maxWidth: '100%' }}
             data-testid={`suggestion-card-${suggestion.slug}`}
           >
             {suggestion.icon3d && (
