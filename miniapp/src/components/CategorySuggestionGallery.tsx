@@ -41,22 +41,17 @@ export default function CategorySuggestionGallery({
         </span>
       </div>
 
-      <div
-        className={`grid gap-2 ${
-          suggestions.length === 1
-            ? 'grid-cols-1'
-            : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5'
-        }`}
-      >
+      <div className="grid grid-cols-3 gap-2">
         {suggestions.map((suggestion) => (
           <button
             key={suggestion.slug}
             onClick={() => onSelectCategory(suggestion)}
-            className="group relative aspect-square rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden"
+            className="group relative rounded-lg border border-border bg-card hover-elevate active-elevate-2 transition-all overflow-hidden"
+            style={{ aspectRatio: '1', minHeight: 0 }}
             data-testid={`suggestion-card-${suggestion.slug}`}
           >
             {suggestion.icon3d && (
-              <div className="absolute inset-0 flex items-center justify-center p-3">
+              <div className="absolute inset-0 flex items-center justify-center p-2">
                 <img
                   src={suggestion.icon3d}
                   alt={suggestion.name}
@@ -68,30 +63,16 @@ export default function CategorySuggestionGallery({
               </div>
             )}
 
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-              <div className="flex items-center justify-between gap-1">
-                <div className="flex-1 min-w-0">
-                  <p
-                    className="text-xs font-medium text-white truncate"
-                    data-testid={`suggestion-name-${suggestion.slug}`}
-                  >
-                    {suggestion.name}
-                  </p>
-                  <p className="text-[10px] text-white/70 truncate">
-                    {suggestion.displayPath}
-                  </p>
-                </div>
-                <ChevronRight className="w-3 h-3 text-white/70 flex-shrink-0 group-hover:translate-x-0.5 transition-transform" />
-              </div>
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/90 to-transparent p-1.5">
+              <p
+                className="text-[10px] font-medium text-white truncate leading-tight"
+                data-testid={`suggestion-name-${suggestion.slug}`}
+              >
+                {suggestion.name}
+              </p>
             </div>
 
-            {hasHighConfidence && suggestions.length === 1 && (
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-full bg-primary/90 text-[10px] font-medium text-primary-foreground">
-                Рекомендуем
-              </div>
-            )}
-
-            <div className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 text-[10px] text-white/90 font-medium">
+            <div className="absolute top-1 right-1 px-1 py-0.5 rounded bg-primary/90 text-[9px] text-white font-medium">
               {suggestion.score}%
             </div>
           </button>
