@@ -38,4 +38,11 @@ http.interceptors.request.use((config) => {
   return config;
 });
 
+export function logout() {
+  setAuthToken(null);
+  if (typeof window !== 'undefined') {
+    window.location.href = '/admin/login';
+  }
+}
+
 export default http;

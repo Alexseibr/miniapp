@@ -134,6 +134,15 @@ export default function Home() {
           </Link>
         </div>
 
+        <div className="mt-12 text-center">
+          <Link href="/admin/login">
+            <Button variant="outline" size="lg" className="gap-2" data-testid="button-admin-login">
+              <ShieldCheck className="h-5 w-5" />
+              Вход для администраторов
+            </Button>
+          </Link>
+        </div>
+
         <div className="mt-16 text-center">
           <Card className="max-w-2xl mx-auto">
             <CardHeader>
