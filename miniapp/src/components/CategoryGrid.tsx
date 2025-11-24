@@ -35,7 +35,7 @@ const CategoryGrid = memo(({ categories }: Props) => {
 
   return (
     <section
-      className="category-grid"
+      className="category-grid icons-only"
       style={{
         display: 'grid',
         gap: '12px',
