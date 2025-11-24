@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import AdCard from '@/components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
+import AuthScreen from '@/components/AuthScreen';
 import { useUserStore } from '@/store/useUserStore';
 
 export default function FavoritesPage() {
@@ -13,12 +14,7 @@ export default function FavoritesPage() {
   }, [refreshFavorites]);
 
   if (!user) {
-    return (
-      <EmptyState
-        title="Авторизуйтесь через Telegram"
-        description="Мини-приложение автоматически подтянет ваш профиль при запуске из Telegram"
-      />
-    );
+    return <AuthScreen />;
   }
 
   if (!favorites.length) {

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import EmptyState from '@/widgets/EmptyState';
+import AuthScreen from '@/components/AuthScreen';
 import { useUserStore } from '@/store/useUserStore';
 import { useGeo } from '@/utils/geo';
 import { getTelegramWebApp } from '@/utils/telegram';
@@ -33,12 +33,7 @@ export default function ProfilePage() {
   };
 
   if (!user) {
-    return (
-      <EmptyState
-        title="Авторизуйтесь через Telegram"
-        description="Откройте MiniApp из чата с ботом, чтобы подтянуть аккаунт"
-      />
-    );
+    return <AuthScreen />;
   }
 
   return (
