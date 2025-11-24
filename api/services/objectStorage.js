@@ -24,6 +24,18 @@ export const objectStorageClient = new Storage({
 export class ObjectStorageService {
   constructor() {}
 
+  getPublicObjectSearchPaths() {
+    const pathsStr = process.env.PUBLIC_OBJECT_SEARCH_PATHS || '';
+    const paths = pathsStr
+      .split(',')
+      .map((path) => path.trim())
+      .filter((path) => path.length > 0);
+    if (paths.length === 0) {
+      throw new Error('PUBLIC_OBJECT_SEARCH_PATHS not set');
+    }
+    return paths;
+  }
+
   getPrivateObjectDir() {
     const dir = process.env.PRIVATE_OBJECT_DIR || '';
     if (!dir) {
@@ -33,18 +45,24 @@ export class ObjectStorageService {
   }
 
   async getUploadURL(fileExtension = 'jpg') {
-    const privateObjectDir = this.getPrivateObjectDir();
+    const publicPaths = this.getPublicObjectSearchPaths();
+    const publicDir = publicPaths[0];
+    
     const objectId = randomUUID();
-    const fullPath = `${privateObjectDir}/photos/${objectId}.${fileExtension}`;
+    const fullPath = `${publicDir}/photos/${objectId}.${fileExtension}`;
 
     const { bucketName, objectName } = parseObjectPath(fullPath);
 
-    return signObjectURL({
+    const signedUrl = await signObjectURL({
       bucketName,
       objectName,
       method: 'PUT',
       ttlSec: 900,
     });
+
+    const publicUrl = `https://storage.googleapis.com/${bucketName}/${objectName}`;
+    
+    return { uploadURL: signedUrl, publicURL: publicUrl };
   }
 
   normalizeObjectPath(rawPath) {

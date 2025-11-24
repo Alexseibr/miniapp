@@ -9,9 +9,9 @@ router.post('/presigned-url', telegramAuthMiddleware, async (req, res) => {
     const { fileExtension = 'jpg' } = req.body;
     
     const objectStorageService = new ObjectStorageService();
-    const uploadURL = await objectStorageService.getUploadURL(fileExtension);
+    const { uploadURL, publicURL } = await objectStorageService.getUploadURL(fileExtension);
     
-    res.json({ uploadURL });
+    res.json({ uploadURL, publicURL });
   } catch (error) {
     console.error('Error getting upload URL:', error);
     res.status(500).json({ error: 'Ошибка получения URL для загрузки' });

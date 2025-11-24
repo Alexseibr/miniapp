@@ -9,6 +9,7 @@ import { ArrowLeft, Camera, MapPin, Loader2 } from 'lucide-react';
 import { useGeo } from '@/utils/geo';
 import { useCategorySuggestions } from '@/hooks/useCategorySuggestions';
 import CategorySuggestionGallery from '@/components/CategorySuggestionGallery';
+import ImageUploader from '@/components/ImageUploader';
 
 export default function CreateAdPage() {
   const navigate = useNavigate();
@@ -69,6 +70,12 @@ export default function CreateAdPage() {
     if (photoInput.trim() && !photos.includes(photoInput.trim())) {
       setPhotos([...photos, photoInput.trim()]);
       setPhotoInput('');
+    }
+  };
+
+  const handlePhotoUpload = (url: string) => {
+    if (!photos.includes(url)) {
+      setPhotos([...photos, url]);
     }
   };
 
@@ -323,6 +330,13 @@ export default function CreateAdPage() {
           <h3 style={{ marginTop: 0, marginBottom: 16 }}>Фотографии</h3>
 
           <div style={{ marginBottom: 12 }}>
+            <ImageUploader onUpload={handlePhotoUpload} maxSizeMB={10} />
+          </div>
+
+          <div style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, color: '#6b7280' }}>
+              Или добавьте по ссылке
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <input
                 type="url"
@@ -340,11 +354,8 @@ export default function CreateAdPage() {
                 style={{ width: 'auto', padding: '12px 20px' }}
                 data-testid="button-add-photo"
               >
-                <Camera size={20} />
+                Добавить
               </button>
-            </div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4 }}>
-              Добавьте ссылки на фотографии товара
             </div>
           </div>
 
