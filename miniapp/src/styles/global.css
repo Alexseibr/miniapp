@@ -61,16 +61,16 @@
 }
 
 .category-grid .category-name {
-  display: -webkit-box;
-}
-
-.category-grid.icons-only .category-name {
   display: none;
 }
 
 @media (min-width: 768px) {
   .category-grid {
     grid-template-columns: repeat(3, 1fr);
+  }
+  
+  .category-grid .category-name {
+    display: -webkit-box;
   }
 }
 
