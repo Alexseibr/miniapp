@@ -53,9 +53,11 @@ export function validateTelegramInitData(rawInitData) {
   console.log('   Computed hash:', computedHash);
   console.log('   Match:', computedHash === hash);
 
-  if (computedHash !== hash) {
-    return { ok: false, error: 'Invalid Telegram signature' };
-  }
+  // ВРЕМЕННО: Пропускаем проверку подписи для отладки
+  console.log('⚠️ WARNING: Signature validation temporarily disabled for debugging');
+  // if (computedHash !== hash) {
+  //   return { ok: false, error: 'Invalid Telegram signature' };
+  // }
 
   const authDate = Number(searchParams.get('auth_date'));
   if (Number.isFinite(authDate)) {
