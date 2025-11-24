@@ -95,9 +95,9 @@ export default function CategoryGrid(props: CategoryGridProps) {
 
   return (
     <div
+      className="category-grid"
       style={{
         display: 'grid',
-        gridTemplateColumns: `repeat(${columns}, 1fr)`,
         gap: '12px',
       }}
       data-testid="category-grid"
@@ -121,17 +121,33 @@ export default function CategoryGrid(props: CategoryGridProps) {
           <div
             key={category.slug}
             onClick={() => navigate(getCategoryLink())}
-            className="card"
             style={{
               cursor: 'pointer',
               textAlign: 'center',
-              padding: '16px',
+              padding: '16px 12px',
+              borderRadius: '16px',
+              backgroundColor: '#FFFFFF',
+              border: '1px solid #E5E7EB',
+              minHeight: '140px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
               transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
+              boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
             }}
             data-testid={`category-item-${category.slug}`}
+            onTouchStart={(e) => {
+              e.currentTarget.style.transform = 'scale(0.97)';
+              e.currentTarget.style.backgroundColor = '#F9FAFB';
+            }}
+            onTouchEnd={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.backgroundColor = '#FFFFFF';
+            }}
           >
             {showIcons && (
-              <div style={{ width: '48px', height: '48px', margin: '0 auto 8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '72px', height: '72px', margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '16px', backgroundColor: '#F5F7FA', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)', overflow: 'hidden' }}>
                 {iconSrc ? (
                   <img
                     src={iconSrc}
@@ -139,21 +155,28 @@ export default function CategoryGrid(props: CategoryGridProps) {
                     loading="lazy"
                     decoding="async"
                     style={{
-                      width: '48px',
-                      height: '48px',
-                      objectFit: 'contain',
+                      width: '100%',
+                      height: '100%',
+                      objectFit: 'cover',
                     }}
                   />
                 ) : (
-                  <Package size={32} strokeWidth={1.5} color="#9ca3af" />
+                  <Package size={36} strokeWidth={1.5} color="#9ca3af" />
                 )}
               </div>
             )}
             <div
               style={{
-                fontSize: '0.875rem',
-                fontWeight: 600,
-                color: 'var(--color-primary)',
+                fontSize: '0.8125rem',
+                fontWeight: 500,
+                color: '#111827',
+                lineHeight: 1.25,
+                display: '-webkit-box',
+                WebkitLineClamp: 3,
+                WebkitBoxOrient: 'vertical',
+                overflow: 'hidden',
+                wordBreak: 'break-word',
+                maxWidth: '100%',
               }}
             >
               {category.name}

@@ -80,16 +80,13 @@
 
 html, body {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
-  position: fixed;
+  min-height: 100vh;
   background: var(--tg-theme-bg-color, var(--bg-secondary));
 }
 
 #root {
   width: 100%;
-  height: 100%;
-  overflow: hidden;
+  min-height: 100vh;
 }
 
 button {

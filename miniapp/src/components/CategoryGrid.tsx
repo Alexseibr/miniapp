@@ -38,7 +38,7 @@ const CategoryGrid = memo(({ categories }: Props) => {
       className="category-grid"
       style={{
         display: 'grid',
-        gap: '16px',
+        gap: '12px',
       }}
     >
       {categories.map((category) => (
@@ -51,13 +51,13 @@ const CategoryGrid = memo(({ categories }: Props) => {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            padding: '24px 16px',
-            borderRadius: '20px',
+            padding: '16px 12px',
+            borderRadius: '16px',
             backgroundColor: '#FFFFFF',
             border: '1px solid #E5E7EB',
             textDecoration: 'none',
             transition: 'all 0.2s ease',
-            minHeight: '160px',
+            minHeight: '140px',
             boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
           }}
           onMouseDown={(e) => {
@@ -79,14 +79,14 @@ const CategoryGrid = memo(({ categories }: Props) => {
         >
           <div
             style={{
-              width: '88px',
-              height: '88px',
-              borderRadius: '20px',
+              width: '72px',
+              height: '72px',
+              borderRadius: '16px',
               backgroundColor: '#F5F7FA',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              marginBottom: '16px',
+              marginBottom: '12px',
               boxShadow: '0 2px 4px rgba(0, 0, 0, 0.08)',
               overflow: 'hidden',
             }}
@@ -121,16 +121,17 @@ const CategoryGrid = memo(({ categories }: Props) => {
           </div>
           <span
             style={{
-              fontSize: '0.9375rem',
+              fontSize: '0.8125rem',
               textAlign: 'center',
               color: '#111827',
               fontWeight: 500,
-              lineHeight: 1.3,
+              lineHeight: 1.25,
               display: '-webkit-box',
-              WebkitLineClamp: 2,
+              WebkitLineClamp: 3,
               WebkitBoxOrient: 'vertical',
               overflow: 'hidden',
               wordBreak: 'break-word',
+              maxWidth: '100%',
             }}
           >
             {category.name}
