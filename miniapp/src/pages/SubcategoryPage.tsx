@@ -17,7 +17,7 @@ export default function SubcategoryPage() {
     loadCategories();
   }, [loadCategories]);
 
-  if (loading) {
+  if (loading || categories.length === 0) {
     return (
       <div style={{ textAlign: 'center', padding: '40px 20px' }}>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
@@ -38,7 +38,7 @@ export default function SubcategoryPage() {
       categorySlug: slug,
       limit: 50 
     }],
-    enabled: !!slug,
+    enabled: !!slug && !!category,
   });
 
   const ads = Array.isArray(adsData)
@@ -92,7 +92,7 @@ export default function SubcategoryPage() {
           position: 'sticky',
           top: 0,
           backgroundColor: '#FFFFFF',
-          borderBottom: '1px solid var(--color-secondary-soft)',
+          borderBottom: '1px solid #cbd5e1',
           zIndex: 10,
           padding: '12px 16px',
         }}
@@ -108,7 +108,7 @@ export default function SubcategoryPage() {
             cursor: 'pointer',
             padding: 0,
             fontSize: '0.875rem',
-            color: 'var(--color-primary)',
+            color: '#0f172a',
             fontWeight: 500,
             marginBottom: '12px',
           }}
@@ -122,8 +122,8 @@ export default function SubcategoryPage() {
 
       {/* Subcategories Grid */}
       {subcategories.length > 0 && (
-        <div style={{ padding: '16px', backgroundColor: 'var(--bg-secondary)' }}>
-          <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+        <div style={{ padding: '16px', backgroundColor: '#f8fafc' }}>
+          <h3 style={{ margin: '0 0 12px', fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
             Категории
           </h3>
           <CategoryGrid categories={subcategories} />
@@ -131,12 +131,12 @@ export default function SubcategoryPage() {
       )}
 
       {/* Ads List */}
-      <div style={{ padding: '16px', backgroundColor: 'var(--bg-primary)' }}>
+      <div style={{ padding: '16px', backgroundColor: '#ffffff' }}>
         <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: 'var(--color-primary)' }}>
+          <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 600, color: '#0f172a' }}>
             Все объявления
           </h3>
-          <span style={{ fontSize: '0.875rem', color: 'var(--color-secondary)' }}>
+          <span style={{ fontSize: '0.875rem', color: '#64748b' }}>
             {ads.length} {ads.length === 1 ? 'объявление' : ads.length < 5 ? 'объявления' : 'объявлений'}
           </span>
         </div>
