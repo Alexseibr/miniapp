@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Switch, useLocation, Redirect } from 'wouter';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BottomTabs from '@/components/BottomTabs';
@@ -122,23 +122,23 @@ export default function App() {
               <Loader2 className="w-8 h-8 animate-spin text-gray-600" />
             </div>
           }>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/category/:slug" element={<SubcategoryPage />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/seasons" element={<SeasonsPage />} />
-              <Route path="/seasons/:code" element={<SeasonViewPage />} />
-              <Route path="/categories/:slug" element={<CategoryPage />} />
-              <Route path="/ads/:id" element={<AdPage />} />
-              <Route path="/my-ads" element={<MyAdsPage />} />
-              <Route path="/ads/create" element={<CreateAdPage />} />
-              <Route path="/chats" element={<ConversationsPage />} />
-              <Route path="/chat/:conversationId" element={<ChatPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
+            <Switch>
+              <Route path="/" component={HomePage} />
+              <Route path="/category/:slug" component={SubcategoryPage} />
+              <Route path="/feed" component={FeedPage} />
+              <Route path="/favorites" component={FavoritesPage} />
+              <Route path="/profile" component={ProfilePage} />
+              <Route path="/orders" component={OrdersPage} />
+              <Route path="/seasons" component={SeasonsPage} />
+              <Route path="/seasons/:code" component={SeasonViewPage} />
+              <Route path="/categories/:slug" component={CategoryPage} />
+              <Route path="/ads/:id" component={AdPage} />
+              <Route path="/my-ads" component={MyAdsPage} />
+              <Route path="/ads/create" component={CreateAdPage} />
+              <Route path="/chats" component={ConversationsPage} />
+              <Route path="/chat/:conversationId" component={ChatPage} />
+              <Route><Redirect to="/" /></Route>
+            </Switch>
           </Suspense>
         </main>
 
