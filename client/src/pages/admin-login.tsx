@@ -10,6 +10,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import http, { setAuthToken } from "@/lib/http";
+import { TelegramLoginWidget } from "@/components/TelegramLoginWidget";
 
 const phoneSchema = z.object({
   phone: z
@@ -117,6 +118,34 @@ export default function AdminLoginPage() {
   const handleBack = () => {
     setStep("phone");
     codeForm.reset();
+  };
+
+  const handleTelegramAuth = async (telegramUser: any) => {
+    setIsLoading(true);
+    try {
+      const response = await http.post('/api/admin/auth/telegram-login', telegramUser);
+      const { token, user } = response.data;
+      
+      setAuthToken(token);
+      
+      toast({
+        title: '✅ Вход выполнен',
+        description: `Добро пожаловать, ${user.firstName || user.username || "администратор"}!`,
+      });
+      
+      navigate('/admin');
+      
+    } catch (error: any) {
+      console.error('Telegram login failed:', error);
+      
+      toast({
+        variant: 'destructive',
+        title: '❌ Ошибка входа',
+        description: error.response?.data?.message || 'Не удалось войти через Telegram',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -229,24 +258,14 @@ export default function AdminLoginPage() {
           )}
           
           <div className="mt-6 text-center">
-            <p className="text-sm text-muted-foreground mb-2">или</p>
-            <a 
-              href="https://t.me/KetmarM_bot" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="inline-block"
-            >
-              <Button 
-                variant="link" 
-                className="text-[#3B73FC]" 
-                data-testid="button-telegram-login"
-              >
-                Войти через Telegram
-              </Button>
-            </a>
-            <p className="text-xs text-muted-foreground mt-1">
-              Отправьте команду /admin_login боту
-            </p>
+            <p className="text-sm text-muted-foreground mb-4">или войдите через Telegram</p>
+            <div className="flex justify-center">
+              <TelegramLoginWidget
+                botName="KetmarM_bot"
+                onAuth={handleTelegramAuth}
+                buttonSize="large"
+              />
+            </div>
           </div>
         </CardContent>
       </Card>
