@@ -4,6 +4,7 @@ import { MapPin, Home, SlidersHorizontal, ChevronDown, X, Search, Globe } from '
 import RadiusControl from '@/components/RadiusControl';
 import NearbyAdsGrid from '@/components/NearbyAdsGrid';
 import CategoriesSheet from '@/components/CategoriesSheet';
+import BrandFilter from '@/components/BrandFilter';
 import { useGeo } from '@/utils/geo';
 import { useNearbyAds } from '@/hooks/useNearbyAds';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
@@ -20,6 +21,7 @@ export default function FeedPage() {
   
   const [showCategoriesSheet, setShowCategoriesSheet] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
   const [totalAds, setTotalAds] = useState(0);
   const [scope, setScope] = useState<ScopeType>('local');
@@ -395,6 +397,18 @@ export default function FeedPage() {
                   <X size={14} />
                 </button>
               </div>
+            </div>
+          )}
+
+          {/* Brand Filter - показываем если выбрана категория */}
+          {selectedCategoryId && (
+            <div style={{ padding: '0 16px 16px' }}>
+              <BrandFilter
+                categorySlug={selectedCategoryId}
+                selectedBrands={selectedBrands}
+                onBrandsChange={setSelectedBrands}
+                scope={scope}
+              />
             </div>
           )}
 

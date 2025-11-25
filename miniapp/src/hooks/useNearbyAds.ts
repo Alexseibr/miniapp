@@ -8,6 +8,7 @@ interface UseNearbyAdsParams {
   categoryId?: string | null;
   subcategoryId?: string | null;
   query?: string | null;
+  brands?: string[];
   scope?: 'local' | 'country';
   enabled?: boolean;
   limit?: number;
@@ -30,6 +31,7 @@ export function useNearbyAds({
   categoryId,
   subcategoryId,
   query,
+  brands,
   scope = 'local',
   enabled = true,
   limit = 50,
@@ -72,6 +74,7 @@ export function useNearbyAds({
         categoryId: categoryId || undefined,
         subcategoryId: subcategoryId || undefined,
         q: query || undefined,
+        brands: brands && brands.length > 0 ? brands.join(',') : undefined,
         limit,
         signal: currentController.signal,
       });
@@ -91,7 +94,7 @@ export function useNearbyAds({
         setLoading(false);
       }
     }
-  }, [coords, radiusKm, categoryId, subcategoryId, query, scope, enabled]);
+  }, [coords, radiusKm, categoryId, subcategoryId, query, brands, scope, enabled]);
 
   useEffect(() => {
     if (debounceTimerRef.current) {
