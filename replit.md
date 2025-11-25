@@ -71,6 +71,20 @@ Preferred communication style: Simple, everyday language.
 - **Ad History Tracking** (Admin):
   - **AdHistoryEvent Model**: Tracks ad lifecycle events (created, published, edited, moderated, etc.).
   - **API Endpoint**: `/api/admin/ads/:adId/history` returns timeline of ad changes for admin panel.
+- **Category Auto-Suggestion**: Keyword-based category detection from ad titles.
+  - **CategorySuggestService** (`services/CategorySuggestService.js`): Normalizes text, matches keywords, returns category/subcategory suggestions with confidence scores.
+  - **Config** (`config/categoryKeywordsConfig.js`): Keyword mappings for all major categories (electronics, realty, auto, services, etc.).
+  - **API Endpoint**: `POST /api/categories/suggest` returns bestMatch and alternatives with confidence scores.
+  - **Frontend Integration**: Step3Info shows dismissible suggestion card with 500ms debounce, Apply/Dismiss buttons.
+- **Media Upload System**: File size limits, thumbnail generation, and cleanup.
+  - **MediaFile Model** (`models/MediaFile.js`): Stores metadata for uploaded files with status tracking (temporary/attached/deleted), original and thumbnail URLs.
+  - **MediaService** (`services/MediaService.js`): Validates file size (10 MB max) and mimeType (JPEG, PNG, WebP), creates upload sessions with MediaFile records, generates thumbnails via sharp, manages file attachment to ads.
+  - **API Endpoints** (`api/routes/uploads.js`):
+    - `POST /api/uploads/presigned-url`: Returns signed upload URL with fileId, validates size/mimeType before generating URL.
+    - `POST /api/uploads/:fileId/complete`: Triggers thumbnail generation after upload completion.
+    - `GET /api/uploads/limits`: Returns max file size (10 MB), allowed mime types.
+  - **Media Cleanup Worker** (`workers/mediaCleanup.js`): Hourly cron job removes temporary files older than 24 hours from storage and marks them as deleted.
+  - **Environment Variables**: `UPLOAD_MAX_SIZE_BYTES` (default 10485760), `MEDIA_CLEANUP_HOURS_OLD` (default 24).
 
 ## External Dependencies
 
