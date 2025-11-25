@@ -8,7 +8,7 @@ dotenv.config();
 // City coordinates for Belarus
 const cities = [
   { code: 'minsk', name: 'Минск', lat: 53.9006, lng: 27.5590 },
-  { code: 'brest', name: 'Брест', lat: 52.0977, lng: 23.7340 },
+  { code: 'brest', name: 'Брест', lat: 52.093752, lng: 23.688094 },
   { code: 'grodno', name: 'Гродно', lat: 53.6693, lng: 23.8131 },
   { code: 'gomel', name: 'Гомель', lat: 52.4411, lng: 30.9878 },
   { code: 'vitebsk', name: 'Витебск', lat: 55.1904, lng: 30.2049 },

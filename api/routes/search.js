@@ -144,14 +144,18 @@ router.get('/search', async (req, res) => {
             return null;
           }
 
+          const { distance, ...adWithoutDistance } = ad;
           return {
-            ...ad,
+            ...adWithoutDistance,
             distanceKm: roundedDistance,
           };
         })
         .filter(Boolean);
     } else {
-      filtered = filtered.map((ad) => ({ ...ad, distanceKm: null }));
+      filtered = filtered.map((ad) => {
+        const { distance, ...adWithoutDistance } = ad;
+        return { ...adWithoutDistance, distanceKm: null };
+      });
     }
 
     const totalMatches = filtered.length;
