@@ -89,6 +89,7 @@ export interface CreateAdPayload {
       coordinates: [number, number];
     };
   };
+  publishAt?: string;
 }
 
 export async function fetchMyAds(sellerTelegramId: number) {

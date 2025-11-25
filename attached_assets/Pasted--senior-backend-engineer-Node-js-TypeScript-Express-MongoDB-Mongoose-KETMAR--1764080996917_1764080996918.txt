@@ -1,0 +1,186 @@
+Ты — senior backend engineer (Node.js + TypeScript + Express + MongoDB + Mongoose) в проекте KETMAR Market.
+
+Нужно ДОБАВИТЬ на backend функционал **отложенной публикации объявлений** (“scheduled publish”), чтобы пользователь мог выбрать время, когда объявление станет активным.
+
+======================================
+1. МОДЕЛЬ ДАННЫХ (Mongoose)
+======================================
+
+Найди модель `Ad` и добавь поля:
+
+```ts
+publishAt?: Date | null;        // время запланированной публикации
+status: 'draft' | 'scheduled' | 'active' | 'archived'; 
+Требования:
+
+Если пользователь выбрал «опубликовать позже» — сохраняем publishAt = <дата> и status = 'scheduled'.
+
+Если пользователь выбрал «опубликовать сейчас» или не указал время:
+
+publishAt = null
+
+status = 'active'
+
+Если publishAt в прошлом — игнорировать и делать active.
+
+Добавь индекс:
+
+ts
+Копировать код
+AdSchema.index({ publishAt: 1, status: 1 });
+======================================
+2. API: СОЗДАНИЕ ОБЪЯВЛЕНИЯ С publishAt
+В POST /api/ads:
+
+Принять поле publishAt (string или ISO).
+
+Логика:
+
+ts
+Копировать код
+if (!publishAt) {
+    status = 'active';
+    publishAt = null;
+}
+else if (new Date(publishAt) > new Date()) {
+    status = 'scheduled';
+}
+else {
+    status = 'active';
+    publishAt = null;
+}
+Создать объявление с нужным статусом.
+
+Вернуть:
+
+json
+Копировать код
+{
+  "success": true,
+  "adId": "...",
+  "status": "active" | "scheduled"
+}
+======================================
+3. BACKEND WORKER / CRON
+Нужно создать задачу, которая каждую минуту проверяет, есть ли объявления, которым пора стать активными.
+
+Создай файл:
+
+bash
+Копировать код
+backend/jobs/publishScheduler.ts
+Содержимое:
+
+импорт Ad модели
+
+cron через node-cron или setInterval
+
+Пример:
+
+ts
+Копировать код
+import cron from 'node-cron';
+import { Ad } from '../models/Ad';
+
+cron.schedule('* * * * *', async () => {
+  const now = new Date();
+
+  // Найти объявления, которым пора публиковаться
+  const ads = await Ad.find({
+    status: 'scheduled',
+    publishAt: { $lte: now }
+  });
+
+  if (!ads.length) return;
+
+  for (const ad of ads) {
+    ad.status = 'active';
+    ad.publishAt = null;
+    await ad.save();
+  }
+
+  console.log(`[Scheduler] Activated ${ads.length} ads`);
+});
+Требования:
+
+Cron должен запускаться один раз, только в backend (не в миниапп и не в боте).
+
+Cron не должен падать при ошибках — добавить try/catch.
+
+Нельзя активировать объявление, если оно было вручную архивировано — проверять при обновлении.
+
+======================================
+4. ЗАПУСК WORKER
+Добавить в backend/index.ts или основной сервер:
+
+ts
+Копировать код
+import './jobs/publishScheduler';
+Но запускать его только в production, либо:
+
+ts
+Копировать код
+if (process.env.ENABLE_CRON === 'true') {
+   require('./jobs/publishScheduler');
+}
+======================================
+5. БЕЗОПАСНОСТЬ И БИЗНЕС-ЛОГИКА
+Объявления со статусом scheduled:
+
+НЕ должны отображаться в GET /api/ads, search, nearby.
+
+НЕ должны быть видны другим пользователям.
+
+Показывать только владельцу (в “Мои объявления”) со статусом «Запланировано».
+
+При редактировании объявления:
+
+если пользователь меняет время — обновить publishAt и status.
+
+Если пользователь вручную меняет статус на «Архив»:
+
+отменить отложенную публикацию:
+
+publishAt = null
+
+status = 'archived'
+
+======================================
+6. ВСЁ РАБОТАЕТ ВМЕСТЕ ТАК:
+Пользователь подаёт объявление → выбирает время.
+
+Backend сохраняет:
+
+если время > сейчас → status = 'scheduled'
+
+если нет → active
+
+Cron каждую минуту:
+
+ищет все scheduled, у которых publishAt <= now,
+
+переводит их в active.
+
+В ленте/поиске:
+
+показываются только active.
+
+В “Мои объявления”:
+
+показывать scheduled как «Запланировано».
+
+======================================
+7. В КОНЦЕ — СДЕЛАЙ ОТЧЁТ
+После выполнения:
+
+перечисли изменённые файлы,
+
+напиши, что было добавлено в каждый,
+
+предложи ветку:
+
+feature/scheduled-publish
+
+и коммит:
+
+feat(ads): add scheduled publish with cron worker and backend status logic.

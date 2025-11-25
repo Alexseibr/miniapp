@@ -34,6 +34,7 @@ interface DraftAd {
   photos: string[];
   info: InfoData;
   contacts: ContactsData;
+  publishAt: Date | null;
 }
 
 type WizardAction =
@@ -41,13 +42,15 @@ type WizardAction =
   | { type: 'ADD_PHOTO'; payload: string }
   | { type: 'REMOVE_PHOTO'; payload: number }
   | { type: 'SET_INFO'; payload: Partial<InfoData> }
-  | { type: 'SET_CONTACTS'; payload: Partial<ContactsData> };
+  | { type: 'SET_CONTACTS'; payload: Partial<ContactsData> }
+  | { type: 'SET_PUBLISH_AT'; payload: Date | null };
 
 const initialState: DraftAd = {
   location: null,
   photos: [],
   info: { title: '', categoryId: '', subcategoryId: '', price: '', description: '' },
   contacts: { contactType: 'none', contactPhone: '', contactUsername: '', contactInstagram: '' },
+  publishAt: null,
 };
 
 function draftReducer(state: DraftAd, action: WizardAction): DraftAd {
@@ -62,6 +65,8 @@ function draftReducer(state: DraftAd, action: WizardAction): DraftAd {
       return { ...state, info: { ...state.info, ...action.payload } };
     case 'SET_CONTACTS':
       return { ...state, contacts: { ...state.contacts, ...action.payload } };
+    case 'SET_PUBLISH_AT':
+      return { ...state, publishAt: action.payload };
     default:
       return state;
   }
@@ -160,6 +165,7 @@ export default function CreateAdPage() {
       contactPhone: draft.contacts.contactPhone || undefined,
       contactUsername: draft.contacts.contactUsername || undefined,
       contactInstagram: draft.contacts.contactInstagram || undefined,
+      publishAt: draft.publishAt ? draft.publishAt.toISOString() : undefined,
     };
 
     try {
@@ -199,7 +205,15 @@ export default function CreateAdPage() {
       )}
       {currentStep === 2 && <Step2Photos photos={draft.photos} onAddPhoto={(url) => dispatch({ type: 'ADD_PHOTO', payload: url })} onRemovePhoto={(idx) => dispatch({ type: 'REMOVE_PHOTO', payload: idx })} />}
       {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} />}
-      {currentStep === 4 && <Step4Contacts contacts={draft.contacts} user={user} onSetContacts={(contacts) => dispatch({ type: 'SET_CONTACTS', payload: contacts })} />}
+      {currentStep === 4 && (
+        <Step4Contacts
+          contacts={draft.contacts}
+          user={user}
+          onSetContacts={(contacts) => dispatch({ type: 'SET_CONTACTS', payload: contacts })}
+          publishAt={draft.publishAt}
+          onSetPublishAt={(date) => dispatch({ type: 'SET_PUBLISH_AT', payload: date })}
+        />
+      )}
 
       {error && (
         <div style={{ margin: '16px', background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 12, borderRadius: 8 }}>
@@ -410,61 +424,124 @@ function Step1Location({
 function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; onAddPhoto: (url: string) => void; onRemovePhoto: (idx: number) => void }) {
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [error, setError] = useState('');
-  const fileInputRefs = useRef<Array<HTMLInputElement | null>>([null, null, null, null]);
+  const [showActionSheet, setShowActionSheet] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
+  const [pendingRetry, setPendingRetry] = useState<{ slot: number; file: File } | null>(null);
+  
+  const cameraInputRef = useRef<HTMLInputElement | null>(null);
+  const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleFileSelect = async (slotIndex: number, e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || photos.length >= 4) {
-      e.target.value = '';
-      return;
+  const handleSlotClick = (idx: number) => {
+    if (photos.length >= 4 || uploadingSlot !== null) return;
+    setSelectedSlot(idx);
+    setShowActionSheet(true);
+  };
+
+  const handleSourceSelect = (source: 'camera' | 'gallery') => {
+    setShowActionSheet(false);
+    if (source === 'camera') {
+      cameraInputRef.current?.click();
+    } else {
+      galleryInputRef.current?.click();
     }
+  };
 
+  const uploadFile = async (file: File, slotIndex: number): Promise<boolean> => {
     setError('');
     setUploadingSlot(slotIndex);
+    setPendingRetry(null);
 
     try {
       const maxBytes = 10 * 1024 * 1024;
       if (file.size > maxBytes) {
         setError('Файл слишком большой. Максимум 10MB');
         setUploadingSlot(null);
-        e.target.value = '';
-        return;
+        return false;
       }
 
       if (!file.type.startsWith('image/')) {
         setError('Выберите изображение');
         setUploadingSlot(null);
-        e.target.value = '';
-        return;
+        return false;
       }
 
       const extension = file.name.split('.').pop() || 'jpg';
-      const response = await fetch('/api/uploads/presigned-url', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ fileExtension: extension }),
-      });
+      
+      let uploadURL: string;
+      let publicURL: string;
+      
+      try {
+        const response = await fetch('/api/uploads/presigned-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ fileExtension: extension }),
+        });
 
-      if (!response.ok) throw new Error('Ошибка получения URL загрузки');
+        if (!response.ok) {
+          throw new Error('upload_url_failed');
+        }
 
-      const { uploadURL, publicURL } = await response.json();
+        const data = await response.json();
+        uploadURL = data.uploadURL;
+        publicURL = data.publicURL;
+      } catch (urlErr) {
+        console.error('Get upload URL error:', urlErr);
+        setError('Не удалось получить URL для загрузки');
+        setPendingRetry({ slot: slotIndex, file });
+        setUploadingSlot(null);
+        return false;
+      }
 
-      const uploadResponse = await fetch(uploadURL, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      });
+      try {
+        const uploadResponse = await fetch(uploadURL, {
+          method: 'PUT',
+          body: file,
+          headers: { 'Content-Type': file.type },
+        });
 
-      if (!uploadResponse.ok) throw new Error('Ошибка загрузки файла');
+        if (!uploadResponse.ok) {
+          throw new Error('upload_failed');
+        }
+      } catch (uploadErr) {
+        console.error('File upload error:', uploadErr);
+        setError('Не удалось загрузить файл. Проверьте соединение');
+        setPendingRetry({ slot: slotIndex, file });
+        setUploadingSlot(null);
+        return false;
+      }
 
       onAddPhoto(publicURL);
+      return true;
     } catch (err: any) {
       console.error('Upload error:', err);
       setError(err.message || 'Ошибка загрузки');
+      return false;
     } finally {
       setUploadingSlot(null);
-      e.target.value = '';
     }
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    
+    if (!file || photos.length >= 4 || selectedSlot === null) {
+      return;
+    }
+
+    await uploadFile(file, selectedSlot);
+    setSelectedSlot(null);
+  };
+
+  const handleRetry = async () => {
+    if (pendingRetry) {
+      await uploadFile(pendingRetry.file, pendingRetry.slot);
+    }
+  };
+
+  const handleDismissError = () => {
+    setError('');
+    setPendingRetry(null);
   };
 
   return (
@@ -481,15 +558,20 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
           <div key={idx} style={{ position: 'relative', aspectRatio: '1', background: photos[idx] ? 'transparent' : '#F3F4F6', borderRadius: 12, overflow: 'hidden', border: photos[idx] ? 'none' : '2px dashed #D1D5DB' }}>
             {photos[idx] ? (
               <>
-                <img src={photos[idx]} alt={`Фото ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} data-testid={`photo-${idx}`} />
+                <img src={photos[idx]} alt={`Фото ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} data-testid={`img-photo-${idx}`} />
                 <button
                   onClick={() => onRemovePhoto(idx)}
-                  disabled={uploadingSlot === idx}
-                  style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 32, height: 32, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                  disabled={uploadingSlot !== null}
+                  style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                   data-testid={`button-remove-photo-${idx}`}
                 >
                   <X size={18} />
                 </button>
+                {idx === 0 && (
+                  <div style={{ position: 'absolute', bottom: 8, left: 8, background: '#3B73FC', color: '#fff', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
+                    Главное
+                  </div>
+                )}
               </>
             ) : uploadingSlot === idx ? (
               <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
@@ -498,7 +580,7 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
               </div>
             ) : (
               <button
-                onClick={() => fileInputRefs.current[idx]?.click()}
+                onClick={() => handleSlotClick(idx)}
                 disabled={photos.length >= 4 || uploadingSlot !== null}
                 style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: (photos.length >= 4 || uploadingSlot !== null) ? 'not-allowed' : 'pointer', opacity: (photos.length >= 4 || uploadingSlot !== null) ? 0.5 : 1 }}
                 data-testid={`button-add-photo-${idx}`}
@@ -511,27 +593,148 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
         ))}
       </div>
 
-      {[0, 1, 2, 3].map((idx) => (
-        <input
-          key={idx}
-          ref={(el) => (fileInputRefs.current[idx] = el)}
-          type="file"
-          accept="image/*"
-          capture="environment"
-          onChange={(e) => handleFileSelect(idx, e)}
-          style={{ display: 'none' }}
-        />
-      ))}
+      <input
+        ref={cameraInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+        data-testid="input-camera"
+      />
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileSelect}
+        style={{ display: 'none' }}
+        data-testid="input-gallery"
+      />
 
       {error && (
-        <div style={{ marginTop: 16, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 12, borderRadius: 8, fontSize: 14, color: '#991B1B' }}>
-          {error}
+        <div style={{ marginTop: 16, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 12, borderRadius: 8 }}>
+          <p style={{ fontSize: 14, color: '#991B1B', margin: '0 0 12px' }}>{error}</p>
+          <div style={{ display: 'flex', gap: 8 }}>
+            {pendingRetry && (
+              <button
+                onClick={handleRetry}
+                style={{ padding: '8px 16px', background: '#3B73FC', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+                data-testid="button-retry-upload"
+              >
+                Повторить
+              </button>
+            )}
+            <button
+              onClick={handleDismissError}
+              style={{ padding: '8px 16px', background: '#E5E7EB', color: '#374151', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
+              data-testid="button-dismiss-error"
+            >
+              {pendingRetry ? 'Продолжить без фото' : 'Закрыть'}
+            </button>
+          </div>
         </div>
       )}
 
       <div style={{ marginTop: 16, padding: 12, background: '#EBF3FF', border: '1px solid #3B73FC', borderRadius: 8, fontSize: 14, color: '#1E40AF' }}>
-        ⚡ Качественные фотографии помогают быстрее продать товар
+        Качественные фотографии помогают быстрее продать товар
       </div>
+
+      {showActionSheet && (
+        <>
+          <div
+            onClick={() => setShowActionSheet(false)}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100 }}
+            data-testid="action-sheet-backdrop"
+          />
+          <div style={{
+            position: 'fixed',
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: '#fff',
+            borderTopLeftRadius: 20,
+            borderTopRightRadius: 20,
+            padding: '16px 16px 32px',
+            zIndex: 101,
+            animation: 'slideUp 0.2s ease-out',
+          }} data-testid="action-sheet">
+            <div style={{ width: 40, height: 4, background: '#D1D5DB', borderRadius: 2, margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: 18, fontWeight: 600, textAlign: 'center', marginBottom: 20, color: '#111827' }}>
+              Выберите источник
+            </h3>
+            <button
+              onClick={() => handleSourceSelect('camera')}
+              style={{
+                width: '100%',
+                padding: '16px',
+                marginBottom: 12,
+                background: '#fff',
+                border: '1px solid #E5E7EB',
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+              data-testid="button-source-camera"
+            >
+              <Camera size={24} color="#3B73FC" />
+              Сделать фото
+            </button>
+            <button
+              onClick={() => handleSourceSelect('gallery')}
+              style={{
+                width: '100%',
+                padding: '16px',
+                marginBottom: 12,
+                background: '#fff',
+                border: '1px solid #E5E7EB',
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 500,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+              }}
+              data-testid="button-source-gallery"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B73FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                <circle cx="8.5" cy="8.5" r="1.5"/>
+                <polyline points="21,15 16,10 5,21"/>
+              </svg>
+              Выбрать из галереи
+            </button>
+            <button
+              onClick={() => setShowActionSheet(false)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: '#F3F4F6',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 16,
+                fontWeight: 500,
+                color: '#6B7280',
+                cursor: 'pointer',
+              }}
+              data-testid="button-cancel-action-sheet"
+            >
+              Отмена
+            </button>
+          </div>
+        </>
+      )}
+
+      <style>{`
+        @keyframes slideUp {
+          from { transform: translateY(100%); }
+          to { transform: translateY(0); }
+        }
+      `}</style>
     </div>
   );
 }
@@ -628,9 +831,30 @@ function Step3Info({ info, categories, onSetInfo }: { info: InfoData; categories
   );
 }
 
-function Step4Contacts({ contacts, user, onSetContacts }: { contacts: ContactsData; user: any; onSetContacts: (contacts: Partial<ContactsData>) => void }) {
+function Step4Contacts({
+  contacts,
+  user,
+  onSetContacts,
+  publishAt,
+  onSetPublishAt,
+}: {
+  contacts: ContactsData;
+  user: any;
+  onSetContacts: (contacts: Partial<ContactsData>) => void;
+  publishAt: Date | null;
+  onSetPublishAt: (date: Date | null) => void;
+}) {
   const hasPhone = !!user?.phone;
   const hasUsername = !!user?.username;
+  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>(publishAt ? 'later' : 'now');
+  const [scheduledDate, setScheduledDate] = useState<string>(() => {
+    if (publishAt) {
+      return publishAt.toISOString().slice(0, 16);
+    }
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+    return now.toISOString().slice(0, 16);
+  });
 
   useEffect(() => {
     if (hasPhone && !contacts.contactPhone) {
@@ -639,6 +863,30 @@ function Step4Contacts({ contacts, user, onSetContacts }: { contacts: ContactsDa
       onSetContacts({ contactType: 'telegram_username', contactUsername: user.username });
     }
   }, [hasPhone, hasUsername]);
+
+  const handleScheduleModeChange = (mode: 'now' | 'later') => {
+    setScheduleMode(mode);
+    if (mode === 'now') {
+      onSetPublishAt(null);
+    } else {
+      const date = new Date(scheduledDate);
+      if (!isNaN(date.getTime())) {
+        onSetPublishAt(date);
+      }
+    }
+  };
+
+  const handleScheduledDateChange = (value: string) => {
+    setScheduledDate(value);
+    if (scheduleMode === 'later') {
+      const date = new Date(value);
+      if (!isNaN(date.getTime())) {
+        onSetPublishAt(date);
+      }
+    }
+  };
+
+  const minDateTime = new Date().toISOString().slice(0, 16);
 
   return (
     <div style={{ padding: 24 }}>
@@ -720,6 +968,127 @@ function Step4Contacts({ contacts, user, onSetContacts }: { contacts: ContactsDa
           style={{ width: '100%', padding: '14px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }}
           data-testid="input-instagram"
         />
+      </div>
+
+      <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid #E5E7EB' }}>
+        <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
+          Когда опубликовать?
+        </h3>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <button
+            onClick={() => handleScheduleModeChange('now')}
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: scheduleMode === 'now' ? '#EBF3FF' : '#fff',
+              border: `2px solid ${scheduleMode === 'now' ? '#3B73FC' : '#E5E7EB'}`,
+              borderRadius: 12,
+              fontSize: 15,
+              textAlign: 'left',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            data-testid="button-publish-now"
+          >
+            <div style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              border: `2px solid ${scheduleMode === 'now' ? '#3B73FC' : '#D1D5DB'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {scheduleMode === 'now' && (
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#3B73FC' }} />
+              )}
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: scheduleMode === 'now' ? '#3B73FC' : '#111827' }}>
+                Опубликовать сейчас
+              </div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                Объявление сразу появится в каталоге
+              </div>
+            </div>
+          </button>
+
+          <button
+            onClick={() => handleScheduleModeChange('later')}
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              background: scheduleMode === 'later' ? '#EBF3FF' : '#fff',
+              border: `2px solid ${scheduleMode === 'later' ? '#3B73FC' : '#E5E7EB'}`,
+              borderRadius: 12,
+              fontSize: 15,
+              textAlign: 'left',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+            }}
+            data-testid="button-publish-later"
+          >
+            <div style={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              border: `2px solid ${scheduleMode === 'later' ? '#3B73FC' : '#D1D5DB'}`,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              {scheduleMode === 'later' && (
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#3B73FC' }} />
+              )}
+            </div>
+            <div>
+              <div style={{ fontWeight: 600, color: scheduleMode === 'later' ? '#3B73FC' : '#111827' }}>
+                Запланировать на позже
+              </div>
+              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
+                Выберите дату и время публикации
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {scheduleMode === 'later' && (
+          <div style={{ marginTop: 16 }}>
+            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#111827' }}>
+              Дата и время публикации
+            </label>
+            <input
+              type="datetime-local"
+              value={scheduledDate}
+              min={minDateTime}
+              onChange={(e) => handleScheduledDateChange(e.target.value)}
+              style={{
+                width: '100%',
+                padding: '14px',
+                border: '1px solid #E5E7EB',
+                borderRadius: 8,
+                fontSize: 16,
+                fontFamily: 'inherit',
+              }}
+              data-testid="input-publish-datetime"
+            />
+            {publishAt && (
+              <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>
+                Объявление будет опубликовано: {publishAt.toLocaleString('ru-RU', {
+                  day: 'numeric',
+                  month: 'long',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })}
+              </p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

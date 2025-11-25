@@ -178,12 +178,21 @@ async function validateCreateAd(req, res, next) {
     }
     lifetimeDays = Math.min(lifetimeDays, MAX_LIFETIME_DAYS);
 
-    const validUntil = calculateValidUntil(new Date(), lifetimeDays);
-
     const allowedContactTypes = ['telegram_phone', 'telegram_username', 'instagram', 'none'];
     const contactType = payload.contactType && allowedContactTypes.includes(payload.contactType)
       ? payload.contactType
       : 'none';
+
+    let publishAt = null;
+    if (payload.publishAt) {
+      const parsedPublishAt = new Date(payload.publishAt);
+      if (Number.isFinite(parsedPublishAt.getTime()) && parsedPublishAt > new Date()) {
+        publishAt = parsedPublishAt;
+      }
+    }
+
+    const baseDate = publishAt || new Date();
+    const adjustedValidUntil = calculateValidUntil(baseDate, lifetimeDays);
 
     const sanitized = {
       title,
@@ -206,9 +215,10 @@ async function validateCreateAd(req, res, next) {
       location,
       seasonCode,
       lifetimeDays,
-      validUntil,
-      moderationStatus: 'pending',
-      status: 'active',
+      validUntil: adjustedValidUntil,
+      moderationStatus: publishAt ? 'scheduled' : 'pending',
+      status: publishAt ? 'scheduled' : 'active',
+      publishAt,
       deliveryOptions: Array.isArray(payload.deliveryOptions)
         ? payload.deliveryOptions.filter((option) => typeof option === 'string' && option.trim())
         : undefined,
@@ -230,6 +240,9 @@ async function validateCreateAd(req, res, next) {
     }
     if (!sanitized.deliveryOptions || !sanitized.deliveryOptions.length) {
       delete sanitized.deliveryOptions;
+    }
+    if (!sanitized.publishAt) {
+      delete sanitized.publishAt;
     }
 
     req.validatedAdPayload = sanitized;

@@ -164,14 +164,19 @@ const adSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired'],
+      enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],
       default: 'active',
       index: true,
     },
     moderationStatus: {
       type: String,
-      enum: ['pending', 'approved', 'rejected'],
+      enum: ['pending', 'approved', 'rejected', 'scheduled'],
       default: 'pending',
+      index: true,
+    },
+    publishAt: {
+      type: Date,
+      default: null,
       index: true,
     },
     moderationComment: {
