@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, MapPin, Home, SlidersHorizontal } from 'lucide-react';
+import { Loader2, MapPin, Home, SlidersHorizontal, PlusCircle } from 'lucide-react';
 import AdCard from '@/components/AdCard';
 import RadiusControl from '@/components/RadiusControl';
 import EmptyState from '@/widgets/EmptyState';
@@ -20,7 +20,7 @@ export default function FeedPage() {
     loadCategories();
   }, [loadCategories]);
 
-  const { ads, loading: adsLoading, isEmpty } = useNearbyAds({
+  const { ads, loading: adsLoading, isEmpty, hasVeryFew } = useNearbyAds({
     coords,
     radiusKm,
     categoryId: selectedCategoryId || undefined,
@@ -36,6 +36,11 @@ export default function FeedPage() {
 
   const handleClearFilters = () => {
     setSelectedCategoryId(null);
+  };
+
+  const handleIncreaseRadius = () => {
+    const newRadius = Math.min(radiusKm + 5, 100);
+    setRadius(newRadius);
   };
 
   return (
@@ -284,10 +289,62 @@ export default function FeedPage() {
                 border: '1px solid #E5E7EB',
               }}>
                 <h3 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 12px', color: '#111827' }}>
-                  Объявлений не найдено
+                  В радиусе {radiusKm} км объявлений не найдено
                 </h3>
-                <p style={{ fontSize: 17, color: '#6B7280', margin: 0 }}>
-                  В радиусе {radiusKm} км нет объявлений
+                <p style={{ fontSize: 17, color: '#6B7280', margin: '0 0 24px' }}>
+                  Попробуйте увеличить радиус поиска
+                </p>
+                <button
+                  onClick={handleIncreaseRadius}
+                  style={{
+                    padding: '16px 28px',
+                    background: '#3B73FC',
+                    color: '#ffffff',
+                    border: 'none',
+                    borderRadius: 12,
+                    fontSize: 17,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 10,
+                    minHeight: 52,
+                  }}
+                  data-testid="button-increase-radius"
+                >
+                  <PlusCircle size={22} />
+                  Увеличить радиус (+5 км)
+                </button>
+              </div>
+            )}
+
+            {!adsLoading && hasVeryFew && (
+              <div style={{
+                background: '#FEF3C7',
+                border: '1px solid #FCD34D',
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+              }}>
+                <p style={{ fontSize: 16, color: '#92400E', margin: 0, lineHeight: 1.5 }}>
+                  Нашли мало объявлений ({ads.length}) в радиусе {radiusKm} км.
+                  <br />
+                  <button
+                    onClick={handleIncreaseRadius}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#B45309',
+                      textDecoration: 'underline',
+                      cursor: 'pointer',
+                      fontSize: 16,
+                      fontWeight: 600,
+                      padding: 0,
+                      marginTop: 4,
+                    }}
+                  >
+                    Увеличить радиус на 5 км →
+                  </button>
                 </p>
               </div>
             )}

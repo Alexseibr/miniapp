@@ -34,7 +34,7 @@ export default function HomePage() {
   });
 
   const handleIncreaseRadius = () => {
-    const newRadius = Math.min(radiusKm + 5, 50);
+    const newRadius = Math.min(radiusKm + 5, 100);
     setRadius(newRadius);
   };
 

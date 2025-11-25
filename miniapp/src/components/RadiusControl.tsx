@@ -139,6 +139,17 @@ export default function RadiusControl({ value, onChange, disabled = false }: Rad
         <span>100 м</span>
         <span>100 км</span>
       </div>
+
+      {/* Подсказка */}
+      <p style={{ 
+        margin: '16px 0 0', 
+        fontSize: 14, 
+        color: '#6B7280', 
+        textAlign: 'center',
+        lineHeight: 1.4,
+      }}>
+        Чем больше радиус, тем больше объявлений
+      </p>
     </div>
   );
 }
