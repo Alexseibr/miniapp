@@ -29,84 +29,84 @@ export default function Header({ onSearch, showSearch = true }: HeaderProps) {
 
   return (
     <header style={{ 
-      padding: '20px 16px 16px', 
-      background: 'linear-gradient(180deg, #F8FAFC 0%, #FFFFFF 100%)',
+      padding: '12px 16px', 
+      background: '#FFFFFF',
+      borderBottom: '1px solid rgba(0, 0, 0, 0.04)',
     }}>
       <div style={{ 
         display: 'flex', 
-        justifyContent: 'center', 
-        marginBottom: 20,
+        alignItems: 'center',
+        gap: 12,
       }}>
-        <LogoFull width={180} />
-      </div>
-      
-      {showSearch && (
-        <div style={{ 
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-        }}>
-          <div style={{
-            position: 'absolute',
-            left: 16,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            pointerEvents: 'none',
-            zIndex: 1,
+        <LogoFull width={120} />
+        
+        {showSearch && (
+          <div style={{ 
+            flex: 1,
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
           }}>
-            <Search size={20} color="#9CA3AF" />
-          </div>
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Что вы ищете?"
-            style={{
-              width: '100%',
-              padding: '14px 48px 14px 48px',
-              fontSize: 16,
-              border: '1px solid #E5E7EB',
-              borderRadius: 16,
-              background: '#FFFFFF',
-              outline: 'none',
-              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
-              transition: 'border-color 0.2s, box-shadow 0.2s',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.borderColor = '#3B73FC';
-              e.currentTarget.style.boxShadow = '0 2px 12px rgba(59, 115, 252, 0.15)';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.borderColor = '#E5E7EB';
-              e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.04)';
-            }}
-            data-testid="input-search"
-          />
-          {searchQuery && (
-            <button
-              onClick={handleSearch}
+            <div style={{
+              position: 'absolute',
+              left: 14,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+              zIndex: 1,
+            }}>
+              <Search size={18} color="#8E8E93" />
+            </div>
+            <input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Что вы ищете?"
               style={{
-                position: 'absolute',
-                right: 8,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                padding: '8px 16px',
-                background: '#3B73FC',
-                color: '#fff',
+                width: '100%',
+                padding: '10px 40px 10px 42px',
+                fontSize: 15,
                 border: 'none',
-                borderRadius: 12,
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
+                borderRadius: 10,
+                background: '#F2F2F7',
+                outline: 'none',
+                WebkitAppearance: 'none',
+                transition: 'background 0.2s',
               }}
-              data-testid="button-search"
-            >
-              Найти
-            </button>
-          )}
-        </div>
-      )}
+              onFocus={(e) => {
+                e.currentTarget.style.background = '#E5E5EA';
+              }}
+              onBlur={(e) => {
+                e.currentTarget.style.background = '#F2F2F7';
+              }}
+              data-testid="input-search"
+            />
+            {searchQuery && (
+              <button
+                onClick={handleSearch}
+                style={{
+                  position: 'absolute',
+                  right: 6,
+                  top: '50%',
+                  transform: 'translateY(-50%)',
+                  padding: '6px 12px',
+                  background: '#3B73FC',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                data-testid="button-search"
+              >
+                Найти
+              </button>
+            )}
+          </div>
+        )}
+      </div>
     </header>
   );
 }

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'wouter';
+import { Link } from 'react-router-dom';
 import { useUserStore } from '@/store/useUserStore';
 import { Ad } from '@/types';
 import { fetchMyAds } from '@/api/ads';
@@ -115,7 +115,6 @@ export default function MyAdsPage() {
         <h1 style={{ fontSize: 24, fontWeight: 700 }}>Мои объявления</h1>
         <Link
           to="/ads/create"
-          className="primary"
           style={{
             width: 'auto',
             padding: '12px 20px',
@@ -126,6 +125,9 @@ export default function MyAdsPage() {
             borderRadius: 12,
             fontSize: 15,
             fontWeight: 600,
+            background: '#3B73FC',
+            color: '#FFFFFF',
+            boxShadow: '0 2px 8px rgba(59, 115, 252, 0.25)',
           }}
           data-testid="button-create-ad"
         >
