@@ -29,6 +29,7 @@ const ChatPage = lazy(() => import('@/pages/ChatPage'));
 const FarmerFeedPage = lazy(() => import('@/pages/FarmerFeedPage'));
 const BulkFarmerUploadPage = lazy(() => import('@/pages/BulkFarmerUploadPage'));
 const FarmerAnalyticsPage = lazy(() => import('@/pages/FarmerAnalyticsPage'));
+const FarmerCabinetPage = lazy(() => import('@/pages/FarmerCabinetPage'));
 const AllCategoriesPage = lazy(() => import('@/pages/AllCategoriesPage'));
 
 export default function App() {
@@ -160,6 +161,7 @@ export default function App() {
               <Route path="/farmer-feed" element={<FarmerFeedPage />} />
               <Route path="/farmer/bulk-upload" element={<BulkFarmerUploadPage />} />
               <Route path="/farmer/analytics" element={<FarmerAnalyticsPage />} />
+              <Route path="/farmer/cabinet" element={<FarmerCabinetPage />} />
               <Route path="/all-categories" element={<AllCategoriesPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
