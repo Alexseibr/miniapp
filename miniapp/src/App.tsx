@@ -32,6 +32,7 @@ const FarmerAnalyticsPage = lazy(() => import('@/pages/FarmerAnalyticsPage'));
 const FarmerCabinetPage = lazy(() => import('@/pages/FarmerCabinetPage'));
 const AllCategoriesPage = lazy(() => import('@/pages/AllCategoriesPage'));
 const GeoMapPage = lazy(() => import('@/pages/GeoMapPage'));
+const GeoFeedScreen = lazy(() => import('@/pages/GeoFeedScreen'));
 
 export default function App() {
   const location = useLocation();
@@ -165,6 +166,7 @@ export default function App() {
               <Route path="/farmer/cabinet" element={<FarmerCabinetPage />} />
               <Route path="/all-categories" element={<AllCategoriesPage />} />
               <Route path="/map" element={<GeoMapPage />} />
+              <Route path="/geo-feed" element={<GeoFeedScreen />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
