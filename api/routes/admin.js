@@ -2,6 +2,9 @@ import { Router } from 'express';
 import Ad from '../../models/Ad.js';
 import User from '../../models/User.js';
 import AdHistoryEvent from '../../models/AdHistoryEvent.js';
+import Category from '../../models/Category.js';
+import CategoryProposal from '../../models/CategoryProposal.js';
+import CategoryEvolutionService from '../../services/CategoryEvolutionService.js';
 
 const router = Router();
 
@@ -351,6 +354,156 @@ router.get('/stats', async (req, res, next) => {
       activeAds,
       pendingAds,
       totalUsers,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/category-proposals', async (req, res, next) => {
+  try {
+    const { status = 'pending' } = req.query;
+    
+    const filter = {};
+    if (status && status !== 'all') {
+      filter.status = status;
+    }
+    
+    const proposals = await CategoryProposal.find(filter)
+      .sort({ matchedAdsCount: -1, createdAt: -1 })
+      .populate('parentCategoryId', 'name slug icon3d')
+      .lean();
+
+    return res.json({ proposals });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/category-proposals/stats', async (req, res, next) => {
+  try {
+    const stats = await CategoryEvolutionService.getStats();
+    
+    const proposalCounts = await CategoryProposal.aggregate([
+      { $group: { _id: '$status', count: { $sum: 1 } } }
+    ]);
+    
+    const counts = { pending: 0, approved: 0, rejected: 0 };
+    proposalCounts.forEach(item => {
+      counts[item._id] = item.count;
+    });
+
+    return res.json({ 
+      otherCategoryStats: stats,
+      proposalCounts: counts,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/category-proposals/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const result = await CategoryEvolutionService.getProposalWithAds(id);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Proposal not found' });
+    }
+
+    return res.json(result);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/category-proposals/:id/approve', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { name, slug, notes } = req.body;
+    const adminId = req.admin?.telegramId || 0;
+
+    const result = await CategoryEvolutionService.approveProposal(id, adminId, {
+      name,
+      slug,
+      notes,
+    });
+
+    return res.json({
+      success: true,
+      proposal: result.proposal,
+      newCategory: result.newCategory,
+      movedAdsCount: result.movedAdsCount,
+    });
+  } catch (error) {
+    if (error.message === 'Proposal not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.startsWith('Proposal already')) {
+      return res.status(400).json({ error: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/category-proposals/:id/reject', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { reason } = req.body;
+    const adminId = req.admin?.telegramId || 0;
+
+    const proposal = await CategoryEvolutionService.rejectProposal(id, adminId, reason);
+
+    return res.json({
+      success: true,
+      proposal,
+    });
+  } catch (error) {
+    if (error.message === 'Proposal not found') {
+      return res.status(404).json({ error: error.message });
+    }
+    if (error.message.startsWith('Proposal already')) {
+      return res.status(400).json({ error: error.message });
+    }
+    next(error);
+  }
+});
+
+router.post('/category-proposals/analyze', async (req, res, next) => {
+  try {
+    const results = await CategoryEvolutionService.analyzeOtherCategories();
+
+    return res.json({
+      success: true,
+      proposalsCreated: results.length,
+      proposals: results,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/categories/other-stats', async (req, res, next) => {
+  try {
+    const otherCategories = await Category.find({ isOther: true }).select('slug parentSlug name');
+    
+    const stats = await Promise.all(
+      otherCategories.map(async (cat) => {
+        const count = await Ad.countDocuments({
+          subcategoryId: cat.slug,
+          needsCategoryReview: true,
+        });
+        return {
+          slug: cat.slug,
+          parentSlug: cat.parentSlug,
+          name: cat.name,
+          adsNeedingReview: count,
+        };
+      })
+    );
+
+    return res.json({
+      categories: stats.filter(s => s.adsNeedingReview > 0).sort((a, b) => b.adsNeedingReview - a.adsNeedingReview),
     });
   } catch (error) {
     next(error);
