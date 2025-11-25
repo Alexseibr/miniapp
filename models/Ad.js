@@ -97,6 +97,39 @@ const adSchema = new mongoose.Schema(
       default: 'BYN',
       trim: true,
     },
+    unitType: {
+      type: String,
+      enum: ['kg', 'g', 'piece', 'liter', 'pack', 'jar', 'bunch', 'bag', null],
+      default: null,
+    },
+    quantity: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    pricePerKg: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    isFarmerAd: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deliveryFromFarm: {
+      type: Boolean,
+      default: false,
+    },
+    canDeliver: {
+      type: Boolean,
+      default: false,
+    },
+    farmLocation: {
+      type: String,
+      default: null,
+      trim: true,
+    },
     photos: [{
       type: String,
       trim: true,

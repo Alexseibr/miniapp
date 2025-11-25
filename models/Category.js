@@ -72,6 +72,34 @@ const categorySchema = new mongoose.Schema(
       enum: ['product', 'service', 'real-estate', 'vehicle', 'agro', null],
       default: null,
     },
+    isFarmerCategory: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isSeasonal: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    seasonStart: {
+      type: Date,
+      default: null,
+    },
+    seasonEnd: {
+      type: Date,
+      default: null,
+    },
+    unitTypes: {
+      type: [String],
+      enum: ['kg', 'g', 'piece', 'liter', 'pack', 'jar', 'bunch', 'bag'],
+      default: [],
+    },
+    defaultUnit: {
+      type: String,
+      enum: ['kg', 'g', 'piece', 'liter', 'pack', 'jar', 'bunch', 'bag', null],
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -79,5 +107,7 @@ const categorySchema = new mongoose.Schema(
 );
 
 categorySchema.index({ parentSlug: 1, isOther: 1 });
+categorySchema.index({ isFarmerCategory: 1, isActive: 1 });
+categorySchema.index({ isSeasonal: 1, seasonStart: 1, seasonEnd: 1 });
 
 export default mongoose.model('Category', categorySchema);
