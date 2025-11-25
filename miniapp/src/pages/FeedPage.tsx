@@ -40,7 +40,7 @@ export default function FeedPage() {
   }, [urlCategoryId]);
 
   const loadCategoryStats = useCallback(async () => {
-    if (!coords) return;
+    if (scope === 'local' && !coords) return;
 
     if (statsAbortRef.current) {
       statsAbortRef.current.abort();
@@ -51,9 +51,9 @@ export default function FeedPage() {
 
     try {
       const response = await getNearbyStats({
-        lat: coords.lat,
-        lng: coords.lng,
-        radiusKm,
+        lat: scope === 'country' ? undefined : coords?.lat,
+        lng: scope === 'country' ? undefined : coords?.lng,
+        radiusKm: scope === 'country' ? undefined : radiusKm,
         signal: controller.signal,
       });
 
@@ -66,7 +66,7 @@ export default function FeedPage() {
         console.error('Failed to load category stats:', err);
       }
     }
-  }, [coords, radiusKm]);
+  }, [coords, radiusKm, scope]);
 
   useEffect(() => {
     loadCategoryStats();
@@ -82,10 +82,11 @@ export default function FeedPage() {
     radiusKm,
     categoryId: selectedCategoryId || undefined,
     query: searchQuery || undefined,
-    enabled: !!coords,
+    scope,
+    enabled: scope === 'country' || !!coords,
   });
 
-  const needsLocation = !coords && geoStatus !== 'loading';
+  const needsLocation = scope === 'local' && !coords && geoStatus !== 'loading';
 
   const handleSelectCategory = (categoryId: string | null) => {
     setSelectedCategoryId(categoryId);

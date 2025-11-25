@@ -8,6 +8,7 @@ interface UseNearbyAdsParams {
   categoryId?: string | null;
   subcategoryId?: string | null;
   query?: string | null;
+  scope?: 'local' | 'country';
   enabled?: boolean;
   limit?: number;
 }
@@ -29,6 +30,7 @@ export function useNearbyAds({
   categoryId,
   subcategoryId,
   query,
+  scope = 'local',
   enabled = true,
   limit = 50,
 }: UseNearbyAdsParams): UseNearbyAdsResult {
@@ -39,7 +41,9 @@ export function useNearbyAds({
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const loadAds = useCallback(async () => {
-    if (!coords || !enabled) {
+    const needsCoords = scope === 'local';
+    
+    if ((!coords && needsCoords) || !enabled) {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
         abortControllerRef.current = null;
@@ -61,10 +65,10 @@ export function useNearbyAds({
 
     try {
       const response = await listNearbyAds({
-        lat: coords.lat,
-        lng: coords.lng,
-        radiusKm,
-        sort: 'distance',
+        lat: coords?.lat,
+        lng: coords?.lng,
+        radiusKm: scope === 'country' ? undefined : radiusKm,
+        sort: scope === 'country' ? 'newest' : 'distance',
         categoryId: categoryId || undefined,
         subcategoryId: subcategoryId || undefined,
         q: query || undefined,
@@ -87,7 +91,7 @@ export function useNearbyAds({
         setLoading(false);
       }
     }
-  }, [coords, radiusKm, categoryId, subcategoryId, query, enabled]);
+  }, [coords, radiusKm, categoryId, subcategoryId, query, scope, enabled]);
 
   useEffect(() => {
     if (debounceTimerRef.current) {

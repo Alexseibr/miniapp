@@ -4,6 +4,51 @@ import CategoryWordStats from '../models/CategoryWordStats.js';
 import { haversineDistanceKm } from '../utils/haversine.js';
 
 const EARTH_RADIUS_KM = 6371;
+const FUZZY_THRESHOLD = 0.7;
+const CATEGORY_CACHE_DURATION = 5 * 60 * 1000;
+
+let categoryCache = null;
+let categoryCacheTime = 0;
+
+function levenshteinDistance(a, b) {
+  if (!a || !b) return a?.length || b?.length || 0;
+  
+  const matrix = [];
+  
+  for (let i = 0; i <= b.length; i++) {
+    matrix[i] = [i];
+  }
+  
+  for (let j = 0; j <= a.length; j++) {
+    matrix[0][j] = j;
+  }
+  
+  for (let i = 1; i <= b.length; i++) {
+    for (let j = 1; j <= a.length; j++) {
+      if (b.charAt(i - 1) === a.charAt(j - 1)) {
+        matrix[i][j] = matrix[i - 1][j - 1];
+      } else {
+        matrix[i][j] = Math.min(
+          matrix[i - 1][j - 1] + 1,
+          matrix[i][j - 1] + 1,
+          matrix[i - 1][j] + 1
+        );
+      }
+    }
+  }
+  
+  return matrix[b.length][a.length];
+}
+
+function levenshteinSimilarity(a, b) {
+  if (!a || !b) return 0;
+  const aLower = a.toLowerCase();
+  const bLower = b.toLowerCase();
+  const distance = levenshteinDistance(aLower, bLower);
+  const maxLen = Math.max(aLower.length, bLower.length);
+  if (maxLen === 0) return 1;
+  return 1 - distance / maxLen;
+}
 
 class SmartSearchService {
   async search({ query, lat, lng, radiusKm = 10, limit = 50, sort = 'distance' }) {
@@ -74,7 +119,7 @@ class SmartSearchService {
     const searchTerms = this.tokenize(query);
     const regex = new RegExp(query, 'i');
 
-    const categorySuggestions = await this.suggestCategories(regex, searchTerms, 5);
+    const categorySuggestions = await this.suggestCategories(regex, searchTerms, 5, query);
 
     const brandSuggestions = await this.suggestBrands(regex, 5);
 
@@ -87,42 +132,85 @@ class SmartSearchService {
     };
   }
 
-  async suggestCategories(regex, tokens, limit) {
-    const categories = await Category.find({
-      isActive: true,
-      $or: [{ name: regex }, { keywordTokens: { $in: tokens } }],
-    })
-      .sort({ level: 1, sortOrder: 1 })
-      .limit(limit * 2)
+  async getCachedCategories() {
+    const now = Date.now();
+    if (categoryCache && (now - categoryCacheTime) < CATEGORY_CACHE_DURATION) {
+      return categoryCache;
+    }
+    
+    categoryCache = await Category.find({ isActive: true })
+      .select('slug name icon3d level parentSlug isLeaf isFarmerCategory keywordTokens')
       .lean();
+    categoryCacheTime = now;
+    
+    return categoryCache;
+  }
 
-    const enriched = await Promise.all(
-      categories.map(async (cat) => {
-        let path = [cat.name];
-        let current = cat;
+  async suggestCategories(regex, tokens, limit, query = '') {
+    const allCategories = await this.getCachedCategories();
+    
+    const categories = allCategories.filter(cat => {
+      if (regex.test(cat.name)) return true;
+      if (cat.keywordTokens && cat.keywordTokens.some(kw => tokens.includes(kw))) return true;
+      return false;
+    }).slice(0, limit * 3);
 
-        while (current.parentSlug) {
-          const parent = await Category.findOne({ slug: current.parentSlug }).lean();
-          if (parent) {
-            path.unshift(parent.name);
-            current = parent;
-          } else {
-            break;
+    const fuzzyCandidates = [];
+    if (query && query.length >= 2) {
+      for (const cat of allCategories) {
+        const nameSimilarity = levenshteinSimilarity(query, cat.name);
+        
+        let keywordSimilarity = 0;
+        if (cat.keywordTokens && cat.keywordTokens.length > 0) {
+          for (const kw of cat.keywordTokens) {
+            const sim = levenshteinSimilarity(query, kw);
+            if (sim > keywordSimilarity) keywordSimilarity = sim;
           }
         }
+        
+        const maxSimilarity = Math.max(nameSimilarity, keywordSimilarity);
+        
+        if (maxSimilarity >= FUZZY_THRESHOLD && !categories.some(c => c.slug === cat.slug)) {
+          fuzzyCandidates.push({ ...cat, fuzzySimilarity: maxSimilarity });
+        }
+      }
+      
+      fuzzyCandidates.sort((a, b) => b.fuzzySimilarity - a.fuzzySimilarity);
+    }
 
-        return {
-          slug: cat.slug,
-          name: cat.name,
-          icon3d: cat.icon3d,
-          level: cat.level,
-          parentSlug: cat.parentSlug,
-          isLeaf: cat.isLeaf,
-          displayPath: path.join(' > '),
-          isFarmerCategory: cat.isFarmerCategory,
-        };
-      })
-    );
+    const combined = [
+      ...categories.map(c => ({ ...c, fuzzySimilarity: 1 })),
+      ...fuzzyCandidates.slice(0, limit),
+    ];
+
+    const categoryMap = new Map(allCategories.map(c => [c.slug, c]));
+    
+    const enriched = combined.slice(0, limit * 2).map((cat) => {
+      let path = [cat.name];
+      let current = cat;
+
+      while (current.parentSlug) {
+        const parent = categoryMap.get(current.parentSlug);
+        if (parent) {
+          path.unshift(parent.name);
+          current = parent;
+        } else {
+          break;
+        }
+      }
+
+      return {
+        slug: cat.slug,
+        name: cat.name,
+        icon3d: cat.icon3d,
+        level: cat.level,
+        parentSlug: cat.parentSlug,
+        isLeaf: cat.isLeaf,
+        displayPath: path.join(' > '),
+        isFarmerCategory: cat.isFarmerCategory,
+        similarity: cat.fuzzySimilarity || 1,
+      };
+    });
 
     return enriched.slice(0, limit);
   }
@@ -202,6 +290,16 @@ class SmartSearchService {
       if (titleLower.includes(token)) score += 20;
       if (descLower.includes(token)) score += 10;
       if (ad.keywordTokens && ad.keywordTokens.includes(token)) score += 15;
+    }
+
+    const titleWords = titleLower.split(/\s+/);
+    for (const titleWord of titleWords) {
+      if (titleWord.length >= 3) {
+        const similarity = levenshteinSimilarity(queryLower, titleWord);
+        if (similarity >= FUZZY_THRESHOLD) {
+          score += Math.round(similarity * 30);
+        }
+      }
     }
 
     if (ad.photos && ad.photos.length > 0) score += 5;
