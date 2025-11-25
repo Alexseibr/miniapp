@@ -11,7 +11,13 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 - **Category Icons**: Utilizes 3D WebP icons for all categories, with lazy loading and async decoding for performance.
 - **Admin Panel**: Features a tabbed design with robust filtering and management tools.
-- **MiniApp**: Designed for mobile with a modern ad feed, advanced filtering (category, price range, sorting), infinite scroll using IntersectionObserver, and per-filter-set state management. It integrates `Swiper` for image carousels, `Leaflet` for maps, and `date-fns` for relative timestamps. Geo-location functionality includes "Near Me" search, distance display on ad cards, and a radius slider. Bottom navigation is conditionally displayed only within the Telegram MiniApp environment.
+- **MiniApp**: Designed for mobile with **radius-first navigation** pattern, elderly-friendly sizing, and geo-centric ad discovery.
+  - **Radius-First Navigation**: HomePage shows GroupSelector → SubcategoryChips → RadiusControl → Nearby Ads. FeedPage shows RadiusControl → optional single-select category filter → all nearby ads.
+  - **RadiusControl Component**: 0.1-100 km slider with presets [0.3, 0.5, 1, 3, 5, 10] km, integrated with useGeoStore, 300ms debounce on changes.
+  - **GroupSelector Component**: 14 top-level categories in 2-column grid with 3D WebP icons, single-select interaction, large 48px+ touch targets.
+  - **SubcategoryChips Component**: Horizontal scrollable multi-select chips for subcategory filtering within selected group.
+  - **Elderly-Friendly UX**: 24px+ headings, 17-18px body text, 48px+ touch targets, high contrast (#3B73FC brand blue), large buttons with generous padding.
+  - **Advanced Features**: Integrates `Swiper` for image carousels, `Leaflet` for maps, `date-fns` for relative timestamps. Bottom navigation conditionally displayed within Telegram MiniApp environment only.
 
 ### Technical Implementations
 - **Backend**: Node.js with Express.js, providing a RESTful API and Telegram bot logic. It uses JWT authentication for secure endpoints.
@@ -21,16 +27,21 @@ Preferred communication style: Simple, everyday language.
 - **Telegram Bot**: Built with Telegraf, handling user interactions, ad management, and a JWT-authenticated moderation panel.
 - **Frontend**: Two React applications built with TypeScript and Vite.
     - **Web Admin Panel**: For managing products, categories, ads, and users. Uses shadcn/ui (Radix UI), TanStack Query, Wouter, and Tailwind CSS. Authentication includes Telegram Login Widget, one-time links, and SMS codes.
-    - **Telegram MiniApp**: Mobile user interface with lazy-loaded pages, optimized 3D WebP category icons, and a real-time chat system with 3-second polling. Features production builds, code splitting, and HTTP caching.
+    - **Telegram MiniApp**: Mobile user interface with radius-first navigation, lazy-loaded pages, optimized 3D WebP category icons, and elderly-friendly UX.
       - **Create Ad Wizard**: 4-step elderly-friendly wizard for posting ads: (1) Auto-detect geolocation via navigator.geolocation + Nominatim OSM or fallback to preset cities, (2) Upload 0-4 photos with camera/gallery support, (3) Enter basic info (title, category, price, description) with large fonts, (4) Auto-extract Telegram contacts (phone/username) from initData or allow Instagram. NO manual address/phone entry. Uses useReducer for state management with progress bar and step validation.
+      - **useNearbyAds Hook**: Custom hook for radius-based ad fetching with 300ms debounce, AbortController (local capture to prevent race conditions), automatic stale data clearing on location loss, and distance-sorted results. Returns isEmpty/hasVeryFew for smart empty states.
+      - **useRoutePrefetch Hook**: Route prefetching on mouseenter using composedPath() for safe event delegation (handles Text nodes and non-anchor elements).
 - **Image Optimization**: Implements `LazyImage` and `OptimizedImage` components with IntersectionObserver for lazy loading, skeleton shimmers, SVG fallbacks, and priority loading. It includes infrastructure for responsive images (`srcset/sizes`) and leverages server-side media proxy for secure access and caching.
-- **Performance Optimizations**: Features code splitting with React.lazy and Suspense, data prefetching (categories, first-page ads), route prefetching on `mouseenter`, Gzip compression, hashed assets with long `Cache-Control` headers, and ETag support. Core Web Vitals are tracked for monitoring.
+- **Performance Optimizations**: Features code splitting with React.lazy and Suspense, data prefetching (categories, first-page ads), route prefetching on `mouseenter` (composedPath()-based), Gzip compression, hashed assets with long `Cache-Control` headers, and ETag support. Core Web Vitals are tracked for monitoring.
 
 ### System Design Choices
 - Modular backend design separating concerns.
 - Denormalized Order data for historical integrity.
 - Direct GCS public access is prevented; all photo access flows through a server-side proxy for authentication and caching.
-- Advanced pagination architecture with per-filter-set state to prevent race conditions.
+- **Radius-First Architecture**: Global radius state in useGeoStore (Zustand), clamped to 0.1-100 km. All ad listings require geolocation first, ensuring distance-relevant results.
+- **Debounced Fetching**: 300ms debounce on radius changes to reduce API load, with AbortController cleanup to prevent stale data leaks.
+- **Single-Select Category Filtering**: FeedPage uses single-select (not multi-select) to align with backend API capabilities, preventing client-side filtering confusion.
+- **Local AbortController Capture**: useNearbyAds captures AbortController locally at fetch start to prevent race conditions when rapid radius/location changes abort in-flight requests.
 
 ## External Dependencies
 
