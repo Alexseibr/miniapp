@@ -10,6 +10,7 @@ import { validateCreateAd } from '../../middleware/validateCreateAd.js';
 import requireInternalAuth from '../../middleware/internalAuth.js';
 import { findMatchingSubscriptions, sendSubscriptionNotifications } from '../../services/subscriptionNotifications.js';
 import { bot } from '../../telegram/bot.js';
+import BrandDetectionService from '../../services/BrandDetectionService.js';
 
 const router = Router();
 
@@ -1332,6 +1333,14 @@ router.post('/', validateCreateAd, async (req, res, next) => {
     }
 
     const ad = await Ad.create(payload);
+    
+    setImmediate(async () => {
+      try {
+        await BrandDetectionService.updateBrandStats(ad, 1);
+      } catch (error) {
+        console.error('[BrandDetection] Error updating brand stats:', error);
+      }
+    });
     
     if (ad.moderationStatus === 'approved') {
       setImmediate(async () => {
