@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Package, PlusCircle, BarChart3, TrendingUp, ArrowLeft, 
   Eye, MessageCircle, Heart, Clock, AlertCircle, ChevronRight,
-  Leaf, MapPin, Bell
+  Leaf, MapPin, Bell, Crown, Calendar, Star, Zap, Check, Gift
 } from 'lucide-react';
 import http from '@/api/http';
 import { useUserStore } from '@/store/useUserStore';
@@ -55,14 +55,91 @@ interface SeasonStats {
   };
 }
 
-type TabType = 'products' | 'create' | 'stats' | 'demand';
+interface FarmerSubscription {
+  tier: 'FREE' | 'PRO' | 'MAX';
+  maxAdsPerDay: number;
+  usedToday: number;
+  featuresEnabled: string[];
+  expiresAt: string | null;
+  isPremiumActive: boolean;
+}
+
+interface SeasonEvent {
+  id: string;
+  slug: string;
+  name: string;
+  emoji: string;
+  description: string;
+  color: string;
+  bannerGradient: string;
+  isActive: boolean;
+  status: 'active' | 'upcoming' | 'ended';
+  daysUntilStart: number | null;
+  daysRemaining: number | null;
+}
+
+interface TierInfo {
+  name: string;
+  price: number | string;
+  color: string;
+  gradient: string;
+  icon: any;
+  features: string[];
+  maxAds: string;
+  analytics: boolean;
+  premiumCards: boolean;
+  priority: boolean;
+}
+
+type TabType = 'products' | 'create' | 'stats' | 'demand' | 'subscription' | 'fairs';
 
 const TABS: { key: TabType; label: string; icon: any; color: string }[] = [
   { key: 'products', label: 'Товары', icon: Package, color: '#10B981' },
   { key: 'create', label: 'Подача', icon: PlusCircle, color: '#F59E0B' },
   { key: 'stats', label: 'Статистика', icon: BarChart3, color: '#3B73FC' },
   { key: 'demand', label: 'Спрос', icon: TrendingUp, color: '#8B5CF6' },
+  { key: 'subscription', label: 'PRO', icon: Crown, color: '#F59E0B' },
+  { key: 'fairs', label: 'Ярмарки', icon: Calendar, color: '#EC4899' },
 ];
+
+const SUBSCRIPTION_TIERS: Record<string, TierInfo> = {
+  FREE: {
+    name: 'Бесплатный',
+    price: 'Бесплатно',
+    color: '#6B7280',
+    gradient: 'linear-gradient(135deg, #9CA3AF 0%, #6B7280 100%)',
+    icon: Leaf,
+    features: ['До 3 объявлений в день', 'Базовая видимость'],
+    maxAds: '3',
+    analytics: false,
+    premiumCards: false,
+    priority: false,
+  },
+  PRO: {
+    name: 'PRO',
+    price: 9.90,
+    color: '#F59E0B',
+    gradient: 'linear-gradient(135deg, #FBBF24 0%, #F59E0B 100%)',
+    icon: Star,
+    features: ['До 15 объявлений в день', 'Расширенная аналитика', 'Приоритет в выдаче'],
+    maxAds: '15',
+    analytics: true,
+    premiumCards: false,
+    priority: true,
+  },
+  MAX: {
+    name: 'MAX',
+    price: 24.90,
+    color: '#8B5CF6',
+    gradient: 'linear-gradient(135deg, #A78BFA 0%, #8B5CF6 100%)',
+    icon: Zap,
+    features: ['Безлимитные объявления', 'Полная аналитика', 'Премиум-карточки', 'Максимальный приоритет', 'Персональная поддержка'],
+    maxAds: 'Безлимит',
+    analytics: true,
+    premiumCards: true,
+    priority: true,
+  },
+};
 
 const UNIT_LABELS: Record<string, string> = {
   kg: 'кг',
@@ -113,6 +190,10 @@ export default function FarmerCabinetPage() {
   
   const [quickForm, setQuickForm] = useState<QuickFormData>({ title: '', price: '', unitType: 'kg' });
   const [quickSubmitting, setQuickSubmitting] = useState(false);
+  
+  const [subscription, setSubscription] = useState<FarmerSubscription | null>(null);
+  const [seasonEvents, setSeasonEvents] = useState<{ active: SeasonEvent[]; upcoming: SeasonEvent[] }>({ active: [], upcoming: [] });
+  const [upgrading, setUpgrading] = useState(false);
 
   useEffect(() => {
     if (user?.telegramId) {
@@ -174,6 +255,30 @@ export default function FarmerCabinetPage() {
             setDemandSummary(res.data.data.summary);
           }
         }
+      } else if (activeTab === 'subscription') {
+        try {
+          const res = await http.get(`/api/farmer/subscriptions?telegramId=${user.telegramId}`);
+          if (res.data.success) {
+            setSubscription(res.data.data);
+          }
+        } catch (err) {
+          setSubscription({
+            tier: 'FREE',
+            maxAdsPerDay: 3,
+            usedToday: 0,
+            featuresEnabled: ['basic_listing'],
+            expiresAt: null,
+            isPremiumActive: false,
+          });
+        }
+      } else if (activeTab === 'fairs') {
+        const res = await http.get('/api/farmer/season-events');
+        if (res.data.success) {
+          setSeasonEvents({
+            active: res.data.data.active || [],
+            upcoming: res.data.data.upcoming || [],
+          });
+        }
       }
     } catch (error) {
       console.error('Failed to load data:', error);
@@ -205,6 +310,26 @@ export default function FarmerCabinetPage() {
       console.error('Quick post failed:', error);
     } finally {
       setQuickSubmitting(false);
+    }
+  };
+
+  const handleUpgrade = async (tier: 'PRO' | 'MAX') => {
+    if (!user?.telegramId) return;
+    
+    setUpgrading(true);
+    try {
+      const res = await http.post('/api/farmer/subscriptions/upgrade', {
+        telegramId: user.telegramId,
+        tier,
+      });
+      
+      if (res.data.success) {
+        setSubscription(res.data.data);
+      }
+    } catch (error) {
+      console.error('Upgrade failed:', error);
+    } finally {
+      setUpgrading(false);
     }
   };
 
@@ -819,6 +944,300 @@ export default function FarmerCabinetPage() {
     </div>
   );
 
+  const renderSubscriptionTab = () => {
+    const currentTier = subscription?.tier || 'FREE';
+    const tierInfo = SUBSCRIPTION_TIERS[currentTier];
+
+    return (
+      <div style={{ padding: 16 }}>
+        <div style={{
+          background: tierInfo.gradient,
+          borderRadius: 20,
+          padding: 20,
+          color: '#fff',
+          marginBottom: 20,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+            <tierInfo.icon size={24} />
+            <div>
+              <div style={{ fontSize: 20, fontWeight: 700 }}>
+                {tierInfo.name}
+              </div>
+              <div style={{ fontSize: 13, opacity: 0.9 }}>
+                Ваш текущий план
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ 
+            background: 'rgba(255,255,255,0.2)', 
+            borderRadius: 12, 
+            padding: 12,
+            marginTop: 12,
+          }}>
+            <div style={{ fontSize: 13, marginBottom: 4 }}>
+              Использовано сегодня
+            </div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>
+              {subscription?.usedToday || 0} / {tierInfo.maxAds}
+            </div>
+            <div style={{
+              height: 6,
+              background: 'rgba(255,255,255,0.3)',
+              borderRadius: 3,
+              marginTop: 8,
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%',
+                width: `${Math.min(((subscription?.usedToday || 0) / (subscription?.maxAdsPerDay || 3)) * 100, 100)}%`,
+                background: '#fff',
+                borderRadius: 3,
+              }} />
+            </div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: '#111827' }}>
+          Доступные планы
+        </div>
+
+        {(['FREE', 'PRO', 'MAX'] as const).map((tier) => {
+          const info = SUBSCRIPTION_TIERS[tier];
+          const isCurrentTier = tier === currentTier;
+          const canUpgrade = tier !== 'FREE' && !isCurrentTier;
+
+          return (
+            <div
+              key={tier}
+              style={{
+                background: isCurrentTier ? `${info.color}15` : '#fff',
+                border: `2px solid ${isCurrentTier ? info.color : '#E5E7EB'}`,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+              }}
+              data-testid={`tier-card-${tier}`}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{
+                    width: 40,
+                    height: 40,
+                    borderRadius: 12,
+                    background: info.gradient,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}>
+                    <info.icon size={20} color="#fff" />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 700, color: '#111827' }}>{info.name}</div>
+                    <div style={{ fontSize: 14, color: info.color, fontWeight: 600 }}>
+                      {typeof info.price === 'number' ? `${info.price} BYN/мес` : info.price}
+                    </div>
+                  </div>
+                </div>
+                {isCurrentTier && (
+                  <div style={{
+                    background: info.color,
+                    color: '#fff',
+                    padding: '4px 10px',
+                    borderRadius: 8,
+                    fontSize: 11,
+                    fontWeight: 600,
+                  }}>
+                    Текущий
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 12 }}>
+                {info.features.map((feature, idx) => (
+                  <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#374151' }}>
+                    <Check size={14} color={info.color} />
+                    {feature}
+                  </div>
+                ))}
+              </div>
+
+              {canUpgrade && (
+                <button
+                  onClick={() => handleUpgrade(tier)}
+                  disabled={upgrading}
+                  style={{
+                    width: '100%',
+                    background: info.gradient,
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '12px',
+                    fontSize: 15,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    opacity: upgrading ? 0.7 : 1,
+                  }}
+                  data-testid={`upgrade-${tier}`}
+                >
+                  {upgrading ? 'Обработка...' : `Перейти на ${info.name}`}
+                </button>
+              )}
+            </div>
+          );
+        })}
+
+        <div style={{
+          background: '#F0FDF4',
+          borderRadius: 12,
+          padding: 14,
+          marginTop: 8,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, color: '#15803D', fontSize: 13 }}>
+            <Gift size={16} />
+            <span style={{ fontWeight: 500 }}>Пробный период PRO - 7 дней бесплатно!</span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderFairsTab = () => (
+    <div style={{ padding: 16 }}>
+      {seasonEvents.active.length > 0 && (
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 12 }}>
+            Активные ярмарки
+          </div>
+          {seasonEvents.active.map((event) => (
+            <div
+              key={event.id}
+              style={{
+                background: event.bannerGradient,
+                borderRadius: 20,
+                padding: 20,
+                color: '#fff',
+                marginBottom: 12,
+              }}
+              data-testid={`fair-active-${event.id}`}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                <div style={{ fontSize: 32 }}>{event.emoji}</div>
+                <div>
+                  <div style={{ fontSize: 20, fontWeight: 700 }}>{event.name}</div>
+                  <div style={{ fontSize: 14, opacity: 0.9 }}>{event.description}</div>
+                </div>
+              </div>
+              <div style={{
+                background: 'rgba(255,255,255,0.2)',
+                borderRadius: 12,
+                padding: 12,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}>
+                <div>
+                  <div style={{ fontSize: 12, opacity: 0.9 }}>Осталось дней</div>
+                  <div style={{ fontSize: 24, fontWeight: 700 }}>{event.daysRemaining}</div>
+                </div>
+                <button
+                  onClick={() => navigate('/farmer/bulk-upload')}
+                  style={{
+                    background: '#fff',
+                    color: event.color,
+                    border: 'none',
+                    borderRadius: 12,
+                    padding: '10px 20px',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Участвовать
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: '#111827', marginBottom: 12 }}>
+          Предстоящие ярмарки
+        </div>
+        {seasonEvents.upcoming.length > 0 ? (
+          seasonEvents.upcoming.map((event) => (
+            <div
+              key={event.id}
+              style={{
+                background: '#fff',
+                border: `2px solid ${event.color}30`,
+                borderRadius: 16,
+                padding: 16,
+                marginBottom: 12,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 14,
+              }}
+              data-testid={`fair-upcoming-${event.id}`}
+            >
+              <div style={{
+                width: 56,
+                height: 56,
+                borderRadius: 14,
+                background: `${event.color}20`,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 28,
+              }}>
+                {event.emoji}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>{event.name}</div>
+                <div style={{ fontSize: 13, color: '#6B7280' }}>{event.description}</div>
+              </div>
+              <div style={{
+                background: '#F3F4F6',
+                borderRadius: 10,
+                padding: '6px 10px',
+                textAlign: 'center',
+              }}>
+                <div style={{ fontSize: 11, color: '#6B7280' }}>Через</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: event.color }}>{event.daysUntilStart}</div>
+                <div style={{ fontSize: 10, color: '#9CA3AF' }}>дней</div>
+              </div>
+            </div>
+          ))
+        ) : (
+          <div style={{
+            textAlign: 'center',
+            padding: 30,
+            color: '#6B7280',
+          }}>
+            <Calendar size={40} style={{ marginBottom: 8, opacity: 0.5 }} />
+            <div>Пока нет предстоящих ярмарок</div>
+          </div>
+        )}
+      </div>
+
+      <div style={{
+        background: 'linear-gradient(135deg, #EC4899 0%, #DB2777 100%)',
+        borderRadius: 16,
+        padding: 16,
+        color: '#fff',
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+          <Star size={18} />
+          <span style={{ fontSize: 14, fontWeight: 600 }}>PRO преимущество</span>
+        </div>
+        <div style={{ fontSize: 13, opacity: 0.9 }}>
+          Участники PRO и MAX получают приоритетное размещение на ярмарках и специальные бейджи
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div style={{ minHeight: '100vh', background: '#F8FAFC' }}>
       <div style={{
@@ -905,6 +1324,8 @@ export default function FarmerCabinetPage() {
         {activeTab === 'create' && renderCreateTab()}
         {activeTab === 'stats' && renderStatsTab()}
         {activeTab === 'demand' && renderDemandTab()}
+        {activeTab === 'subscription' && renderSubscriptionTab()}
+        {activeTab === 'fairs' && renderFairsTab()}
       </div>
 
       <style>{`

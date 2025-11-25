@@ -9,6 +9,40 @@ const asyncHandler = (fn) => (req, res, next) => {
 };
 
 router.get(
+  '/',
+  asyncHandler(async (req, res) => {
+    const { telegramId } = req.query;
+    
+    if (!telegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'telegramId is required',
+      });
+    }
+
+    const result = await MonetizationService.getCurrentTier(Number(telegramId));
+    
+    const TIER_LIMITS = {
+      FREE: 3,
+      PRO: 15,
+      MAX: 999,
+    };
+
+    res.json({
+      success: true,
+      data: {
+        tier: result.tier,
+        maxAdsPerDay: TIER_LIMITS[result.tier] || 3,
+        usedToday: result.usedToday || 0,
+        featuresEnabled: result.features || [],
+        expiresAt: result.expiresAt || null,
+        isPremiumActive: result.tier !== 'FREE',
+      },
+    });
+  })
+);
+
+router.get(
   '/tiers',
   asyncHandler(async (req, res) => {
     const tiers = MonetizationService.getAllTiers();

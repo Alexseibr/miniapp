@@ -1,0 +1,426 @@
+PROMPT ДЛЯ REPLIT / CODEX  
+Задача: перевести проект KETMAR Market на продвинутую инфраструктуру Kubernetes.
+
+Нужно:
+- использовать уже настроенный монорепо (backend + miniapp + admin + bot + MongoDB),
+- опираться на ранее сделанные Dockerfile и docker-compose (MEGA-PROMPT 3.0),
+- добавить full Kubernetes-слой: манифесты, namespace’ы, ingress, autoscaling, секреты,
+- подготовить базовый Helm-chart или kustomize-структуру,
+- настроить CI/CD GitHub Actions для деплоя в кластер.
+
+====================================================================
+0. КОНТЕКСТ И ПРИНЦИПЫ
+====================================================================
+
+Текущий проект:
+- Монорепозиторий:
+  - /backend  — Node.js + TypeScript + MongoDB client (REST API)
+  - /miniapp  — React + TS (Telegram MiniApp / WebApp)
+  - /admin    — React + TS (Admin panel)
+  - /bot      — Node.js + Telegraf (Telegram Bot)
+  - /infra    — docker-compose, nginx, прочее
+
+Уже есть:
+- Dockerfile для backend, miniapp, admin, bot,
+- docker-compose.dev.yml и docker-compose.prod.yml,
+- Nginx reverse proxy,
+- CI/CD до registry (из MEGA-PROMPT 3.0).
+
+Цель этого промпта:
+- НЕ ломать существующую Docker-инфру,
+- добавить поверх неё Kubernetes слой,
+- обеспечить готовность к реальному продакшену (HA, auto-healing, scaling).
+
+Предположения:
+- кластер Kubernetes уже существует (например, k3s, EKS, GKE, AKS или bare-metal),
+- есть доступ к нему через kubeconfig,
+- есть контейнерный registry (GitHub Container Registry / Docker Hub / etc).
+
+====================================================================
+1. ОБЩАЯ СТРУКТУРА KUBERNETES-МАНИФЕСТОВ
+====================================================================
+
+Создать папку:
+
+/k8s
+  /base
+    namespace.yaml
+    configmaps.yaml
+    secrets.yaml (без реальных значений — только шаблоны / placeholder)
+    backend-deployment.yaml
+    backend-service.yaml
+    miniapp-deployment.yaml
+    miniapp-service.yaml
+    admin-deployment.yaml
+    admin-service.yaml
+    bot-deployment.yaml
+    bot-service.yaml
+    mongo-statefulset.yaml (если нужна своя Mongo)
+    mongo-service.yaml
+    ingress.yaml
+    hpa-backend.yaml
+    hpa-bot.yaml
+  /overlays
+    /dev
+      kustomization.yaml
+      patches-*.yaml (dev-настройки)
+    /prod
+      kustomization.yaml
+      patches-*.yaml (prod-настройки)
+
+Либо вариант с Helm:
+
+/helm
+  /ketmar-market
+    Chart.yaml
+    values.yaml
+    templates/*.yaml
+
+Можно использовать kustomize ИЛИ Helm.  
+Выбери что проще, но структура должна быть понятной и расширяемой.
+
+====================================================================
+2. NAMESPACE И БАЗОВЫЕ РЕСУРСЫ
+====================================================================
+
+Создать namespace:
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ketmar-prod
+
+(и ketmar-dev при необходимости).
+
+Все ресурсы разворачивать в этом namespace.
+
+---
+
+ConfigMap’ы:
+
+- общая конфигурация:
+  - MINIAPP_BASE_PATH, ADMIN_BASE_PATH,
+  - FEATURE_FLAGS (если нужны),
+  - LOG_LEVEL.
+
+Secrets:
+
+- MONGO_URI (или отдельные Mongo-параметры),
+- JWT_SECRET,
+- TELEGRAM_BOT_TOKEN,
+- TELEGRAM_ADMIN_BOT_TOKEN (если нужно),
+- любая платёжная интеграция/ключи.
+
+Сделать secrets шаблонными (без реальных значений) и оставить комментарии, где и как их заполнять (kubectl create secret …).
+
+====================================================================
+3. BACKEND В KUBERNETES
+====================================================================
+
+Создать Deployment: backend-deployment.yaml
+
+Требования:
+
+- image: использовать образ из registry, например:
+  - ghcr.io/<org>/ketmar-backend:latest (или другой)
+- replicas: по умолчанию 2 (dev — 1, prod — 2+)
+- контейнер:
+  - envFrom:
+    - configMapRef: общая конфигурация,
+    - secretRef: секреты
+  - ports:
+    - containerPort: 3000 (или тот, что в проекте)
+  - livenessProbe:
+    - httpGet: /health (или /api/health)
+    - initialDelaySeconds: 15
+    - periodSeconds: 20
+  - readinessProbe:
+    - httpGet: /health
+    - initialDelaySeconds: 5
+    - periodSeconds: 10
+  - resources:
+    - requests:
+      cpu: "100m"
+      memory: "256Mi"
+    - limits:
+      cpu: "500m"
+      memory: "512Mi"
+
+Создать Service: backend-service.yaml
+
+- type: ClusterIP
+- порт 80 → targetPort 3000
+- selector: app=ketmar-backend
+
+====================================================================
+4. MINIAPP В KUBERNETES
+====================================================================
+
+MiniApp — статический фронт, который уже собирается в Dockerfile с nginx внутри ИЛИ можно сделать отдельный nginx в k8s.
+
+Допустимый вариант:
+
+- image: ketmar-miniapp:latest (Nginx + статика)
+- Deployment:
+  - replicas: 2
+  - ports: 80
+  - probes: httpGet / (root)
+- Service:
+  - ClusterIP
+  - 80 → targetPort 80
+
+Аналогично для Admin:
+
+- admin-deployment.yaml
+- admin-service.yaml
+
+В ingress потом нужно будет прописать пути:
+
+- /miniapp → miniapp-service
+- /admin → admin-service (или отдельный домен, например admin.domain.tld)
+
+====================================================================
+5. TELEGRAM BOT В KUBERNETES
+====================================================================
+
+Deployment: bot-deployment.yaml
+
+- image: ketmar-bot:latest
+- replicas: 1 (пока), можно scale >1, если логика бота это поддерживает (чаще всего да для webhook mode).
+- env:
+  - TELEGRAM_BOT_TOKEN (secret),
+  - BACKEND_API_URL (svc DNS в k8s),
+  - MINIAPP_BASE_URL (через ingress URL),
+  - другие необходимые переменные.
+
+Probes:
+
+- livenessProbe:
+  - tcpSocket: port бота
+  или
+  - httpGet: /health (если реализовано)
+- readinessProbe:
+  - такое же.
+
+Service: bot-service.yaml
+
+- ClusterIP
+- если используем webhook-режим — Ingress будет прокидывать /bot/webhook → bot-service:port.
+
+В CI/CD прописать шаг, который после деплоя выполнит setWebhook с правильным адресом.
+
+====================================================================
+6. MONGODB В KUBERNETES (ОПЦИОНАЛЬНО)
+====================================================================
+
+Если планируется использовать внешнюю managed MongoDB — можно пропустить StatefulSet и просто хранить MONGO_URI в secret.
+
+Если хотим свою Mongo:
+
+mongo-statefulset.yaml:
+
+- apiVersion: apps/v1
+- kind: StatefulSet
+- replicas: 1 (минимум, можно больше с ReplicaSet’ом)
+- volumeClaimTemplates:
+  - name: mongo-data
+  - storage: например, 20Gi
+- контейнер:
+  - image: mongo:6
+  - ports: 27017
+  - volumeMounts: /data/db
+
+mongo-service.yaml:
+
+- ClusterIP
+- headless (clusterIP: None) для репликации или обычный если одна нода.
+
+В backend через env:
+
+- MONGO_URI=mongodb://mongo-service:27017/ketmar
+
+====================================================================
+7. INGRESS + NGINX INGRESS CONTROLLER
+====================================================================
+
+Предполагается использование NGINX Ingress Controller (или другого, но NGINX — дефолт).
+
+Создать ingress.yaml:
+
+- host: например, market.example.com
+- rules:
+
+1) /api → backend-service
+2) /miniapp → miniapp-service
+3) /admin → admin-service
+4) /bot/webhook → bot-service (если нужно)
+
+Пример:
+
+- path: /api
+  pathType: Prefix
+  backend → backend-service:80
+
+Включить:
+
+- TLS:
+  - использовать cert-manager (если есть),
+  - или заранее созданный секрет с TLS-сертификатом.
+
+====================================================================
+8. HPA (AUTO-SCALING)
+====================================================================
+
+Создать:
+
+- hpa-backend.yaml
+- hpa-bot.yaml (опционально)
+
+Пример для backend:
+
+- apiVersion: autoscaling/v2
+- kind: HorizontalPodAutoscaler
+- minReplicas: 2
+- maxReplicas: 10
+- metrics:
+  - resource:
+    - type: Resource
+    - resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60
+
+То есть если backend загружен >60% CPU → скейлиться.
+
+====================================================================
+9. LOGGING + MONITORING (БАЗОВО)
+====================================================================
+
+Сделать базовую интеграцию:
+
+- Использовать стандартный stdout/stderr для логов (k8s сам собирает),
+- Подготовить (в комментариях/README) предложение:
+  - использовать Prometheus + Grafana для метрик,
+  - использовать Loki/ELK для логов.
+
+Но в этом промпте достаточно:
+
+- убедиться, что приложение логирует в stdout,
+- не делать лог-файлы внутри контейнера.
+
+====================================================================
+10. CI/CD ДЛЯ KUBERNETES (GITHUB ACTIONS)
+====================================================================
+
+В `.github/workflows` добавить новый workflow, например: `deploy-k8s.yml`.
+
+Задачи:
+
+1) Триггер:
+   - on: push в main / prod-ветку.
+
+2) Шаги:
+
+- checkout
+- setup-node (опционально)
+- сборка Docker-образов backend, miniapp, admin, bot (можно в отдельном workflow, если уже настроено в MEGA-PROMPT 3.0)
+- push образов в registry
+
+3) Подключение к k8s:
+
+- использовать secret KUBE_CONFIG или KUBECONFIG_CONTENT,
+- через action `azure/setup-kubectl` или `actions-hub/kubectl` или `bitnami/kubectl`,
+- затем:
+  - kubectl apply -k k8s/overlays/prod
+  или
+  - helm upgrade --install ketmar ./helm/ketmar-market -f values-prod.yaml
+
+4) Возможность ручного деплоя (workflow_dispatch), чтобы можно было запускать деплой вручную.
+
+====================================================================
+11. KUSTOMIZE / HELM — ВАРИАНТЫ
+====================================================================
+
+Выбери один подход:
+
+Вариант A: Kustomize
+
+- base/ — общие манифесты
+- overlays/dev и overlays/prod — патчи ресурсов:
+  - реплики,
+  - ресурсы,
+  - ingress-хосты,
+  - секреты.
+
+Вариант B: Helm
+
+- один Helm chart:
+  - templates/*.yaml для каждого ресурса,
+  - values-dev.yaml и values-prod.yaml,
+  - переменные: image.tag, replicaCount, ingress.host и т.п.
+
+Требование: структура должна быть понятной, чтобы другие разработчики могли:
+
+- быстро найти нужный сервис,
+- изменить ресурсы/реплики,
+- добавить новый microservice.
+
+====================================================================
+12. README ДЛЯ KUBERNETES
+====================================================================
+
+Создать `/k8s/README_K8S.md`.
+
+Описать в нём:
+
+1) Требования:
+
+- готовый кластер k8s,
+- настроенный Ingress Controller,
+- доступ к registry,
+- kubectl.
+
+2) Как развернуть dev:
+
+- kubectl apply -k k8s/overlays/dev
+или
+- helm install ketmar-dev ./helm/ketmar-market -f values-dev.yaml
+
+3) Как развернуть prod:
+
+- kubectl apply -k k8s/overlays/prod
+или
+- helm upgrade --install ketmar ./helm/ketmar-market -f values-prod.yaml
+
+4) Как обновлять:
+
+- при пуше в main pipeline сам:
+  - соберёт образы,
+  - запушит,
+  - выполнит kubectl apply / helm upgrade.
+
+5) Как добавлять новый сервис:
+
+- завести Dockerfile,
+- сделать deployment + service,
+- добавить в ingress (если нужно),
+- добавить в helm/kustomize.
+
+====================================================================
+13. ВАЖНО: НЕ ЛОМАЕМ ТО, ЧТО УЖЕ РАБОТАЕТ
+====================================================================
+
+Всё описанное — ДОПОЛНЕНИЕ к существующей инфраструктуре Docker/docker-compose, а не замена.
+
+- локальная разработка может продолжать использовать docker-compose.dev,
+- продакшен может перейти на k8s постепенно,
+- все новые YAML-файлы писать аккуратно, с комментариями.
+
+Приоритеты:
+
+1) Избежать даунтайма.
+2) Обеспечить возможность отката (rollback).
+3) Сделать максимально простым сценарий: «git push → GitHub Actions → новый релиз в k8s».
+
+Реализуй все описанные Kubernetes-манифесты, структуру папок, CI/CD workflow и basic README, адаптируя под текущий код KETMAR Market.
