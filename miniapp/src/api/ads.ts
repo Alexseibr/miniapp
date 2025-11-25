@@ -137,3 +137,34 @@ export async function getNearbyStats(params: NearbyStatsParams): Promise<NearbyS
   });
   return response.data;
 }
+
+// ========== Analytics Tracking ==========
+
+const trackedImpressions = new Set<string>();
+
+export async function trackImpression(adId: string): Promise<void> {
+  if (trackedImpressions.has(adId)) return;
+  trackedImpressions.add(adId);
+  
+  try {
+    await http.post(`/api/ads/${adId}/track-impression`);
+  } catch (error) {
+    console.warn('[trackImpression]', error);
+  }
+}
+
+export async function trackView(adId: string): Promise<void> {
+  try {
+    await http.post(`/api/ads/${adId}/track-view`);
+  } catch (error) {
+    console.warn('[trackView]', error);
+  }
+}
+
+export async function trackContact(adId: string): Promise<void> {
+  try {
+    await http.post(`/api/ads/${adId}/track-contact`);
+  } catch (error) {
+    console.warn('[trackContact]', error);
+  }
+}

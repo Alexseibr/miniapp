@@ -1,8 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, MessageCircle, ArrowLeft, Phone, Share2, Eye, Calendar, X, ExternalLink } from 'lucide-react';
 import { SiInstagram, SiTelegram } from 'react-icons/si';
-import { getAd, getSimilarAds } from '@/api/ads';
+import { getAd, getSimilarAds, trackView, trackContact } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { Ad, AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
@@ -31,12 +31,20 @@ export default function AdPage() {
   const [showPhone, setShowPhone] = useState(false);
   const { coords } = useGeo(false);
 
+  const viewTrackedRef = useRef(false);
+
   useEffect(() => {
     if (!id) return;
     const params = coords ? { lat: coords.lat, lng: coords.lng } : {};
     getAd(id, params)
       .then((fetchedAd) => {
         setAd(fetchedAd);
+        
+        if (!viewTrackedRef.current) {
+          viewTrackedRef.current = true;
+          trackView(fetchedAd._id);
+        }
+        
         if (fetchedAd.subcategoryId) {
           setLoadingSimilar(true);
           getSimilarAds(fetchedAd._id, fetchedAd.subcategoryId, 6)
@@ -88,23 +96,37 @@ export default function AdPage() {
 
   const handleCallPhone = useCallback(() => {
     if (ad?.contactPhone) {
+      trackContact(ad._id);
       window.location.href = `tel:${ad.contactPhone}`;
     }
-  }, [ad?.contactPhone]);
+  }, [ad?.contactPhone, ad?._id]);
 
   const handleOpenTelegram = useCallback(() => {
     if (ad?.contactUsername) {
+      trackContact(ad._id);
       const username = ad.contactUsername.replace('@', '');
       window.open(`https://t.me/${username}`, '_blank');
     }
-  }, [ad?.contactUsername]);
+  }, [ad?.contactUsername, ad?._id]);
 
   const handleOpenInstagram = useCallback(() => {
     if (ad?.contactInstagram) {
+      trackContact(ad._id);
       const username = ad.contactInstagram.replace('@', '');
       window.open(`https://instagram.com/${username}`, '_blank');
     }
-  }, [ad?.contactInstagram]);
+  }, [ad?.contactInstagram, ad?._id]);
+
+  const handleShowPhone = useCallback(() => {
+    if (!showPhone && ad) {
+      trackContact(ad._id);
+    }
+    if (showPhone && ad?.contactPhone) {
+      handleCallPhone();
+    } else {
+      setShowPhone(true);
+    }
+  }, [showPhone, ad, handleCallPhone]);
 
   if (loading) {
     return <EmptyState title="Загружаем объявление" />;
@@ -427,7 +449,7 @@ export default function AdPage() {
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {ad.contactPhone && (
                   <button
-                    onClick={() => showPhone ? handleCallPhone() : setShowPhone(true)}
+                    onClick={handleShowPhone}
                     style={{
                       width: '100%',
                       padding: '14px 16px',

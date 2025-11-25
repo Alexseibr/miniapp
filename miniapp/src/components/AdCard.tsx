@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Truck, MapPin } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
@@ -12,6 +12,7 @@ import { Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
 import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
+import { trackImpression } from '@/api/ads';
 
 interface AdCardProps {
   ad: AdPreview;
@@ -27,8 +28,29 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
   const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const cardRef = useRef<HTMLElement>(null);
   
   const photos = ad.photos && ad.photos.length > 0 ? ad.photos : [NO_PHOTO_PLACEHOLDER];
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            trackImpression(ad._id);
+            observer.unobserve(element);
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [ad._id]);
 
   const handleCardClick = () => {
     if (onSelect) {
@@ -56,6 +78,7 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
 
   return (
     <article
+      ref={cardRef}
       className="ad-card-compact"
       onClick={handleCardClick}
       role="button"
