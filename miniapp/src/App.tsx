@@ -26,6 +26,8 @@ const MyAdsPage = lazy(() => import('@/pages/MyAdsPage'));
 const CreateAdPage = lazy(() => import('@/pages/CreateAdPage'));
 const ConversationsPage = lazy(() => import('@/pages/ConversationsPage'));
 const ChatPage = lazy(() => import('@/pages/ChatPage'));
+const FarmerFeedPage = lazy(() => import('@/pages/FarmerFeedPage'));
+const BulkFarmerUploadPage = lazy(() => import('@/pages/BulkFarmerUploadPage'));
 
 export default function App() {
   const location = useLocation();
@@ -153,6 +155,8 @@ export default function App() {
               <Route path="/ads/create" element={<CreateAdPage />} />
               <Route path="/chats" element={<ConversationsPage />} />
               <Route path="/chat/:conversationId" element={<ChatPage />} />
+              <Route path="/farmer-feed" element={<FarmerFeedPage />} />
+              <Route path="/farmer/bulk-upload" element={<BulkFarmerUploadPage />} />
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>

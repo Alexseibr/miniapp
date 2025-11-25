@@ -1558,4 +1558,69 @@ router.get('/trending', async (req, res, next) => {
   }
 });
 
+router.post('/bulk', async (req, res) => {
+  try {
+    const { items } = req.body;
+    const sellerTelegramId = getSellerIdFromRequest(req);
+
+    if (!sellerTelegramId) {
+      return res.status(401).json({ error: 'Seller ID required' });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+
+    if (items.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 items per request' });
+    }
+
+    const results = { created: 0, errors: [], ads: [] };
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      try {
+        if (!item.title || !item.title.trim()) {
+          results.errors.push(`Item ${i + 1}: Title is required`);
+          continue;
+        }
+        
+        if (!item.price || item.price <= 0) {
+          results.errors.push(`Item ${i + 1}: Valid price is required`);
+          continue;
+        }
+
+        const ad = new Ad({
+          title: item.title.trim(),
+          description: item.description?.trim() || '',
+          price: item.price,
+          currency: 'BYN',
+          unitType: item.unit || 'piece',
+          quantity: item.quantity || 1,
+          categoryId: item.categoryId || 'farmer-market',
+          subcategoryId: item.categoryId || 'farmer-other',
+          photos: item.images || [],
+          sellerTelegramId,
+          isFarmerAd: true,
+          status: 'active',
+          moderationStatus: 'pending',
+          createdAt: new Date(),
+        });
+
+        await ad.save();
+        results.created++;
+        results.ads.push({ _id: ad._id, title: ad.title });
+      } catch (itemError) {
+        results.errors.push(`Item ${i + 1}: ${itemError.message}`);
+      }
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({ error: 'Failed to process bulk upload' });
+  }
+});
+
 export default router;
