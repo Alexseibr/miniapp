@@ -59,6 +59,22 @@ Preferred communication style: Simple, everyday language.
   - Nearby farmers endpoint with geo-search by category groups
   - API endpoints: `/api/farmer/categories`, `/suggest-category`, `/detect-quantity`, `/calculate-price`, `/quick-post`, `/nearby`, `/ads`, `/units`
 - **Media Upload System**: Manages file size limits, thumbnail generation (via `sharp`), and cleanup. Uses `MediaFile` model to track uploads and a `MediaService` for validation and session management.
+- **Ad Lifecycle System**: Comprehensive ad expiration management with category-based TTL rules:
+  - `CategoryLifetimeConfig` defines TTL per category: perishable_daily (1 day), fast (7 days), medium (14-21 days), long (30 days)
+  - Ad model extended with `lifetimeType`, `repeatMode` (none/daily), `expiresAt`, `isSoldOut`, `isTemplate` fields
+  - `AdLifecycleService` handles expiration, extension, daily republishing, and seller reminders
+  - `adLifecycleWorker`: every 5 min (expiration check), daily 00:05 (republish daily ads), 9:00/18:00 (reminders)
+  - API: `POST /api/ads/:id/extend`, `POST /api/ads/:id/archive`
+- **Search Alerts System**: Notifies buyers when searched items appear after zero-result searches:
+  - `SearchAlert` model tracks query, geoHash (via ngeohash), categoryId, isActive
+  - `SearchAlertService` creates alerts for zero-result searches, matches new ads, sends notifications
+  - Auto-deactivation after first match or 30-day expiry
+  - API: `POST /api/search/alerts`, `GET /api/search/alerts`, `DELETE /api/search/alerts/:id`
+- **Demand Notification System**: Notifies sellers when demand spikes for their categories:
+  - `DemandStats` aggregates searches by geoHash + categoryId buckets (hourly)
+  - `DemandNotificationService` identifies high-demand areas (≥5 searches), notifies nearby sellers
+  - `demandWorker`: hourly aggregation, seller notifications at 10:00/14:00/19:00 (Europe/Minsk)
+  - SearchLog extended with `alertCreated`, `detectedCategoryId`, `radiusKm` fields
 
 ## External Dependencies
 
