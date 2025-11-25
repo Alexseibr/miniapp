@@ -1,0 +1,514 @@
+PROMPT ДЛЯ REPLIT / CODEX  
+
+Задача:  
+Сделать проект KETMAR Market мультиплатформенным:
+
+- Telegram MiniApp
+- Обычный Web (браузер)
+- Мобильное приложение с WebView (iOS/Android)
+
+А также:
+
+- Объединять пользователя по номеру телефона:
+  - если номер, который верифицировали через Telegram,
+  - и номер, по которому пользователь логинится через SMS,
+  - СОВПАДАЮТ → это один и тот же User, с общей историей, избранным, объявлениями и т.д.
+
+Нужно:
+
+1) Вынести во фронте слой PlatformAdapter (Telegram / Web / Mobile WebView).
+2) На бэке сделать единую модель User с учётом нескольких провайдеров авторизации.
+3) Реализовать механику "склейки" аккаунтов по номеру телефона.
+4) Обновить авторизацию и уведомления так, чтобы они работали и с Telegram, и с мобильным приложением.
+
+====================================================================
+0. КОНТЕКСТ
+====================================================================
+
+У нас уже есть:
+
+- Backend: Node.js + TypeScript + MongoDB + JWT.
+- Frontend MiniApp: React + TS + Telegram WebApp SDK.
+- Telegram Bot: Telegraf (логин, deep-links, уведомления).
+- Авторизация через initData (Telegram MiniApp).
+- Авторизация через телефон + SMS (как минимум в планах и частично реализована).
+- Фичи: объявления, геопоиск, избранное, фермерский кабинет и т.д.
+
+Сейчас Telegram — основной вход.  
+Нужно сделать так, чтобы:
+
+- всё работало одинаково для:
+  - Telegram MiniApp,
+  - Web,
+  - Mobile WebView,
+- логика пользователя и данных была ОДНА,
+- номер телефона был главным "ключом" объединения.
+
+====================================================================
+1. FRONTEND: PLATFORM ADAPTER
+====================================================================
+
+Создать во фронте единый слой для работы с окружением:
+
+`/miniapp/src/platform/PlatformAdapter.ts`
+
+И тип:
+
+```ts
+export type PlatformType = 'telegram' | 'mobile_app' | 'web';
+
+export interface PlatformAdapter {
+  type: PlatformType;
+
+  // Авторизация / токены
+  getAuthToken(): Promise<string | null>; // JWT, если есть
+  setAuthToken(token: string | null): void;
+
+  // Получение "сырого" идентификатора платформы
+  getPlatformUserId(): Promise<{
+    telegramId?: number;
+    appUserId?: string;
+  }>;
+
+  // Геолокация
+  requestLocation(): Promise<{ lat: number; lng: number }>;
+
+  // UI-обёртка (back, alerts, toasts)
+  goBack(): void;
+  showAlert(message: string): void;
+  openExternalUrl(url: string): void;
+}
+Сделать 3 реализации:
+
+TelegramPlatformAdapter
+
+использует window.Telegram.WebApp:
+
+initData для auth,
+
+requestLocation(),
+
+close(), BackButton, MainButton по необходимости.
+
+MobileAppPlatformAdapter
+
+использует глобальный объект window.MobileAppBridge (надо предусмотреть API для нативных приложений):
+
+MobileAppBridge.getAuthToken()
+
+MobileAppBridge.setAuthToken(token)
+
+MobileAppBridge.requestLocation()
+
+MobileAppBridge.onBack(), MobileAppBridge.showToast() и т.п.
+
+(Сейчас можно сделать заглушки и комментарии, что функции будут реализованы в нативном коде.)
+
+WebPlatformAdapter
+
+обычный браузер:
+
+токен хранится в localStorage или cookie,
+
+navigator.geolocation.getCurrentPosition для координат,
+
+window.history.back() для goBack,
+
+alert() или свой компонент для showAlert.
+
+Функция автоопределения платформы:
+
+ts
+Копировать код
+export function detectPlatform(): PlatformType {
+  if ((window as any).Telegram?.WebApp) return 'telegram';
+  if ((window as any).MobileAppBridge) return 'mobile_app';
+  return 'web';
+}
+Использовать этот адаптер во всех местах, где сейчас жёстко завязаны на Telegram (initData, гео, back и т.п.).
+
+====================================================================
+2. BACKEND: ЕДИНАЯ МОДЕЛЬ USER И ПРОВАЙДЕРЫ АВТОРИЗАЦИИ
+Обновить модель User (Mongoose):
+
+ts
+Копировать код
+enum AuthProvider {
+  TELEGRAM = 'telegram',
+  SMS = 'sms',
+  EMAIL = 'email',
+  GOOGLE = 'google',
+  APP = 'app',
+}
+
+interface User {
+  _id: ObjectId;
+
+  phone?: string;              // главный идентификатор для склейки
+  phoneVerified?: boolean;
+
+  telegramId?: number;
+  telegramUsername?: string;
+  telegramFirstName?: string;
+  telegramLastName?: string;
+
+  appUserId?: string;          // внутренний ID пользователя в мобильном приложении (если нужно)
+
+  authProviders: AuthProvider[];
+
+  // остальное: избранное, роли, настройки, фермерский профиль и т.п.
+}
+Важные моменты:
+
+phone — НЕ обязателен, но является "золотым" ключом.
+
+Один User может иметь:
+
+и telegramId,
+
+и phone (sms),
+
+и appUserId.
+
+Добавить уникальные индексы с аккуратной логикой:
+
+telegramId — уникальный (sparse).
+
+phone — уникальный (sparse).
+
+appUserId — уникальный (sparse).
+
+====================================================================
+3. БЭКЕНД: АВТОРИЗАЦИЯ ЧЕРЕЗ TELEGRAM INITDATA
+Эндпоинт:
+
+POST /api/auth/telegram-init
+
+Вход:
+
+initData (как строка) от Telegram MiniApp,
+
+опционально phone (если уже есть номер от Telegram Login Widget / бота / ввода пользователя).
+
+Шаги:
+
+Проверить подпись initData по токену бота (как уже делали).
+
+Извлечь:
+
+telegramId,
+
+username,
+
+first_name, last_name.
+
+Поиск пользователя:
+
+если найден User с таким telegramId → это он.
+
+если нет User с этим telegramId, но в запросе есть phone:
+
+ищем User по phone.
+
+если найден → привязываем к нему telegramId, добавляем AuthProvider.TELEGRAM (если нет).
+
+если не найден → создаём нового User с phone и telegramId.
+
+если нет phone в запросе:
+
+создаём временного User только с telegramId, но с флагом phoneVerified = false.
+
+(в будущем ему покажем экран "подтвердите номер", см. фронт.)
+
+Для всех вариантов в конце:
+
+создаём/обновляем запись User,
+
+генерируем JWT (внутренний токен для API, не обязательно на каждый запрос initData, можно кешировать).
+
+Ответ:
+
+json
+Копировать код
+{
+  "token": "JWT",
+  "user": {
+    "_id": "...",
+    "phone": "...",
+    "phoneVerified": true/false,
+    "telegramLinked": true/false,
+    ...
+  }
+}
+====================================================================
+4. БЭКЕНД: АВТОРИЗАЦИЯ ЧЕРЕЗ SMS (WEB / MOBILE APP / WEBVIEW)
+Эндпоинты:
+
+POST /api/auth/sms/request
+
+body: { phone: string }
+
+генерируем код, сохраняем в коллекцию SmsCode (phone, code, expiresAt, attempts).
+
+отправляем SMS (пока можно сделать stub-функцию sendSms).
+
+POST /api/auth/sms/verify
+
+body: { phone: string, code: string, platform?: 'web' | 'mobile_app' }
+
+проверяем код.
+
+если ок → ЭТО ТОЧКА СКЛЕЙКИ АККАУНТОВ:
+
+Логика склейки по телефону:
+
+Пытаемся найти User по phone.
+
+Если нашли:
+
+если у него ещё нет провайдера SMS → добавляем.
+
+если этот же User уже связан с telegramId (использовался через MiniApp) → ОТЛИЧНО, это один и тот же человек.
+
+генерируем JWT и возвращаем этот User.
+
+Если не нашли:
+
+возможно, есть "телеграм-пользователь" без phone, но с этим telegramId и мы перед этим уже привязали номер — это покрывается логикой в /telegram-init.
+
+если нет ни одного User → создаём нового User с этим phone, отмечаем phoneVerified = true, authProviders = ['sms'].
+
+Ответ:
+
+json
+Копировать код
+{
+  "token": "JWT",
+  "user": {
+    "_id": "...",
+    "phone": "+375...",
+    "phoneVerified": true,
+    "telegramLinked": true/false,
+    ...
+  }
+}
+Ключ: один и тот же phone → один и тот же User, все поля (избранное, объявления, история) общие.
+
+====================================================================
+5. БЭКЕНД: ЭНДПОИНТ ДЛЯ ЛИНКОВКИ НОМЕРА К TELEGRAM-ПОЛЬЗОВАТЕЛЮ
+Когда пользователь сидит в Telegram MiniApp, а номера ещё нет, нам нужно:
+
+дать ему ввести номер,
+
+отправить SMS-код,
+
+после подтверждения привязать этот номер к его Telegram-пользователю.
+
+Эндпоинты:
+
+POST /api/auth/link-phone/request
+
+body: { phone: string }
+
+пользователь уже авторизован через Telegram (JWT уже есть),
+
+сохраняем код SMS.
+
+POST /api/auth/link-phone/verify
+
+body: { phone: string, code: string }
+
+проверяем.
+
+Находим текущего пользователя по JWT (req.currentUser с telegramId).
+
+Дальше склейка:
+
+Сценарии:
+
+Если в системе УЖЕ существует другой User с этим phone:
+
+это означает, что человек раньше логинился через SMS/WEB или Mobile App.
+
+НУЖНО СЛИТЬ АККАУНТЫ:
+
+переносим все данные (объявления, избранное, настройки) с текущего (telegram-only) аккаунта на "телефонный" аккаунт,
+
+привязываем к нему telegramId,
+
+помечаем старого telegram-only как "mergedInto" (или удаляем аккуратно),
+
+возвращаем одного финального User.
+
+Если User с этим phone ещё не существует:
+
+обновляем текущий User:
+
+phone = ...,
+
+phoneVerified = true,
+
+добавляем AuthProvider.SMS.
+
+В обоих случаях в итоге ПОСЛЕ ЛИНКОВКИ остаётся один User с:
+
+phone,
+
+telegramId,
+
+authProviders: ['telegram', 'sms'].
+
+====================================================================
+6. ФРОНТ: UX СКЛЕЙКИ ПО НОМЕРУ
+6.1. В Telegram MiniApp
+При первом запуске:
+
+вызываем /api/auth/telegram-init (как и сейчас).
+
+если phoneVerified === false → показываем экран:
+
+«Подтвердите номер телефона, чтобы сохранить доступ к вашим объявлениям и избранному, даже если вы зайдёте через обычный сайт или мобильное приложение.»
+
+UI:
+
+Кнопка «Взять номер из Telegram» (если есть возможность получить через Telegram Login Widget)
+ИЛИ
+
+Поле ввода номера вручную.
+
+Кнопка «Отправить код» → /api/auth/link-phone/request.
+
+Экран ввода кода → /api/auth/link-phone/verify.
+
+После успешной верификации:
+
+фронт получает нового User (после склейки),
+
+сохраняет новый token,
+
+продолжает работу уже от имени объединённого User.
+
+6.2. В Web и Mobile WebView
+Стандартный флоу:
+
+экран логина:
+
+поле: телефон,
+
+кнопка: Отправить код,
+
+код → /api/auth/sms/verify → User.
+
+Если потом этот же человек зайдёт через Telegram с тем же номером,
+или наоборот — сначала Telegram, потом SMS — всё это будет вести к одному и тому же User.
+
+====================================================================
+7. NOTIFICATION SERVICE (МУЛЬТИ-КАНАЛЫ)
+Сделать на бэке NotificationService, который:
+
+знает, через какие каналы можно достучаться до пользователя:
+
+ts
+Копировать код
+interface NotificationChannel {
+  type: 'telegram' | 'mobile_push' | 'email' | 'sms';
+  address: string; // telegramId, deviceToken, email, phone
+}
+
+interface UserNotificationSettings {
+  channels: NotificationChannel[];
+  // настройки по типам событий
+}
+Логика:
+
+если у пользователя есть telegramId → можно отправить через Telegram Bot.
+
+если телефон верифицирован и у нас есть deviceToken (от MobileAppBridge) → можно отправить push.
+
+если email → email.
+
+порядок каналов, приоритеты можно описать в комментариях / TODO.
+
+Важно: NotificationService должен работать СВЕРХУ модели User, которую мы объединили по номеру.
+
+====================================================================
+8. БЕЗОПАСНОСТЬ И ОБРАТНАЯ СОВМЕСТИМОСТЬ
+Все новые поля в User — добавить миграционно/аккуратно, не ломая текущие данные.
+
+Для текущих пользователей:
+
+если есть User с telegramId и без phone → пусть остаются, пока не привяжут номер.
+
+если есть Users с phone, но без telegramId → ок, они смогут потом привязать Telegram.
+
+При склейке аккаунтов:
+
+Ввести helper-функцию: mergeUsers(sourceUserId, targetUserId):
+
+перенос объявлений,
+
+перенос избранного,
+
+перенос статистики,
+
+перенос ролей,
+
+пометка, что sourceUser больше не активен.
+
+В коде аккуратно пометить TODO, где может понадобиться batch-миграция старых данных.
+
+====================================================================
+9. ДОКУМЕНТАЦИЯ
+Обновить README:
+
+Описать платформы:
+
+Telegram,
+
+Web,
+
+Mobile WebView.
+
+Описать флоу авторизации:
+
+через Telegram initData,
+
+через SMS,
+
+склейка по номеру.
+
+Описать, как добавить новый канал (например, OAuth Google или Apple ID) — не реализовывать, но предусмотреть расширяемую архитектуру.
+
+====================================================================
+ИТОГ
+Реализовать:
+
+PlatformAdapter на фронте (telegram/mobile/web) и использовать его везде для:
+
+геолокации,
+
+авторизации,
+
+базовых UI-функций.
+
+На бэке:
+
+обновлённую модель User (phone + telegram + appUserId + authProviders),
+
+/api/auth/telegram-init с логикой склейки по phone,
+
+/api/auth/sms/request и /api/auth/sms/verify с логикой склейки по phone,
+
+/api/auth/link-phone/* для привязки номера к Telegram-аккаунту,
+
+mergeUsers helper.
+
+Объединение пользователей:
+
+если номер, верифицированный в Telegram, и номер, по которому человек залогинился через SMS, совпадают — ЭТО ОДИН И ТОТ ЖЕ USER,
+
+вся информация общая: объявления, избранное, статистика, фермерский кабинет.
+
+NotificationService с поддержкой нескольких каналов (telegram / mobile_push / email / sms).
+
+Весь код писать на TypeScript, аккуратно, с комментариями, не ломая текущий функционал.
