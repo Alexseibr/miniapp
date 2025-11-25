@@ -25,6 +25,9 @@ Preferred communication style: Simple, everyday language.
       - **Create Ad Wizard**: A 4-step wizard for ad posting, featuring auto-geolocation, optional photo uploads, basic info entry with large fonts, and auto-extraction of Telegram contacts. Supports deferred publishing with `publishAt` for scheduled ads.
       - **`useNearbyAds` Hook**: Custom hook for debounced, radius-based ad fetching with AbortController for race condition prevention.
       - **`useRoutePrefetch` Hook**: Prefetches routes on `mouseenter` for improved navigation performance.
+      - **FarmerFeedPage**: Dedicated farmer marketplace with category filtering, geo-search, and RadiusControl. Displays FarmerProductCard grid with market price comparison.
+      - **BulkFarmerUploadPage**: Mass upload page for farmers to add up to 10 products at once with CSV import, auto-category detection, and unit selection.
+      - **PriceComparisonBadge**: Component showing market price analysis (below/above/at market) via `/api/analytics/ad/:id/compare`.
 - **Image Optimization**: `LazyImage` and `OptimizedImage` components for lazy loading, skeleton shimmers, responsive images, and server-side media proxy for secure access.
 - **Performance Optimizations**: Code splitting, data prefetching, route prefetching, Gzip compression, hashed assets, and ETag support.
 
