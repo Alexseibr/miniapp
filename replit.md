@@ -49,7 +49,9 @@ Preferred communication style: Simple, everyday language.
     - **ScheduledAdBadge**: Displays countdown or formatted date for scheduled ads. Uses formatScheduledDate and formatRelativeTime from dateUtils.
     - **ScheduledAdChip**: Compact chip for ad cards showing "Запланировано" status.
   - **Date Utilities** (`miniapp/src/utils/dateUtils.ts`): formatScheduledDate (locale-aware), formatRelativeTime (countdown), parseISO8601 helpers using date-fns.
-  - **MyAdsPage Integration**: "Scheduled" filter tab showing owner's upcoming scheduled ads with countdown display.
+  - **MyAdsPage Integration**: "Scheduled" filter tab showing owner's upcoming scheduled ads with countdown display. Card appearance animations (fade-in + slide-up, 0.4s duration, 50ms stagger).
+    - **JustPublishedChip**: Green pulsing badge for ads published/scheduled within 10 minutes. Works for both active (recently created/published) and scheduled (imminent) ads.
+    - **MyAdCard Component**: Reusable ad card with CSS animations, status badge rendering, and wouter navigation.
 - **Price Comparison System**: Comprehensive market analytics with category-specific comparison logic:
   - **Ad Model Extensions**: Normalized fields for electronics (brand, model, storageGb, ramGb), cars (carMake, carModel, carYear, carEngineVolume, carTransmission), realty (realtyType, realtyRooms, realtyAreaTotal, realtyCity, realtyDistrict, pricePerSqm with auto-calculation).
   - **AdPriceSnapshot Model**: Caches pricing analytics per ad with 6-hour TTL index for automatic cleanup.
@@ -62,6 +64,13 @@ Preferred communication style: Simple, everyday language.
     - **PriceHintForSeller**: Compact hint under price input during ad creation. Shows market comparison with actionable suggestions.
     - **PriceHint**: Original seller recommendations with 500ms debounce, category reset, detailed analytics.
   - **Cache Invalidation**: Ad post-save hook deletes AdPriceSnapshot when price changes.
+- **Favorites System**: User favorites with notification preferences.
+  - **API Endpoints** (`routes/favoriteRoutes.js`): `/api/favorites/:telegramId` (list), `/toggle` (add/remove), `/add`, `DELETE /:adId`, `/settings/:adId` (notification prefs).
+  - **FavoriteButton Component**: Lucide Heart icon with scale animations, optimistic UI updates via Zustand store.
+  - **useUserStore**: Zustand store managing favorites with optimistic removal and server refresh reconciliation.
+- **Ad History Tracking** (Admin):
+  - **AdHistoryEvent Model**: Tracks ad lifecycle events (created, published, edited, moderated, etc.).
+  - **API Endpoint**: `/api/admin/ads/:adId/history` returns timeline of ad changes for admin panel.
 
 ## External Dependencies
 
