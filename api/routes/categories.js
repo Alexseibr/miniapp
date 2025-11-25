@@ -4,6 +4,7 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import categoryMatchingService from '../services/categoryMatching.js';
 import CategorySuggestService from '../../services/CategorySuggestService.js';
 import CategoryDynamicVisibilityService from '../../services/CategoryDynamicVisibilityService.js';
+import BrandDetectionService from '../../services/BrandDetectionService.js';
 
 const router = Router();
 
@@ -253,6 +254,97 @@ router.get(
       res.status(500).json({
         ok: false,
         error: 'Failed to check category visibility',
+      });
+    }
+  })
+);
+
+router.get(
+  '/brands',
+  asyncHandler(async (req, res) => {
+    const { categoryId, categorySlug, lat, lng, radiusKm, citySlug, scope = 'local' } = req.query;
+
+    try {
+      let brands = [];
+
+      if (categoryId) {
+        brands = await BrandDetectionService.getVisibleBrands(categoryId, {
+          lat: lat ? parseFloat(lat) : undefined,
+          lng: lng ? parseFloat(lng) : undefined,
+          radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
+          citySlug,
+          scope,
+        });
+      } else if (categorySlug) {
+        brands = await BrandDetectionService.getVisibleBrandsBySlug(categorySlug, {
+          lat: lat ? parseFloat(lat) : undefined,
+          lng: lng ? parseFloat(lng) : undefined,
+          radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
+          citySlug,
+          scope,
+        });
+      } else {
+        return res.status(400).json({
+          ok: false,
+          error: 'categoryId or categorySlug is required',
+        });
+      }
+
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({
+        ok: true,
+        brands: brands.map(b => ({
+          brandKey: b.brandKey,
+          name: b.brand,
+          icon: b.icon,
+          count: b.countCountry,
+          countLocal: b.countByCity?.[citySlug] || 0,
+        })),
+        total: brands.length,
+      });
+    } catch (error) {
+      console.error('Brands API error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch brands',
+      });
+    }
+  })
+);
+
+router.get(
+  '/:slug/brands',
+  asyncHandler(async (req, res) => {
+    const { slug } = req.params;
+    const { lat, lng, radiusKm, citySlug, scope = 'local' } = req.query;
+
+    try {
+      const brands = await BrandDetectionService.getVisibleBrandsBySlug(slug, {
+        lat: lat ? parseFloat(lat) : undefined,
+        lng: lng ? parseFloat(lng) : undefined,
+        radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
+        citySlug,
+        scope,
+      });
+
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({
+        ok: true,
+        categorySlug: slug,
+        brands: brands.map(b => ({
+          brandKey: b.brandKey,
+          name: b.brand,
+          icon: b.icon,
+          count: b.countCountry,
+          countLocal: b.countByCity?.[citySlug] || 0,
+        })),
+        total: brands.length,
+      });
+    } catch (error) {
+      console.error('Category brands API error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch category brands',
       });
     }
   })
