@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
-import LazyImage from '@/components/LazyImage';
+import OptimizedImage from '@/components/OptimizedImage';
 
 const FallbackIcon = () => (
   <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5">
@@ -92,10 +92,11 @@ const CategoryGrid = memo(({ categories }: Props) => {
               }}
             >
               {iconSrc ? (
-                <LazyImage
+                <OptimizedImage
                   src={iconSrc}
                   alt={category.name}
                   rootMargin="100px"
+                  priority={false}
                   style={{
                     width: '100%',
                     height: '100%',
