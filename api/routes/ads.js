@@ -315,6 +315,36 @@ router.get('/by-ids', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/ads/search
+ * 
+ * Универсальный endpoint для поиска объявлений с поддержкой geo-фильтрации.
+ * Использует MongoDB $geoNear агрегацию для эффективного геопоиска.
+ * 
+ * @route GET /api/ads/search
+ * @param {string} [q] - Текстовый поиск по title, description, attributes
+ * @param {string} [categoryId] - Фильтр по категории
+ * @param {string} [subcategoryId] - Фильтр по подкатегории
+ * @param {number} [priceMin] - Минимальная цена
+ * @param {number} [priceMax] - Максимальная цена
+ * @param {string} [deliveryType] - Тип доставки: pickup_only, delivery_only, delivery_and_pickup
+ * @param {boolean} [deliveryAvailable] - Фильтр: доставка доступна на расстояние до покупателя
+ * @param {number} [buyerLat] - Широта покупателя (для geo-поиска)
+ * @param {number} [buyerLng] - Долгота покупателя (для geo-поиска)
+ * @param {number} [maxDistanceKm] - Максимальное расстояние от покупателя (км)
+ * @param {string} [seasonCode] - Фильтр по сезонному коду
+ * @param {string} [sort] - Сортировка: distance, price_asc, price_desc, popular, newest, oldest
+ * @param {number} [limit=20] - Количество результатов (макс: 100)
+ * @param {number} [offset=0] - Смещение для пагинации
+ * 
+ * @returns {Object} { items: Ad[], total: number, hasMore: boolean }
+ * @returns {Object[]} items - Массив объявлений (с distanceKm при geo-поиске)
+ * @returns {number} total - Общее количество найденных объявлений
+ * @returns {boolean} hasMore - Есть ли ещё результаты
+ * 
+ * @throws {400} Если deliveryAvailable=true но нет buyerLat/buyerLng
+ * @throws {500} При ошибке сервера
+ */
 router.get('/search', async (req, res, next) => {
   try {
     const {
@@ -575,11 +605,32 @@ router.get('/near', async (req, res) => {
   }
 });
 
-// GET /api/ads/nearby
+/**
+ * GET /api/ads/nearby
+ * 
+ * Geo-поиск объявлений в заданном радиусе от координат пользователя.
+ * Использует haversine-формулу для расчета расстояний.
+ * 
+ * @route GET /api/ads/nearby
+ * @param {number} lat - Широта точки поиска (обязательно)
+ * @param {number} lng - Долгота точки поиска (обязательно)
+ * @param {number} [radiusKm=10] - Радиус поиска в километрах (мин: 0.1, макс: 100)
+ * @param {string} [categoryId] - Фильтр по категории
+ * @param {string} [subcategoryId] - Фильтр по подкатегории
+ * @param {number} [limit=50] - Количество результатов (макс: 200)
+ * @param {number} [minPrice] - Минимальная цена
+ * @param {number} [maxPrice] - Максимальная цена
+ * @param {string} [sort] - Сортировка: distance (по умолчанию), cheapest, expensive, popular
+ * 
+ * @returns {Object} { items: Ad[] } - Массив объявлений с полем distanceKm
+ * @throws {400} Если lat/lng не указаны или невалидны
+ * @throws {500} При ошибке сервера
+ */
 router.get('/nearby', async (req, res, next) => {
   try {
     const { lat, lng, radiusKm, categoryId, subcategoryId, limit, minPrice, maxPrice, sort } = req.query;
 
+    // Валидация обязательных параметров
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({ error: 'lat и lng обязательны' });
     }
@@ -591,13 +642,24 @@ router.get('/nearby', async (req, res, next) => {
       return res.status(400).json({ error: 'lat и lng должны быть числами' });
     }
 
+    // Валидация и нормализация radiusKm (мин: 0.1км, макс: 100км, дефолт: 10км)
+    const MIN_RADIUS_KM = 0.1;
+    const MAX_RADIUS_KM = 100;
+    const DEFAULT_RADIUS_KM = 10;
+    
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
+    let finalRadiusKm = DEFAULT_RADIUS_KM;
+    
+    if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
+      finalRadiusKm = Math.max(MIN_RADIUS_KM, Math.min(radiusNumber, MAX_RADIUS_KM));
+    }
 
+    // Валидация и нормализация limit (макс: 200, дефолт: 50)
     const limitNumber = Number(limit);
     const finalLimit =
       Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
 
+    // Базовый фильтр: только активные и одобренные объявления с координатами
     const baseFilter = {
       status: 'active',
       moderationStatus: 'approved',
@@ -605,9 +667,11 @@ router.get('/nearby', async (req, res, next) => {
       'location.lng': { $ne: null },
     };
 
+    // Дополнительные фильтры
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
 
+    // Фильтр по цене
     const minPriceNumber = Number(minPrice);
     const maxPriceNumber = Number(maxPrice);
     if (Number.isFinite(minPriceNumber) && minPriceNumber >= 0) {
@@ -617,6 +681,7 @@ router.get('/nearby', async (req, res, next) => {
       baseFilter.price = { ...baseFilter.price, $lte: maxPriceNumber };
     }
 
+    // Получаем кандидатов (берём больше, чем нужно, т.к. будем фильтровать по радиусу)
     const fetchLimit = Math.max(finalLimit * 3, finalLimit);
     const candidates = await Ad.find(baseFilter)
       .sort({ createdAt: -1 })
@@ -625,12 +690,14 @@ router.get('/nearby', async (req, res, next) => {
     const userPoint = { lat: latNumber, lng: lngNumber };
     const itemsWithinRadius = [];
 
+    // Расчёт расстояний и фильтрация по радиусу
     for (const ad of candidates) {
       const adPoint = extractAdCoordinates(ad);
       if (!adPoint) {
         continue;
       }
 
+      // Haversine-формула для расчёта расстояния в км
       const distanceKm = haversineDistanceKm(userPoint, adPoint);
       if (distanceKm == null || distanceKm > finalRadiusKm) {
         continue;
@@ -641,17 +708,23 @@ router.get('/nearby', async (req, res, next) => {
           ? ad.toObject({ getters: true, virtuals: false })
           : { ...ad };
 
+      // Добавляем distanceKm с округлением до 1 знака после запятой
       plain.distanceKm = Number(distanceKm.toFixed(1));
       itemsWithinRadius.push(plain);
     }
 
+    // Сортировка результатов
     if (sort === 'cheapest') {
+      // От дешёвых к дорогим
       itemsWithinRadius.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     } else if (sort === 'expensive') {
+      // От дорогих к дешёвым
       itemsWithinRadius.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
     } else if (sort === 'popular') {
+      // По количеству просмотров
       itemsWithinRadius.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
     } else {
+      // По умолчанию: по расстоянию (ближайшие первыми)
       itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
     }
 
