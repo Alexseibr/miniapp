@@ -543,6 +543,31 @@ adSchema.post('save', async function (doc, next) {
   return next();
 });
 
+adSchema.pre('save', async function (next) {
+  if (!this.isModified('subcategoryId') && !this.isNew) {
+    return next();
+  }
+
+  if (!this.subcategoryId) {
+    return next();
+  }
+
+  try {
+    const Category = mongoose.model('Category');
+    const subcategory = await Category.findOne({ slug: this.subcategoryId });
+    
+    if (subcategory && subcategory.isOther === true) {
+      this.needsCategoryReview = true;
+    } else {
+      this.needsCategoryReview = false;
+    }
+  } catch (error) {
+    console.warn('[Ad] Failed to check isOther category:', error.message);
+  }
+
+  return next();
+});
+
 // Составные индексы
 adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
