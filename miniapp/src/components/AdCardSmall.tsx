@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin, Heart } from 'lucide-react';
 import { AdPreview } from '@/types';
 import { formatDistance } from '@/utils/geo';
+import { PriceBadgeChip } from './pricing';
 
 interface AdCardSmallProps {
   ad: AdPreview;
@@ -100,17 +101,20 @@ export default function AdCardSmall({ ad, onSelect }: AdCardSmallProps) {
       </div>
       
       <div style={{ padding: '10px 12px 12px' }}>
-        <p
-          style={{
-            margin: 0,
-            fontSize: 16,
-            fontWeight: 700,
-            color: '#111827',
-          }}
-          data-testid={`ad-price-small-${ad._id}`}
-        >
-          {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
-        </p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 4 }}>
+          <p
+            style={{
+              margin: 0,
+              fontSize: 16,
+              fontWeight: 700,
+              color: '#111827',
+            }}
+            data-testid={`ad-price-small-${ad._id}`}
+          >
+            {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+          </p>
+          {ad.priceBadge && <PriceBadgeChip badge={ad.priceBadge} size="small" />}
+        </div>
         
         <h3
           style={{

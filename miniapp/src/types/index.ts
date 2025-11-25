@@ -47,6 +47,14 @@ export interface DeliveryOption {
   radiusKm?: number | null;
 }
 
+export interface PriceBadgeData {
+  hasMarketData: boolean;
+  marketLevel: 'below' | 'fair' | 'above' | 'unknown';
+  diffPercent?: number | null;
+  avgPrice?: number | null;
+  windowDays?: number | null;
+}
+
 export interface AdPreview {
   _id: string;
   title: string;
@@ -72,6 +80,7 @@ export interface AdPreview {
     lng?: number;
   } | null;
   createdAt?: string;
+  priceBadge?: PriceBadgeData | null;
 }
 
 export interface Ad extends AdPreview {

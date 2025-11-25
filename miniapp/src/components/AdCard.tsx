@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Truck, MapPin } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
-import PriceBadge from './PriceBadge';
-import { AdPreview } from '@/types';
+import { PriceBadgeChip } from './pricing';
+import { AdPreview, PriceBadgeData } from '@/types';
 import { formatCityDistance } from '@/utils/geo';
 import { formatRelativeTime } from '@/utils/time';
 import { useCartStore } from '@/store/cart';
@@ -13,16 +13,11 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
 
-interface PriceBriefData {
-  marketLevel: 'below' | 'fair' | 'above' | 'unknown';
-  diffPercent: number | null;
-}
-
 interface AdCardProps {
   ad: AdPreview;
   onSelect?: (ad: AdPreview) => void;
   showActions?: boolean;
-  priceBrief?: PriceBriefData | null;
+  priceBrief?: PriceBadgeData | null;
 }
 
 const NO_PHOTO_PLACEHOLDER =
@@ -131,11 +126,10 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
             >
               {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
             </p>
-            {priceBrief && priceBrief.marketLevel !== 'unknown' && priceBrief.diffPercent !== null && (
-              <PriceBadge 
-                marketLevel={priceBrief.marketLevel} 
-                diffPercent={priceBrief.diffPercent} 
-                size="sm" 
+            {(priceBrief || ad.priceBadge) && (
+              <PriceBadgeChip 
+                badge={priceBrief || ad.priceBadge} 
+                size="small" 
               />
             )}
           </div>

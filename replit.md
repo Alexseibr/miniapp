@@ -49,7 +49,11 @@ Preferred communication style: Simple, everyday language.
   - **PriceAnalyticsService**: Dynamic time windows (7/30/90 days), category-specific aggregation pipelines (min, max, avg, median, count), market level calculation (below_market <-5%, at_market ±5%, above_market >10%).
   - **Category Slug Mappings**: Electronics (telefony-planshety, noutbuki-kompyutery, tv-foto-video, audio-tehnika, igry-igrovye-pristavki, tovary-dlya-kompyutera), Cars (legkovye-avtomobili, gruzovye-avtomobili, mototehnika, spetstekhnika), Realty (kvartiry, komnaty, doma-dachi-kottedzhi, uchastki, garazhi-mashinomesta, kommercheskaya-nedvizhimost).
   - **API Endpoints**: `/api/pricing/ad/:adId/market` (seller analytics), `/api/pricing/brief/:adId` (buyer badge), `/api/pricing/brief/batch` (batch), `/api/pricing/estimate` (new ad estimation).
-  - **Frontend Components**: PriceHint (seller price recommendations with 500ms debounce, category reset), PriceBadge (buyer market badges with green/yellow colors).
+  - **Frontend Components** (`miniapp/src/components/pricing/`):
+    - **PriceBadgeChip**: Pill badge showing market level (below/fair/above market) with percent diff. Colors: green (below), gray (fair), orange (above). Sizes: small (12px) for cards, medium (16px) for details page. Used in AdCard, AdCardSmall.
+    - **PriceMarketBlock**: Full "Цена и рынок" block for ad details page with elderly-friendly sizing (24px headings, 17px body). Shows current price, avg market price, analysis period, and market level badge.
+    - **PriceHintForSeller**: Compact hint under price input during ad creation. Shows market comparison with actionable suggestions.
+    - **PriceHint**: Original seller recommendations with 500ms debounce, category reset, detailed analytics.
   - **Cache Invalidation**: Ad post-save hook deletes AdPriceSnapshot when price changes.
 
 ## External Dependencies

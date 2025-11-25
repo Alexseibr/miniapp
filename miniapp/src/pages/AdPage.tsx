@@ -5,6 +5,7 @@ import { getAd, getSimilarAds } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { Ad, AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
+import { PriceMarketBlock } from '@/components/pricing';
 import { useCartStore } from '@/store/cart';
 import { formatCityDistance, useGeo } from '@/utils/geo';
 import http from '@/api/http';
@@ -213,6 +214,17 @@ export default function AdPage() {
           }}>
             {ad.title}
           </h1>
+
+          {/* Price Market Analysis */}
+          {ad.priceBadge && (
+            <PriceMarketBlock
+              badge={ad.priceBadge}
+              avgPrice={ad.priceBadge.avgPrice}
+              windowDays={ad.priceBadge.windowDays}
+              categorySlug={ad.subcategoryId || ad.categoryId}
+              price={ad.price}
+            />
+          )}
 
           {/* Meta info */}
           <div style={{ 
