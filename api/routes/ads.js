@@ -1535,6 +1535,109 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+router.post('/:id/boost', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, boostLevel = 1, durationHours = 24 } = req.body;
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'sellerTelegramId is required' 
+      });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Объявление не найдено' 
+      });
+    }
+
+    if (ad.sellerTelegramId !== Number(sellerTelegramId)) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Нет прав для этого объявления' 
+      });
+    }
+
+    const validBoostLevels = [1, 2, 3];
+    const level = Math.min(Math.max(boostLevel, 1), 3);
+    
+    ad.boostLevel = level;
+    ad.boostedAt = new Date();
+    ad.boostExpiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
+    
+    await ad.save();
+
+    return res.json({
+      success: true,
+      data: {
+        ad,
+        boostLevel: level,
+        expiresAt: ad.boostExpiresAt,
+      },
+      message: `Объявление поднято на уровень ${level}`,
+    });
+  } catch (error) {
+    console.error('[Ads] Boost error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка при поднятии объявления' 
+    });
+  }
+});
+
+router.post('/:id/premium-card', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, badge } = req.body;
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'sellerTelegramId is required' 
+      });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Объявление не найдено' 
+      });
+    }
+
+    if (ad.sellerTelegramId !== Number(sellerTelegramId)) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Нет прав для этого объявления' 
+      });
+    }
+
+    const validBadges = ['top_seller', 'eco', 'premium', 'fresh'];
+    const selectedBadge = validBadges.includes(badge) ? badge : 'premium';
+    
+    ad.isPremiumCard = true;
+    ad.premiumBadge = selectedBadge;
+    
+    await ad.save();
+
+    return res.json({
+      success: true,
+      data: { ad },
+      message: 'Премиум-карточка активирована',
+    });
+  } catch (error) {
+    console.error('[Ads] Premium card error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка при активации премиум-карточки' 
+    });
+  }
+});
+
 router.get('/trending', async (req, res, next) => {
   try {
     const { cityCode, limit = 20, offset = 0 } = req.query;

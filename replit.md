@@ -58,12 +58,28 @@ Preferred communication style: Simple, everyday language.
   - Quick-post API for simplified ad creation with auto-category detection
   - Nearby farmers endpoint with geo-search by category groups
   - API endpoints: `/api/farmer/categories`, `/suggest-category`, `/detect-quantity`, `/calculate-price`, `/quick-post`, `/nearby`, `/ads`, `/units`
-- **Farmer Cabinet Dashboard**: Comprehensive 4-tab seller dashboard at `/farmer/cabinet`:
+- **Farmer Cabinet Dashboard**: Comprehensive 6-tab seller dashboard at `/farmer/cabinet`:
   - **Products Tab**: Shows farmer's ads with working status filters (All/Active/Expired), status counts, and notification cards. Filter state managed client-side for instant filtering.
   - **Quick Upload Tab**: Inline form for rapid single-item posting (title, price, unit selector) via `/api/farmer/quick-post`, plus CTA cards for bulk upload and detailed ad creation.
   - **Analytics Tab**: Personalized farmer metrics via `/api/farmer/my-analytics` (myAds, myViews, myClicks) plus market stats via `/api/farmer/season-analytics`. Green gradient card for personal stats, blue for market data.
   - **Demand Tab**: Local demand tracking via `/api/farmer/local-demand` with geolocation request button using `useGeoStore.requestLocation`. Shows popular search queries and allows quick product creation.
+  - **Subscription Tab (PRO)**: Displays current subscription tier, usage stats, and upgrade options. Three tiers: FREE (3 ads/day), PRO (15 ads/day + analytics), MAX (unlimited + premium cards).
+  - **Fairs Tab**: Shows active and upcoming seasonal fairs (14 февраля, 8 марта, Пасха, Сезон ягод, Урожай, Новый год) with countdown timers and participation buttons.
   - Uses `FarmerNotificationService` for smart notifications (expiring soon, price recommendations, demand spikes, new competitor alerts)
+- **Farmer Monetization System**: Three-tier subscription model for farmer marketplace:
+  - `FarmerSubscription` model: tier (FREE/PRO/MAX), status, expiresAt, usedToday, featuresEnabled
+  - `MonetizationService`: manages tier upgrades, feature access validation, usage tracking
+  - Ad model extended with premium fields: `isPremiumCard`, `premiumBadge`, `boostLevel`, `boostedAt`, `boostExpiresAt`
+  - Tier limits: FREE (3 ads/day, basic listing), PRO (15 ads/day, analytics, priority), MAX (unlimited, premium cards, top priority)
+  - Premium card badges: top_seller, eco, premium, fresh with gradient borders and boost levels (1-3)
+  - `FarmerPremiumCard` component with gold/purple frames and animated badges
+  - API: `/api/farmer/subscriptions` (GET/POST), `/api/farmer/subscriptions/upgrade`, `/api/ads/:id/boost`, `/api/ads/:id/premium-card`
+- **Seasonal Fairs System**: Marketplace integration for seasonal events:
+  - 6 predefined seasonal events: Valentine's (Feb), Women's Day (Mar), Easter (Apr-May), Berries (Jun-Aug), Harvest (Sep-Nov), New Year (Dec)
+  - Each event has emoji, color theme, banner gradient, and associated product categories
+  - Event status tracking: active, upcoming, ended with countdown days
+  - API: `GET /api/farmer/season-events` returns active and upcoming events with time info
+  - API: `GET /api/farmer/season-events/:slug/ads` returns geo-filtered ads for specific event categories
 - **Media Upload System**: Manages file size limits, thumbnail generation (via `sharp`), and cleanup. Uses `MediaFile` model to track uploads and a `MediaService` for validation and session management.
 - **Ad Lifecycle System**: Comprehensive ad expiration management with category-based TTL rules:
   - `CategoryLifetimeConfig` defines TTL per category: perishable_daily (1 day), fast (7 days), medium (14-21 days), long (30 days)
