@@ -130,6 +130,23 @@ const adSchema = new mongoose.Schema(
       default: null,
       trim: true,
     },
+    harvestDate: {
+      type: Date,
+      default: null,
+    },
+    productionDate: {
+      type: Date,
+      default: null,
+    },
+    isOrganic: {
+      type: Boolean,
+      default: false,
+    },
+    minQuantity: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
     photos: [{
       type: String,
       trim: true,

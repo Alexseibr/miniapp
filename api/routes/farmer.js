@@ -456,4 +456,363 @@ router.get('/units', (req, res) => {
   });
 });
 
+router.post('/bulk-ads', async (req, res) => {
+  try {
+    const { ads, sellerTelegramId, lat, lng } = req.body;
+    
+    if (!ads || !Array.isArray(ads) || ads.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Массив объявлений обязателен',
+      });
+    }
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'sellerTelegramId обязателен',
+      });
+    }
+
+    if (ads.length > 10) {
+      return res.status(400).json({
+        success: false,
+        error: 'Максимум 10 объявлений за раз',
+      });
+    }
+
+    const validAds = ads.filter(ad => ad.title && ad.title.trim() && ad.price > 0);
+    
+    if (validAds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'Добавьте хотя бы один товар с названием и ценой',
+      });
+    }
+
+    const createdAds = [];
+    const errors = [];
+
+    for (let i = 0; i < validAds.length; i++) {
+      const adData = validAds[i];
+      try {
+        const suggestion = FarmerCategoryService.suggestFarmerCategory(adData.title);
+        const categorySlug = adData.subcategoryId || suggestion?.slug || 'farmer-other';
+        
+        let pricePerKg = null;
+        if (adData.unitType && adData.price) {
+          pricePerKg = FarmerCategoryService.calculatePricePerKg(
+            adData.price, 
+            adData.unitType, 
+            adData.quantity || 1
+          );
+        }
+
+        const ad = new Ad({
+          title: adData.title.trim(),
+          description: adData.description || '',
+          categoryId: 'farmer-market',
+          subcategoryId: categorySlug,
+          price: adData.price,
+          currency: 'BYN',
+          unitType: adData.unitType || 'kg',
+          quantity: adData.quantity || null,
+          pricePerKg,
+          photos: adData.photos || [],
+          sellerTelegramId,
+          location: lat && lng ? {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+            geo: {
+              type: 'Point',
+              coordinates: [parseFloat(lng), parseFloat(lat)],
+            },
+          } : undefined,
+          isFarmerAd: true,
+          harvestDate: adData.harvestDate ? new Date(adData.harvestDate) : null,
+          productionDate: adData.productionDate ? new Date(adData.productionDate) : null,
+          isOrganic: adData.isOrganic || false,
+          minQuantity: adData.minQuantity || null,
+          canDeliver: adData.canDeliver || false,
+          deliveryFromFarm: adData.deliveryFromFarm || false,
+          status: 'active',
+        });
+
+        await ad.save();
+        createdAds.push({ _id: ad._id, title: ad.title });
+      } catch (error) {
+        errors.push(`Товар "${adData.title}": ${error.message}`);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        created: createdAds.length,
+        errors,
+        ads: createdAds,
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in bulk ads:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка при создании объявлений' 
+    });
+  }
+});
+
+router.get('/season-analytics', async (req, res) => {
+  try {
+    const { 
+      city, 
+      region, 
+      categoryId, 
+      subcategoryId, 
+      period = 'month',
+      from,
+      to 
+    } = req.query;
+
+    let dateFrom, dateTo;
+    const now = new Date();
+
+    switch (period) {
+      case 'week':
+        dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        dateTo = now;
+        break;
+      case 'month':
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        dateTo = now;
+        break;
+      case 'season':
+        dateFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        dateTo = now;
+        break;
+      case 'year':
+        dateFrom = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+        dateTo = now;
+        break;
+      case 'custom':
+        dateFrom = from ? new Date(from) : new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        dateTo = to ? new Date(to) : now;
+        break;
+      default:
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        dateTo = now;
+    }
+
+    const periodDuration = dateTo.getTime() - dateFrom.getTime();
+    const prevDateFrom = new Date(dateFrom.getTime() - periodDuration);
+    const prevDateTo = new Date(dateFrom.getTime());
+
+    const matchStage = {
+      isFarmerAd: true,
+      createdAt: { $gte: dateFrom, $lte: dateTo },
+    };
+
+    if (city) matchStage.city = city;
+    if (categoryId) matchStage.categoryId = categoryId;
+    if (subcategoryId) matchStage.subcategoryId = subcategoryId;
+
+    const prevMatchStage = {
+      ...matchStage,
+      createdAt: { $gte: prevDateFrom, $lte: prevDateTo },
+    };
+
+    const [currentStats, prevStats] = await Promise.all([
+      Ad.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: null,
+            totalAds: { $sum: 1 },
+            activeAds: { $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] } },
+            averagePrice: { $avg: '$price' },
+            minPrice: { $min: '$price' },
+            maxPrice: { $max: '$price' },
+            viewsTotal: { $sum: { $ifNull: ['$analytics.views', 0] } },
+            contactClicksTotal: { $sum: { $ifNull: ['$analytics.contactClicks', 0] } },
+          },
+        },
+      ]),
+      Ad.aggregate([
+        { $match: prevMatchStage },
+        {
+          $group: {
+            _id: null,
+            totalAds: { $sum: 1 },
+            averagePrice: { $avg: '$price' },
+          },
+        },
+      ]),
+    ]);
+
+    const current = currentStats[0] || {
+      totalAds: 0,
+      activeAds: 0,
+      averagePrice: 0,
+      minPrice: 0,
+      maxPrice: 0,
+      viewsTotal: 0,
+      contactClicksTotal: 0,
+    };
+
+    const prev = prevStats[0] || { totalAds: 0, averagePrice: 0 };
+
+    const priceChangePercent = prev.averagePrice > 0
+      ? ((current.averagePrice - prev.averagePrice) / prev.averagePrice) * 100
+      : 0;
+
+    const adsChangePercent = prev.totalAds > 0
+      ? ((current.totalAds - prev.totalAds) / prev.totalAds) * 100
+      : 0;
+
+    const conversion = current.viewsTotal > 0
+      ? (current.contactClicksTotal / current.viewsTotal) * 100
+      : 0;
+
+    res.json({
+      success: true,
+      data: {
+        categoryId: subcategoryId || categoryId || 'farmer-market',
+        city: city || 'all',
+        from: dateFrom.toISOString().split('T')[0],
+        to: dateTo.toISOString().split('T')[0],
+        period,
+        totalAds: current.totalAds,
+        activeAds: current.activeAds,
+        averagePrice: Math.round(current.averagePrice * 100) / 100,
+        minPrice: current.minPrice || 0,
+        maxPrice: current.maxPrice || 0,
+        viewsTotal: current.viewsTotal,
+        contactClicksTotal: current.contactClicksTotal,
+        conversion: Math.round(conversion * 10) / 10,
+        trend: {
+          prevPeriodAveragePrice: Math.round(prev.averagePrice * 100) / 100,
+          priceChangePercent: Math.round(priceChangePercent * 10) / 10,
+          prevPeriodAds: prev.totalAds,
+          adsChangePercent: Math.round(adsChangePercent * 10) / 10,
+        },
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in season analytics:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка получения аналитики' 
+    });
+  }
+});
+
+router.get('/my-analytics', async (req, res) => {
+  try {
+    const { sellerTelegramId, subcategoryId, period = 'month' } = req.query;
+    
+    if (!sellerTelegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'sellerTelegramId обязателен',
+      });
+    }
+
+    const now = new Date();
+    let dateFrom;
+
+    switch (period) {
+      case 'week':
+        dateFrom = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        break;
+      case 'month':
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        break;
+      case 'season':
+        dateFrom = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+        break;
+      default:
+        dateFrom = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    }
+
+    const matchStage = {
+      sellerTelegramId: parseInt(sellerTelegramId),
+      isFarmerAd: true,
+      createdAt: { $gte: dateFrom },
+    };
+
+    if (subcategoryId) matchStage.subcategoryId = subcategoryId;
+
+    const [myStats, marketStats] = await Promise.all([
+      Ad.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: '$subcategoryId',
+            count: { $sum: 1 },
+            avgPrice: { $avg: '$price' },
+            totalViews: { $sum: { $ifNull: ['$analytics.views', 0] } },
+            totalClicks: { $sum: { $ifNull: ['$analytics.contactClicks', 0] } },
+          },
+        },
+      ]),
+      Ad.aggregate([
+        { 
+          $match: { 
+            isFarmerAd: true, 
+            createdAt: { $gte: dateFrom },
+            ...(subcategoryId ? { subcategoryId } : {}),
+          } 
+        },
+        {
+          $group: {
+            _id: '$subcategoryId',
+            marketAvgPrice: { $avg: '$price' },
+            marketCount: { $sum: 1 },
+          },
+        },
+      ]),
+    ]);
+
+    const marketMap = new Map(marketStats.map(m => [m._id, m]));
+
+    const comparison = myStats.map(my => {
+      const market = marketMap.get(my._id) || { marketAvgPrice: 0, marketCount: 0 };
+      const priceDiff = market.marketAvgPrice > 0
+        ? ((my.avgPrice - market.marketAvgPrice) / market.marketAvgPrice) * 100
+        : 0;
+
+      return {
+        subcategoryId: my._id,
+        myAdsCount: my.count,
+        myAvgPrice: Math.round(my.avgPrice * 100) / 100,
+        myViews: my.totalViews,
+        myClicks: my.totalClicks,
+        marketAvgPrice: Math.round(market.marketAvgPrice * 100) / 100,
+        marketAdsCount: market.marketCount,
+        priceDiffPercent: Math.round(priceDiff * 10) / 10,
+        priceStatus: priceDiff > 10 ? 'above' : priceDiff < -10 ? 'below' : 'market',
+      };
+    });
+
+    res.json({
+      success: true,
+      data: {
+        period,
+        from: dateFrom.toISOString().split('T')[0],
+        to: now.toISOString().split('T')[0],
+        categories: comparison,
+        totalMyAds: myStats.reduce((sum, m) => sum + m.count, 0),
+        totalViews: myStats.reduce((sum, m) => sum + m.totalViews, 0),
+        totalClicks: myStats.reduce((sum, m) => sum + m.totalClicks, 0),
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in my analytics:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка получения аналитики' 
+    });
+  }
+});
+
 export default router;

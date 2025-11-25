@@ -15,6 +15,9 @@ interface BulkItem {
   uploading: boolean;
   categoryId?: string;
   categoryName?: string;
+  freshness: 'today' | 'yesterday' | 'custom' | null;
+  customDate?: string;
+  isOrganic: boolean;
 }
 
 interface UploadResult {
@@ -53,6 +56,9 @@ export default function BulkFarmerUploadPage() {
       quantity: '1',
       photo: null,
       uploading: false,
+      freshness: 'today',
+      customDate: undefined,
+      isOrganic: false,
     };
   }
 
@@ -118,6 +124,22 @@ export default function BulkFarmerUploadPage() {
     return errors;
   }, [items]);
 
+  const getHarvestDate = (item: BulkItem): string | null => {
+    if (!item.freshness) return null;
+    const now = new Date();
+    switch (item.freshness) {
+      case 'today':
+        return now.toISOString();
+      case 'yesterday':
+        now.setDate(now.getDate() - 1);
+        return now.toISOString();
+      case 'custom':
+        return item.customDate || null;
+      default:
+        return null;
+    }
+  };
+
   const handlePublish = useCallback(async () => {
     const errors = validateItems();
     if (errors.length > 0) {
@@ -129,26 +151,31 @@ export default function BulkFarmerUploadPage() {
     
     try {
       const payload = {
-        items: items.map((item) => ({
+        ads: items.map((item) => ({
           title: item.title.trim(),
           description: item.description.trim(),
           price: parseFloat(item.price),
-          unit: item.unit,
+          unitType: item.unit,
           quantity: parseFloat(item.quantity) || 1,
-          categoryId: item.categoryId,
-          images: item.photo ? [item.photo] : [],
+          subcategoryId: item.categoryId,
+          photos: item.photo ? [item.photo] : [],
+          harvestDate: getHarvestDate(item),
+          isOrganic: item.isOrganic,
         })),
+        sellerTelegramId: user?.telegramId,
+        lat: user?.location?.lat,
+        lng: user?.location?.lng,
       };
 
-      const { data } = await http.post('/api/ads/bulk', payload);
-      setResult(data);
+      const { data } = await http.post('/api/farmer/bulk-ads', payload);
+      setResult(data.data);
     } catch (error) {
       console.error('Bulk upload failed:', error);
       alert('Ошибка при публикации. Попробуйте снова.');
     } finally {
       setPublishing(false);
     }
-  }, [items, validateItems]);
+  }, [items, validateItems, user]);
 
   const handleShare = useCallback((adId: string) => {
     const adUrl = `${window.location.origin}/ads/${adId}`;

@@ -8,6 +8,10 @@ interface FarmerProductCardProps {
     unitType?: string;
     quantity?: number;
     freshAt?: string;
+    harvestDate?: string;
+    productionDate?: string;
+    isOrganic?: boolean;
+    minQuantity?: number;
     isSeasonal?: boolean;
     isFarmerAd?: boolean;
     pricePerKg?: number;
@@ -50,26 +54,34 @@ function formatDistance(distanceKm?: number): string {
   return `${distanceKm.toFixed(1)} км`;
 }
 
-function formatFreshness(freshAt?: string): { label: string; icon: string } | null {
-  if (!freshAt) return null;
+function formatFreshness(
+  freshAt?: string, 
+  harvestDate?: string, 
+  productionDate?: string,
+  isProduction?: boolean
+): { label: string; icon: string; color: string } | null {
+  const dateStr = freshAt || harvestDate || productionDate;
+  if (!dateStr) return null;
   
-  const freshDate = new Date(freshAt);
+  const freshDate = new Date(dateStr);
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const freshDay = new Date(freshDate.getFullYear(), freshDate.getMonth(), freshDate.getDate());
   
   const diffDays = Math.floor((today.getTime() - freshDay.getTime()) / (1000 * 60 * 60 * 24));
+  const verb = productionDate || isProduction ? 'Испечено' : 'Собрано';
   
   if (diffDays === 0) {
-    return { label: 'Собрано сегодня', icon: '🌿' };
+    return { label: `${verb} сегодня`, icon: '🌿', color: '#059669' };
   } else if (diffDays === 1) {
-    return { label: 'Собрано вчера', icon: '🥬' };
+    return { label: `${verb} вчера`, icon: '🥬', color: '#059669' };
   } else if (diffDays <= 3) {
-    return { label: `Собрано ${diffDays} дня назад`, icon: '📦' };
+    return { label: `${verb} ${diffDays} дня назад`, icon: '📦', color: '#D97706' };
   } else {
     return { 
-      label: `Сбор: ${freshDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`, 
-      icon: '📅' 
+      label: `${verb}: ${freshDate.toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })}`, 
+      icon: '📅',
+      color: '#6B7280'
     };
   }
 }
@@ -103,9 +115,10 @@ export default function FarmerProductCard({ ad, compact = false }: FarmerProduct
   const unitLabel = ad.unitType ? UNIT_LABELS[ad.unitType] || ad.unitType : '';
   const priceLabel = `${ad.price.toLocaleString('ru-RU')} ${ad.currency || 'BYN'}${unitLabel ? ` / ${unitLabel}` : ''}`;
   const priceHint = formatPriceHint(ad.price, ad.unitType);
-  const freshness = formatFreshness(ad.freshAt);
+  const freshness = formatFreshness(ad.freshAt, ad.harvestDate, ad.productionDate);
   const distance = formatDistance(ad.distanceKm);
   const categoryIcon = getCategoryIcon(ad.categoryName || ad.subcategoryId);
+  const isOrganic = ad.isOrganic;
 
   const handleClick = () => {
     navigate(`/ads/${ad._id}`);
@@ -208,24 +221,43 @@ export default function FarmerProductCard({ ad, compact = false }: FarmerProduct
           </div>
         )}
 
-        {/* Seasonal Badge - bottom left */}
-        {ad.isSeasonal && (
-          <div style={{
-            position: 'absolute',
-            bottom: 10,
-            left: 10,
-            background: 'linear-gradient(135deg, #3B73FC 0%, #2563EB 100%)',
-            borderRadius: 10,
-            padding: '5px 10px',
-            fontSize: 12,
-            fontWeight: 700,
-            color: '#FFFFFF',
-            boxShadow: '0 2px 8px rgba(59, 115, 252, 0.4)',
-            letterSpacing: '0.5px',
-          }}>
-            Сезон!
-          </div>
-        )}
+        {/* Organic/Seasonal Badges - bottom left */}
+        <div style={{
+          position: 'absolute',
+          bottom: 10,
+          left: 10,
+          display: 'flex',
+          gap: 6,
+        }}>
+          {isOrganic && (
+            <div style={{
+              background: 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+              borderRadius: 10,
+              padding: '5px 10px',
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(5, 150, 105, 0.4)',
+              letterSpacing: '0.3px',
+            }}>
+              Натуральный
+            </div>
+          )}
+          {ad.isSeasonal && (
+            <div style={{
+              background: 'linear-gradient(135deg, #3B73FC 0%, #2563EB 100%)',
+              borderRadius: 10,
+              padding: '5px 10px',
+              fontSize: 11,
+              fontWeight: 700,
+              color: '#FFFFFF',
+              boxShadow: '0 2px 8px rgba(59, 115, 252, 0.4)',
+              letterSpacing: '0.3px',
+            }}>
+              Сезон!
+            </div>
+          )}
+        </div>
 
         {/* Favorite Button - bottom right */}
         <div style={{
@@ -299,9 +331,10 @@ export default function FarmerProductCard({ ad, compact = false }: FarmerProduct
             alignItems: 'center',
             gap: 6,
             fontSize: compact ? 12 : 13,
-            color: '#059669',
+            color: freshness.color,
             fontWeight: 500,
-            background: '#ECFDF5',
+            background: freshness.color === '#059669' ? '#ECFDF5' : 
+                       freshness.color === '#D97706' ? '#FFFBEB' : '#F3F4F6',
             padding: '6px 10px',
             borderRadius: 8,
             marginTop: 'auto',
