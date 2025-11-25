@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { validateSession } from '@/api/telegramAuth';
-import { addFavorite, fetchFavorites, removeFavorite } from '@/api/favorites';
+import { fetchFavorites, toggleFavorite as apiToggleFavorite } from '@/api/favorites';
 import { FavoriteItem, UserProfile } from '@/types';
 
 export interface UserState {
@@ -157,12 +157,20 @@ export const useUserStore = create<UserState>((set, get) => ({
     if (!telegramId) {
       throw new Error('Для добавления в избранное нужно авторизоваться');
     }
+    
     if (isFavorite) {
-      await removeFavorite(telegramId, adId);
-    } else {
-      await addFavorite(telegramId, adId);
+      set((state) => ({
+        favorites: state.favorites.filter((f) => f.adId !== adId && f.ad?._id !== adId),
+      }));
     }
-    await get().refreshFavorites();
+    
+    try {
+      await apiToggleFavorite(telegramId, adId, isFavorite);
+      await get().refreshFavorites();
+    } catch (error) {
+      await get().refreshFavorites();
+      throw error;
+    }
   },
 }));
 

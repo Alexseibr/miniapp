@@ -1308,3 +1308,95 @@ input.input:focus {
 .filter-apply-button:hover {
   background: #2563eb;
 }
+
+/* ============================================
+   MY ADS CARD ANIMATIONS
+   ============================================ */
+
+/* Base fade-in animation for all cards in My Ads */
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.my-ad-card--animated {
+  animation: fadeSlideIn 0.25s ease-out forwards;
+  opacity: 0;
+}
+
+/* Just Published highlight animation */
+@keyframes justPublishedHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4);
+  }
+  40% {
+    box-shadow: 0 0 0 10px rgba(16, 185, 129, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(16, 185, 129, 0);
+  }
+}
+
+.my-ad-card--just-published {
+  animation: fadeSlideIn 0.25s ease-out forwards, justPublishedHighlight 1.5s ease-out 0.3s;
+  border: 2px solid #10b981;
+}
+
+/* Just Published chip pulse */
+@keyframes justPublishedPulse {
+  0% {
+    transform: scale(0.95);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.02);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Favorite button animation */
+@keyframes heartBeat {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(1.2);
+  }
+  50% {
+    transform: scale(1);
+  }
+  75% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+.favorite-button--active {
+  animation: heartBeat 0.4s ease-out;
+}
+
+/* Scheduled card subtle glow */
+@keyframes scheduledGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(99, 102, 241, 0);
+  }
+  50% {
+    box-shadow: 0 0 8px 2px rgba(99, 102, 241, 0.15);
+  }
+}
+
+.my-ad-card--scheduled {
+  animation: fadeSlideIn 0.25s ease-out forwards, scheduledGlow 3s ease-in-out infinite 0.3s;
+  border: 1px solid #6366f1;
+}

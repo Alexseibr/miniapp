@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import Ad from '../../models/Ad.js';
 import User from '../../models/User.js';
+import AdHistoryEvent from '../../models/AdHistoryEvent.js';
 
 const router = Router();
 
@@ -228,6 +229,129 @@ router.put('/users/:id/block', async (req, res, next) => {
     await user.save();
 
     return res.json(user);
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/ads/:adId/history', async (req, res, next) => {
+  try {
+    const { adId } = req.params;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+
+    const ad = await Ad.findById(adId);
+    if (!ad) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+
+    const events = await AdHistoryEvent.getAdHistory(adId, limit);
+
+    if (events.length === 0) {
+      const syntheticEvents = [];
+
+      if (ad.createdAt) {
+        syntheticEvents.push({
+          _id: `created-${adId}`,
+          eventType: 'created',
+          description: 'Объявление создано',
+          timestamp: ad.createdAt,
+          performedBy: ad.userId ? { type: 'user', id: String(ad.userId) } : { type: 'system' },
+        });
+      }
+
+      if (ad.publishAt && ad.status === 'scheduled') {
+        syntheticEvents.push({
+          _id: `scheduled-${adId}`,
+          eventType: 'scheduled',
+          description: `Запланирована публикация на ${new Date(ad.publishAt).toLocaleString('ru-RU')}`,
+          timestamp: ad.createdAt || new Date(),
+          performedBy: { type: 'user', id: String(ad.userId) },
+        });
+      }
+
+      if (ad.moderationStatus === 'approved') {
+        syntheticEvents.push({
+          _id: `moderation-approved-${adId}`,
+          eventType: 'moderation',
+          description: 'Объявление одобрено модератором',
+          timestamp: ad.updatedAt || ad.createdAt,
+          performedBy: { type: 'admin' },
+        });
+      } else if (ad.moderationStatus === 'rejected') {
+        syntheticEvents.push({
+          _id: `moderation-rejected-${adId}`,
+          eventType: 'moderation',
+          description: `Объявление отклонено: ${ad.moderationComment || 'без комментария'}`,
+          timestamp: ad.updatedAt || ad.createdAt,
+          performedBy: { type: 'admin' },
+        });
+      }
+
+      if (ad.status === 'active' && ad.publishAt) {
+        syntheticEvents.push({
+          _id: `published-${adId}`,
+          eventType: 'published',
+          description: 'Объявление опубликовано',
+          timestamp: ad.publishAt,
+          performedBy: { type: 'system' },
+        });
+      }
+
+      syntheticEvents.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+      return res.json({ 
+        events: syntheticEvents,
+        synthetic: true,
+        totalCount: syntheticEvents.length,
+      });
+    }
+
+    return res.json({ 
+      events,
+      totalCount: events.length,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/ads/:adId/history', async (req, res, next) => {
+  try {
+    const { adId } = req.params;
+    const { eventType, description, performedBy, changes, metadata } = req.body;
+
+    const ad = await Ad.findById(adId);
+    if (!ad) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+
+    const event = await AdHistoryEvent.logEvent(adId, eventType, description, {
+      performedBy,
+      changes,
+      metadata,
+    });
+
+    return res.json({ event });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/stats', async (req, res, next) => {
+  try {
+    const [totalAds, activeAds, pendingAds, totalUsers] = await Promise.all([
+      Ad.countDocuments(),
+      Ad.countDocuments({ status: 'active' }),
+      Ad.countDocuments({ moderationStatus: 'pending' }),
+      User.countDocuments(),
+    ]);
+
+    return res.json({
+      totalAds,
+      activeAds,
+      pendingAds,
+      totalUsers,
+    });
   } catch (error) {
     next(error);
   }

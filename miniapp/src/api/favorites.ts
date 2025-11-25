@@ -22,3 +22,16 @@ export async function removeFavorite(telegramId: number, adId: string) {
   });
   return response.data as { ok: boolean; items: FavoriteItem[] };
 }
+
+export async function toggleFavorite(telegramId: number, adId: string, isFavorite: boolean) {
+  const response = await http.post('/api/favorites/toggle', { 
+    telegramId, 
+    adId, 
+    isFavorite,
+  });
+  return response.data as { 
+    isFavorite: boolean; 
+    notifyOnPriceChange: boolean; 
+    notifyOnStatusChange: boolean;
+  };
+}
