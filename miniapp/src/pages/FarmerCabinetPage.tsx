@@ -75,25 +75,58 @@ const UNIT_LABELS: Record<string, string> = {
   bag: 'мешок',
 };
 
+type StatusFilter = 'all' | 'active' | 'expired' | 'archived';
+
+interface MyAnalytics {
+  myAds: number;
+  myViews: number;
+  myClicks: number;
+  avgPrice: number;
+  marketAvgPrice: number;
+  priceDiff: number;
+}
+
+interface QuickFormData {
+  title: string;
+  price: string;
+  unitType: string;
+}
+
 export default function FarmerCabinetPage() {
   const navigate = useNavigate();
   const user = useUserStore((state) => state.user);
   const coords = useGeoStore((state) => state.coords);
+  const requestLocation = useGeoStore((state) => state.requestLocation);
+  const geoStatus = useGeoStore((state) => state.status);
   const [activeTab, setActiveTab] = useState<TabType>('products');
   const [loading, setLoading] = useState(true);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   
+  const [allAds, setAllAds] = useState<DashboardAd[]>([]);
   const [ads, setAds] = useState<DashboardAd[]>([]);
-  const [statusCounts, setStatusCounts] = useState({ active: 0, expired: 0, archived: 0 });
+  const [statusCounts, setStatusCounts] = useState({ active: 0, expired: 0, archived: 0, scheduled: 0 });
   const [demandItems, setDemandItems] = useState<DemandItem[]>([]);
   const [demandSummary, setDemandSummary] = useState('');
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [seasonStats, setSeasonStats] = useState<SeasonStats | null>(null);
+  const [myAnalytics, setMyAnalytics] = useState<MyAnalytics | null>(null);
+  
+  const [quickForm, setQuickForm] = useState<QuickFormData>({ title: '', price: '', unitType: 'kg' });
+  const [quickSubmitting, setQuickSubmitting] = useState(false);
 
   useEffect(() => {
     if (user?.telegramId) {
       loadData();
     }
-  }, [user, activeTab]);
+  }, [user, activeTab, coords?.lat]);
+
+  useEffect(() => {
+    if (statusFilter === 'all') {
+      setAds(allAds);
+    } else {
+      setAds(allAds.filter(ad => ad.displayStatus === statusFilter));
+    }
+  }, [statusFilter, allAds]);
 
   const loadData = async () => {
     if (!user?.telegramId) return;
@@ -107,6 +140,7 @@ export default function FarmerCabinetPage() {
         ]);
         
         if (adsRes.data.success) {
+          setAllAds(adsRes.data.data.ads);
           setAds(adsRes.data.data.ads);
           setStatusCounts(adsRes.data.data.statusCounts);
         }
@@ -114,21 +148,63 @@ export default function FarmerCabinetPage() {
           setNotifications(notifRes.data.data.notifications);
         }
       } else if (activeTab === 'stats') {
-        const res = await http.get('/api/farmer/season-analytics?period=month');
-        if (res.data.success) {
-          setSeasonStats(res.data.data);
+        const [seasonRes, myRes] = await Promise.all([
+          http.get('/api/farmer/season-analytics?period=month'),
+          http.get(`/api/farmer/my-analytics?sellerTelegramId=${user.telegramId}&period=month`),
+        ]);
+        if (seasonRes.data.success) {
+          setSeasonStats(seasonRes.data.data);
         }
-      } else if (activeTab === 'demand' && coords?.lat && coords?.lng) {
-        const res = await http.get(`/api/farmer/local-demand?lat=${coords.lat}&lng=${coords.lng}&radiusKm=10`);
-        if (res.data.success) {
-          setDemandItems(res.data.data.items);
-          setDemandSummary(res.data.data.summary);
+        if (myRes.data.success) {
+          const data = myRes.data.data;
+          setMyAnalytics({
+            myAds: data.totalAds || 0,
+            myViews: data.totalViews || 0,
+            myClicks: data.totalClicks || 0,
+            avgPrice: data.avgPrice || 0,
+            marketAvgPrice: data.marketAvgPrice || 0,
+            priceDiff: data.priceDiffPercent || 0,
+          });
+        }
+      } else if (activeTab === 'demand') {
+        if (coords?.lat && coords?.lng) {
+          const res = await http.get(`/api/farmer/local-demand?lat=${coords.lat}&lng=${coords.lng}&radiusKm=10`);
+          if (res.data.success) {
+            setDemandItems(res.data.data.items);
+            setDemandSummary(res.data.data.summary);
+          }
         }
       }
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleQuickSubmit = async () => {
+    if (!quickForm.title.trim() || !quickForm.price || !user?.telegramId) return;
+    
+    setQuickSubmitting(true);
+    try {
+      const res = await http.post('/api/farmer/quick-post', {
+        title: quickForm.title.trim(),
+        price: parseFloat(quickForm.price),
+        unitType: quickForm.unitType,
+        sellerTelegramId: user.telegramId,
+        lat: coords?.lat,
+        lng: coords?.lng,
+      });
+      
+      if (res.data.success) {
+        setQuickForm({ title: '', price: '', unitType: 'kg' });
+        setActiveTab('products');
+        loadData();
+      }
+    } catch (error) {
+      console.error('Quick post failed:', error);
+    } finally {
+      setQuickSubmitting(false);
     }
   };
 
@@ -161,24 +237,28 @@ export default function FarmerCabinetPage() {
 
       <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto' }}>
         {[
-          { label: 'Все', count: statusCounts.active + statusCounts.expired + statusCounts.archived, color: '#6B7280' },
-          { label: 'Активные', count: statusCounts.active, color: '#10B981' },
-          { label: 'Истекшие', count: statusCounts.expired, color: '#EF4444' },
-        ].map((filter, idx) => (
-          <div
-            key={idx}
+          { key: 'all' as StatusFilter, label: 'Все', count: statusCounts.active + statusCounts.expired + statusCounts.archived },
+          { key: 'active' as StatusFilter, label: 'Активные', count: statusCounts.active },
+          { key: 'expired' as StatusFilter, label: 'Истекшие', count: statusCounts.expired },
+        ].map((filter) => (
+          <button
+            key={filter.key}
+            onClick={() => setStatusFilter(filter.key)}
             style={{
               padding: '8px 14px',
-              background: idx === 0 ? '#3B73FC' : '#F3F4F6',
+              background: statusFilter === filter.key ? '#3B73FC' : '#F3F4F6',
               borderRadius: 20,
-              color: idx === 0 ? '#fff' : '#374151',
+              color: statusFilter === filter.key ? '#fff' : '#374151',
               fontSize: 13,
               fontWeight: 500,
               whiteSpace: 'nowrap',
+              border: 'none',
+              cursor: 'pointer',
             }}
+            data-testid={`filter-${filter.key}`}
           >
             {filter.label} ({filter.count})
-          </div>
+          </button>
         ))}
       </div>
 
@@ -296,24 +376,118 @@ export default function FarmerCabinetPage() {
         Быстрая подача
       </div>
       
+      <div style={{
+        background: '#fff',
+        borderRadius: 20,
+        padding: 20,
+        marginBottom: 16,
+        boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
+      }}>
+        <div style={{ marginBottom: 16 }}>
+          <label style={{ display: 'block', fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
+            Название товара
+          </label>
+          <input
+            type="text"
+            value={quickForm.title}
+            onChange={(e) => setQuickForm(prev => ({ ...prev, title: e.target.value }))}
+            placeholder="Например: Картофель молодой"
+            style={{
+              width: '100%',
+              padding: '14px 16px',
+              borderRadius: 12,
+              border: '1.5px solid #E5E7EB',
+              fontSize: 16,
+              outline: 'none',
+            }}
+            data-testid="input-quick-title"
+          />
+        </div>
+        
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
+              Цена (BYN)
+            </label>
+            <input
+              type="number"
+              value={quickForm.price}
+              onChange={(e) => setQuickForm(prev => ({ ...prev, price: e.target.value }))}
+              placeholder="0.00"
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                borderRadius: 12,
+                border: '1.5px solid #E5E7EB',
+                fontSize: 16,
+                outline: 'none',
+              }}
+              data-testid="input-quick-price"
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: 13, color: '#6B7280', marginBottom: 6 }}>
+              Единица
+            </label>
+            <select
+              value={quickForm.unitType}
+              onChange={(e) => setQuickForm(prev => ({ ...prev, unitType: e.target.value }))}
+              style={{
+                width: '100%',
+                padding: '14px 16px',
+                borderRadius: 12,
+                border: '1.5px solid #E5E7EB',
+                fontSize: 16,
+                background: '#fff',
+                outline: 'none',
+              }}
+              data-testid="select-quick-unit"
+            >
+              {Object.entries(UNIT_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>{label}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+        
+        <button
+          onClick={handleQuickSubmit}
+          disabled={quickSubmitting || !quickForm.title.trim() || !quickForm.price}
+          style={{
+            width: '100%',
+            padding: '16px',
+            background: quickForm.title.trim() && quickForm.price ? '#3B73FC' : '#E5E7EB',
+            color: quickForm.title.trim() && quickForm.price ? '#fff' : '#9CA3AF',
+            border: 'none',
+            borderRadius: 14,
+            fontSize: 16,
+            fontWeight: 600,
+            cursor: quickForm.title.trim() && quickForm.price ? 'pointer' : 'default',
+          }}
+          data-testid="button-quick-submit"
+        >
+          {quickSubmitting ? 'Публикация...' : 'Опубликовать'}
+        </button>
+      </div>
+      
       <div
         onClick={() => navigate('/farmer/bulk-upload')}
         style={{
           background: 'linear-gradient(135deg, #3B73FC 0%, #2563EB 100%)',
           borderRadius: 20,
-          padding: 24,
+          padding: 20,
           color: '#fff',
-          marginBottom: 16,
+          marginBottom: 12,
           cursor: 'pointer',
         }}
         data-testid="button-bulk-upload"
       >
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-          <PlusCircle size={28} />
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Добавить несколько товаров</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+          <PlusCircle size={24} />
+          <div style={{ fontSize: 16, fontWeight: 700 }}>Добавить несколько товаров</div>
         </div>
-        <div style={{ fontSize: 14, opacity: 0.9 }}>
-          Создайте до 10 объявлений за раз с автоопределением категории
+        <div style={{ fontSize: 13, opacity: 0.9 }}>
+          До 10 объявлений за раз с автоопределением категории
         </div>
       </div>
 
@@ -322,7 +496,7 @@ export default function FarmerCabinetPage() {
         style={{
           background: '#fff',
           borderRadius: 16,
-          padding: 16,
+          padding: 14,
           display: 'flex',
           alignItems: 'center',
           gap: 12,
@@ -332,22 +506,22 @@ export default function FarmerCabinetPage() {
         data-testid="button-single-create"
       >
         <div style={{
-          width: 48,
-          height: 48,
+          width: 44,
+          height: 44,
           borderRadius: 12,
           background: '#F3F4F6',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-          <Package size={24} color="#6B7280" />
+          <Package size={22} color="#6B7280" />
         </div>
         <div style={{ flex: 1 }}>
           <div style={{ fontSize: 15, fontWeight: 600, color: '#111827' }}>
-            Одно объявление
+            Одно объявление с фото
           </div>
-          <div style={{ fontSize: 13, color: '#6B7280' }}>
-            С фото и подробным описанием
+          <div style={{ fontSize: 12, color: '#6B7280' }}>
+            С подробным описанием
           </div>
         </div>
         <ChevronRight size={20} color="#9CA3AF" />
@@ -369,91 +543,121 @@ export default function FarmerCabinetPage() {
             margin: '0 auto',
           }} />
         </div>
-      ) : seasonStats ? (
+      ) : (seasonStats || myAnalytics) ? (
         <>
-          <div style={{
-            background: 'linear-gradient(135deg, #3B73FC 0%, #2563EB 100%)',
-            borderRadius: 20,
-            padding: 20,
-            color: '#fff',
-            marginBottom: 16,
-          }}>
-            <div style={{ fontSize: 14, opacity: 0.8, marginBottom: 4 }}>Средняя цена на рынке</div>
-            <div style={{ fontSize: 32, fontWeight: 700 }}>
-              {seasonStats.averagePrice.toFixed(2)} BYN
+          {myAnalytics && (
+            <div style={{
+              background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+              borderRadius: 20,
+              padding: 20,
+              color: '#fff',
+              marginBottom: 16,
+            }}>
+              <div style={{ fontSize: 14, opacity: 0.9, marginBottom: 8 }}>Ваша статистика за месяц</div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 700 }}>{myAnalytics.myAds}</div>
+                  <div style={{ fontSize: 12, opacity: 0.8 }}>Товаров</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 700 }}>{myAnalytics.myViews}</div>
+                  <div style={{ fontSize: 12, opacity: 0.8 }}>Просмотров</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 28, fontWeight: 700 }}>{myAnalytics.myClicks}</div>
+                  <div style={{ fontSize: 12, opacity: 0.8 }}>Контактов</div>
+                </div>
+              </div>
             </div>
-            {seasonStats.trend.priceChangePercent !== 0 && (
-              <div style={{ 
-                display: 'flex', 
-                alignItems: 'center', 
-                gap: 6, 
-                marginTop: 8,
-                fontSize: 14,
+          )}
+
+          {seasonStats && (
+            <>
+              <div style={{
+                background: 'linear-gradient(135deg, #3B73FC 0%, #2563EB 100%)',
+                borderRadius: 20,
+                padding: 20,
+                color: '#fff',
+                marginBottom: 16,
               }}>
-                <TrendingUp size={16} />
-                <span>
-                  {seasonStats.trend.priceChangePercent > 0 ? '+' : ''}
-                  {seasonStats.trend.priceChangePercent}% к прошлому месяцу
-                </span>
+                <div style={{ fontSize: 14, opacity: 0.8, marginBottom: 4 }}>Средняя цена на рынке</div>
+                <div style={{ fontSize: 32, fontWeight: 700 }}>
+                  {seasonStats.averagePrice.toFixed(2)} BYN
+                </div>
+                {seasonStats.trend.priceChangePercent !== 0 && (
+                  <div style={{ 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    gap: 6, 
+                    marginTop: 8,
+                    fontSize: 14,
+                  }}>
+                    <TrendingUp size={16} />
+                    <span>
+                      {seasonStats.trend.priceChangePercent > 0 ? '+' : ''}
+                      {seasonStats.trend.priceChangePercent}% к прошлому месяцу
+                    </span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
-            <div style={{
-              background: '#fff',
-              borderRadius: 16,
-              padding: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-            }}>
-              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Мин. цена</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#10B981' }}>
-                {seasonStats.minPrice.toFixed(2)} BYN
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 16 }}>
+                <div style={{
+                  background: '#fff',
+                  borderRadius: 16,
+                  padding: 16,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                }}>
+                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Мин. цена</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#10B981' }}>
+                    {seasonStats.minPrice.toFixed(2)} BYN
+                  </div>
+                </div>
+                <div style={{
+                  background: '#fff',
+                  borderRadius: 16,
+                  padding: 16,
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+                }}>
+                  <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Макс. цена</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: '#EF4444' }}>
+                    {seasonStats.maxPrice.toFixed(2)} BYN
+                  </div>
+                </div>
               </div>
-            </div>
-            <div style={{
-              background: '#fff',
-              borderRadius: 16,
-              padding: 16,
-              boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-            }}>
-              <div style={{ fontSize: 12, color: '#6B7280', marginBottom: 4 }}>Макс. цена</div>
-              <div style={{ fontSize: 20, fontWeight: 700, color: '#EF4444' }}>
-                {seasonStats.maxPrice.toFixed(2)} BYN
-              </div>
-            </div>
-          </div>
 
-          <div style={{
-            background: '#fff',
-            borderRadius: 16,
-            padding: 16,
-            boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
-              Активность за месяц
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
-                  {seasonStats.totalAds}
+              <div style={{
+                background: '#fff',
+                borderRadius: 16,
+                padding: 16,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+              }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 12 }}>
+                  Рынок за месяц
                 </div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>Объявлений</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
-                  {seasonStats.viewsTotal}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
+                      {seasonStats.totalAds}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6B7280' }}>Объявлений</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
+                      {seasonStats.viewsTotal}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6B7280' }}>Просмотров</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
+                      {seasonStats.contactClicksTotal}
+                    </div>
+                    <div style={{ fontSize: 11, color: '#6B7280' }}>Контактов</div>
+                  </div>
                 </div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>Просмотров</div>
               </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: 24, fontWeight: 700, color: '#111827' }}>
-                  {seasonStats.contactClicksTotal}
-                </div>
-                <div style={{ fontSize: 11, color: '#6B7280' }}>Контактов</div>
-              </div>
-            </div>
-          </div>
+            </>
+          )}
 
           <button
             onClick={() => navigate('/farmer/analytics')}
@@ -498,6 +702,24 @@ export default function FarmerCabinetPage() {
           <div style={{ fontSize: 16, color: '#6B7280', marginBottom: 16 }}>
             Включите геолокацию, чтобы видеть спрос рядом
           </div>
+          <button
+            onClick={requestLocation}
+            disabled={geoStatus === 'loading'}
+            style={{
+              background: '#3B73FC',
+              color: '#fff',
+              border: 'none',
+              borderRadius: 12,
+              padding: '14px 28px',
+              fontSize: 15,
+              fontWeight: 600,
+              cursor: geoStatus === 'loading' ? 'default' : 'pointer',
+              opacity: geoStatus === 'loading' ? 0.7 : 1,
+            }}
+            data-testid="button-request-location"
+          >
+            {geoStatus === 'loading' ? 'Определение...' : 'Включить геолокацию'}
+          </button>
         </div>
       ) : loading ? (
         <div style={{ textAlign: 'center', padding: 40 }}>
