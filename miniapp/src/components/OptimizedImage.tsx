@@ -145,7 +145,7 @@ const OptimizedImage = memo(({
       )}
       {hasError && fallback ? (
         fallback
-      ) : isLoaded ? (
+      ) : (isLoaded || isVisible) ? (
         <img
           ref={imgRef}
           src={src}
@@ -156,6 +156,8 @@ const OptimizedImage = memo(({
             width: '100%',
             height: '100%',
             objectFit: style?.objectFit || 'cover',
+            opacity: isLoaded ? 1 : 0,
+            transition: 'opacity 0.3s ease-out',
           }}
         />
       ) : null}
