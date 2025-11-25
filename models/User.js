@@ -19,13 +19,42 @@ const FavoriteSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const AuthProviderSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['telegram', 'sms', 'email', 'google', 'apple', 'app'],
+      required: true,
+    },
+    providerId: String,
+    linkedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     telegramId: {
       type: Number,
-      required: true,
-      unique: true,
+      sparse: true,
       index: true,
+    },
+    appUserId: {
+      type: String,
+      sparse: true,
+      index: true,
+    },
+    authProviders: {
+      type: [AuthProviderSchema],
+      default: [],
+    },
+    mergedFrom: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    mergedInto: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
     favoritesCount: {
       type: Number,
@@ -49,6 +78,7 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
+      sparse: true,
       trim: true,
     },
     phoneVerified: {
@@ -110,5 +140,9 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ telegramId: 1 }, { unique: true, sparse: true });
+userSchema.index({ appUserId: 1 }, { unique: true, sparse: true });
+userSchema.index({ 'authProviders.type': 1 });
 
 export default mongoose.model('User', userSchema);
