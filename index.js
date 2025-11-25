@@ -11,6 +11,7 @@ import { bot } from './bot/bot.js';
 import { checkFavoritesForChanges } from './notifications/watcher.js';
 import { startNotificationWorker } from './workers/notificationWorker.js';
 import { startPublishScheduler } from './workers/publishScheduler.js';
+import { startMediaCleanupWorker } from './workers/mediaCleanup.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -327,6 +328,7 @@ async function start() {
 
     startNotificationWorker();
     startPublishScheduler();
+    startMediaCleanupWorker();
     
     // Регистрируем error handlers в самом конце, после всех middleware
     app.use(logErrors);

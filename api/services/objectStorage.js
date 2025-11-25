@@ -45,6 +45,11 @@ export class ObjectStorageService {
   }
 
   async getUploadURL(fileExtension = 'jpg') {
+    const result = await this.getUploadURLWithMeta(fileExtension);
+    return { uploadURL: result.uploadURL, publicURL: result.publicURL };
+  }
+
+  async getUploadURLWithMeta(fileExtension = 'jpg') {
     const publicPaths = this.getPublicObjectSearchPaths();
     const publicDir = publicPaths[0];
     
@@ -57,12 +62,18 @@ export class ObjectStorageService {
       bucketName,
       objectName,
       method: 'PUT',
-      ttlSec: 900,
+      ttlSec: 600,
     });
 
     const publicURL = `/api/media/${bucketName}/${objectName}`;
     
-    return { uploadURL: signedUrl, publicURL };
+    return { 
+      uploadURL: signedUrl, 
+      publicURL,
+      bucketName,
+      objectName,
+      objectId,
+    };
   }
 
   normalizeObjectPath(rawPath) {
