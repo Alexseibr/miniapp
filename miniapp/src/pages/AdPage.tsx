@@ -1,12 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, MessageCircle, ArrowLeft, Phone, Share2, Heart, Eye, Calendar, X } from 'lucide-react';
+import { MapPin, MessageCircle, ArrowLeft, Phone, Share2, Eye, Calendar, X, ExternalLink } from 'lucide-react';
+import { SiInstagram, SiTelegram } from 'react-icons/si';
 import { getAd, getSimilarAds } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { Ad, AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
 import { PriceMarketBlock } from '@/components/pricing';
-import { useCartStore } from '@/store/cart';
 import { formatCityDistance, useGeo } from '@/utils/geo';
 import http from '@/api/http';
 import { useUserStore } from '@/store/useUserStore';
@@ -28,7 +28,7 @@ export default function AdPage() {
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const [similarAds, setSimilarAds] = useState<AdPreview[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
-  const addItem = useCartStore((state) => state.addItem);
+  const [showPhone, setShowPhone] = useState(false);
   const { coords } = useGeo(false);
 
   useEffect(() => {
@@ -67,6 +67,45 @@ export default function AdPage() {
     }
   };
 
+  const handleShare = useCallback(() => {
+    const adUrl = `${window.location.origin}/ads/${id}`;
+    const shareText = ad ? `${ad.title} - ${ad.price} ${ad.currency || 'BYN'}` : 'Объявление на KETMAR';
+    
+    if (window.Telegram?.WebApp?.openTelegramLink) {
+      const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(adUrl)}&text=${encodeURIComponent(shareText)}`;
+      window.Telegram.WebApp.openTelegramLink(telegramShareUrl);
+    } else if (navigator.share) {
+      navigator.share({
+        title: ad?.title || 'KETMAR',
+        text: shareText,
+        url: adUrl,
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(adUrl);
+      alert('Ссылка скопирована!');
+    }
+  }, [id, ad]);
+
+  const handleCallPhone = useCallback(() => {
+    if (ad?.contactPhone) {
+      window.location.href = `tel:${ad.contactPhone}`;
+    }
+  }, [ad?.contactPhone]);
+
+  const handleOpenTelegram = useCallback(() => {
+    if (ad?.contactUsername) {
+      const username = ad.contactUsername.replace('@', '');
+      window.open(`https://t.me/${username}`, '_blank');
+    }
+  }, [ad?.contactUsername]);
+
+  const handleOpenInstagram = useCallback(() => {
+    if (ad?.contactInstagram) {
+      const username = ad.contactInstagram.replace('@', '');
+      window.open(`https://instagram.com/${username}`, '_blank');
+    }
+  }, [ad?.contactInstagram]);
+
   if (loading) {
     return <EmptyState title="Загружаем объявление" />;
   }
@@ -78,71 +117,90 @@ export default function AdPage() {
   const formatDate = (dateString?: string) => {
     if (!dateString) return 'Недавно';
     const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    
-    if (diffDays === 0) return 'Сегодня';
-    if (diffDays === 1) return 'Вчера';
-    if (diffDays < 7) return `${diffDays} дн. назад`;
-    return date.toLocaleDateString('ru-RU');
+    return date.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   };
+
+  const hasContacts = ad.contactPhone || ad.contactUsername || ad.contactInstagram;
 
   return (
     <>
-      <div style={{ backgroundColor: '#fff', minHeight: '100vh', paddingBottom: 100 }}>
-        {/* Header */}
-        <div style={{ 
-          position: 'sticky', 
-          top: 0, 
-          zIndex: 20,
-          background: '#fff',
-          borderBottom: '1px solid #E5E7EB',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
+      <div style={{ backgroundColor: '#F8FAFC', minHeight: '100vh', paddingBottom: 100 }}>
+        {/* Photo Gallery with overlay buttons */}
+        <div style={{ position: 'relative', background: '#000' }}>
+          {/* Back button */}
           <button
             onClick={() => navigate(-1)}
             style={{
-              background: 'none',
+              position: 'absolute',
+              top: 16,
+              left: 16,
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.95)',
               border: 'none',
-              padding: 8,
               cursor: 'pointer',
               display: 'flex',
-              alignItems: 'center'
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 20,
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
             }}
             data-testid="button-back"
           >
-            <ArrowLeft size={24} color="#111827" />
+            <ArrowLeft size={22} color="#111827" />
           </button>
-          <div style={{ display: 'flex', gap: 12 }}>
+
+          {/* Action buttons (share, favorite) */}
+          <div style={{
+            position: 'absolute',
+            top: 16,
+            right: 16,
+            display: 'flex',
+            gap: 10,
+            zIndex: 20,
+          }}>
             <button
+              onClick={handleShare}
               style={{
-                background: 'none',
+                width: 40,
+                height: 40,
+                borderRadius: '50%',
+                background: 'rgba(255, 255, 255, 0.95)',
                 border: 'none',
-                padding: 8,
                 cursor: 'pointer',
                 display: 'flex',
-                alignItems: 'center'
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
               }}
               data-testid="button-share"
             >
-              <Share2 size={22} color="#6B7280" />
+              <Share2 size={20} color="#111827" />
             </button>
-            <FavoriteButton adId={ad._id} />
+            <div style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              background: 'rgba(255, 255, 255, 0.95)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+            }}>
+              <FavoriteButton adId={ad._id} />
+            </div>
           </div>
-        </div>
 
-        {/* Photo Gallery */}
-        {ad.photos && ad.photos.length > 0 && (
-          <div style={{ position: 'relative', background: '#000' }}>
+          {/* Photo Swiper */}
+          {ad.photos && ad.photos.length > 0 ? (
             <Swiper
               modules={[Pagination, Navigation, Zoom]}
               pagination={{ 
                 clickable: true,
                 dynamicBullets: false,
+                bulletClass: 'swiper-pagination-bullet',
+                bulletActiveClass: 'swiper-pagination-bullet-active',
               }}
               navigation={ad.photos.length > 1}
               zoom={true}
@@ -163,14 +221,31 @@ export default function AdPage() {
                       style={{ 
                         width: '100%', 
                         height: '100%', 
-                        objectFit: 'contain',
+                        objectFit: 'cover',
+                        background: '#1F2937',
                       }}
                     />
                   </div>
                 </SwiperSlide>
               ))}
             </Swiper>
-            {/* Photo counter */}
+          ) : (
+            <div style={{
+              width: '100%',
+              aspectRatio: '4/3',
+              background: '#1F2937',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#6B7280',
+              fontSize: 16,
+            }}>
+              Нет фото
+            </div>
+          )}
+          
+          {/* Photo counter */}
+          {ad.photos && ad.photos.length > 1 && (
             <div style={{
               position: 'absolute',
               bottom: 16,
@@ -178,7 +253,7 @@ export default function AdPage() {
               background: 'rgba(0, 0, 0, 0.7)',
               color: '#fff',
               padding: '6px 12px',
-              borderRadius: 16,
+              borderRadius: 20,
               fontSize: 13,
               fontWeight: 600,
               zIndex: 10,
@@ -186,19 +261,38 @@ export default function AdPage() {
             }}>
               {currentPhotoIndex + 1} / {ad.photos.length}
             </div>
-          </div>
-        )}
+          )}
+        </div>
 
-        {/* Main Content */}
-        <div style={{ padding: 16 }}>
+        {/* Main Content Card */}
+        <div style={{ 
+          background: '#fff', 
+          borderRadius: '20px 20px 0 0', 
+          marginTop: -16,
+          position: 'relative',
+          zIndex: 5,
+          padding: 20,
+        }}>
           {/* Price */}
-          <div style={{ marginBottom: 20 }}>
-            <div style={{ fontSize: 28, fontWeight: 700, color: '#111827', marginBottom: 4 }}>
-              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'р.'}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ 
+              fontSize: 28, 
+              fontWeight: 700, 
+              color: '#111827', 
+              marginBottom: 6,
+              letterSpacing: '-0.5px',
+            }}>
+              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
             </div>
             {(ad.city || ad.distanceKm != null) && (
-              <div style={{ fontSize: 14, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 4 }}>
-                <MapPin size={16} />
+              <div style={{ 
+                fontSize: 15, 
+                color: '#6B7280', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: 6,
+              }}>
+                <MapPin size={16} color="#3B73FC" />
                 {formatCityDistance(ad.city, ad.distanceKm)}
               </div>
             )}
@@ -206,25 +300,14 @@ export default function AdPage() {
 
           {/* Title */}
           <h1 style={{ 
-            fontSize: 22, 
+            fontSize: 20, 
             fontWeight: 600, 
             color: '#111827', 
-            margin: '0 0 16px',
-            lineHeight: 1.3
+            margin: '0 0 12px',
+            lineHeight: 1.35,
           }}>
             {ad.title}
           </h1>
-
-          {/* Price Market Analysis */}
-          {ad.priceBadge && (
-            <PriceMarketBlock
-              badge={ad.priceBadge}
-              avgPrice={ad.priceBadge.avgPrice}
-              windowDays={ad.priceBadge.windowDays}
-              categorySlug={ad.subcategoryId || ad.categoryId}
-              price={ad.price}
-            />
-          )}
 
           {/* Meta info */}
           <div style={{ 
@@ -235,42 +318,57 @@ export default function AdPage() {
             borderBottom: '1px solid #F3F4F6'
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6B7280' }}>
-              <Calendar size={16} />
+              <Calendar size={15} />
               <span>{formatDate(ad.createdAt)}</span>
             </div>
             {ad.views !== undefined && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6B7280' }}>
-                <Eye size={16} />
-                <span>{ad.views} просмотров</span>
+                <Eye size={15} />
+                <span>{ad.views} {ad.views === 1 ? 'просмотр' : 'просмотров'}</span>
               </div>
             )}
           </div>
 
+          {/* Price Market Analysis */}
+          {ad.priceBadge && (
+            <div style={{ marginBottom: 20 }}>
+              <PriceMarketBlock
+                badge={ad.priceBadge}
+                avgPrice={ad.priceBadge.avgPrice}
+                windowDays={ad.priceBadge.windowDays}
+                categorySlug={ad.subcategoryId || ad.categoryId}
+                price={ad.price}
+              />
+            </div>
+          )}
+
           {/* Description */}
-          <div style={{ marginBottom: 24 }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: '0 0 12px' }}>
-              Описание
-            </h3>
-            <p style={{ 
-              fontSize: 15, 
-              color: '#374151', 
-              lineHeight: 1.6,
-              margin: 0,
-              whiteSpace: 'pre-wrap'
-            }}>
-              {ad.description || 'Описание отсутствует'}
-            </p>
-          </div>
+          {ad.description && (
+            <div style={{ marginBottom: 24 }}>
+              <h3 style={{ fontSize: 17, fontWeight: 600, color: '#111827', margin: '0 0 12px' }}>
+                Описание
+              </h3>
+              <p style={{ 
+                fontSize: 15, 
+                color: '#374151', 
+                lineHeight: 1.65,
+                margin: 0,
+                whiteSpace: 'pre-wrap'
+              }}>
+                {ad.description}
+              </p>
+            </div>
+          )}
 
           {/* Attributes */}
           {ad.attributes && Object.keys(ad.attributes).length > 0 && (
             <div style={{ marginBottom: 24 }}>
-              <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: '0 0 12px' }}>
+              <h3 style={{ fontSize: 17, fontWeight: 600, color: '#111827', margin: '0 0 12px' }}>
                 Характеристики
               </h3>
               <div style={{ 
                 background: '#F9FAFB', 
-                borderRadius: 12, 
+                borderRadius: 16, 
                 padding: 16,
                 display: 'flex',
                 flexDirection: 'column',
@@ -291,69 +389,163 @@ export default function AdPage() {
           {/* Seller info */}
           <div style={{ 
             background: '#F9FAFB', 
-            borderRadius: 12, 
+            borderRadius: 16, 
             padding: 16,
             marginBottom: 24
           }}>
-            <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: '0 0 12px' }}>
+            <h3 style={{ fontSize: 17, fontWeight: 600, color: '#111827', margin: '0 0 14px' }}>
               Продавец
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: hasContacts ? 16 : 0 }}>
               <div style={{
-                width: 48,
-                height: 48,
+                width: 52,
+                height: 52,
                 borderRadius: '50%',
-                background: '#3B73FC',
+                background: 'linear-gradient(135deg, #3B73FC 0%, #2563EB 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 color: '#fff',
-                fontSize: 20,
-                fontWeight: 600
+                fontSize: 22,
+                fontWeight: 600,
+                boxShadow: '0 2px 8px rgba(59, 115, 252, 0.3)',
               }}>
                 {ad.sellerName?.charAt(0).toUpperCase() || 'П'}
               </div>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 16, fontWeight: 600, color: '#111827', marginBottom: 2 }}>
+                <div style={{ fontSize: 17, fontWeight: 600, color: '#111827', marginBottom: 4 }}>
                   {ad.sellerName || 'Продавец'}
                 </div>
                 <div style={{ fontSize: 13, color: '#6B7280' }}>
-                  На KETMAR с {new Date().getFullYear() - 1} года
+                  На KETMAR с 2024 года
                 </div>
               </div>
             </div>
+
+            {/* Contact buttons */}
+            {hasContacts && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {ad.contactPhone && (
+                  <button
+                    onClick={() => showPhone ? handleCallPhone() : setShowPhone(true)}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: showPhone ? '#3B73FC' : '#fff',
+                      color: showPhone ? '#fff' : '#111827',
+                      border: showPhone ? 'none' : '1px solid #E5E7EB',
+                      borderRadius: 14,
+                      fontSize: 15,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                    }}
+                    data-testid="button-show-phone"
+                  >
+                    <Phone size={18} />
+                    {showPhone ? ad.contactPhone : 'Показать телефон'}
+                  </button>
+                )}
+
+                {ad.contactUsername && (
+                  <button
+                    onClick={handleOpenTelegram}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: '#fff',
+                      color: '#0088cc',
+                      border: '1px solid #0088cc',
+                      borderRadius: 14,
+                      fontSize: 15,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                    }}
+                    data-testid="button-telegram"
+                  >
+                    <SiTelegram size={18} />
+                    Написать в Telegram
+                  </button>
+                )}
+
+                {ad.contactInstagram && (
+                  <button
+                    onClick={handleOpenInstagram}
+                    style={{
+                      width: '100%',
+                      padding: '14px 16px',
+                      background: '#fff',
+                      color: '#E4405F',
+                      border: '1px solid #E4405F',
+                      borderRadius: 14,
+                      fontSize: 15,
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 10,
+                    }}
+                    data-testid="button-instagram"
+                  >
+                    <SiInstagram size={18} />
+                    {ad.contactInstagram}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
-          {/* Similar ads */}
+          {/* Similar ads - horizontal scroll */}
           {similarAds.length > 0 && (
             <div style={{ marginBottom: 24 }}>
               <h3 style={{ fontSize: 18, fontWeight: 600, color: '#111827', margin: '0 0 16px' }}>
                 Похожие объявления
               </h3>
               <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
+                display: 'flex',
                 gap: 12,
+                overflowX: 'auto',
+                paddingBottom: 8,
+                marginLeft: -20,
+                marginRight: -20,
+                paddingLeft: 20,
+                paddingRight: 20,
+                scrollSnapType: 'x mandatory',
+                WebkitOverflowScrolling: 'touch',
               }}>
                 {similarAds.map((similarAd) => (
                   <div
                     key={similarAd._id}
                     onClick={() => navigate(`/ads/${similarAd._id}`)}
-                    style={{ cursor: 'pointer' }}
+                    style={{ 
+                      cursor: 'pointer',
+                      flexShrink: 0,
+                      width: 160,
+                      scrollSnapAlign: 'start',
+                    }}
                     data-testid={`similar-ad-${similarAd._id}`}
                   >
                     <div style={{
                       background: '#fff',
-                      borderRadius: 12,
+                      borderRadius: 16,
                       overflow: 'hidden',
-                      border: '1px solid #E5E7EB'
+                      border: '1px solid #E5E7EB',
+                      boxShadow: '0 2px 8px rgba(0, 0, 0, 0.04)',
                     }}>
-                      {/* Image */}
                       <div style={{
                         width: '100%',
                         aspectRatio: '4/3',
                         background: '#F3F4F6',
-                        position: 'relative'
+                        position: 'relative',
+                        overflow: 'hidden',
                       }}>
                         {similarAd.photos && similarAd.photos.length > 0 ? (
                           <img
@@ -379,15 +571,14 @@ export default function AdPage() {
                           </div>
                         )}
                       </div>
-                      {/* Info */}
-                      <div style={{ padding: 10 }}>
+                      <div style={{ padding: 12 }}>
                         <div style={{
-                          fontSize: 16,
+                          fontSize: 15,
                           fontWeight: 700,
                           color: '#111827',
                           marginBottom: 4
                         }}>
-                          {similarAd.price.toLocaleString('ru-RU')} {similarAd.currency || 'р.'}
+                          {similarAd.price.toLocaleString('ru-RU')} {similarAd.currency || 'BYN'}
                         </div>
                         <div style={{
                           fontSize: 13,
@@ -407,7 +598,7 @@ export default function AdPage() {
                             alignItems: 'center',
                             gap: 4
                           }}>
-                            <MapPin size={12} />
+                            <MapPin size={11} />
                             {similarAd.city}
                           </div>
                         )}
@@ -428,7 +619,8 @@ export default function AdPage() {
           right: 0,
           background: '#fff',
           borderTop: '1px solid #E5E7EB',
-          padding: 16,
+          padding: '12px 16px',
+          paddingBottom: 'max(12px, env(safe-area-inset-bottom))',
           display: 'flex',
           gap: 12,
           zIndex: 10
@@ -442,38 +634,43 @@ export default function AdPage() {
               background: '#3B73FC',
               color: '#fff',
               border: 'none',
-              borderRadius: 12,
+              borderRadius: 14,
               fontSize: 16,
               fontWeight: 600,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 8
+              gap: 8,
+              minHeight: 52,
             }}
             data-testid="button-start-chat"
           >
             <MessageCircle size={20} />
             {startingChat ? 'Открываем...' : 'Написать'}
           </button>
-          <button
-            style={{
-              padding: '14px 20px',
-              background: '#F3F4F6',
-              color: '#111827',
-              border: 'none',
-              borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 600,
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}
-            data-testid="button-call"
-          >
-            <Phone size={20} />
-          </button>
+          {ad.contactPhone && (
+            <button
+              onClick={handleCallPhone}
+              style={{
+                padding: '14px 20px',
+                background: '#10B981',
+                color: '#fff',
+                border: 'none',
+                borderRadius: 14,
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                minHeight: 52,
+              }}
+              data-testid="button-call"
+            >
+              <Phone size={20} />
+            </button>
+          )}
         </div>
       </div>
 

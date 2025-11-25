@@ -5,7 +5,6 @@ import GroupSelector from '@/components/GroupSelector';
 import SubcategoryChips from '@/components/SubcategoryChips';
 import RadiusControl from '@/components/RadiusControl';
 import AdCard from '@/components/AdCard';
-import EmptyState from '@/widgets/EmptyState';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { useGeo } from '@/utils/geo';
 import { useNearbyAds } from '@/hooks/useNearbyAds';
@@ -16,6 +15,7 @@ export default function HomePage() {
   
   const [selectedGroupSlug, setSelectedGroupSlug] = useState<string | null>(null);
   const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState<string | null>(null);
+  const [geoLoading, setGeoLoading] = useState(false);
 
   useEffect(() => {
     loadCategories();
@@ -38,14 +38,24 @@ export default function HomePage() {
     setRadius(newRadius);
   };
 
-  const needsLocation = !coords && geoStatus !== 'loading';
+  const handleRequestLocation = async () => {
+    setGeoLoading(true);
+    try {
+      await requestLocation();
+    } finally {
+      setGeoLoading(false);
+    }
+  };
+
+  const isGeoLoading = geoLoading || geoStatus === 'loading';
+  const needsLocation = !coords && geoStatus !== 'loading' && !geoLoading;
   const showAds = !!selectedGroupSlug && !!coords;
 
   return (
     <div style={{ paddingBottom: '80px', background: '#F8FAFC', minHeight: '100vh' }}>
       <Header />
 
-      {/* 1. GroupSelector */}
+      {/* Categories */}
       <GroupSelector
         categories={categories}
         selectedGroupSlug={selectedGroupSlug}
@@ -56,7 +66,7 @@ export default function HomePage() {
         loading={categoriesLoading}
       />
 
-      {/* 2. SubcategoryChips */}
+      {/* Subcategory Chips */}
       {selectedGroup && selectedGroup.subcategories && selectedGroup.subcategories.length > 0 && (
         <SubcategoryChips
           subcategories={selectedGroup.subcategories}
@@ -65,42 +75,68 @@ export default function HomePage() {
         />
       )}
 
-      {/* 3. Геолокация CTA или RadiusControl */}
+      {/* Location CTA or Radius Control */}
       <div style={{ padding: '16px' }}>
         {needsLocation && selectedGroupSlug && (
           <div style={{ 
-            background: '#ffffff', 
-            borderRadius: 16, 
-            padding: 24, 
+            background: 'linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%)', 
+            borderRadius: 20, 
+            padding: 28, 
             textAlign: 'center',
             border: '1px solid #E5E7EB',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
           }}>
-            <MapPin size={48} color="#3B73FC" style={{ margin: '0 auto 16px' }} />
-            <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px', color: '#111827' }}>
+            <div style={{
+              width: 72,
+              height: 72,
+              borderRadius: '50%',
+              background: 'linear-gradient(135deg, #EBF3FF 0%, #DBEAFE 100%)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              margin: '0 auto 20px',
+            }}>
+              <MapPin size={36} color="#3B73FC" />
+            </div>
+            <h3 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 8px', color: '#111827' }}>
               Определите местоположение
             </h3>
-            <p style={{ fontSize: 16, color: '#6B7280', margin: '0 0 20px' }}>
+            <p style={{ fontSize: 15, color: '#6B7280', margin: '0 0 24px', lineHeight: 1.5 }}>
               Чтобы показать объявления рядом с вами
             </p>
             <button
-              onClick={requestLocation}
-              disabled={geoStatus === 'loading'}
+              onClick={handleRequestLocation}
+              disabled={isGeoLoading}
               style={{
                 width: '100%',
                 padding: '16px',
-                background: '#3B73FC',
+                background: isGeoLoading ? '#9CA3AF' : '#3B73FC',
                 color: '#ffffff',
                 border: 'none',
-                borderRadius: 12,
-                fontSize: 18,
+                borderRadius: 14,
+                fontSize: 17,
                 fontWeight: 600,
-                cursor: geoStatus === 'loading' ? 'not-allowed' : 'pointer',
-                opacity: geoStatus === 'loading' ? 0.7 : 1,
-                minHeight: 52,
+                cursor: isGeoLoading ? 'not-allowed' : 'pointer',
+                minHeight: 54,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 10,
+                transition: 'background 0.2s',
               }}
               data-testid="button-request-location"
             >
-              {geoStatus === 'loading' ? 'Получаем геолокацию...' : 'Определить местоположение'}
+              {isGeoLoading ? (
+                <>
+                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                  Получаем геолокацию...
+                </>
+              ) : (
+                <>
+                  <MapPin size={20} />
+                  Определить местоположение
+                </>
+              )}
             </button>
           </div>
         )}
@@ -114,7 +150,7 @@ export default function HomePage() {
         )}
       </div>
 
-      {/* 4. Список объявлений или пустые состояния */}
+      {/* Ads List */}
       {showAds && (
         <div style={{ padding: '0 16px 20px' }}>
           {adsLoading && (
@@ -127,32 +163,33 @@ export default function HomePage() {
           {!adsLoading && isEmpty && (
             <div style={{
               background: '#ffffff',
-              borderRadius: 16,
+              borderRadius: 20,
               padding: 32,
               textAlign: 'center',
               border: '1px solid #E5E7EB',
+              boxShadow: '0 2px 12px rgba(0, 0, 0, 0.04)',
             }}>
               <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px', color: '#111827' }}>
                 Объявлений не найдено
               </h3>
-              <p style={{ fontSize: 16, color: '#6B7280', margin: '0 0 20px' }}>
+              <p style={{ fontSize: 15, color: '#6B7280', margin: '0 0 24px', lineHeight: 1.5 }}>
                 В радиусе {radiusKm} км нет объявлений в категории "{selectedGroup?.name}"
               </p>
               <button
                 onClick={handleIncreaseRadius}
                 style={{
-                  padding: '14px 24px',
+                  padding: '14px 28px',
                   background: '#3B73FC',
                   color: '#ffffff',
                   border: 'none',
-                  borderRadius: 12,
+                  borderRadius: 14,
                   fontSize: 16,
                   fontWeight: 600,
                   cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
                   gap: 8,
-                  minHeight: 48,
+                  minHeight: 50,
                 }}
                 data-testid="button-increase-radius"
               >
@@ -166,7 +203,7 @@ export default function HomePage() {
             <div style={{
               background: '#FEF3C7',
               border: '1px solid #FCD34D',
-              borderRadius: 12,
+              borderRadius: 14,
               padding: 16,
               marginBottom: 16,
             }}>
@@ -178,8 +215,8 @@ export default function HomePage() {
 
           {!adsLoading && ads.length > 0 && (
             <div>
-              <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
-                Найдено объявлений: {ads.length}
+              <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
+                Найдено: {ads.length} {ads.length === 1 ? 'объявление' : ads.length < 5 ? 'объявления' : 'объявлений'}
               </h3>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 {ads.map((ad) => (
@@ -191,11 +228,11 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* Пустое состояние - если группа не выбрана */}
+      {/* Empty state - no group selected */}
       {!selectedGroupSlug && !categoriesLoading && (
         <div style={{ padding: '40px 16px', textAlign: 'center' }}>
-          <p style={{ fontSize: 18, color: '#9CA3AF' }}>
-            ☝️ Выберите категорию выше, чтобы начать поиск
+          <p style={{ fontSize: 17, color: '#9CA3AF', lineHeight: 1.5 }}>
+            Выберите категорию выше, чтобы начать поиск
           </p>
         </div>
       )}
