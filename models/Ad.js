@@ -210,6 +210,11 @@ const adSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    needsCategoryReview: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     distance: {
       type: Number,
       default: null,

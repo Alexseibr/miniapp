@@ -57,10 +57,27 @@ const categorySchema = new mongoose.Schema(
       type: Number,
       default: 1.0,
     },
+    isOther: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    type: {
+      type: String,
+      enum: ['product', 'service', 'real-estate', 'vehicle', 'agro', null],
+      default: null,
+    },
   },
   {
     timestamps: true,
   }
 );
+
+categorySchema.index({ parentSlug: 1, isOther: 1 });
 
 export default mongoose.model('Category', categorySchema);
