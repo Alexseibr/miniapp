@@ -33,7 +33,7 @@ export default function App() {
   const [isInitialized, setIsInitialized] = useState(false);
 
   useEffect(() => {
-    const initApp = async () => {
+    const initApp = () => {
       try {
         console.log('🚀 Initializing KETMAR Market MiniApp...');
         
@@ -41,9 +41,6 @@ export default function App() {
         const tg = getTelegramWebApp();
         if (tg) {
           console.log('✅ Telegram WebApp SDK found');
-          console.log('📱 Platform:', (tg as any).platform);
-          console.log('🎨 Theme:', (tg as any).colorScheme);
-          
           tg.ready();
           tg.expand();
           
@@ -57,19 +54,17 @@ export default function App() {
             console.log('📱 Deep link detected:', startParam);
             handleDeepLink(startParam);
           }
-        } else {
-          console.warn('⚠️ Telegram WebApp SDK not available - running in browser mode');
         }
 
-        // Инициализация пользователя
-        await initialize();
-        console.log('✅ User store initialized');
+        // Инициализация пользователя в фоне
+        initialize().catch(console.error);
         
+        // Показываем UI сразу
         setIsInitialized(true);
         console.log('✅ App initialization complete');
       } catch (error) {
         console.error('❌ App initialization error:', error);
-        setIsInitialized(true); // Показываем приложение даже при ошибке
+        setIsInitialized(true);
       }
     };
 

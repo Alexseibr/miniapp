@@ -12,11 +12,15 @@ export default function HomePage() {
     loadCategories();
   }, [loadCategories]);
 
+  const showContent = categories.length > 0;
+
   return (
     <div style={{ paddingBottom: '80px' }}>
       <Header />
       <div style={{ paddingTop: '16px' }}>
-        {loading ? (
+        {showContent && <CategoryGrid categories={categories} />}
+        
+        {loading && !showContent && (
           <div style={{ textAlign: 'center', padding: '40px 20px' }}>
             <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
               <Loader2 size={48} color="#4F46E5" style={{ animation: 'spin 1s linear infinite' }} data-testid="icon-loading" />
@@ -24,9 +28,9 @@ export default function HomePage() {
             <h3 style={{ margin: '0 0 8px' }}>Загружаем категории</h3>
             <p style={{ color: '#6b7280', margin: 0 }}>Подождите несколько секунд</p>
           </div>
-        ) : categories.length > 0 ? (
-          <CategoryGrid categories={categories} />
-        ) : (
+        )}
+        
+        {!loading && !showContent && (
           <EmptyState title="Категории не найдены" description="Попробуйте обновить страницу" />
         )}
       </div>
@@ -56,19 +60,21 @@ export default function HomePage() {
             KETMAR Market
           </span>
         </div>
-        <div
-          style={{
-            backgroundColor: '#4F46E5',
-            color: '#FFFFFF',
-            padding: '10px 20px',
-            borderRadius: '12px',
-            fontSize: '0.875rem',
-            fontWeight: 600,
-          }}
-          data-testid="badge-category-count"
-        >
-          {categories.length} категорий
-        </div>
+        {showContent && (
+          <div
+            style={{
+              backgroundColor: '#4F46E5',
+              color: '#FFFFFF',
+              padding: '10px 20px',
+              borderRadius: '12px',
+              fontSize: '0.875rem',
+              fontWeight: 600,
+            }}
+            data-testid="badge-category-count"
+          >
+            {categories.length} категорий
+          </div>
+        )}
       </div>
     </div>
   );
