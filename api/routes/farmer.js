@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import Category from '../../models/Category.js';
 import Ad from '../../models/Ad.js';
+import SearchLog from '../../models/SearchLog.js';
+import ngeohash from 'ngeohash';
 import FarmerCategoryService from '../../services/FarmerCategoryService.js';
 
 const router = Router();
@@ -811,6 +813,383 @@ router.get('/my-analytics', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Ошибка получения аналитики' 
+    });
+  }
+});
+
+router.get('/local-demand', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 5 } = req.query;
+
+    if (!lat || !lng) {
+      return res.status(400).json({
+        success: false,
+        error: 'Координаты (lat, lng) обязательны',
+      });
+    }
+
+    const geoHash = ngeohash.encode(parseFloat(lat), parseFloat(lng), 5);
+    const now = new Date();
+    const last48h = new Date(now.getTime() - 48 * 60 * 60 * 1000);
+
+    const farmerCategories = await Category.find({ isFarmerCategory: true });
+    const farmerCategorySlugs = farmerCategories.map(c => c.slug);
+
+    const farmerKeywords = [
+      'малина', 'клубника', 'яблоки', 'груши', 'вишня', 'черешня', 'смородина', 
+      'крыжовник', 'голубика', 'ежевика', 'арбуз', 'дыня', 'виноград',
+      'картошка', 'картофель', 'морковь', 'свекла', 'капуста', 'помидоры', 
+      'томаты', 'огурцы', 'лук', 'чеснок', 'перец', 'баклажан', 'кабачок',
+      'укроп', 'петрушка', 'салат', 'щавель', 'шпинат', 'базилик', 'зелень',
+      'молоко', 'сметана', 'творог', 'сыр', 'масло', 'кефир', 'йогурт',
+      'яйца', 'курица', 'мясо', 'свинина', 'говядина', 'сало',
+      'мёд', 'соты', 'прополис', 'перга',
+      'выпечка', 'хлеб', 'пирожки', 'булочки', 'эклеры', 'торт',
+      'варенье', 'джем', 'компот', 'соленья', 'огурцы соленые', 'грибы',
+      'рассада', 'саженцы', 'семена',
+    ];
+
+    const searchLogs = await SearchLog.aggregate([
+      {
+        $match: {
+          createdAt: { $gte: last48h },
+          geoHash: { $regex: `^${geoHash.substring(0, 4)}` },
+        },
+      },
+      {
+        $group: {
+          _id: '$normalizedQuery',
+          count: { $sum: 1 },
+          lastSearch: { $max: '$createdAt' },
+        },
+      },
+      { $sort: { count: -1 } },
+      { $limit: 50 },
+    ]);
+
+    const demandItems = [];
+    for (const log of searchLogs) {
+      const query = log._id.toLowerCase();
+      const isFarmerRelated = farmerKeywords.some(kw => 
+        query.includes(kw) || kw.includes(query)
+      );
+
+      if (isFarmerRelated && log.count >= 2) {
+        const suggestion = FarmerCategoryService.suggestFarmerCategory(query);
+        demandItems.push({
+          query: log._id,
+          count: log.count,
+          lastSearch: log.lastSearch,
+          category: suggestion?.slug || null,
+          categoryName: suggestion ? 
+            farmerCategories.find(c => c.slug === suggestion.slug)?.name : null,
+        });
+      }
+    }
+
+    demandItems.sort((a, b) => b.count - a.count);
+
+    const topDemand = demandItems.slice(0, 10);
+    const summary = topDemand.length > 0
+      ? `В вашем районе ищут: ${topDemand.slice(0, 5).map(d => d.query).join(', ')}`
+      : 'Пока нет активных запросов рядом';
+
+    res.json({
+      success: true,
+      data: {
+        items: topDemand,
+        summary,
+        radiusKm: parseFloat(radiusKm),
+        geoHash,
+        totalSearches: searchLogs.reduce((sum, s) => sum + s.count, 0),
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in local demand:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка получения спроса' 
+    });
+  }
+});
+
+router.get('/dashboard-ads', async (req, res) => {
+  try {
+    const { sellerTelegramId, status, limit = 20, offset = 0 } = req.query;
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'sellerTelegramId обязателен',
+      });
+    }
+
+    const matchStage = {
+      sellerTelegramId: parseInt(sellerTelegramId),
+      isFarmerAd: true,
+    };
+
+    if (status && status !== 'all') {
+      matchStage.status = status;
+    }
+
+    const now = new Date();
+    const ads = await Ad.find(matchStage)
+      .sort({ createdAt: -1 })
+      .skip(parseInt(offset))
+      .limit(parseInt(limit))
+      .lean();
+
+    const adsWithStatus = ads.map(ad => {
+      let displayStatus = ad.status;
+      let statusLabel = 'Активно';
+      let statusColor = '#10B981';
+
+      if (ad.status === 'expired') {
+        statusLabel = 'Истекло';
+        statusColor = '#6B7280';
+      } else if (ad.status === 'archived') {
+        statusLabel = 'В архиве';
+        statusColor = '#6B7280';
+      } else if (ad.isSoldOut) {
+        displayStatus = 'sold_out';
+        statusLabel = 'Закончилось';
+        statusColor = '#EF4444';
+      } else if (ad.expiresAt) {
+        const hoursLeft = (new Date(ad.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (hoursLeft <= 0) {
+          displayStatus = 'expired';
+          statusLabel = 'Истекло';
+          statusColor = '#6B7280';
+        } else if (hoursLeft <= 24) {
+          displayStatus = 'expiring_soon';
+          statusLabel = 'Скоро исчезнет';
+          statusColor = '#F59E0B';
+        }
+      }
+
+      return {
+        ...ad,
+        displayStatus,
+        statusLabel,
+        statusColor,
+        metrics: {
+          views: ad.analytics?.views || 0,
+          contactClicks: ad.analytics?.contactClicks || 0,
+          favorites: ad.analytics?.favorites || 0,
+        },
+      };
+    });
+
+    const total = await Ad.countDocuments(matchStage);
+
+    const stats = await Ad.aggregate([
+      { $match: { sellerTelegramId: parseInt(sellerTelegramId), isFarmerAd: true } },
+      {
+        $group: {
+          _id: '$status',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+
+    const statusCounts = {
+      active: 0,
+      expired: 0,
+      archived: 0,
+      scheduled: 0,
+    };
+    stats.forEach(s => {
+      statusCounts[s._id] = s.count;
+    });
+
+    res.json({
+      success: true,
+      data: {
+        ads: adsWithStatus,
+        total,
+        hasMore: parseInt(offset) + ads.length < total,
+        statusCounts,
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in dashboard ads:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка получения объявлений' 
+    });
+  }
+});
+
+router.get('/notifications', async (req, res) => {
+  try {
+    const { sellerTelegramId, limit = 20 } = req.query;
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({
+        success: false,
+        error: 'sellerTelegramId обязателен',
+      });
+    }
+
+    const sellerAds = await Ad.find({
+      sellerTelegramId: parseInt(sellerTelegramId),
+      isFarmerAd: true,
+      status: 'active',
+    }).lean();
+
+    const notifications = [];
+    const now = new Date();
+
+    for (const ad of sellerAds) {
+      if (ad.expiresAt) {
+        const hoursLeft = (new Date(ad.expiresAt).getTime() - now.getTime()) / (1000 * 60 * 60);
+        if (hoursLeft > 0 && hoursLeft <= 24) {
+          notifications.push({
+            type: 'expiring_soon',
+            icon: '⏰',
+            title: 'Скоро исчезнет',
+            message: `"${ad.title}" истекает через ${Math.round(hoursLeft)} ч.`,
+            adId: ad._id,
+            createdAt: now,
+            priority: 2,
+          });
+        }
+      }
+
+      const views = ad.analytics?.views || 0;
+      const daysSinceCreated = (now.getTime() - new Date(ad.createdAt).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceCreated >= 1 && views === 0) {
+        notifications.push({
+          type: 'no_views',
+          icon: '👁️',
+          title: 'Нет просмотров',
+          message: `"${ad.title}" никто не смотрел за 24 часа`,
+          adId: ad._id,
+          createdAt: now,
+          priority: 1,
+        });
+      }
+    }
+
+    notifications.sort((a, b) => b.priority - a.priority);
+
+    res.json({
+      success: true,
+      data: {
+        notifications: notifications.slice(0, parseInt(limit)),
+        total: notifications.length,
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in notifications:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка получения уведомлений' 
+    });
+  }
+});
+
+router.get('/price-recommendation', async (req, res) => {
+  try {
+    const { subcategoryId, price, lat, lng, radiusKm = 10 } = req.query;
+
+    if (!subcategoryId || !price) {
+      return res.status(400).json({
+        success: false,
+        error: 'subcategoryId и price обязательны',
+      });
+    }
+
+    const matchStage = {
+      subcategoryId,
+      isFarmerAd: true,
+      status: 'active',
+    };
+
+    let marketStats;
+    if (lat && lng) {
+      marketStats = await Ad.aggregate([
+        {
+          $geoNear: {
+            near: {
+              type: 'Point',
+              coordinates: [parseFloat(lng), parseFloat(lat)],
+            },
+            distanceField: 'distance',
+            maxDistance: parseFloat(radiusKm) * 1000,
+            spherical: true,
+            key: 'location.geo',
+            query: matchStage,
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            avgPrice: { $avg: '$price' },
+            minPrice: { $min: '$price' },
+            maxPrice: { $max: '$price' },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+    } else {
+      marketStats = await Ad.aggregate([
+        { $match: matchStage },
+        {
+          $group: {
+            _id: null,
+            avgPrice: { $avg: '$price' },
+            minPrice: { $min: '$price' },
+            maxPrice: { $max: '$price' },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+    }
+
+    const stats = marketStats[0] || { avgPrice: 0, minPrice: 0, maxPrice: 0, count: 0 };
+    const userPrice = parseFloat(price);
+    const diff = stats.avgPrice > 0 ? ((userPrice - stats.avgPrice) / stats.avgPrice) * 100 : 0;
+
+    let recommendation = '';
+    let status = 'market';
+
+    if (diff < -15) {
+      recommendation = 'Отличная цена! Ниже рынка — быстрые продажи гарантированы';
+      status = 'below';
+    } else if (diff < -5) {
+      recommendation = 'Хорошая цена, немного ниже среднего';
+      status = 'below';
+    } else if (diff <= 5) {
+      recommendation = 'Цена в рынке — конкурентоспособная';
+      status = 'market';
+    } else if (diff <= 15) {
+      recommendation = 'Цена немного выше среднего. Рекомендуем снизить на 5-10%';
+      status = 'above';
+    } else {
+      recommendation = `Цена значительно выше рынка (+${Math.round(diff)}%). Рекомендуем снизить`;
+      status = 'above';
+    }
+
+    res.json({
+      success: true,
+      data: {
+        userPrice,
+        marketAvgPrice: Math.round(stats.avgPrice * 100) / 100,
+        marketMinPrice: stats.minPrice,
+        marketMaxPrice: stats.maxPrice,
+        competitorsCount: stats.count,
+        diffPercent: Math.round(diff * 10) / 10,
+        status,
+        recommendation,
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error in price recommendation:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка получения рекомендации' 
     });
   }
 });
