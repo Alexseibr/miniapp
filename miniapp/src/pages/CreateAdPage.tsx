@@ -5,10 +5,61 @@ import { fetchCategories } from '@/api/categories';
 import { createAd, CreateAdPayload } from '@/api/ads';
 import { resolveGeoLocation, getPresetLocations, PresetLocation } from '@/api/geo';
 import { CategoryNode } from '@/types';
-import { ArrowLeft, MapPin, Loader2, Camera, X, Check } from 'lucide-react';
+import { ArrowLeft, MapPin, Loader2, Camera, X, Check, RefreshCw, Edit3 } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import PriceHint from '@/components/PriceHint';
 import { SchedulePublishBlock } from '@/components/schedule/SchedulePublishBlock';
+import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+const BRAND_BLUE = '#2B5CFF';
+const BRAND_BLUE_LIGHT = 'rgba(43, 92, 255, 0.12)';
+const BRAND_BLUE_BORDER = 'rgba(43, 92, 255, 0.4)';
+
+type UploadStatus = 'idle' | 'uploading' | 'done' | 'error';
+
+interface AdPhoto {
+  id: string;
+  localPreviewUrl: string;
+  file: File | null;
+  uploadStatus: UploadStatus;
+  remoteUrl?: string;
+  isMain?: boolean;
+}
+
+const MAX_PHOTOS = 4;
+
+const createBrandPinIcon = () => {
+  const svgIcon = `
+    <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
+        </filter>
+      </defs>
+      <path d="M18 2C10.268 2 4 8.268 4 16c0 10 14 24 14 24s14-14 14-24c0-7.732-6.268-14-14-14z" 
+            fill="${BRAND_BLUE}" filter="url(#shadow)"/>
+      <circle cx="18" cy="16" r="6" fill="white"/>
+    </svg>
+  `;
+  
+  return L.divIcon({
+    html: svgIcon,
+    className: 'brand-pin-icon',
+    iconSize: [36, 44],
+    iconAnchor: [18, 44],
+    popupAnchor: [0, -44],
+  });
+};
+
+function MapCenterUpdater({ center }: { center: [number, number] }) {
+  const map = useMap();
+  useEffect(() => {
+    map.setView(center, 14);
+  }, [center, map]);
+  return null;
+}
 
 interface LocationData {
   lat: number;
@@ -33,7 +84,7 @@ interface ContactsData {
 
 interface DraftAd {
   location: LocationData | null;
-  photos: string[];
+  photos: AdPhoto[];
   info: InfoData;
   contacts: ContactsData;
   publishAt: Date | null;
@@ -41,8 +92,10 @@ interface DraftAd {
 
 type WizardAction =
   | { type: 'SET_LOCATION'; payload: LocationData }
-  | { type: 'ADD_PHOTO'; payload: string }
-  | { type: 'REMOVE_PHOTO'; payload: number }
+  | { type: 'ADD_PHOTO'; payload: AdPhoto }
+  | { type: 'REMOVE_PHOTO'; payload: string }
+  | { type: 'SET_PHOTOS'; payload: AdPhoto[] }
+  | { type: 'UPDATE_PHOTO'; payload: { id: string; updates: Partial<AdPhoto> } }
   | { type: 'SET_INFO'; payload: Partial<InfoData> }
   | { type: 'SET_CONTACTS'; payload: Partial<ContactsData> }
   | { type: 'SET_PUBLISH_AT'; payload: Date | null };
@@ -62,7 +115,11 @@ function draftReducer(state: DraftAd, action: WizardAction): DraftAd {
     case 'ADD_PHOTO':
       return { ...state, photos: [...state.photos, action.payload] };
     case 'REMOVE_PHOTO':
-      return { ...state, photos: state.photos.filter((_, i) => i !== action.payload) };
+      return { ...state, photos: state.photos.filter((p) => p.id !== action.payload) };
+    case 'SET_PHOTOS':
+      return { ...state, photos: action.payload };
+    case 'UPDATE_PHOTO':
+      return { ...state, photos: state.photos.map(p => p.id === action.payload.id ? { ...p, ...action.payload.updates } : p) };
     case 'SET_INFO':
       return { ...state, info: { ...state.info, ...action.payload } };
     case 'SET_CONTACTS':
@@ -104,11 +161,12 @@ export default function CreateAdPage() {
       const hasContact = draft.contacts.contactPhone || draft.contacts.contactUsername || draft.contacts.contactInstagram;
       return !!hasContact;
     }
+    if (currentStep === 5) return true;
     return false;
   };
 
   const handleNext = () => {
-    if (currentStep < 4) {
+    if (currentStep < 5) {
       setCurrentStep(currentStep + 1);
     } else {
       handleSubmit();
@@ -146,6 +204,10 @@ export default function CreateAdPage() {
       return;
     }
 
+    const uploadedPhotoUrls = draft.photos
+      .filter(p => p.uploadStatus === 'done' && p.remoteUrl)
+      .map(p => p.remoteUrl as string);
+
     const payload: CreateAdPayload = {
       title: draft.info.title.trim(),
       description: draft.info.description.trim() || undefined,
@@ -153,7 +215,7 @@ export default function CreateAdPage() {
       subcategoryId: finalSubcategoryId,
       price: parseFloat(draft.info.price),
       currency: 'BYN',
-      photos: draft.photos.length > 0 ? draft.photos : undefined,
+      photos: uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : undefined,
       sellerTelegramId: user.telegramId,
       geoLabel: draft.location.geoLabel,
       location: {
@@ -192,9 +254,9 @@ export default function CreateAdPage() {
           </button>
           <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Подача объявления</h1>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[1, 2, 3, 4].map((step) => (
-            <div key={step} style={{ flex: 1, height: 4, borderRadius: 2, background: step <= currentStep ? '#3B73FC' : '#E5E7EB' }} />
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[1, 2, 3, 4, 5].map((step) => (
+            <div key={step} style={{ flex: 1, height: 4, borderRadius: 2, background: step <= currentStep ? BRAND_BLUE : '#E5E7EB' }} />
           ))}
         </div>
       </div>
@@ -206,7 +268,15 @@ export default function CreateAdPage() {
           onComplete={() => setCurrentStep(2)}
         />
       )}
-      {currentStep === 2 && <Step2Photos key={photoStepResetKey} photos={draft.photos} onAddPhoto={(url) => dispatch({ type: 'ADD_PHOTO', payload: url })} onRemovePhoto={(idx) => dispatch({ type: 'REMOVE_PHOTO', payload: idx })} onNext={() => setCurrentStep(3)} />}
+      {currentStep === 2 && (
+        <Step2Photos
+          key={photoStepResetKey}
+          photos={draft.photos}
+          onAddPhoto={(photo) => dispatch({ type: 'ADD_PHOTO', payload: photo })}
+          onRemovePhoto={(id) => dispatch({ type: 'REMOVE_PHOTO', payload: id })}
+          onUpdatePhoto={(id, updates) => dispatch({ type: 'UPDATE_PHOTO', payload: { id, updates } })}
+        />
+      )}
       {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} city={draft.location?.geoLabel?.split(' ')[0]} noPhotos={draft.photos.length === 0} onGoToPhotos={() => { setPhotoStepResetKey(k => k + 1); setCurrentStep(2); }} />}
       {currentStep === 4 && (
         <Step4Contacts
@@ -215,6 +285,13 @@ export default function CreateAdPage() {
           onSetContacts={(contacts) => dispatch({ type: 'SET_CONTACTS', payload: contacts })}
           publishAt={draft.publishAt}
           onSetPublishAt={(date) => dispatch({ type: 'SET_PUBLISH_AT', payload: date })}
+        />
+      )}
+      {currentStep === 5 && (
+        <Step5Confirm
+          draft={draft}
+          categories={categories}
+          onEdit={(step) => setCurrentStep(step)}
         />
       )}
 
@@ -250,8 +327,10 @@ export default function CreateAdPage() {
               <Loader2 className="w-5 h-5 animate-spin" />
               Создаём...
             </>
-          ) : currentStep === 4 ? (
+          ) : currentStep === 5 ? (
             'Опубликовать'
+          ) : currentStep === 4 ? (
+            'Проверить и отправить'
           ) : (
             'Далее'
           )}
@@ -274,28 +353,10 @@ function Step1Location({
   const [error, setError] = useState('');
   const [presets, setPresets] = useState<PresetLocation[]>([]);
   const [showPresets, setShowPresets] = useState(false);
-  const [shouldAutoAdvance, setShouldAutoAdvance] = useState(false);
-  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getPresetLocations().then((res) => setPresets(res.items)).catch(console.error);
   }, []);
-
-  useEffect(() => {
-    if (location && shouldAutoAdvance) {
-      autoAdvanceTimerRef.current = setTimeout(() => {
-        onComplete();
-        setShouldAutoAdvance(false);
-      }, 1000);
-    }
-
-    return () => {
-      if (autoAdvanceTimerRef.current) {
-        clearTimeout(autoAdvanceTimerRef.current);
-        autoAdvanceTimerRef.current = null;
-      }
-    };
-  }, [location, shouldAutoAdvance, onComplete]);
 
   const handleAutoDetect = async () => {
     setError('');
@@ -308,7 +369,6 @@ function Step1Location({
       const { latitude, longitude } = pos.coords;
       const result = await resolveGeoLocation(latitude, longitude);
       onSetLocation({ lat: result.lat, lng: result.lng, geoLabel: result.label });
-      setShouldAutoAdvance(true);
     } catch (err: any) {
       console.error('Geo error:', err);
       setError('Не удалось определить местоположение');
@@ -320,27 +380,22 @@ function Step1Location({
 
   const handleSelectPreset = (preset: PresetLocation) => {
     onSetLocation({ lat: preset.lat, lng: preset.lng, geoLabel: preset.label });
-    setShouldAutoAdvance(true);
     setShowPresets(false);
   };
 
   const handleChooseOther = () => {
-    if (autoAdvanceTimerRef.current) {
-      clearTimeout(autoAdvanceTimerRef.current);
-      autoAdvanceTimerRef.current = null;
-    }
-    setShouldAutoAdvance(false);
-    onSetLocation(null as any);
     setShowPresets(true);
   };
 
+  const brandPinIcon = createBrandPinIcon();
+
   return (
-    <div style={{ padding: 24 }}>
-      <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 12px', color: '#111827', textAlign: 'center' }}>
+    <div style={{ padding: 16 }}>
+      <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 8px', color: '#111827', textAlign: 'center' }}>
         Где вы продаёте?
       </h2>
-      <p style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', margin: '0 0 32px' }}>
-        Мы определим район или деревню, где вы сейчас находитесь
+      <p style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', margin: '0 0 20px' }}>
+        Мы определим район, где вы находитесь
       </p>
 
       {!location && !showPresets && (
@@ -349,41 +404,94 @@ function Step1Location({
           disabled={loading}
           style={{
             width: '100%',
-            padding: '20px',
-            background: loading ? '#9CA3AF' : '#10b981',
+            padding: '18px',
+            background: loading ? '#9CA3AF' : BRAND_BLUE,
             color: '#fff',
             border: 'none',
             borderRadius: 12,
-            fontSize: 18,
+            fontSize: 17,
             fontWeight: 600,
             cursor: loading ? 'not-allowed' : 'pointer',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 12,
+            minHeight: 56,
           }}
           data-testid="button-auto-detect"
         >
-          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <MapPin size={24} />}
-          {loading ? 'Определяем...' : '📍 Определить автоматически'}
+          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <MapPin size={22} />}
+          {loading ? 'Определяем...' : 'Определить автоматически'}
         </button>
       )}
 
       {location && (
-        <div style={{ background: '#ECFDF5', border: '2px solid #10b981', borderRadius: 12, padding: 20, textAlign: 'center' }}>
-          <Check size={48} color="#10b981" style={{ margin: '0 auto 12px' }} />
-          <div style={{ fontSize: 16, color: '#065F46', marginBottom: 8 }}>Ваше местоположение:</div>
-          <div style={{ fontSize: 22, fontWeight: 600, color: '#047857' }}>{location.geoLabel}</div>
-          {shouldAutoAdvance && (
-            <p style={{ fontSize: 14, color: '#065F46', marginTop: 12, marginBottom: 0 }}>
-              Переход к следующему шагу...
-            </p>
-          )}
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ 
+            background: '#EBF3FF', 
+            border: `2px solid ${BRAND_BLUE}`, 
+            borderRadius: 12, 
+            padding: 16, 
+            textAlign: 'center',
+            marginBottom: 16,
+          }}>
+            <div style={{ fontSize: 14, color: '#4B5563', marginBottom: 4 }}>Ваше местоположение:</div>
+            <div style={{ fontSize: 20, fontWeight: 600, color: BRAND_BLUE }}>{location.geoLabel}</div>
+          </div>
+
+          <div style={{ 
+            borderRadius: 12, 
+            overflow: 'hidden', 
+            height: 200,
+            border: '1px solid #E5E7EB',
+          }}>
+            <MapContainer
+              center={[location.lat, location.lng]}
+              zoom={14}
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={false}
+              attributionControl={false}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              />
+              <MapCenterUpdater center={[location.lat, location.lng]} />
+              <Circle
+                center={[location.lat, location.lng]}
+                radius={400}
+                pathOptions={{
+                  fillColor: BRAND_BLUE_LIGHT,
+                  fillOpacity: 0.4,
+                  color: BRAND_BLUE_BORDER,
+                  weight: 2,
+                }}
+              />
+              <Marker position={[location.lat, location.lng]} icon={brandPinIcon} />
+            </MapContainer>
+          </div>
+
           <button
             onClick={handleChooseOther}
-            style={{ marginTop: 16, background: 'none', border: '1px solid #10b981', color: '#10b981', padding: '10px 20px', borderRadius: 8, fontSize: 15, cursor: 'pointer' }}
+            style={{
+              marginTop: 12,
+              width: '100%',
+              background: 'transparent',
+              border: `1px solid ${BRAND_BLUE}`,
+              color: BRAND_BLUE,
+              padding: '12px 16px',
+              borderRadius: 8,
+              fontSize: 15,
+              fontWeight: 500,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+            data-testid="button-choose-other"
           >
-            Выбрать другое
+            <RefreshCw size={18} />
+            Выбрать другое место
           </button>
         </div>
       )}
@@ -394,55 +502,94 @@ function Step1Location({
         </div>
       )}
 
-      {showPresets && !location && presets.length > 0 && (
-        <div style={{ marginTop: 24 }}>
-          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#111827' }}>Выберите город:</div>
+      {showPresets && presets.length > 0 && (
+        <div style={{ marginTop: location ? 0 : 24 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#111827' }}>
+            {location ? 'Или выберите город:' : 'Выберите город:'}
+          </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {presets.map((preset) => (
               <button
                 key={preset.city}
                 onClick={() => handleSelectPreset(preset)}
                 style={{
-                  padding: '16px',
-                  background: '#fff',
-                  border: '1px solid #E5E7EB',
-                  borderRadius: 8,
+                  padding: '14px 16px',
+                  background: location?.geoLabel === preset.label ? '#EBF3FF' : '#fff',
+                  border: location?.geoLabel === preset.label ? `2px solid ${BRAND_BLUE}` : '1px solid #E5E7EB',
+                  borderRadius: 10,
                   fontSize: 16,
                   textAlign: 'left',
                   cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
                 }}
                 data-testid={`button-preset-${preset.city.toLowerCase()}`}
               >
-                <MapPin size={18} style={{ display: 'inline', marginRight: 8, verticalAlign: 'middle' }} />
-                {preset.label}
+                <MapPin size={20} color={location?.geoLabel === preset.label ? BRAND_BLUE : '#6B7280'} />
+                <span style={{ color: location?.geoLabel === preset.label ? BRAND_BLUE : '#111827', fontWeight: location?.geoLabel === preset.label ? 600 : 400 }}>
+                  {preset.label}
+                </span>
               </button>
             ))}
           </div>
+          {!location && (
+            <button
+              onClick={handleAutoDetect}
+              disabled={loading}
+              style={{
+                marginTop: 16,
+                width: '100%',
+                background: 'transparent',
+                border: `1px solid ${BRAND_BLUE}`,
+                color: BRAND_BLUE,
+                padding: '12px 16px',
+                borderRadius: 8,
+                fontSize: 15,
+                fontWeight: 500,
+                cursor: loading ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+              }}
+            >
+              {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <MapPin size={18} />}
+              {loading ? 'Определяем...' : 'Или определить автоматически'}
+            </button>
+          )}
         </div>
       )}
+
+      <style>{`
+        .brand-pin-icon {
+          background: transparent !important;
+          border: none !important;
+        }
+      `}</style>
     </div>
   );
 }
 
-function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: string[]; onAddPhoto: (url: string) => void; onRemovePhoto: (idx: number) => void; onNext: () => void }) {
-  const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
-  const [error, setError] = useState('');
+function Step2Photos({ 
+  photos, 
+  onAddPhoto, 
+  onRemovePhoto, 
+  onUpdatePhoto,
+}: { 
+  photos: AdPhoto[]; 
+  onAddPhoto: (photo: AdPhoto) => void; 
+  onRemovePhoto: (id: string) => void; 
+  onUpdatePhoto: (id: string, updates: Partial<AdPhoto>) => void;
+}) {
   const [showActionSheet, setShowActionSheet] = useState(false);
-  const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
-  const [pendingRetry, setPendingRetry] = useState<{ slot: number; file: File } | null>(null);
-
-  const handleSkipAndNext = () => {
-    setError('');
-    setPendingRetry(null);
-    onNext();
-  };
+  const [error, setError] = useState('');
   
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
 
-  const handleSlotClick = (idx: number) => {
-    if (photos.length >= 4 || uploadingSlot !== null) return;
-    setSelectedSlot(idx);
+  const handleOpenActionSheet = () => {
+    if (photos.length >= MAX_PHOTOS) return;
     setShowActionSheet(true);
   };
 
@@ -455,161 +602,261 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: st
     }
   };
 
-  const uploadFile = async (file: File, slotIndex: number): Promise<boolean> => {
-    setError('');
-    setUploadingSlot(slotIndex);
-    setPendingRetry(null);
-
-    try {
-      const maxBytes = 10 * 1024 * 1024;
-      if (file.size > maxBytes) {
-        setError('Файл слишком большой. Максимум 10MB');
-        setUploadingSlot(null);
-        return false;
-      }
-
-      if (!file.type.startsWith('image/')) {
-        setError('Выберите изображение');
-        setUploadingSlot(null);
-        return false;
-      }
-
-      const extension = file.name.split('.').pop() || 'jpg';
-      
-      let uploadURL: string;
-      let publicURL: string;
-      
-      try {
-        const initData = window.Telegram?.WebApp?.initData;
-        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-        if (initData) {
-          headers['X-Telegram-Init-Data'] = initData;
-        }
-        
-        // Request upload URL from authenticated endpoint
-        
-        const response = await fetch('/api/uploads/presigned-url', {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({ fileExtension: extension }),
-        });
-
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          console.error('[Upload] Presigned URL error:', response.status, errorData);
-          throw new Error(errorData.error || 'upload_url_failed');
-        }
-
-        const data = await response.json();
-        uploadURL = data.uploadURL;
-        publicURL = data.publicURL;
-      } catch (urlErr: any) {
-        console.error('[Upload] Get upload URL error:', urlErr);
-        setError(urlErr.message === 'upload_url_failed' ? 'Не удалось получить URL для загрузки' : urlErr.message || 'Не удалось получить URL для загрузки');
-        setPendingRetry({ slot: slotIndex, file });
-        setUploadingSlot(null);
-        return false;
-      }
-
-      try {
-        const uploadResponse = await fetch(uploadURL, {
-          method: 'PUT',
-          body: file,
-          headers: { 'Content-Type': file.type },
-        });
-
-        if (!uploadResponse.ok) {
-          throw new Error('upload_failed');
-        }
-      } catch (uploadErr) {
-        console.error('File upload error:', uploadErr);
-        setError('Не удалось загрузить файл. Проверьте соединение');
-        setPendingRetry({ slot: slotIndex, file });
-        setUploadingSlot(null);
-        return false;
-      }
-
-      onAddPhoto(publicURL);
-      return true;
-    } catch (err: any) {
-      console.error('Upload error:', err);
-      setError(err.message || 'Ошибка загрузки');
-      return false;
-    } finally {
-      setUploadingSlot(null);
-    }
-  };
-
-  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
+  const uploadSinglePhoto = async (photo: AdPhoto): Promise<void> => {
+    if (!photo.file) return;
     
-    if (!file || photos.length >= 4 || selectedSlot === null) {
-      return;
-    }
+    onUpdatePhoto(photo.id, { uploadStatus: 'uploading' });
+    
+    try {
+      const extension = photo.file.name.split('.').pop() || 'jpg';
+      const initData = window.Telegram?.WebApp?.initData;
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (initData) {
+        headers['X-Telegram-Init-Data'] = initData;
+      }
+      
+      const response = await fetch('/api/uploads/presigned-url', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ fileExtension: extension }),
+      });
 
-    await uploadFile(file, selectedSlot);
-    setSelectedSlot(null);
+      if (!response.ok) {
+        throw new Error('upload_url_failed');
+      }
+
+      const { uploadURL, publicURL } = await response.json();
+      
+      const uploadResponse = await fetch(uploadURL, {
+        method: 'PUT',
+        body: photo.file,
+        headers: { 'Content-Type': photo.file.type },
+      });
+
+      if (!uploadResponse.ok) {
+        throw new Error('upload_failed');
+      }
+
+      onUpdatePhoto(photo.id, { uploadStatus: 'done', remoteUrl: publicURL });
+    } catch (err) {
+      console.error('Upload error:', err);
+      onUpdatePhoto(photo.id, { uploadStatus: 'error' });
+    }
   };
 
-  const handleRetry = async () => {
-    if (pendingRetry) {
-      await uploadFile(pendingRetry.file, pendingRetry.slot);
+  const handleRetryUpload = async (photoId: string) => {
+    const photo = photos.find(p => p.id === photoId);
+    if (photo) {
+      await uploadSinglePhoto(photo);
     }
   };
 
-  const handleDismissError = () => {
+  const handleFilesSelected = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    
     setError('');
-    setPendingRetry(null);
+    const freeSlots = MAX_PHOTOS - photos.length;
+    const filesToProcess = Array.from(files).slice(0, freeSlots);
+    
+    const validFiles: File[] = [];
+    for (const file of filesToProcess) {
+      if (file.size > 10 * 1024 * 1024) {
+        setError('Некоторые файлы слишком большие (максимум 10MB)');
+        continue;
+      }
+      if (!file.type.startsWith('image/')) {
+        continue;
+      }
+      validFiles.push(file);
+    }
+    
+    if (validFiles.length === 0) return;
+    
+    const timestamp = Date.now();
+    const newPhotos: AdPhoto[] = validFiles.map((file, idx) => ({
+      id: `photo-${timestamp}-${idx}-${Math.random().toString(36).slice(2, 8)}`,
+      localPreviewUrl: URL.createObjectURL(file),
+      file,
+      uploadStatus: 'idle' as UploadStatus,
+      isMain: photos.length === 0 && idx === 0,
+    }));
+    
+    for (const photo of newPhotos) {
+      onAddPhoto(photo);
+    }
+    
+    await new Promise(resolve => setTimeout(resolve, 0));
+    
+    await Promise.all(newPhotos.map(photo => uploadSinglePhoto(photo)));
   };
+
+  const handleCameraCapture = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFilesSelected(e.target.files);
+    e.target.value = '';
+  };
+
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleFilesSelected(e.target.files);
+    e.target.value = '';
+  };
+
+  const handleRemovePhoto = (photoId: string) => {
+    const photo = photos.find(p => p.id === photoId);
+    if (photo) {
+      URL.revokeObjectURL(photo.localPreviewUrl);
+      onRemovePhoto(photoId);
+    }
+  };
+
+  const isAnyUploading = photos.some(p => p.uploadStatus === 'uploading');
+  const hasErrors = photos.some(p => p.uploadStatus === 'error');
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 16 }}>
       <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 8px', color: '#111827' }}>
         Фото товара
       </h2>
-      <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 24 }}>
+      <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 20 }}>
         До 4 фотографий (необязательно)
       </p>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
-        {[0, 1, 2, 3].map((idx) => (
-          <div key={idx} style={{ position: 'relative', aspectRatio: '1', background: photos[idx] ? 'transparent' : '#F3F4F6', borderRadius: 12, overflow: 'hidden', border: photos[idx] ? 'none' : '2px dashed #D1D5DB' }}>
-            {photos[idx] ? (
-              <>
-                <img src={photos[idx]} alt={`Фото ${idx + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover' }} data-testid={`img-photo-${idx}`} />
+        {[0, 1, 2, 3].map((idx) => {
+          const photo = photos[idx];
+          const isEmptySlot = !photo;
+          const canAddMore = photos.length < MAX_PHOTOS;
+          
+          return (
+            <div 
+              key={idx} 
+              style={{ 
+                position: 'relative', 
+                aspectRatio: '1', 
+                background: isEmptySlot ? '#F3F4F6' : 'transparent', 
+                borderRadius: 12, 
+                overflow: 'hidden', 
+                border: isEmptySlot ? '2px dashed #D1D5DB' : '1px solid #E5E7EB',
+              }}
+            >
+              {photo ? (
+                <>
+                  <img 
+                    src={photo.localPreviewUrl} 
+                    alt={`Фото ${idx + 1}`} 
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                    data-testid={`img-photo-${idx}`} 
+                  />
+                  
+                  {photo.uploadStatus === 'uploading' && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(43, 92, 255, 0.3)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <Loader2 size={28} color="#fff" className="animate-spin" />
+                      <span style={{ fontSize: 12, color: '#fff', marginTop: 6, fontWeight: 500 }}>Загрузка...</span>
+                    </div>
+                  )}
+                  
+                  {photo.uploadStatus === 'error' && (
+                    <div style={{
+                      position: 'absolute',
+                      inset: 0,
+                      background: 'rgba(239, 68, 68, 0.4)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      <button
+                        onClick={() => handleRetryUpload(photo.id)}
+                        style={{
+                          padding: '8px 16px',
+                          background: '#fff',
+                          border: 'none',
+                          borderRadius: 8,
+                          fontSize: 14,
+                          fontWeight: 600,
+                          color: '#EF4444',
+                          cursor: 'pointer',
+                        }}
+                        data-testid={`button-retry-${idx}`}
+                      >
+                        <RefreshCw size={16} style={{ display: 'inline', marginRight: 6, verticalAlign: 'middle' }} />
+                        Повторить
+                      </button>
+                    </div>
+                  )}
+                  
+                  <button
+                    onClick={() => handleRemovePhoto(photo.id)}
+                    disabled={photo.uploadStatus === 'uploading'}
+                    style={{ 
+                      position: 'absolute', 
+                      top: 8, 
+                      right: 8, 
+                      background: 'rgba(0,0,0,0.7)', 
+                      color: '#fff', 
+                      border: 'none', 
+                      borderRadius: '50%', 
+                      width: 32, 
+                      height: 32, 
+                      cursor: 'pointer', 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'center',
+                      opacity: photo.uploadStatus === 'uploading' ? 0.5 : 1,
+                    }}
+                    data-testid={`button-remove-photo-${idx}`}
+                  >
+                    <X size={16} />
+                  </button>
+                  
+                  {idx === 0 && (
+                    <div style={{ 
+                      position: 'absolute', 
+                      bottom: 8, 
+                      left: 8, 
+                      background: BRAND_BLUE, 
+                      color: '#fff', 
+                      padding: '3px 8px', 
+                      borderRadius: 6, 
+                      fontSize: 11, 
+                      fontWeight: 600,
+                    }}>
+                      Главное
+                    </div>
+                  )}
+                </>
+              ) : (
                 <button
-                  onClick={() => onRemovePhoto(idx)}
-                  disabled={uploadingSlot !== null}
-                  style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.7)', color: '#fff', border: 'none', borderRadius: '50%', width: 36, height: 36, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                  data-testid={`button-remove-photo-${idx}`}
+                  onClick={handleOpenActionSheet}
+                  disabled={!canAddMore || isAnyUploading}
+                  style={{ 
+                    width: '100%', 
+                    height: '100%', 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    alignItems: 'center', 
+                    justifyContent: 'center', 
+                    background: 'none', 
+                    border: 'none', 
+                    cursor: (!canAddMore || isAnyUploading) ? 'not-allowed' : 'pointer', 
+                    opacity: (!canAddMore || isAnyUploading) ? 0.5 : 1,
+                  }}
+                  data-testid={`button-add-photo-${idx}`}
                 >
-                  <X size={18} />
+                  <Camera size={28} color="#9CA3AF" />
+                  <span style={{ fontSize: 13, color: '#9CA3AF', marginTop: 6 }}>Добавить</span>
                 </button>
-                {idx === 0 && (
-                  <div style={{ position: 'absolute', bottom: 8, left: 8, background: '#3B73FC', color: '#fff', padding: '4px 8px', borderRadius: 6, fontSize: 11, fontWeight: 600 }}>
-                    Главное
-                  </div>
-                )}
-              </>
-            ) : uploadingSlot === idx ? (
-              <div style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-                <Loader2 size={32} color="#3B73FC" className="animate-spin" />
-                <span style={{ fontSize: 13, color: '#3B73FC', marginTop: 8 }}>Загрузка...</span>
-              </div>
-            ) : (
-              <button
-                onClick={() => handleSlotClick(idx)}
-                disabled={photos.length >= 4 || uploadingSlot !== null}
-                style={{ width: '100%', height: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', background: 'none', border: 'none', cursor: (photos.length >= 4 || uploadingSlot !== null) ? 'not-allowed' : 'pointer', opacity: (photos.length >= 4 || uploadingSlot !== null) ? 0.5 : 1 }}
-                data-testid={`button-add-photo-${idx}`}
-              >
-                <Camera size={32} color="#9CA3AF" />
-                <span style={{ fontSize: 13, color: '#9CA3AF', marginTop: 8 }}>Добавить</span>
-              </button>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <input
@@ -617,7 +864,7 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: st
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={handleFileSelect}
+        onChange={handleCameraCapture}
         style={{ display: 'none' }}
         data-testid="input-camera"
       />
@@ -625,68 +872,33 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: st
         ref={galleryInputRef}
         type="file"
         accept="image/*"
-        onChange={handleFileSelect}
+        multiple
+        onChange={handleGallerySelect}
         style={{ display: 'none' }}
         data-testid="input-gallery"
       />
 
       {error && (
-        <div style={{ marginTop: 16, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 12, borderRadius: 8 }}>
-          <p style={{ fontSize: 14, color: '#991B1B', margin: '0 0 12px' }}>{error}</p>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {pendingRetry && (
-              <button
-                onClick={handleRetry}
-                style={{ padding: '8px 16px', background: '#3B73FC', color: '#fff', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
-                data-testid="button-retry-upload"
-              >
-                Повторить
-              </button>
-            )}
-            <button
-              onClick={pendingRetry ? handleSkipAndNext : handleDismissError}
-              style={{ padding: '8px 16px', background: '#E5E7EB', color: '#374151', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
-              data-testid="button-dismiss-error"
-            >
-              {pendingRetry ? 'Продолжить без фото' : 'Закрыть'}
-            </button>
-          </div>
+        <div style={{ marginTop: 16, background: '#FEF3C7', border: '1px solid #FDE047', padding: 12, borderRadius: 8, fontSize: 14, color: '#92400E' }}>
+          {error}
+          <button
+            onClick={() => setError('')}
+            style={{ marginLeft: 8, background: 'none', border: 'none', color: '#92400E', cursor: 'pointer', fontWeight: 600 }}
+          >
+            ✕
+          </button>
         </div>
       )}
 
-      <div style={{ marginTop: 16, padding: 12, background: '#EBF3FF', border: '1px solid #3B73FC', borderRadius: 8, fontSize: 14, color: '#1E40AF' }}>
+      {hasErrors && (
+        <div style={{ marginTop: 16, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 12, borderRadius: 8, fontSize: 14, color: '#991B1B' }}>
+          Некоторые фото не загрузились. Нажмите «Повторить» на фото или продолжите без них.
+        </div>
+      )}
+
+      <div style={{ marginTop: 16, padding: 12, background: '#EBF3FF', borderRadius: 8, fontSize: 14, color: '#1E40AF' }}>
         Качественные фотографии помогают быстрее продать товар
       </div>
-
-      {/* Кнопка продолжить без фото - elderly-friendly 48px+ touch target */}
-      {photos.length === 0 && uploadingSlot === null && (
-        <button
-          onClick={handleSkipAndNext}
-          style={{
-            marginTop: 32,
-            width: '100%',
-            minHeight: 52,
-            padding: '16px 20px',
-            background: '#F3F4F6',
-            border: '2px solid #D1D5DB',
-            borderRadius: 12,
-            fontSize: 17,
-            fontWeight: 600,
-            color: '#374151',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 10,
-          }}
-          data-testid="button-skip-photos"
-        >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6"/>
-          </svg>
-          Продолжить без фото
-        </button>
-      )}
 
       {showActionSheet && (
         <>
@@ -729,7 +941,7 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: st
               }}
               data-testid="button-source-camera"
             >
-              <Camera size={24} color="#3B73FC" />
+              <Camera size={24} color={BRAND_BLUE} />
               Сделать фото
             </button>
             <button
@@ -750,12 +962,12 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: st
               }}
               data-testid="button-source-gallery"
             >
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B73FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke={BRAND_BLUE} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
                 <circle cx="8.5" cy="8.5" r="1.5"/>
                 <polyline points="21,15 16,10 5,21"/>
               </svg>
-              Выбрать из галереи
+              Выбрать из галереи (до {MAX_PHOTOS - photos.length})
             </button>
             <button
               onClick={() => setShowActionSheet(false)}
@@ -784,6 +996,161 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: st
           to { transform: translateY(0); }
         }
       `}</style>
+    </div>
+  );
+}
+
+function Step5Confirm({ 
+  draft, 
+  categories, 
+  onEdit 
+}: { 
+  draft: DraftAd; 
+  categories: CategoryNode[];
+  onEdit: (step: number) => void;
+}) {
+  const selectedCategory = categories.find(c => c.slug === draft.info.categoryId);
+  const selectedSubcategory = selectedCategory?.subcategories?.find(s => s.slug === draft.info.subcategoryId);
+  
+  const uploadedPhotos = draft.photos.filter(p => p.uploadStatus === 'done' && p.remoteUrl);
+  
+  const getContactLabel = () => {
+    if (draft.contacts.contactPhone) return `Телефон: ${draft.contacts.contactPhone}`;
+    if (draft.contacts.contactUsername) return `Telegram: @${draft.contacts.contactUsername}`;
+    if (draft.contacts.contactInstagram) return `Instagram: @${draft.contacts.contactInstagram}`;
+    return 'Не указан';
+  };
+
+  const Section = ({ 
+    title, 
+    step, 
+    children 
+  }: { 
+    title: string; 
+    step: number; 
+    children: React.ReactNode;
+  }) => (
+    <div style={{ 
+      background: '#fff', 
+      borderRadius: 12, 
+      padding: 16,
+      marginBottom: 12,
+      border: '1px solid #E5E7EB',
+    }}>
+      <div style={{ 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'space-between',
+        marginBottom: 12,
+      }}>
+        <h3 style={{ fontSize: 16, fontWeight: 600, color: '#111827', margin: 0 }}>{title}</h3>
+        <button
+          onClick={() => onEdit(step)}
+          style={{
+            background: BRAND_BLUE_LIGHT,
+            border: `1px solid ${BRAND_BLUE_BORDER}`,
+            borderRadius: 8,
+            padding: '6px 12px',
+            fontSize: 13,
+            fontWeight: 500,
+            color: BRAND_BLUE,
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+          data-testid={`button-edit-step-${step}`}
+        >
+          <Edit3 size={14} />
+          Изменить
+        </button>
+      </div>
+      {children}
+    </div>
+  );
+
+  const Row = ({ label, value }: { label: string; value: string }) => (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+      <span style={{ fontSize: 14, color: '#6B7280' }}>{label}</span>
+      <span style={{ fontSize: 14, color: '#111827', fontWeight: 500, textAlign: 'right', maxWidth: '60%' }}>{value}</span>
+    </div>
+  );
+
+  return (
+    <div style={{ padding: 16, paddingBottom: 120 }}>
+      <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 8px', color: '#111827' }}>
+        Проверьте объявление
+      </h2>
+      <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 20 }}>
+        Убедитесь, что всё указано верно
+      </p>
+
+      <Section title="Фото" step={2}>
+        {uploadedPhotos.length > 0 ? (
+          <div style={{ display: 'flex', gap: 8, overflowX: 'auto' }}>
+            {uploadedPhotos.map((photo, idx) => (
+              <img 
+                key={photo.id} 
+                src={photo.localPreviewUrl} 
+                alt={`Фото ${idx + 1}`}
+                style={{ 
+                  width: 80, 
+                  height: 80, 
+                  objectFit: 'cover', 
+                  borderRadius: 8,
+                  flexShrink: 0,
+                }}
+                data-testid={`confirm-photo-${idx}`}
+              />
+            ))}
+          </div>
+        ) : (
+          <p style={{ fontSize: 14, color: '#9CA3AF', margin: 0 }}>Без фото</p>
+        )}
+      </Section>
+
+      <Section title="Товар" step={3}>
+        <Row label="Название" value={draft.info.title} />
+        <Row label="Категория" value={selectedCategory?.name || draft.info.categoryId} />
+        {selectedSubcategory && <Row label="Подкатегория" value={selectedSubcategory.name} />}
+        <Row label="Цена" value={`${parseFloat(draft.info.price).toLocaleString('ru-RU')} BYN`} />
+        {draft.info.description && (
+          <div style={{ marginTop: 8 }}>
+            <span style={{ fontSize: 14, color: '#6B7280', display: 'block', marginBottom: 4 }}>Описание</span>
+            <p style={{ fontSize: 14, color: '#111827', margin: 0, whiteSpace: 'pre-wrap' }}>{draft.info.description}</p>
+          </div>
+        )}
+      </Section>
+
+      <Section title="Местоположение" step={1}>
+        <Row label="Адрес" value={draft.location?.geoLabel || 'Не указан'} />
+      </Section>
+
+      <Section title="Контакты" step={4}>
+        <Row label="Способ связи" value={getContactLabel()} />
+        {draft.publishAt && (
+          <Row 
+            label="Публикация" 
+            value={`Запланировано на ${draft.publishAt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}`} 
+          />
+        )}
+      </Section>
+
+      <div style={{ 
+        marginTop: 16, 
+        padding: 12, 
+        background: '#ECFDF5', 
+        border: '1px solid #10B981', 
+        borderRadius: 8, 
+        display: 'flex', 
+        alignItems: 'center', 
+        gap: 10,
+      }}>
+        <Check size={20} color="#10B981" />
+        <span style={{ fontSize: 14, color: '#065F46' }}>
+          Всё готово к публикации! Нажмите «Опубликовать» ниже.
+        </span>
+      </div>
     </div>
   );
 }
