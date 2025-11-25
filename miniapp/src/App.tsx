@@ -2,14 +2,18 @@ import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import BottomTabs from '@/components/BottomTabs';
-import HomePage from '@/pages/HomePage';
 import PhoneAuthRequest from '@/components/PhoneAuthRequest';
+import PageLoader from '@/components/PageLoader';
 import { useUserStore } from '@/store/useUserStore';
 import { getTelegramWebApp } from '@/utils/telegram';
 import { queryClient } from '@/lib/queryClient';
+import { prefetchCriticalData } from '@/utils/prefetch';
+import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
+import { initWebVitals } from '@/utils/webVitals';
 import { Loader2 } from 'lucide-react';
 
-import SubcategoryPage from '@/pages/SubcategoryPage';
+const HomePage = lazy(() => import('@/pages/HomePage'));
+const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
 const FeedPage = lazy(() => import('@/pages/FeedPage'));
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
@@ -31,6 +35,8 @@ export default function App() {
   const userStatus = useUserStore((state) => state.status);
   const user = useUserStore((state) => state.user);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  useRoutePrefetch();
 
   useEffect(() => {
     const initApp = () => {
@@ -58,6 +64,14 @@ export default function App() {
 
         // Инициализация пользователя в фоне
         initialize().catch(console.error);
+        
+        // Prefetch критичных данных в фоне
+        prefetchCriticalData().catch(console.error);
+        
+        // Инициализация Web Vitals monitoring
+        if (typeof window !== 'undefined') {
+          initWebVitals();
+        }
         
         // Показываем UI сразу
         setIsInitialized(true);
@@ -123,17 +137,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <div className="app-shell">
         <main>
-          <Suspense fallback={
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100vh',
-              background: '#FFFFFF'
-            }}>
-              <Loader2 className="w-8 h-8 animate-spin text-gray-600" />
-            </div>
-          }>
+          <Suspense fallback={<PageLoader />}>
             <Routes>
               <Route path="/" element={<HomePage />} />
               <Route path="/category/:slug" element={<SubcategoryPage />} />

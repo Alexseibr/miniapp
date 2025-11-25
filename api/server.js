@@ -1,4 +1,5 @@
 import express from 'express';
+import compression from 'compression';
 import { logErrors, notFoundHandler, errorHandler } from './middleware/errorHandlers.js';
 import adsSearchRoutes from './routes/search.js';
 import adsRoutes from './routes/ads.js';
@@ -26,6 +27,18 @@ import uploadsRoutes from './routes/uploads.js';
 import mediaRoutes from './routes/media.js';
 
 const app = express();
+
+// Compression middleware (gzip)
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  threshold: 1024,
+  level: 6,
+}));
 
 // Middleware
 app.use(express.json());
