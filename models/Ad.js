@@ -238,6 +238,38 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    viewsTotal: {
+      type: Number,
+      default: 0,
+    },
+    viewsToday: {
+      type: Number,
+      default: 0,
+    },
+    impressionsTotal: {
+      type: Number,
+      default: 0,
+    },
+    impressionsToday: {
+      type: Number,
+      default: 0,
+    },
+    contactClicks: {
+      type: Number,
+      default: 0,
+    },
+    firstShownAt: {
+      type: Date,
+      default: null,
+    },
+    lastShownAt: {
+      type: Date,
+      default: null,
+    },
+    lastViewedAt: {
+      type: Date,
+      default: null,
+    },
     favoritesCount: {
       type: Number,
       default: 0,

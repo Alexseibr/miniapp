@@ -1623,4 +1623,117 @@ router.post('/bulk', async (req, res) => {
   }
 });
 
+// ========== Analytics Tracking Endpoints ==========
+
+const trackingRateLimit = new Map();
+const RATE_LIMIT_WINDOW_MS = 5000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+
+function checkRateLimit(identifier, action) {
+  const key = `${identifier}:${action}`;
+  const now = Date.now();
+  const record = trackingRateLimit.get(key);
+  
+  if (!record) {
+    trackingRateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (now > record.resetAt) {
+    trackingRateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of trackingRateLimit.entries()) {
+    if (now > record.resetAt) {
+      trackingRateLimit.delete(key);
+    }
+  }
+}, 60000);
+
+router.post('/:id/track-impression', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'impression')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    const now = new Date();
+    const update = {
+      $inc: { impressionsTotal: 1, impressionsToday: 1 },
+      $set: { lastShownAt: now },
+    };
+    
+    const ad = await Ad.findById(id).select('firstShownAt');
+    if (!ad) {
+      return res.status(404).json({ error: 'Ad not found' });
+    }
+    
+    if (!ad.firstShownAt) {
+      update.$set.firstShownAt = now;
+    }
+    
+    await Ad.findByIdAndUpdate(id, update);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[track-impression]', error.message);
+    res.status(500).json({ error: 'Failed to track impression' });
+  }
+});
+
+router.post('/:id/track-view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'view')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    const now = new Date();
+    await Ad.findByIdAndUpdate(id, {
+      $inc: { viewsTotal: 1, viewsToday: 1, views: 1 },
+      $set: { lastViewedAt: now },
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[track-view]', error.message);
+    res.status(500).json({ error: 'Failed to track view' });
+  }
+});
+
+router.post('/:id/track-contact', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'contact')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    await Ad.findByIdAndUpdate(id, {
+      $inc: { contactClicks: 1 },
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[track-contact]', error.message);
+    res.status(500).json({ error: 'Failed to track contact click' });
+  }
+});
+
 export default router;
