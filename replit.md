@@ -42,6 +42,7 @@ Preferred communication style: Simple, everyday language.
 - **Debounced Fetching**: 300ms debounce on radius changes to reduce API load, with AbortController cleanup to prevent stale data leaks.
 - **Single-Select Category Filtering**: FeedPage uses single-select (not multi-select) to align with backend API capabilities, preventing client-side filtering confusion.
 - **Local AbortController Capture**: useNearbyAds captures AbortController locally at fetch start to prevent race conditions when rapid radius/location changes abort in-flight requests.
+- **Deferred Publishing**: Ads can be scheduled for future publication via `publishAt` field. Scheduled ads have `status='scheduled'` and `moderationStatus='scheduled'`. Cron worker (`workers/publishScheduler.js`) runs every minute, activating ads where `publishAt <= now`. On activation, status becomes 'active', moderationStatus stays unchanged (unless it was 'scheduled'), and validUntil is calculated from publishAt date (not creation date). Scheduled ads are hidden from public search but visible to owners in "My ads".
 
 ## External Dependencies
 
