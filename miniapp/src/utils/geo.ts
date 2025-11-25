@@ -26,20 +26,24 @@ export function useGeo(syncWithBackend = true) {
   };
 }
 
-export function formatDistance(distanceKm?: number) {
-  if (distanceKm == null) return '';
+export function formatDistance(distanceKm?: number): string {
+  if (distanceKm == null || isNaN(distanceKm)) return '';
+
   if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)} м`;
+    const meters = Math.round(distanceKm * 1000);
+    return `📍 ${meters} м от вас`;
   }
-  return `${distanceKm.toFixed(1)} км`;
+
+  const value = Number(distanceKm.toFixed(1));
+  return `📍 ${value} км от вас`;
 }
 
 export function formatCityDistance(city?: string | null, distanceKm?: number) {
   const cityPart = city || '';
   const distancePart = distanceKm != null
     ? (distanceKm < 1
-        ? `${Math.round(distanceKm * 1000)} м от вас`
-        : `${distanceKm.toFixed(1)} км от вас`)
+        ? `📍 ${Math.round(distanceKm * 1000)} м от вас`
+        : `📍 ${distanceKm.toFixed(1)} км от вас`)
     : '';
   
   return [cityPart, distancePart].filter(Boolean).join(' • ');
