@@ -81,6 +81,7 @@ export default function CreateAdPage() {
   const [categories, setCategories] = useState<CategoryNode[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [photoStepResetKey, setPhotoStepResetKey] = useState(0);
 
   useEffect(() => {
     fetchCategories().then(setCategories).catch(console.error);
@@ -204,8 +205,8 @@ export default function CreateAdPage() {
           onComplete={() => setCurrentStep(2)}
         />
       )}
-      {currentStep === 2 && <Step2Photos photos={draft.photos} onAddPhoto={(url) => dispatch({ type: 'ADD_PHOTO', payload: url })} onRemovePhoto={(idx) => dispatch({ type: 'REMOVE_PHOTO', payload: idx })} />}
-      {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} city={draft.location?.geoLabel?.split(' ')[0]} />}
+      {currentStep === 2 && <Step2Photos key={photoStepResetKey} photos={draft.photos} onAddPhoto={(url) => dispatch({ type: 'ADD_PHOTO', payload: url })} onRemovePhoto={(idx) => dispatch({ type: 'REMOVE_PHOTO', payload: idx })} onNext={() => setCurrentStep(3)} />}
+      {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} city={draft.location?.geoLabel?.split(' ')[0]} noPhotos={draft.photos.length === 0} onGoToPhotos={() => { setPhotoStepResetKey(k => k + 1); setCurrentStep(2); }} />}
       {currentStep === 4 && (
         <Step4Contacts
           contacts={draft.contacts}
@@ -422,12 +423,18 @@ function Step1Location({
   );
 }
 
-function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; onAddPhoto: (url: string) => void; onRemovePhoto: (idx: number) => void }) {
+function Step2Photos({ photos, onAddPhoto, onRemovePhoto, onNext }: { photos: string[]; onAddPhoto: (url: string) => void; onRemovePhoto: (idx: number) => void; onNext: () => void }) {
   const [uploadingSlot, setUploadingSlot] = useState<number | null>(null);
   const [error, setError] = useState('');
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<number | null>(null);
   const [pendingRetry, setPendingRetry] = useState<{ slot: number; file: File } | null>(null);
+
+  const handleSkipAndNext = () => {
+    setError('');
+    setPendingRetry(null);
+    onNext();
+  };
   
   const cameraInputRef = useRef<HTMLInputElement | null>(null);
   const galleryInputRef = useRef<HTMLInputElement | null>(null);
@@ -472,22 +479,32 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
       let publicURL: string;
       
       try {
+        const initData = window.Telegram?.WebApp?.initData;
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (initData) {
+          headers['X-Telegram-Init-Data'] = initData;
+        }
+        
+        // Request upload URL from authenticated endpoint
+        
         const response = await fetch('/api/uploads/presigned-url', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers,
           body: JSON.stringify({ fileExtension: extension }),
         });
 
         if (!response.ok) {
-          throw new Error('upload_url_failed');
+          const errorData = await response.json().catch(() => ({}));
+          console.error('[Upload] Presigned URL error:', response.status, errorData);
+          throw new Error(errorData.error || 'upload_url_failed');
         }
 
         const data = await response.json();
         uploadURL = data.uploadURL;
         publicURL = data.publicURL;
-      } catch (urlErr) {
-        console.error('Get upload URL error:', urlErr);
-        setError('Не удалось получить URL для загрузки');
+      } catch (urlErr: any) {
+        console.error('[Upload] Get upload URL error:', urlErr);
+        setError(urlErr.message === 'upload_url_failed' ? 'Не удалось получить URL для загрузки' : urlErr.message || 'Не удалось получить URL для загрузки');
         setPendingRetry({ slot: slotIndex, file });
         setUploadingSlot(null);
         return false;
@@ -626,7 +643,7 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
               </button>
             )}
             <button
-              onClick={handleDismissError}
+              onClick={pendingRetry ? handleSkipAndNext : handleDismissError}
               style={{ padding: '8px 16px', background: '#E5E7EB', color: '#374151', border: 'none', borderRadius: 6, fontSize: 14, fontWeight: 500, cursor: 'pointer' }}
               data-testid="button-dismiss-error"
             >
@@ -639,6 +656,36 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
       <div style={{ marginTop: 16, padding: 12, background: '#EBF3FF', border: '1px solid #3B73FC', borderRadius: 8, fontSize: 14, color: '#1E40AF' }}>
         Качественные фотографии помогают быстрее продать товар
       </div>
+
+      {/* Кнопка продолжить без фото - elderly-friendly 48px+ touch target */}
+      {photos.length === 0 && uploadingSlot === null && (
+        <button
+          onClick={handleSkipAndNext}
+          style={{
+            marginTop: 32,
+            width: '100%',
+            minHeight: 52,
+            padding: '16px 20px',
+            background: '#F3F4F6',
+            border: '2px solid #D1D5DB',
+            borderRadius: 12,
+            fontSize: 17,
+            fontWeight: 600,
+            color: '#374151',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 10,
+          }}
+          data-testid="button-skip-photos"
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+          Продолжить без фото
+        </button>
+      )}
 
       {showActionSheet && (
         <>
@@ -740,13 +787,47 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
   );
 }
 
-function Step3Info({ info, categories, onSetInfo, city }: { info: InfoData; categories: CategoryNode[]; onSetInfo: (info: Partial<InfoData>) => void; city?: string }) {
+function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }: { info: InfoData; categories: CategoryNode[]; onSetInfo: (info: Partial<InfoData>) => void; city?: string; noPhotos?: boolean; onGoToPhotos?: () => void }) {
   const selectedCategory = categories.find(c => c.slug === info.categoryId);
   const subcategories = selectedCategory?.subcategories || [];
   const priceNumber = parseFloat(info.price) || 0;
 
   return (
     <div style={{ padding: 24 }}>
+      {noPhotos && (
+        <button
+          onClick={onGoToPhotos}
+          style={{
+            width: '100%',
+            background: '#EBF3FF',
+            border: '1px solid #3B73FC',
+            padding: '14px 16px',
+            borderRadius: 12,
+            fontSize: 15,
+            marginBottom: 20,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+          data-testid="button-add-photos-reminder"
+        >
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#3B73FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21,15 16,10 5,21"/>
+          </svg>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: '#1E40AF', fontWeight: 600 }}>Добавить фотографии</div>
+            <div style={{ color: '#3B73FC', fontSize: 13, marginTop: 2 }}>Объявления с фото продаются быстрее</div>
+          </div>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#3B73FC" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6"/>
+          </svg>
+        </button>
+      )}
+      
       <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 24px', color: '#111827' }}>
         Информация о товаре
       </h2>
