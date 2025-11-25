@@ -1,4 +1,4 @@
-export type UserRole = 'buyer' | 'seller' | 'both' | 'moderator' | 'admin' | 'user';
+export type UserRole = 'buyer' | 'seller' | 'both' | 'moderator' | 'admin' | 'super_admin' | 'user';
 
 export interface TelegramProfile {
   id: number;

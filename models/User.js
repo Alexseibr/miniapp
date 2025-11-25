@@ -57,7 +57,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'moderator', 'admin', 'seller'],
+      enum: ['user', 'moderator', 'admin', 'super_admin', 'seller'],
       default: 'user',
     },
     isModerator: {

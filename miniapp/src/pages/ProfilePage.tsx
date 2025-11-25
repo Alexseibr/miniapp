@@ -18,6 +18,18 @@ export default function ProfilePage() {
     return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || 'Пользователь';
   }, [user]);
 
+  const getRoleDisplay = (role?: string) => {
+    const roleMap: Record<string, string> = {
+      'super_admin': '👑 Супер-администратор',
+      'admin': '🛡️ Администратор',
+      'moderator': '⚖️ Модератор',
+      'seller': '💼 Продавец',
+      'buyer': '🛒 Покупатель',
+      'user': '👤 Пользователь',
+    };
+    return roleMap[role || 'user'] || role || 'Пользователь';
+  };
+
   const handleOpenBot = () => {
     const botUsername = import.meta.env.VITE_BOT_USERNAME || '';
     const tg = getTelegramWebApp();
@@ -43,7 +55,17 @@ export default function ProfilePage() {
         <p style={{ marginBottom: 4 }}>{telegramSummary}</p>
         <p style={{ marginBottom: 4 }}>@{user.username || 'не указан'}</p>
         <p style={{ marginBottom: 4 }}>Telegram ID: {user.telegramId}</p>
-        <p style={{ marginBottom: 12 }}>Роль: {user.role || 'buyer'}</p>
+        <p style={{ 
+          marginBottom: 12,
+          padding: '8px 12px',
+          background: user.role === 'super_admin' ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' : '#f3f4f6',
+          color: user.role === 'super_admin' ? '#ffffff' : '#111827',
+          borderRadius: '8px',
+          fontWeight: 600,
+          fontSize: '0.95rem'
+        }}>
+          {getRoleDisplay(user.role)}
+        </p>
         {user.phone && showContacts && <p>Телефон: {user.phone}</p>}
         {user.instagram && showContacts && <p>Instagram: {user.instagram}</p>}
         <div className="row" style={{ gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
