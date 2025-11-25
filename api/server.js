@@ -28,6 +28,7 @@ import mediaRoutes from './routes/media.js';
 import geoRoutes from './routes/geo.js';
 import pricingRoutes from './routes/pricing.js';
 import farmerRoutes from './routes/farmer.js';
+import globalSearchRoutes from './routes/globalSearch.js';
 
 const app = express();
 
@@ -105,5 +106,6 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/farmer', farmerRoutes);
+app.use('/api/search', globalSearchRoutes);
 
 export default app;

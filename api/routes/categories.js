@@ -3,6 +3,7 @@ import Category from '../../models/Category.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import categoryMatchingService from '../services/categoryMatching.js';
 import CategorySuggestService from '../../services/CategorySuggestService.js';
+import CategoryDynamicVisibilityService from '../../services/CategoryDynamicVisibilityService.js';
 
 const router = Router();
 
@@ -161,6 +162,97 @@ router.get(
       res.status(500).json({
         ok: false,
         error: 'Failed to suggest categories'
+      });
+    }
+  })
+);
+
+router.get(
+  '/visible',
+  asyncHandler(async (req, res) => {
+    const { lat, lng, radiusKm = '3', scope = 'local', categorySlug } = req.query;
+
+    const coords =
+      lat && lng
+        ? {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+          }
+        : null;
+
+    const radius = Math.min(Math.max(parseFloat(radiusKm) || 3, 0.1), 200);
+    const scopeType = scope === 'country' ? 'country' : 'local';
+
+    try {
+      if (categorySlug) {
+        const result = await CategoryDynamicVisibilityService.getVisibleSubcategories(
+          categorySlug,
+          coords,
+          radius,
+          scopeType
+        );
+
+        res.set('Cache-Control', 'public, max-age=60');
+        return res.json({
+          ok: true,
+          ...result,
+        });
+      }
+
+      const tree = await CategoryDynamicVisibilityService.getVisibleCategoryTree(
+        coords,
+        radius,
+        scopeType
+      );
+
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({
+        ok: true,
+        ...tree,
+      });
+    } catch (error) {
+      console.error('Visible categories error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch visible categories',
+      });
+    }
+  })
+);
+
+router.get(
+  '/:slug/visibility',
+  asyncHandler(async (req, res) => {
+    const { slug } = req.params;
+    const { lat, lng, radiusKm = '3' } = req.query;
+
+    const coords =
+      lat && lng
+        ? {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+          }
+        : null;
+
+    const radius = Math.min(Math.max(parseFloat(radiusKm) || 3, 0.1), 200);
+
+    try {
+      const result = await CategoryDynamicVisibilityService.shouldShowSubcategory(
+        slug,
+        coords,
+        radius
+      );
+
+      res.json({
+        ok: true,
+        slug,
+        ...result,
+      });
+    } catch (error) {
+      console.error('Category visibility check error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to check category visibility',
       });
     }
   })
