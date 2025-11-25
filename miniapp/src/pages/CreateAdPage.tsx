@@ -190,7 +190,13 @@ export default function CreateAdPage() {
         </div>
       </div>
 
-      {currentStep === 1 && <Step1Location location={draft.location} onSetLocation={(loc) => dispatch({ type: 'SET_LOCATION', payload: loc })} />}
+      {currentStep === 1 && (
+        <Step1Location
+          location={draft.location}
+          onSetLocation={(loc) => dispatch({ type: 'SET_LOCATION', payload: loc })}
+          onComplete={() => setCurrentStep(2)}
+        />
+      )}
       {currentStep === 2 && <Step2Photos photos={draft.photos} onAddPhoto={(url) => dispatch({ type: 'ADD_PHOTO', payload: url })} onRemovePhoto={(idx) => dispatch({ type: 'REMOVE_PHOTO', payload: idx })} />}
       {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} />}
       {currentStep === 4 && <Step4Contacts contacts={draft.contacts} user={user} onSetContacts={(contacts) => dispatch({ type: 'SET_CONTACTS', payload: contacts })} />}
@@ -238,15 +244,41 @@ export default function CreateAdPage() {
   );
 }
 
-function Step1Location({ location, onSetLocation }: { location: LocationData | null; onSetLocation: (loc: LocationData) => void }) {
+function Step1Location({
+  location,
+  onSetLocation,
+  onComplete,
+}: {
+  location: LocationData | null;
+  onSetLocation: (loc: LocationData) => void;
+  onComplete: () => void;
+}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [presets, setPresets] = useState<PresetLocation[]>([]);
   const [showPresets, setShowPresets] = useState(false);
+  const [shouldAutoAdvance, setShouldAutoAdvance] = useState(false);
+  const autoAdvanceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     getPresetLocations().then((res) => setPresets(res.items)).catch(console.error);
   }, []);
+
+  useEffect(() => {
+    if (location && shouldAutoAdvance) {
+      autoAdvanceTimerRef.current = setTimeout(() => {
+        onComplete();
+        setShouldAutoAdvance(false);
+      }, 1000);
+    }
+
+    return () => {
+      if (autoAdvanceTimerRef.current) {
+        clearTimeout(autoAdvanceTimerRef.current);
+        autoAdvanceTimerRef.current = null;
+      }
+    };
+  }, [location, shouldAutoAdvance, onComplete]);
 
   const handleAutoDetect = async () => {
     setError('');
@@ -259,6 +291,7 @@ function Step1Location({ location, onSetLocation }: { location: LocationData | n
       const { latitude, longitude } = pos.coords;
       const result = await resolveGeoLocation(latitude, longitude);
       onSetLocation({ lat: result.lat, lng: result.lng, geoLabel: result.label });
+      setShouldAutoAdvance(true);
     } catch (err: any) {
       console.error('Geo error:', err);
       setError('Не удалось определить местоположение');
@@ -270,7 +303,18 @@ function Step1Location({ location, onSetLocation }: { location: LocationData | n
 
   const handleSelectPreset = (preset: PresetLocation) => {
     onSetLocation({ lat: preset.lat, lng: preset.lng, geoLabel: preset.label });
+    setShouldAutoAdvance(true);
     setShowPresets(false);
+  };
+
+  const handleChooseOther = () => {
+    if (autoAdvanceTimerRef.current) {
+      clearTimeout(autoAdvanceTimerRef.current);
+      autoAdvanceTimerRef.current = null;
+    }
+    setShouldAutoAdvance(false);
+    onSetLocation(null as any);
+    setShowPresets(true);
   };
 
   return (
@@ -313,8 +357,13 @@ function Step1Location({ location, onSetLocation }: { location: LocationData | n
           <Check size={48} color="#10b981" style={{ margin: '0 auto 12px' }} />
           <div style={{ fontSize: 16, color: '#065F46', marginBottom: 8 }}>Ваше местоположение:</div>
           <div style={{ fontSize: 22, fontWeight: 600, color: '#047857' }}>{location.geoLabel}</div>
+          {shouldAutoAdvance && (
+            <p style={{ fontSize: 14, color: '#065F46', marginTop: 12, marginBottom: 0 }}>
+              Переход к следующему шагу...
+            </p>
+          )}
           <button
-            onClick={() => { onSetLocation(null as any); setShowPresets(true); }}
+            onClick={handleChooseOther}
             style={{ marginTop: 16, background: 'none', border: '1px solid #10b981', color: '#10b981', padding: '10px 20px', borderRadius: 8, fontSize: 15, cursor: 'pointer' }}
           >
             Выбрать другое
