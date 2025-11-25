@@ -89,8 +89,14 @@ export interface Ad extends AdPreview {
   validUntil?: string;
   updatedAt?: string;
   views?: number;
+  viewsTotal?: number;
+  impressionsTotal?: number;
+  contactClicks?: number;
   sellerName?: string;
   publishAt?: string | Date | null;
+  contactPhone?: string | null;
+  contactUsername?: string | null;
+  contactInstagram?: string | null;
 }
 
 export interface FavoriteItem {

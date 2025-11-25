@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, MessageCircle, ArrowLeft, Phone, Share2, Eye, Calendar, X, ExternalLink } from 'lucide-react';
+import { MapPin, MessageCircle, ArrowLeft, Phone, Share2, Eye, Calendar, X, ExternalLink, Heart } from 'lucide-react';
 import { SiInstagram, SiTelegram } from 'react-icons/si';
 import { getAd, getSimilarAds, trackView, trackContact } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
@@ -334,7 +334,8 @@ export default function AdPage() {
           {/* Meta info */}
           <div style={{ 
             display: 'flex', 
-            gap: 16, 
+            flexWrap: 'wrap',
+            gap: '12px 16px', 
             marginBottom: 20,
             paddingBottom: 20,
             borderBottom: '1px solid #F3F4F6'
@@ -343,10 +344,16 @@ export default function AdPage() {
               <Calendar size={15} />
               <span>{formatDate(ad.createdAt)}</span>
             </div>
-            {ad.views !== undefined && (
+            {(ad.viewsTotal !== undefined || ad.views !== undefined) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#6B7280' }}>
                 <Eye size={15} />
-                <span>{ad.views} {ad.views === 1 ? 'просмотр' : 'просмотров'}</span>
+                <span>{ad.viewsTotal || ad.views || 0} {(ad.viewsTotal || ad.views || 0) === 1 ? 'просмотр' : 'просмотров'}</span>
+              </div>
+            )}
+            {ad.favoritesCount !== undefined && ad.favoritesCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: '#E11D48' }}>
+                <Heart size={15} fill="#E11D48" />
+                <span>{ad.favoritesCount} в избранном</span>
               </div>
             )}
           </div>
