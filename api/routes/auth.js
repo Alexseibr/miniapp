@@ -10,8 +10,6 @@ import authService from '../../services/auth/AuthService.js';
 
 const router = Router();
 
-const JWT_SECRET = process.env.SESSION_SECRET || 'ketmar_jwt_secret_key';
-
 function buildSessionToken(telegramId) {
   const secret = process.env.SESSION_SECRET || config.botToken || 'ketmar-market-secret';
   return crypto

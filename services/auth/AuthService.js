@@ -9,7 +9,13 @@ import User from '../../models/User.js';
 import SmsCode from '../../models/SmsCode.js';
 import Ad from '../../models/Ad.js';
 
-const JWT_SECRET = process.env.SESSION_SECRET || 'ketmar_jwt_secret_key';
+const getJwtSecret = () => {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error('SESSION_SECRET environment variable must be set with at least 32 characters');
+  }
+  return secret;
+};
 const JWT_EXPIRES_IN = '30d';
 
 class AuthService {
@@ -87,7 +93,7 @@ class AuthService {
       role: user.role,
     };
     
-    return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+    return jwt.sign(payload, getJwtSecret(), { expiresIn: JWT_EXPIRES_IN });
   }
 
   /**
@@ -95,7 +101,7 @@ class AuthService {
    */
   verifyToken(token) {
     try {
-      return jwt.verify(token, JWT_SECRET);
+      return jwt.verify(token, getJwtSecret());
     } catch (error) {
       return null;
     }

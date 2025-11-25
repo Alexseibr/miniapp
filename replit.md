@@ -53,6 +53,13 @@ Preferred communication style: Simple, everyday language.
 - **Demand Notification System**: Notifies sellers when demand spikes for their product categories.
 - **AI Layer**: Unified AI services for text generation (titles, descriptions, tags), personalized recommendations (similar ads, personal feed, trending nearby), and content moderation (risk scoring, spam detection). It tracks user activity for ML learning.
 - **Geo-Intelligence Map System**: Real-time geo-analytics with demand/supply heatmaps, trending local searches, clustered ad markers, and smart geo-recommendations for buyers/sellers. Includes GeoEvent model for tracking user geo-activity (searches, views, favorites), GeoEngine service with caching, and interactive Leaflet map components with heatmap layers and radius controls.
+- **Multi-Platform Authentication System**: Unified authentication across Telegram MiniApp, Web, and Mobile WebView with:
+  - Platform Adapters (Telegram, Web, MobileApp) for abstracted platform-specific functionality
+  - JWT-based authentication with secure token management
+  - SMS verification for phone number linking
+  - Account merging logic based on verified phone numbers (same phone = same user across platforms)
+  - AuthProviders array tracking linked auth methods per user
+  - PlatformProvider React context for platform abstraction in MiniApp
 
 ## External Dependencies
 

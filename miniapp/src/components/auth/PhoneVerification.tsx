@@ -22,7 +22,7 @@ export function PhoneVerification({
   purpose = 'link_phone',
   showCancel = true 
 }: PhoneVerificationProps) {
-  const { platform, platformType, setAuthToken, showAlert } = usePlatform();
+  const { platformType, setAuthToken, showAlert, getAuthToken } = usePlatform();
   const [phone, setPhone] = useState('');
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'phone' | 'code' | 'success'>('phone');
@@ -37,20 +37,6 @@ export function PhoneVerification({
     }
   }, [countdown]);
 
-  useEffect(() => {
-    if (step === 'code' && codeInputRef.current) {
-      codeInputRef.current.focus();
-    }
-  }, [step]);
-
-  const getStoredToken = (): string | null => {
-    try {
-      return localStorage.getItem('ketmar_auth_token');
-    } catch {
-      return null;
-    }
-  };
-
   const requestCodeMutation = useMutation({
     mutationFn: async (phoneNumber: string) => {
       const endpoint = purpose === 'link_phone' 
@@ -61,9 +47,11 @@ export function PhoneVerification({
         'Content-Type': 'application/json',
       };
       
-      const token = getStoredToken();
-      if (token && purpose === 'link_phone') {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (purpose === 'link_phone') {
+        const token = await getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
       }
       
       const response = await fetch(endpoint, {
@@ -109,9 +97,11 @@ export function PhoneVerification({
         'Content-Type': 'application/json',
       };
       
-      const token = getStoredToken();
-      if (token && purpose === 'link_phone') {
-        headers['Authorization'] = `Bearer ${token}`;
+      if (purpose === 'link_phone') {
+        const token = await getAuthToken();
+        if (token) {
+          headers['Authorization'] = `Bearer ${token}`;
+        }
       }
       
       const response = await fetch(endpoint, {
