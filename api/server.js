@@ -27,6 +27,7 @@ import uploadsRoutes from './routes/uploads.js';
 import mediaRoutes from './routes/media.js';
 import geoRoutes from './routes/geo.js';
 import pricingRoutes from './routes/pricing.js';
+import farmerRoutes from './routes/farmer.js';
 
 const app = express();
 
@@ -103,5 +104,6 @@ app.use('/api/uploads', uploadsRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/pricing', pricingRoutes);
+app.use('/api/farmer', farmerRoutes);
 
 export default app;
