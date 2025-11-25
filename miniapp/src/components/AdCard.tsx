@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, Truck, MapPin } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
+import PriceBadge from './PriceBadge';
 import { AdPreview } from '@/types';
 import { formatCityDistance } from '@/utils/geo';
 import { formatRelativeTime } from '@/utils/time';
@@ -12,16 +13,22 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
 
+interface PriceBriefData {
+  marketLevel: 'below' | 'fair' | 'above' | 'unknown';
+  diffPercent: number | null;
+}
+
 interface AdCardProps {
   ad: AdPreview;
   onSelect?: (ad: AdPreview) => void;
   showActions?: boolean;
+  priceBrief?: PriceBriefData | null;
 }
 
 const NO_PHOTO_PLACEHOLDER =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='20' font-family='Inter, sans-serif'>Нет фото</text></svg>";
 
-export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps) {
+export default function AdCard({ ad, onSelect, showActions = true, priceBrief }: AdCardProps) {
   const navigate = useNavigate();
   const addItem = useCartStore((state) => state.addItem);
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
@@ -116,13 +123,22 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
 
       <div className="ad-card-content">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-          <p
-            data-testid={`ad-price-${ad._id}`}
-            className="ad-card-price"
-            style={{ margin: 0 }}
-          >
-            {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
-          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <p
+              data-testid={`ad-price-${ad._id}`}
+              className="ad-card-price"
+              style={{ margin: 0 }}
+            >
+              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+            </p>
+            {priceBrief && priceBrief.marketLevel !== 'unknown' && priceBrief.diffPercent !== null && (
+              <PriceBadge 
+                marketLevel={priceBrief.marketLevel} 
+                diffPercent={priceBrief.diffPercent} 
+                size="sm" 
+              />
+            )}
+          </div>
           {ad.createdAt && (
             <span
               data-testid={`ad-date-${ad._id}`}

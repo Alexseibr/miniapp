@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import NotificationEvent from './NotificationEvent.js';
 import AdChange from './AdChange.js';
+import AdPriceSnapshot from './AdPriceSnapshot.js';
 
 const priceHistorySchema = new mongoose.Schema(
   {
@@ -235,6 +236,104 @@ const adSchema = new mongoose.Schema(
       status: { type: String },
       updatedAt: { type: Date },
     },
+
+    // === Нормализованные поля для сравнения цен ===
+    
+    // Электроника / Смартфоны
+    brand: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
+    model: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
+    storageGb: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    ramGb: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+
+    // Автомобили
+    carMake: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
+    carModel: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
+    carYear: {
+      type: Number,
+      min: 1900,
+      max: 2100,
+      index: true,
+      default: null,
+    },
+    carEngineVolume: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    carTransmission: {
+      type: String,
+      enum: ['auto', 'manual', null],
+      default: null,
+    },
+
+    // Недвижимость
+    realtyType: {
+      type: String,
+      enum: ['apartment', 'house', 'room', 'land', 'commercial', null],
+      default: null,
+    },
+    realtyRooms: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    realtyAreaTotal: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    realtyCity: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
+    realtyDistrict: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      index: true,
+      default: null,
+    },
+    pricePerSqm: {
+      type: Number,
+      min: 0,
+      index: true,
+      default: null,
+    },
   },
   {
     timestamps: true,
@@ -245,12 +344,22 @@ const adSchema = new mongoose.Schema(
 // Используется в endpoints: /api/ads/search (с $geoNear), /api/ads/nearby, /api/ads/live-spots
 adSchema.index({ 'location.geo': '2dsphere' });
 
-// Автоматический расчет validUntil при создании
+// Автоматический расчет validUntil при создании и pricePerSqm для недвижимости
 adSchema.pre('save', function (next) {
   if (this.isNew && !this.validUntil) {
     const validUntil = new Date();
     validUntil.setDate(validUntil.getDate() + (this.lifetimeDays || 30));
     this.validUntil = validUntil;
+  }
+
+  // Автоматический расчет pricePerSqm для недвижимости
+  if (this.realtyAreaTotal && this.realtyAreaTotal > 0 && this.price && this.price > 0) {
+    this.pricePerSqm = Math.round((this.price / this.realtyAreaTotal) * 100) / 100;
+  } else if (this.isModified('price') || this.isModified('realtyAreaTotal')) {
+    // Сбрасываем если данные неполные
+    if (!this.realtyAreaTotal || !this.price) {
+      this.pricePerSqm = null;
+    }
   }
 
   const coordsFromLocation = resolveCoordinatesFromLocation(this.location);
@@ -394,6 +503,15 @@ adSchema.post('save', async function (doc, next) {
       }
     );
 
+    // Инвалидация кэша цен при изменении цены
+    if (priceChanged) {
+      try {
+        await AdPriceSnapshot.deleteOne({ adId: doc._id });
+      } catch (err) {
+        console.warn('[Ad] Failed to invalidate price cache:', err.message);
+      }
+    }
+
     return next();
   } catch (error) {
     return next(error);
@@ -405,6 +523,16 @@ adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
+
+// Индексы для сравнения цен
+// Электроника: brand + model + storageGb
+adSchema.index({ status: 1, categoryId: 1, brand: 1, model: 1, storageGb: 1, createdAt: -1 });
+// Автомобили: carMake + carModel + carYear
+adSchema.index({ status: 1, categoryId: 1, carMake: 1, carModel: 1, carYear: 1, createdAt: -1 });
+// Недвижимость: realtyType + realtyCity + realtyDistrict
+adSchema.index({ status: 1, categoryId: 1, realtyType: 1, realtyCity: 1, realtyDistrict: 1, createdAt: -1 });
+// Общий по категории + подкатегории
+adSchema.index({ status: 1, categoryId: 1, subcategoryId: 1, createdAt: -1 });
 
 function resolveCoordinatesFromLocation(location) {
   if (!location) return null;

@@ -26,6 +26,7 @@ import chatRoutes from './routes/chat.js';
 import uploadsRoutes from './routes/uploads.js';
 import mediaRoutes from './routes/media.js';
 import geoRoutes from './routes/geo.js';
+import pricingRoutes from './routes/pricing.js';
 
 const app = express();
 
@@ -101,5 +102,6 @@ app.use('/api/chat', chatRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/media', mediaRoutes);
 app.use('/api/geo', geoRoutes);
+app.use('/api/pricing', pricingRoutes);
 
 export default app;

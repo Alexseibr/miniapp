@@ -7,6 +7,7 @@ import { resolveGeoLocation, getPresetLocations, PresetLocation } from '@/api/ge
 import { CategoryNode } from '@/types';
 import { ArrowLeft, MapPin, Loader2, Camera, X, Check } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
+import PriceHint from '@/components/PriceHint';
 
 interface LocationData {
   lat: number;
@@ -204,7 +205,7 @@ export default function CreateAdPage() {
         />
       )}
       {currentStep === 2 && <Step2Photos photos={draft.photos} onAddPhoto={(url) => dispatch({ type: 'ADD_PHOTO', payload: url })} onRemovePhoto={(idx) => dispatch({ type: 'REMOVE_PHOTO', payload: idx })} />}
-      {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} />}
+      {currentStep === 3 && <Step3Info info={draft.info} categories={categories} onSetInfo={(info) => dispatch({ type: 'SET_INFO', payload: info })} city={draft.location?.geoLabel?.split(' ')[0]} />}
       {currentStep === 4 && (
         <Step4Contacts
           contacts={draft.contacts}
@@ -739,9 +740,10 @@ function Step2Photos({ photos, onAddPhoto, onRemovePhoto }: { photos: string[]; 
   );
 }
 
-function Step3Info({ info, categories, onSetInfo }: { info: InfoData; categories: CategoryNode[]; onSetInfo: (info: Partial<InfoData>) => void }) {
+function Step3Info({ info, categories, onSetInfo, city }: { info: InfoData; categories: CategoryNode[]; onSetInfo: (info: Partial<InfoData>) => void; city?: string }) {
   const selectedCategory = categories.find(c => c.slug === info.categoryId);
   const subcategories = selectedCategory?.subcategories || [];
+  const priceNumber = parseFloat(info.price) || 0;
 
   return (
     <div style={{ padding: 24 }}>
@@ -812,6 +814,15 @@ function Step3Info({ info, categories, onSetInfo }: { info: InfoData; categories
           />
           <span style={{ fontSize: 16, fontWeight: 500, color: '#6B7280' }}>BYN</span>
         </div>
+        
+        {info.categoryId && priceNumber > 0 && (
+          <PriceHint
+            categoryId={info.categoryId}
+            subcategoryId={info.subcategoryId || undefined}
+            price={priceNumber}
+            city={city}
+          />
+        )}
       </div>
 
       <div style={{ marginBottom: 20 }}>
