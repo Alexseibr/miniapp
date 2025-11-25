@@ -11,6 +11,7 @@ import { prefetchCriticalData } from '@/utils/prefetch';
 import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
 import { initWebVitals } from '@/utils/webVitals';
 import { Loader2 } from 'lucide-react';
+import { PlatformProvider } from '@/platform/PlatformProvider';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
@@ -142,38 +143,40 @@ export default function App() {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="app-shell">
-        <main>
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/" element={<HomePage />} />
-              <Route path="/category/:slug" element={<SubcategoryPage />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/orders" element={<OrdersPage />} />
-              <Route path="/seasons" element={<SeasonsPage />} />
-              <Route path="/seasons/:code" element={<SeasonViewPage />} />
-              <Route path="/categories/:slug" element={<CategoryPage />} />
-              <Route path="/ads/:id" element={<AdPage />} />
-              <Route path="/my-ads" element={<MyAdsPage />} />
-              <Route path="/ads/create" element={<CreateAdPage />} />
-              <Route path="/chats" element={<ConversationsPage />} />
-              <Route path="/chat/:conversationId" element={<ChatPage />} />
-              <Route path="/farmer-feed" element={<FarmerFeedPage />} />
-              <Route path="/farmer/bulk-upload" element={<BulkFarmerUploadPage />} />
-              <Route path="/farmer/analytics" element={<FarmerAnalyticsPage />} />
-              <Route path="/farmer/cabinet" element={<FarmerCabinetPage />} />
-              <Route path="/all-categories" element={<AllCategoriesPage />} />
-              <Route path="/map" element={<GeoMapPage />} />
-              <Route path="/geo-feed" element={<GeoFeedScreen />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </Suspense>
-        </main>
+      <PlatformProvider>
+        <div className="app-shell">
+          <main>
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/" element={<HomePage />} />
+                <Route path="/category/:slug" element={<SubcategoryPage />} />
+                <Route path="/feed" element={<FeedPage />} />
+                <Route path="/favorites" element={<FavoritesPage />} />
+                <Route path="/profile" element={<ProfilePage />} />
+                <Route path="/orders" element={<OrdersPage />} />
+                <Route path="/seasons" element={<SeasonsPage />} />
+                <Route path="/seasons/:code" element={<SeasonViewPage />} />
+                <Route path="/categories/:slug" element={<CategoryPage />} />
+                <Route path="/ads/:id" element={<AdPage />} />
+                <Route path="/my-ads" element={<MyAdsPage />} />
+                <Route path="/ads/create" element={<CreateAdPage />} />
+                <Route path="/chats" element={<ConversationsPage />} />
+                <Route path="/chat/:conversationId" element={<ChatPage />} />
+                <Route path="/farmer-feed" element={<FarmerFeedPage />} />
+                <Route path="/farmer/bulk-upload" element={<BulkFarmerUploadPage />} />
+                <Route path="/farmer/analytics" element={<FarmerAnalyticsPage />} />
+                <Route path="/farmer/cabinet" element={<FarmerCabinetPage />} />
+                <Route path="/all-categories" element={<AllCategoriesPage />} />
+                <Route path="/map" element={<GeoMapPage />} />
+                <Route path="/geo-feed" element={<GeoFeedScreen />} />
+                <Route path="*" element={<Navigate to="/" replace />} />
+              </Routes>
+            </Suspense>
+          </main>
 
-        <BottomTabs />
-      </div>
+          <BottomTabs />
+        </div>
+      </PlatformProvider>
     </QueryClientProvider>
   );
 }
