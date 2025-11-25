@@ -58,6 +58,12 @@ Preferred communication style: Simple, everyday language.
   - Quick-post API for simplified ad creation with auto-category detection
   - Nearby farmers endpoint with geo-search by category groups
   - API endpoints: `/api/farmer/categories`, `/suggest-category`, `/detect-quantity`, `/calculate-price`, `/quick-post`, `/nearby`, `/ads`, `/units`
+- **Farmer Cabinet Dashboard**: Comprehensive 4-tab seller dashboard at `/farmer/cabinet`:
+  - **Products Tab**: Shows farmer's ads with working status filters (All/Active/Expired), status counts, and notification cards. Filter state managed client-side for instant filtering.
+  - **Quick Upload Tab**: Inline form for rapid single-item posting (title, price, unit selector) via `/api/farmer/quick-post`, plus CTA cards for bulk upload and detailed ad creation.
+  - **Analytics Tab**: Personalized farmer metrics via `/api/farmer/my-analytics` (myAds, myViews, myClicks) plus market stats via `/api/farmer/season-analytics`. Green gradient card for personal stats, blue for market data.
+  - **Demand Tab**: Local demand tracking via `/api/farmer/local-demand` with geolocation request button using `useGeoStore.requestLocation`. Shows popular search queries and allows quick product creation.
+  - Uses `FarmerNotificationService` for smart notifications (expiring soon, price recommendations, demand spikes, new competitor alerts)
 - **Media Upload System**: Manages file size limits, thumbnail generation (via `sharp`), and cleanup. Uses `MediaFile` model to track uploads and a `MediaService` for validation and session management.
 - **Ad Lifecycle System**: Comprehensive ad expiration management with category-based TTL rules:
   - `CategoryLifetimeConfig` defines TTL per category: perishable_daily (1 day), fast (7 days), medium (14-21 days), long (30 days)
