@@ -1,7 +1,7 @@
 # KETMAR Market
 
 ## Overview
-KETMAR Market is a Telegram-based marketplace for buying and selling goods, featuring seasonal promotions and hierarchical product categories. It integrates a REST API backend, a Telegram bot, a React-based admin panel, and a React-based Telegram MiniApp. The project aims to provide a comprehensive e-commerce platform within Telegram, focusing on intuitive navigation, efficient ad management, and engaging user experiences with features like 3D icons and real-time chat. The business vision is to create a user-friendly and efficient e-commerce solution leveraging the Telegram ecosystem, with ambitions to capture a significant market share in mobile-first online retail.
+KETMAR Market is a Telegram-based marketplace designed for buying and selling goods, incorporating seasonal promotions and a hierarchical product categorization system. It features a REST API backend, a Telegram bot, a React-based administration panel, and a React-based Telegram MiniApp. The project aims to deliver a comprehensive e-commerce experience within Telegram, focusing on intuitive navigation, efficient advertisement management, and engaging user interfaces, including 3D icons and real-time chat functionalities. The business goal is to establish a user-friendly and efficient e-commerce platform leveraging the Telegram ecosystem, with aspirations to secure a significant portion of the mobile-first online retail market.
 
 ## User Preferences
 Preferred communication style: Simple, everyday language.
@@ -9,82 +9,38 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
-- **Category Icons**: Utilizes 3D WebP icons for all categories, with lazy loading and async decoding for performance.
-- **Admin Panel**: Features a tabbed design with robust filtering and management tools.
-- **MiniApp**: Designed for mobile with **radius-first navigation** pattern, elderly-friendly sizing, and geo-centric ad discovery.
-  - **Radius-First Navigation**: HomePage shows GroupSelector → SubcategoryChips → RadiusControl → Nearby Ads. FeedPage shows RadiusControl → optional single-select category filter → all nearby ads.
-  - **RadiusControl Component**: 0.1-100 km slider with presets [0.3, 0.5, 1, 3, 5, 10] km, integrated with useGeoStore, 300ms debounce on changes.
-  - **GroupSelector Component**: 14 top-level categories in 2-column grid with 3D WebP icons, single-select interaction, large 48px+ touch targets.
-  - **SubcategoryChips Component**: Horizontal scrollable multi-select chips for subcategory filtering within selected group.
-  - **Elderly-Friendly UX**: 24px+ headings, 17-18px body text, 48px+ touch targets, high contrast (#3B73FC brand blue), large buttons with generous padding.
-  - **Advanced Features**: Integrates `Swiper` for image carousels, `Leaflet` for maps, `date-fns` for relative timestamps. Bottom navigation conditionally displayed within Telegram MiniApp environment only.
+- **Category Icons**: Utilizes 3D WebP icons with lazy loading and async decoding for optimal performance.
+- **Admin Panel**: Features a tabbed interface with robust filtering and management tools.
+- **MiniApp**: Designed for mobile-first use with a "radius-first" navigation pattern, elderly-friendly sizing, and geo-centric ad discovery. Key components include a `RadiusControl` (0.1-100 km slider), `GroupSelector` (14 top-level categories with large touch targets), and `SubcategoryChips` (horizontal multi-select filtering). Accessibility features include large fonts (24px+ headings, 17-18px body), 48px+ touch targets, and high contrast.
 
 ### Technical Implementations
-- **Backend**: Node.js with Express.js, providing a RESTful API and Telegram bot logic. It uses JWT authentication for secure endpoints.
-- **Data Model**: MongoDB Atlas with Mongoose manages data for User, Category (hierarchical with 3D icon support), Ad (listings with geolocation and contact info), and Order entities. A permanent `short_term_rental` Season is configured for promotions. Ad model includes geoLabel (human-readable location like "Брест (Гершоны)"), contactType, contactPhone, contactUsername, contactInstagram fields for seller contact management.
-- **Geocoding API**: `/api/geo/resolve` endpoint uses Nominatim OSM for reverse geocoding (lat/lng → human-readable location). `/api/geo/preset-locations` provides fallback city list (Минск, Брест, Гомель, Витебск, Гродно, Могилёв).
-- **Geo-Search API**: `/api/ads/search` endpoint supports radius-based search using `buyerLat`/`buyerLng` and `maxDistanceKm` parameters. Returns `distanceKm` field (kilometers with 2 decimals) for each result. Fully supports sorting modes: `price_asc`/`price_desc`, `popular` (by views), `newest`/`oldest` (by date), and `distance` (default when geo-coordinates provided).
-- **Telegram Bot**: Built with Telegraf, handling user interactions, ad management, and a JWT-authenticated moderation panel.
+- **Backend**: Node.js with Express.js, providing RESTful APIs and Telegram bot logic, secured with JWT authentication.
+- **Data Model**: MongoDB Atlas with Mongoose for User, Category (hierarchical), Ad (geolocation, contact info), and Order entities. Includes support for seasonal promotions and detailed ad contact fields.
+- **Geocoding**: Uses Nominatim OSM for reverse geocoding (`/api/geo/resolve`) and provides preset fallback locations.
+- **Geo-Search**: `/api/ads/search` supports radius-based search with various sorting options (price, popular, newest, distance).
+- **Telegram Bot**: Implemented with Telegraf for user interaction, ad management, and a JWT-authenticated moderation panel.
 - **Frontend**: Two React applications built with TypeScript and Vite.
-    - **Web Admin Panel**: For managing products, categories, ads, and users. Uses shadcn/ui (Radix UI), TanStack Query, Wouter, and Tailwind CSS. Authentication includes Telegram Login Widget, one-time links, and SMS codes.
-    - **Telegram MiniApp**: Mobile user interface with radius-first navigation, lazy-loaded pages, optimized 3D WebP category icons, and elderly-friendly UX.
-      - **Create Ad Wizard**: 4-step elderly-friendly wizard for posting ads: (1) Auto-detect geolocation via navigator.geolocation + Nominatim OSM or fallback to preset cities, (2) Upload 0-4 photos (optional) with ActionSheet camera/gallery selection and retry on failure, (3) Enter basic info (title, category, price, description) with large fonts, (4) Auto-extract Telegram contacts (phone/username) from initData or allow Instagram, plus deferred publishing (publishAt) option for scheduling ads. NO manual address/phone entry. Uses useReducer for state management with progress bar and step validation. Supports scheduled ads with status='scheduled' and validUntil calculated from publishAt date.
-      - **useNearbyAds Hook**: Custom hook for radius-based ad fetching with 300ms debounce, AbortController (local capture to prevent race conditions), automatic stale data clearing on location loss, and distance-sorted results. Returns isEmpty/hasVeryFew for smart empty states.
-      - **useRoutePrefetch Hook**: Route prefetching on mouseenter using composedPath() for safe event delegation (handles Text nodes and non-anchor elements).
-- **Image Optimization**: Implements `LazyImage` and `OptimizedImage` components with IntersectionObserver for lazy loading, skeleton shimmers, SVG fallbacks, and priority loading. It includes infrastructure for responsive images (`srcset/sizes`) and leverages server-side media proxy for secure access and caching.
-- **Performance Optimizations**: Features code splitting with React.lazy and Suspense, data prefetching (categories, first-page ads), route prefetching on `mouseenter` (composedPath()-based), Gzip compression, hashed assets with long `Cache-Control` headers, and ETag support. Core Web Vitals are tracked for monitoring.
+    - **Web Admin Panel**: Manages products, categories, ads, and users, using shadcn/ui, TanStack Query, Wouter, and Tailwind CSS. Supports Telegram Login, one-time links, and SMS for authentication.
+    - **Telegram MiniApp**: Mobile-optimized UI with lazy-loaded pages, 3D WebP icons, and elderly-friendly design.
+      - **Create Ad Wizard**: A 4-step wizard for ad posting, featuring auto-geolocation, optional photo uploads, basic info entry with large fonts, and auto-extraction of Telegram contacts. Supports deferred publishing with `publishAt` for scheduled ads.
+      - **`useNearbyAds` Hook**: Custom hook for debounced, radius-based ad fetching with AbortController for race condition prevention.
+      - **`useRoutePrefetch` Hook**: Prefetches routes on `mouseenter` for improved navigation performance.
+- **Image Optimization**: `LazyImage` and `OptimizedImage` components for lazy loading, skeleton shimmers, responsive images, and server-side media proxy for secure access.
+- **Performance Optimizations**: Code splitting, data prefetching, route prefetching, Gzip compression, hashed assets, and ETag support.
 
 ### System Design Choices
-- Modular backend design separating concerns.
-- Denormalized Order data for historical integrity.
-- Direct GCS public access is prevented; all photo access flows through a server-side proxy for authentication and caching.
-- **Radius-First Architecture**: Global radius state in useGeoStore (Zustand), clamped to 0.1-100 km. All ad listings require geolocation first, ensuring distance-relevant results.
-- **Debounced Fetching**: 300ms debounce on radius changes to reduce API load, with AbortController cleanup to prevent stale data leaks.
-- **Single-Select Category Filtering**: FeedPage uses single-select (not multi-select) to align with backend API capabilities, preventing client-side filtering confusion.
-- **Local AbortController Capture**: useNearbyAds captures AbortController locally at fetch start to prevent race conditions when rapid radius/location changes abort in-flight requests.
-- **Deferred Publishing**: Ads can be scheduled for future publication via `publishAt` field. Scheduled ads have `status='scheduled'` and `moderationStatus='scheduled'`. Cron worker (`workers/publishScheduler.js`) runs every minute, activating ads where `publishAt <= now`. On activation, status becomes 'active', moderationStatus stays unchanged (unless it was 'scheduled'), and validUntil is calculated from publishAt date (not creation date). Scheduled ads are hidden from public search but visible to owners in "My ads".
-  - **Frontend Components** (`miniapp/src/components/schedule/`):
-    - **IOSDateTimePicker**: iOS-style date/time picker with smooth scrolling "wheel" UI. CSS transform-based selection, touch-friendly 48px items, visible ±2 items from center.
-    - **SchedulePublishBlock**: "Now vs Later" toggle with radio-style buttons and integrated IOSDateTimePicker for scheduling. Minimum 5 minutes from now validation.
-    - **ScheduledAdBadge**: Displays countdown or formatted date for scheduled ads. Uses formatScheduledDate and formatRelativeTime from dateUtils.
-    - **ScheduledAdChip**: Compact chip for ad cards showing "Запланировано" status.
-  - **Date Utilities** (`miniapp/src/utils/dateUtils.ts`): formatScheduledDate (locale-aware), formatRelativeTime (countdown), parseISO8601 helpers using date-fns.
-  - **MyAdsPage Integration**: "Scheduled" filter tab showing owner's upcoming scheduled ads with countdown display. Card appearance animations (fade-in + slide-up, 0.4s duration, 50ms stagger).
-    - **JustPublishedChip**: Green pulsing badge for ads published/scheduled within 10 minutes. Works for both active (recently created/published) and scheduled (imminent) ads.
-    - **MyAdCard Component**: Reusable ad card with CSS animations, status badge rendering, and wouter navigation.
-- **Price Comparison System**: Comprehensive market analytics with category-specific comparison logic:
-  - **Ad Model Extensions**: Normalized fields for electronics (brand, model, storageGb, ramGb), cars (carMake, carModel, carYear, carEngineVolume, carTransmission), realty (realtyType, realtyRooms, realtyAreaTotal, realtyCity, realtyDistrict, pricePerSqm with auto-calculation).
-  - **AdPriceSnapshot Model**: Caches pricing analytics per ad with 6-hour TTL index for automatic cleanup.
-  - **PriceAnalyticsService**: Dynamic time windows (7/30/90 days), category-specific aggregation pipelines (min, max, avg, median, count), market level calculation (below_market <-5%, at_market ±5%, above_market >10%).
-  - **Category Slug Mappings**: Electronics (telefony-planshety, noutbuki-kompyutery, tv-foto-video, audio-tehnika, igry-igrovye-pristavki, tovary-dlya-kompyutera), Cars (legkovye-avtomobili, gruzovye-avtomobili, mototehnika, spetstekhnika), Realty (kvartiry, komnaty, doma-dachi-kottedzhi, uchastki, garazhi-mashinomesta, kommercheskaya-nedvizhimost).
-  - **API Endpoints**: `/api/pricing/ad/:adId/market` (seller analytics), `/api/pricing/brief/:adId` (buyer badge), `/api/pricing/brief/batch` (batch), `/api/pricing/estimate` (new ad estimation).
-  - **Frontend Components** (`miniapp/src/components/pricing/`):
-    - **PriceBadgeChip**: Pill badge showing market level (below/fair/above market) with percent diff. Colors: green (below), gray (fair), orange (above). Sizes: small (12px) for cards, medium (16px) for details page. Used in AdCard, AdCardSmall.
-    - **PriceMarketBlock**: Full "Цена и рынок" block for ad details page with elderly-friendly sizing (24px headings, 17px body). Shows current price, avg market price, analysis period, and market level badge.
-    - **PriceHintForSeller**: Compact hint under price input during ad creation. Shows market comparison with actionable suggestions.
-    - **PriceHint**: Original seller recommendations with 500ms debounce, category reset, detailed analytics.
-  - **Cache Invalidation**: Ad post-save hook deletes AdPriceSnapshot when price changes.
-- **Favorites System**: User favorites with notification preferences.
-  - **API Endpoints** (`routes/favoriteRoutes.js`): `/api/favorites/:telegramId` (list), `/toggle` (add/remove), `/add`, `DELETE /:adId`, `/settings/:adId` (notification prefs).
-  - **FavoriteButton Component**: Lucide Heart icon with scale animations, optimistic UI updates via Zustand store.
-  - **useUserStore**: Zustand store managing favorites with optimistic removal and server refresh reconciliation.
-- **Ad History Tracking** (Admin):
-  - **AdHistoryEvent Model**: Tracks ad lifecycle events (created, published, edited, moderated, etc.).
-  - **API Endpoint**: `/api/admin/ads/:adId/history` returns timeline of ad changes for admin panel.
-- **Category Auto-Suggestion**: Keyword-based category detection from ad titles.
-  - **CategorySuggestService** (`services/CategorySuggestService.js`): Normalizes text, matches keywords, returns category/subcategory suggestions with confidence scores.
-  - **Config** (`config/categoryKeywordsConfig.js`): Keyword mappings for all major categories (electronics, realty, auto, services, etc.).
-  - **API Endpoint**: `POST /api/categories/suggest` returns bestMatch and alternatives with confidence scores.
-  - **Frontend Integration**: Step3Info shows dismissible suggestion card with 500ms debounce, Apply/Dismiss buttons.
-- **Media Upload System**: File size limits, thumbnail generation, and cleanup.
-  - **MediaFile Model** (`models/MediaFile.js`): Stores metadata for uploaded files with status tracking (temporary/attached/deleted), original and thumbnail URLs.
-  - **MediaService** (`services/MediaService.js`): Validates file size (10 MB max) and mimeType (JPEG, PNG, WebP), creates upload sessions with MediaFile records, generates thumbnails via sharp, manages file attachment to ads.
-  - **API Endpoints** (`api/routes/uploads.js`):
-    - `POST /api/uploads/presigned-url`: Returns signed upload URL with fileId, validates size/mimeType before generating URL.
-    - `POST /api/uploads/:fileId/complete`: Triggers thumbnail generation after upload completion.
-    - `GET /api/uploads/limits`: Returns max file size (10 MB), allowed mime types.
-  - **Media Cleanup Worker** (`workers/mediaCleanup.js`): Hourly cron job removes temporary files older than 24 hours from storage and marks them as deleted.
-  - **Environment Variables**: `UPLOAD_MAX_SIZE_BYTES` (default 10485760), `MEDIA_CLEANUP_HOURS_OLD` (default 24).
+- **Modular Backend**: Separation of concerns for maintainability.
+- **Denormalized Order Data**: Ensures historical data integrity.
+- **Secure Media Access**: All photo access routed through a server-side proxy, preventing direct GCS access.
+- **Radius-First Architecture**: Global radius state for all ad listings, ensuring distance-relevant results.
+- **Debounced Fetching**: 300ms debounce on radius changes to optimize API calls, with AbortController cleanup.
+- **Single-Select Category Filtering**: Aligns with backend capabilities for consistent filtering.
+- **Deferred Publishing**: Allows scheduling ads for future publication with status management and a cron worker for activation. Includes dedicated frontend components for scheduling and display.
+- **Price Comparison System**: Provides market analytics with category-specific comparison logic. Extends Ad model with normalized fields for electronics, cars, and realty. `AdPriceSnapshot` caches analytics. `PriceAnalyticsService` calculates market levels. Frontend components (e.g., `PriceBadgeChip`, `PriceMarketBlock`) display pricing insights.
+- **Favorites System**: Enables users to favorite ads with notification preferences, managed via API endpoints and a Zustand store.
+- **Ad History Tracking**: `AdHistoryEvent` model tracks ad lifecycle events for admin monitoring.
+- **Category Auto-Suggestion**: Hybrid approach combining rule-based keywords and statistical learning from user behavior, using `CategoryWordStats` and `CategorySuggestService`. Frontend integrates a dismissible suggestion card.
+- **Media Upload System**: Manages file size limits, thumbnail generation (via `sharp`), and cleanup. Uses `MediaFile` model to track uploads and a `MediaService` for validation and session management.
 
 ## External Dependencies
 
@@ -92,11 +48,11 @@ Preferred communication style: Simple, everyday language.
 - **MongoDB Atlas**: Cloud-hosted NoSQL database.
 
 ### Third-Party APIs
-- **Telegram Bot API**: For all bot interactions.
+- **Telegram Bot API**: For all Telegram bot interactions.
 
 ### Cloud Services
 - **Replit**: Optional deployment platform.
-- **Google Cloud Storage**: Used for photo uploads, with a server-side media proxy for secure access and caching.
+- **Google Cloud Storage**: Used for photo uploads and storage.
 
 ### NPM Packages (Key)
 - **Backend**: `express`, `mongoose`, `telegraf`, `dotenv`.
