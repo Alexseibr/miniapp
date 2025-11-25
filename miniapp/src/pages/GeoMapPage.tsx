@@ -11,7 +11,9 @@ interface ClusterData {
   count: number;
   avgPrice?: number;
   isCluster: boolean;
+  adId?: string;
   sampleAd?: {
+    id?: string;
     title: string;
     price: number;
   };
@@ -24,8 +26,13 @@ export default function GeoMapPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | undefined>();
   
   const handleMarkerClick = useCallback((cluster: ClusterData) => {
-    if (!cluster.isCluster && cluster.sampleAd) {
-      navigate(`/ads/${cluster.geoHash}`);
+    if (!cluster.isCluster) {
+      const adId = cluster.adId || cluster.sampleAd?.id;
+      if (adId) {
+        navigate(`/ads/${adId}`);
+      } else {
+        setSheetOpen(true);
+      }
     } else {
       setSheetOpen(true);
     }

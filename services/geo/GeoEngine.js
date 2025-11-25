@@ -71,6 +71,7 @@ class GeoEngine {
         status: 'active',
         moderationStatus: 'approved',
         'location.coordinates': {
+          $exists: true,
           $geoWithin: {
             $centerSphere: [[lng, lat], radiusKm / 6378.1]
           }
@@ -84,22 +85,38 @@ class GeoEngine {
       const ads = await Ad.aggregate([
         { $match: query },
         {
-          $project: {
-            geoHash: { $substr: ['$geoHash', 0, 6] },
-            lat: { $arrayElemAt: ['$location.coordinates', 1] },
-            lng: { $arrayElemAt: ['$location.coordinates', 0] },
-            price: 1,
-            categoryId: 1
+          $addFields: {
+            computedGeoHash: {
+              $cond: {
+                if: { $and: [{ $ne: ['$geoHash', null] }, { $ne: ['$geoHash', ''] }] },
+                then: { $substr: ['$geoHash', 0, 6] },
+                else: 'unknown'
+              }
+            },
+            adLat: { $arrayElemAt: ['$location.coordinates', 1] },
+            adLng: { $arrayElemAt: ['$location.coordinates', 0] }
+          }
+        },
+        {
+          $match: {
+            adLat: { $ne: null, $type: 'number' },
+            adLng: { $ne: null, $type: 'number' }
           }
         },
         {
           $group: {
-            _id: '$geoHash',
+            _id: '$computedGeoHash',
             count: { $sum: 1 },
             avgPrice: { $avg: '$price' },
-            avgLat: { $avg: '$lat' },
-            avgLng: { $avg: '$lng' },
+            avgLat: { $avg: '$adLat' },
+            avgLng: { $avg: '$adLng' },
             categories: { $push: '$categoryId' }
+          }
+        },
+        {
+          $match: {
+            avgLat: { $ne: null },
+            avgLng: { $ne: null }
           }
         },
         {
@@ -116,15 +133,17 @@ class GeoEngine {
         { $limit: 500 }
       ]);
       
-      const points = ads.map(point => ({
-        lat: point.lat,
-        lng: point.lng,
-        intensity: Math.min(point.count / 20, 1),
-        count: point.count,
-        avgPrice: point.avgPrice,
-        dominantCategory: point.dominantCategory,
-        geoHash: point.geoHash
-      }));
+      const points = ads
+        .filter(point => point.lat != null && point.lng != null && !isNaN(point.lat) && !isNaN(point.lng))
+        .map(point => ({
+          lat: point.lat,
+          lng: point.lng,
+          intensity: Math.min(point.count / 20, 1),
+          count: point.count,
+          avgPrice: point.avgPrice,
+          dominantCategory: point.dominantCategory,
+          geoHash: point.geoHash
+        }));
       
       const result = { success: true, data: { points, totalAds: points.reduce((s, p) => s + p.count, 0) } };
       this.setCache(cacheKey, result);
@@ -300,32 +319,50 @@ class GeoEngine {
             $centerSphere: [[lng, lat], radiusKm / 6378.1]
           }
         };
+      } else {
+        query['location.coordinates'] = { $exists: true };
       }
       
       const clusters = await Ad.aggregate([
         { $match: query },
         {
-          $project: {
-            geoHash: { $substr: ['$geoHash', 0, precision] },
-            lat: { $arrayElemAt: ['$location.coordinates', 1] },
-            lng: { $arrayElemAt: ['$location.coordinates', 0] },
-            price: 1,
-            categoryId: 1,
-            title: 1,
-            photos: { $arrayElemAt: ['$photos', 0] }
+          $addFields: {
+            adId: '$_id',
+            adLat: { $arrayElemAt: ['$location.coordinates', 1] },
+            adLng: { $arrayElemAt: ['$location.coordinates', 0] },
+            computedGeoHash: {
+              $cond: {
+                if: { $and: [{ $ne: ['$geoHash', null] }, { $ne: ['$geoHash', ''] }] },
+                then: { $substr: ['$geoHash', 0, precision] },
+                else: { $concat: ['grid_', { $toString: { $floor: { $multiply: [{ $arrayElemAt: ['$location.coordinates', 1] }, 100] } } }, '_', { $toString: { $floor: { $multiply: [{ $arrayElemAt: ['$location.coordinates', 0] }, 100] } } }] }
+              }
+            }
+          }
+        },
+        {
+          $match: {
+            adLat: { $ne: null, $type: 'number' },
+            adLng: { $ne: null, $type: 'number' }
           }
         },
         {
           $group: {
-            _id: '$geoHash',
+            _id: '$computedGeoHash',
             count: { $sum: 1 },
             avgPrice: { $avg: '$price' },
             minPrice: { $min: '$price' },
             maxPrice: { $max: '$price' },
-            avgLat: { $avg: '$lat' },
-            avgLng: { $avg: '$lng' },
+            avgLat: { $avg: '$adLat' },
+            avgLng: { $avg: '$adLng' },
             categories: { $addToSet: '$categoryId' },
-            sampleAd: { $first: { title: '$title', price: '$price', photo: '$photos' } }
+            firstAdId: { $first: '$adId' },
+            sampleAd: { $first: { id: '$adId', title: '$title', price: '$price', photo: { $arrayElemAt: ['$photos', 0] } } }
+          }
+        },
+        {
+          $match: {
+            avgLat: { $ne: null },
+            avgLng: { $ne: null }
           }
         },
         {
@@ -338,6 +375,7 @@ class GeoEngine {
             lat: '$avgLat',
             lng: '$avgLng',
             categories: 1,
+            adId: '$firstAdId',
             sampleAd: 1,
             isCluster: { $gt: ['$count', 1] }
           }
@@ -345,7 +383,14 @@ class GeoEngine {
         { $limit: 200 }
       ]);
       
-      return { success: true, data: { clusters, precision } };
+      const validClusters = clusters
+        .filter(c => c.lat != null && c.lng != null && !isNaN(c.lat) && !isNaN(c.lng))
+        .map(c => ({
+          ...c,
+          adId: c.adId?.toString() || null
+        }));
+      
+      return { success: true, data: { clusters: validClusters, precision } };
     } catch (error) {
       console.error('[GeoEngine] getClusteredMarkers error:', error);
       return { success: false, error: error.message, data: { clusters: [] } };

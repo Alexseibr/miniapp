@@ -52,6 +52,7 @@ Preferred communication style: Simple, everyday language.
 - **Search Alerts System**: Notifies buyers when searched items become available after zero-result searches.
 - **Demand Notification System**: Notifies sellers when demand spikes for their product categories.
 - **AI Layer**: Unified AI services for text generation (titles, descriptions, tags), personalized recommendations (similar ads, personal feed, trending nearby), and content moderation (risk scoring, spam detection). It tracks user activity for ML learning.
+- **Geo-Intelligence Map System**: Real-time geo-analytics with demand/supply heatmaps, trending local searches, clustered ad markers, and smart geo-recommendations for buyers/sellers. Includes GeoEvent model for tracking user geo-activity (searches, views, favorites), GeoEngine service with caching, and interactive Leaflet map components with heatmap layers and radius controls.
 
 ## External Dependencies
 

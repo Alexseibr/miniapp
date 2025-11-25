@@ -100,6 +100,8 @@ geoEventSchema.statics.getDemandHeatmap = async function(options) {
             $centerSphere: [[lng, lat], radiusKm / 6378.1]
           }
         },
+        'location.coordinates': { $exists: true, $ne: null },
+        geoHash: { $exists: true, $ne: null },
         type: { $in: ['search', 'empty_search', 'category_open', 'view'] },
         createdAt: { $gte: since }
       }
@@ -118,6 +120,12 @@ geoEventSchema.statics.getDemandHeatmap = async function(options) {
       }
     },
     {
+      $match: {
+        avgLat: { $ne: null, $type: 'number' },
+        avgLng: { $ne: null, $type: 'number' }
+      }
+    },
+    {
       $project: {
         geoHash: '$_id',
         count: 1,
@@ -133,7 +141,7 @@ geoEventSchema.statics.getDemandHeatmap = async function(options) {
     { $limit: 500 }
   ]);
   
-  return events;
+  return events.filter(e => e.lat != null && e.lng != null && !isNaN(e.lat) && !isNaN(e.lng));
 };
 
 geoEventSchema.statics.getTrendingSearches = async function(options) {

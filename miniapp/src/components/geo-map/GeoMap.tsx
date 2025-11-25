@@ -55,7 +55,9 @@ interface ClusterData {
   count: number;
   avgPrice?: number;
   isCluster: boolean;
+  adId?: string;
   sampleAd?: {
+    id?: string;
     title: string;
     price: number;
   };
