@@ -84,6 +84,12 @@ const OptimizedImage = memo(({
 
     imageCache.set(src, 'loading');
 
+    if (priority) {
+      setLoadState('loaded');
+      imageCache.set(src, 'loaded');
+      return;
+    }
+
     const img = new Image();
     
     img.onload = () => {
@@ -109,7 +115,7 @@ const OptimizedImage = memo(({
       img.onload = null;
       img.onerror = null;
     };
-  }, [isVisible, src, onError]);
+  }, [isVisible, src, onError, priority]);
 
   const isLoading = loadState === 'loading';
   const hasError = loadState === 'error';
@@ -145,7 +151,7 @@ const OptimizedImage = memo(({
       )}
       {hasError && fallback ? (
         fallback
-      ) : (isLoaded || isVisible) ? (
+      ) : isVisible ? (
         <img
           ref={imgRef}
           src={src}
@@ -156,8 +162,6 @@ const OptimizedImage = memo(({
             width: '100%',
             height: '100%',
             objectFit: style?.objectFit || 'cover',
-            opacity: isLoaded ? 1 : 0,
-            transition: 'opacity 0.3s ease-out',
           }}
         />
       ) : null}
