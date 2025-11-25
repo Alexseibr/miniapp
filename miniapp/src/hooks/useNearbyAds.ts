@@ -7,6 +7,7 @@ interface UseNearbyAdsParams {
   radiusKm: number;
   categoryId?: string | null;
   subcategoryId?: string | null;
+  query?: string | null;
   enabled?: boolean;
 }
 
@@ -26,6 +27,7 @@ export function useNearbyAds({
   radiusKm,
   categoryId,
   subcategoryId,
+  query,
   enabled = true,
 }: UseNearbyAdsParams): UseNearbyAdsResult {
   const [ads, setAds] = useState<AdPreview[]>([]);
@@ -63,6 +65,7 @@ export function useNearbyAds({
         sort: 'distance',
         categoryId: categoryId || undefined,
         subcategoryId: subcategoryId || undefined,
+        q: query || undefined,
         limit: 50,
         signal: currentController.signal,
       });
@@ -82,7 +85,7 @@ export function useNearbyAds({
         setLoading(false);
       }
     }
-  }, [coords, radiusKm, categoryId, subcategoryId, enabled]);
+  }, [coords, radiusKm, categoryId, subcategoryId, query, enabled]);
 
   useEffect(() => {
     if (debounceTimerRef.current) {

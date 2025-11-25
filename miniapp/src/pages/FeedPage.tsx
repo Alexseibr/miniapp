@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { MapPin, Home, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { MapPin, Home, SlidersHorizontal, ChevronDown, X, Search } from 'lucide-react';
 import RadiusControl from '@/components/RadiusControl';
 import NearbyAdsGrid from '@/components/NearbyAdsGrid';
 import CategoriesSheet from '@/components/CategoriesSheet';
@@ -12,6 +12,7 @@ import { CategoryStat } from '@/types';
 
 export default function FeedPage() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { coords, status: geoStatus, requestLocation, radiusKm, setRadius } = useGeo();
   const { categories, loading: categoriesLoading, loadCategories } = useCategoriesStore();
   
@@ -21,10 +22,19 @@ export default function FeedPage() {
   const [totalAds, setTotalAds] = useState(0);
   
   const statsAbortRef = useRef<AbortController | null>(null);
+  
+  const searchQuery = searchParams.get('q') || '';
+  const urlCategoryId = searchParams.get('categoryId');
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  useEffect(() => {
+    if (urlCategoryId && urlCategoryId !== selectedCategoryId) {
+      setSelectedCategoryId(urlCategoryId);
+    }
+  }, [urlCategoryId]);
 
   const loadCategoryStats = useCallback(async () => {
     if (!coords) return;
@@ -68,6 +78,7 @@ export default function FeedPage() {
     coords,
     radiusKm,
     categoryId: selectedCategoryId || undefined,
+    query: searchQuery || undefined,
     enabled: !!coords,
   });
 
@@ -128,9 +139,53 @@ export default function FeedPage() {
             <Home size={22} />
           </button>
           <h1 style={{ flex: 1, margin: 0, fontSize: 20, fontWeight: 600, color: '#111827' }}>
-            Рядом со мной
+            {searchQuery ? `Поиск: "${searchQuery}"` : 'Рядом со мной'}
           </h1>
         </div>
+        
+        {searchQuery && (
+          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                background: '#EBF3FF',
+                border: '1px solid #BFDBFE',
+                padding: '8px 12px',
+                borderRadius: 10,
+              }}
+            >
+              <Search size={16} color="#3B73FC" />
+              <span style={{ fontSize: 15, fontWeight: 500, color: '#3B73FC' }}>
+                {searchQuery}
+              </span>
+              <button
+                onClick={() => {
+                  const newParams = new URLSearchParams(searchParams);
+                  newParams.delete('q');
+                  setSearchParams(newParams);
+                }}
+                style={{
+                  width: 24,
+                  height: 24,
+                  borderRadius: '50%',
+                  border: 'none',
+                  background: '#3B73FC',
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  marginLeft: 4,
+                }}
+                data-testid="button-clear-search"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Geo Request */}
