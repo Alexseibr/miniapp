@@ -1,5 +1,5 @@
 import { useState, useEffect, useReducer, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation } from 'wouter';
 import { useUserStore } from '@/store/useUserStore';
 import { fetchCategories } from '@/api/categories';
 import { createAd, CreateAdPayload } from '@/api/ads';
@@ -75,7 +75,7 @@ function draftReducer(state: DraftAd, action: WizardAction): DraftAd {
 }
 
 export default function CreateAdPage() {
-  const navigate = useNavigate();
+  const [, setLocation] = useLocation();
   const user = useUserStore((state) => state.user);
   const [currentStep, setCurrentStep] = useState(1);
   const [draft, dispatch] = useReducer(draftReducer, initialState);
@@ -119,7 +119,7 @@ export default function CreateAdPage() {
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1);
     } else {
-      navigate(-1);
+      window.history.back();
     }
   };
 
@@ -174,7 +174,7 @@ export default function CreateAdPage() {
     try {
       setSubmitting(true);
       const ad = await createAd(payload);
-      navigate(`/ads/${ad._id}`);
+      setLocation(`/ads/${ad._id}`);
     } catch (err: any) {
       console.error('Create ad error:', err);
       setError(err.message || 'Не удалось создать объявление');
