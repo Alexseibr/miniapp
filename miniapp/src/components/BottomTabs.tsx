@@ -1,11 +1,11 @@
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Compass, ShoppingBag, Heart, User } from 'lucide-react';
+import { Home, MapPin, ShoppingBag, Heart, User } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getTelegramWebApp } from '@/utils/telegram';
 
 const tabs = [
   { path: '/', label: 'Главная', Icon: Home },
-  { path: '/feed', label: 'Лента', Icon: Compass },
+  { path: '/geo-feed', label: 'Карта', Icon: MapPin },
   { path: '/my-ads', label: 'Мои', Icon: ShoppingBag },
   { path: '/favorites', label: 'Избранное', Icon: Heart },
   { path: '/profile', label: 'Профиль', Icon: User },
