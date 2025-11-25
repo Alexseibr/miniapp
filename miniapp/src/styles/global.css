@@ -1080,3 +1080,226 @@ input.input:focus {
 .phone-auth-skip-button:active {
   transform: scale(0.98);
 }
+
+.filter-panel {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.filter-toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: var(--bg-primary);
+  border: 1px solid var(--color-secondary-soft);
+  border-radius: var(--radius-md);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--color-primary);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-toggle-button:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--color-secondary);
+}
+
+.filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  background: var(--color-accent-highlight);
+  color: #ffffff;
+  border-radius: 10px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.filter-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  animation: fadeIn 0.15s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.filter-modal {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: var(--bg-primary);
+  border-top-left-radius: var(--radius-xl);
+  border-top-right-radius: var(--radius-xl);
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
+  z-index: 101;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.filter-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px;
+  border-bottom: 1px solid var(--color-secondary-soft);
+}
+
+.filter-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.filter-close-button {
+  background: transparent;
+  border: none;
+  padding: 4px;
+  cursor: pointer;
+  color: var(--color-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  transition: all 0.15s;
+}
+
+.filter-close-button:hover {
+  background: var(--bg-tertiary);
+  color: var(--color-primary);
+}
+
+.filter-content {
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filter-label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.filter-select,
+.filter-input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid var(--color-secondary-soft);
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-family: inherit;
+  background: var(--bg-primary);
+  color: var(--color-primary);
+  transition: all 0.15s;
+}
+
+.filter-select:focus,
+.filter-input:focus {
+  outline: none;
+  border-color: var(--color-accent-highlight);
+  box-shadow: 0 0 0 3px rgba(59, 115, 252, 0.1);
+}
+
+.filter-sort-options {
+  display: flex;
+  gap: 8px;
+}
+
+.filter-sort-option {
+  flex: 1;
+  padding: 10px 16px;
+  border: 1px solid var(--color-secondary-soft);
+  border-radius: var(--radius-md);
+  background: var(--bg-primary);
+  color: var(--color-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-sort-option:hover {
+  background: var(--bg-tertiary);
+  border-color: var(--color-secondary);
+}
+
+.filter-sort-option.active {
+  background: var(--color-accent-highlight);
+  border-color: var(--color-accent-highlight);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.filter-actions {
+  display: flex;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid var(--color-secondary-soft);
+}
+
+.filter-reset-button,
+.filter-apply-button {
+  flex: 1;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.filter-reset-button {
+  background: var(--bg-tertiary);
+  border: 1px solid var(--color-secondary-soft);
+  color: var(--color-primary);
+}
+
+.filter-reset-button:hover {
+  background: var(--color-secondary-soft);
+}
+
+.filter-apply-button {
+  background: var(--color-accent-highlight);
+  border: none;
+  color: #ffffff;
+}
+
+.filter-apply-button:hover {
+  background: #2563eb;
+}

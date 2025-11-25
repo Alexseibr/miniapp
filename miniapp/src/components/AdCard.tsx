@@ -109,12 +109,31 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
       </div>
 
       <div className="ad-card-content">
-        <p
-          data-testid={`ad-price-${ad._id}`}
-          className="ad-card-price"
-        >
-          {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
+          <p
+            data-testid={`ad-price-${ad._id}`}
+            className="ad-card-price"
+            style={{ margin: 0 }}
+          >
+            {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+          </p>
+          {ad.createdAt && (
+            <span
+              data-testid={`ad-date-${ad._id}`}
+              style={{
+                fontSize: '0.625rem',
+                color: 'var(--color-secondary)',
+                backgroundColor: 'var(--bg-tertiary)',
+                padding: '2px 6px',
+                borderRadius: '4px',
+                fontWeight: 500,
+                whiteSpace: 'nowrap'
+              }}
+            >
+              {formatRelativeTime(new Date(ad.createdAt))}
+            </span>
+          )}
+        </div>
 
         <h3
           data-testid={`ad-title-${ad._id}`}
@@ -124,12 +143,29 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
         </h3>
 
         {ad.city && (
-          <p
-            data-testid={`ad-location-${ad._id}`}
-            className="ad-card-location"
+          <div 
+            style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              gap: '4px',
+              marginTop: '4px'
+            }}
           >
-            {ad.city}
-          </p>
+            <MapPin 
+              size={12} 
+              style={{ 
+                color: 'var(--color-secondary)', 
+                flexShrink: 0 
+              }} 
+            />
+            <p
+              data-testid={`ad-location-${ad._id}`}
+              className="ad-card-location"
+              style={{ margin: 0 }}
+            >
+              {ad.city}
+            </p>
+          </div>
         )}
       </div>
     </article>

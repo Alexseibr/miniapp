@@ -1,27 +1,100 @@
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Loader2 } from 'lucide-react';
 import Header from '@/components/Header';
-import RenderBlocks from '@/layout/RenderBlocks.tsx';
+import FilterPanel, { FilterState } from '@/components/FilterPanel';
+import AdCard from '@/components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
 import { useUserStore } from '@/store/useUserStore';
-import { useEffect } from 'react';
+import { listAds } from '@/api/ads';
+import { AdPreview } from '@/types';
 
 export default function HomePage() {
   const { cityCode, initialize, status: userStatus } = useUserStore();
-  
+  const [filters, setFilters] = useState<FilterState>({
+    sort: 'createdAt_desc'
+  });
+  const [pages, setPages] = useState<Record<string, number>>({});
+  const limit = 20;
+  const observerTarget = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     initialize();
   }, [initialize]);
 
-  const currentCityCode = cityCode || 'brest';
-  
-  const { data: layoutData, isLoading } = useQuery<any>({
-    queryKey: ['/api/layout', { cityCode: currentCityCode, screen: 'home' }],
+  const filtersKey = JSON.stringify(filters);
+  const currentPage = pages[filtersKey] || 1;
+
+  const { data: adsData, isLoading, isFetching } = useQuery({
+    queryKey: ['/api/ads/search', filtersKey, currentPage],
+    queryFn: () => listAds({
+      ...(filters.categoryId && { categoryId: filters.categoryId }),
+      ...(filters.minPrice && { minPrice: filters.minPrice }),
+      ...(filters.maxPrice && { maxPrice: filters.maxPrice }),
+      sort: filters.sort,
+      page: currentPage,
+      limit
+    }),
     enabled: userStatus !== 'loading',
   });
 
-  const blocks = layoutData?.blocks || [];
-  const city = layoutData?.city;
+  const [adsMap, setAdsMap] = useState<Record<string, AdPreview[]>>({});
+  const allAds = adsMap[filtersKey] || [];
+  const total = adsData?.total || 0;
+  const hasMore = allAds.length < total && (adsData?.items?.length || 0) >= limit;
+
+  useEffect(() => {
+    if (adsData?.items && !isFetching) {
+      setAdsMap(prev => {
+        const existing = prev[filtersKey] || [];
+        if (currentPage === 1) {
+          return { ...prev, [filtersKey]: adsData.items };
+        } else {
+          const newIds = new Set(adsData.items.map(ad => ad._id));
+          const filtered = existing.filter(ad => !newIds.has(ad._id));
+          return { ...prev, [filtersKey]: [...filtered, ...adsData.items] };
+        }
+      });
+    }
+  }, [adsData, filtersKey, currentPage, isFetching]);
+
+  const handleFilterChange = (newFilters: FilterState) => {
+    const newFiltersKey = JSON.stringify(newFilters);
+    setPages(prev => ({ ...prev, [newFiltersKey]: 1 }));
+    setFilters(newFilters);
+  };
+
+  const handleLoadMore = useCallback(() => {
+    if (!isFetching && hasMore) {
+      setPages(prev => ({ ...prev, [filtersKey]: currentPage + 1 }));
+    }
+  }, [isFetching, hasMore, filtersKey, currentPage]);
+
+  useEffect(() => {
+    if (!adsData || total === 0 || isFetching || !hasMore) {
+      return;
+    }
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          handleLoadMore();
+        }
+      },
+      { threshold: 0.1, rootMargin: '100px' }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, isFetching, handleLoadMore, total, adsData]);
 
   return (
     <div className="app-shell">
@@ -29,7 +102,7 @@ export default function HomePage() {
       
       <main style={{ paddingBottom: '16px' }}>
         <div className="container">
-          {isLoading || userStatus === 'loading' ? (
+          {userStatus === 'loading' ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
                 <Loader2 
@@ -43,16 +116,106 @@ export default function HomePage() {
                 Загружаем контент
               </h3>
               <p style={{ color: 'var(--color-secondary)', margin: 0 }}>
-                {city?.displayName || 'Настраиваем маркетплейс'} • Подождите несколько секунд
+                Настраиваем маркетплейс • Подождите несколько секунд
               </p>
             </div>
-          ) : blocks.length > 0 ? (
-            <RenderBlocks blocks={blocks} cityCode={cityCode || 'brest'} />
           ) : (
-            <EmptyState 
-              title="Контент недоступен" 
-              description="Не удалось загрузить блоки для главной страницы. Попробуйте обновить страницу" 
-            />
+            <>
+              <div style={{ marginBottom: '16px' }}>
+                <h1 
+                  style={{ 
+                    margin: '0 0 4px', 
+                    fontSize: '1.5rem', 
+                    fontWeight: 700,
+                    color: 'var(--color-primary)' 
+                  }}
+                  data-testid="text-page-title"
+                >
+                  Все объявления
+                </h1>
+                {total > 0 && (
+                  <p 
+                    style={{ 
+                      margin: 0, 
+                      fontSize: '0.875rem', 
+                      color: 'var(--color-secondary)' 
+                    }}
+                    data-testid="text-total-ads"
+                  >
+                    Найдено {total} {total === 1 ? 'объявление' : total < 5 ? 'объявления' : 'объявлений'}
+                  </p>
+                )}
+              </div>
+
+              <FilterPanel filters={filters} onChange={handleFilterChange} />
+
+              {isLoading && currentPage === 1 ? (
+                <div className="ads-grid" data-testid="ads-grid-loading">
+                  {[...Array(12)].map((_, i) => (
+                    <div 
+                      key={i} 
+                      className="skeleton" 
+                      style={{ aspectRatio: '1 / 1.3', borderRadius: 'var(--radius-md)' }} 
+                    />
+                  ))}
+                </div>
+              ) : allAds.length > 0 ? (
+                <>
+                  <div className="ads-grid" data-testid="ads-grid">
+                    {allAds.map((ad: AdPreview) => (
+                      <AdCard key={ad._id} ad={ad} showActions={true} />
+                    ))}
+                  </div>
+
+                  <div 
+                    ref={observerTarget} 
+                    style={{ height: '20px', width: '100%' }}
+                    data-testid="infinite-scroll-trigger"
+                  />
+
+                  {isFetching && currentPage > 1 && (
+                    <div style={{ 
+                      textAlign: 'center', 
+                      padding: '24px 0',
+                      display: 'flex',
+                      justifyContent: 'center',
+                      gap: '12px'
+                    }}>
+                      <Loader2 
+                        size={24} 
+                        color="var(--color-primary)" 
+                        className="loading-spinner"
+                        data-testid="icon-loading-more" 
+                      />
+                      <span style={{ color: 'var(--color-secondary)' }}>
+                        Загружаем ещё...
+                      </span>
+                    </div>
+                  )}
+
+                  {!hasMore && (
+                    <div style={{ textAlign: 'center', padding: '24px 0' }}>
+                      <p style={{ 
+                        margin: 0, 
+                        fontSize: '0.875rem', 
+                        color: 'var(--color-secondary)' 
+                      }}>
+                        Показано все объявления ({allAds.length})
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <EmptyState 
+                  title="Объявления не найдены" 
+                  description={
+                    filters.categoryId || filters.minPrice || filters.maxPrice
+                      ? "Попробуйте изменить фильтры или сбросить их"
+                      : "Здесь пока нет объявлений. Будьте первым!"
+                  }
+                />
+              )}
+            </>
           )}
         </div>
       </main>
@@ -83,7 +246,7 @@ export default function HomePage() {
             }} 
             data-testid="text-marketplace-label"
           >
-            {city?.displayName || 'Маркетплейс'}
+            {cityCode || 'Маркетплейс'}
           </span>
           <span 
             style={{ 
@@ -97,7 +260,7 @@ export default function HomePage() {
           </span>
         </div>
         
-        {blocks.length > 0 && (
+        {total > 0 && (
           <div
             style={{
               backgroundColor: 'var(--color-primary)',
@@ -107,9 +270,9 @@ export default function HomePage() {
               fontSize: '0.875rem',
               fontWeight: 600,
             }}
-            data-testid="badge-block-count"
+            data-testid="badge-ad-count"
           >
-            {blocks.length} {blocks.length === 1 ? 'блок' : blocks.length < 5 ? 'блока' : 'блоков'}
+            {total} {total === 1 ? 'объявление' : total < 5 ? 'объявления' : 'объявлений'}
           </div>
         )}
       </div>
