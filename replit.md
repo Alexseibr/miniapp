@@ -43,6 +43,14 @@ Preferred communication style: Simple, everyday language.
 - **Single-Select Category Filtering**: FeedPage uses single-select (not multi-select) to align with backend API capabilities, preventing client-side filtering confusion.
 - **Local AbortController Capture**: useNearbyAds captures AbortController locally at fetch start to prevent race conditions when rapid radius/location changes abort in-flight requests.
 - **Deferred Publishing**: Ads can be scheduled for future publication via `publishAt` field. Scheduled ads have `status='scheduled'` and `moderationStatus='scheduled'`. Cron worker (`workers/publishScheduler.js`) runs every minute, activating ads where `publishAt <= now`. On activation, status becomes 'active', moderationStatus stays unchanged (unless it was 'scheduled'), and validUntil is calculated from publishAt date (not creation date). Scheduled ads are hidden from public search but visible to owners in "My ads".
+- **Price Comparison System**: Comprehensive market analytics with category-specific comparison logic:
+  - **Ad Model Extensions**: Normalized fields for electronics (brand, model, storageGb, ramGb), cars (carMake, carModel, carYear, carEngineVolume, carTransmission), realty (realtyType, realtyRooms, realtyAreaTotal, realtyCity, realtyDistrict, pricePerSqm with auto-calculation).
+  - **AdPriceSnapshot Model**: Caches pricing analytics per ad with 6-hour TTL index for automatic cleanup.
+  - **PriceAnalyticsService**: Dynamic time windows (7/30/90 days), category-specific aggregation pipelines (min, max, avg, median, count), market level calculation (below_market <-5%, at_market ±5%, above_market >10%).
+  - **Category Slug Mappings**: Electronics (telefony-planshety, noutbuki-kompyutery, tv-foto-video, audio-tehnika, igry-igrovye-pristavki, tovary-dlya-kompyutera), Cars (legkovye-avtomobili, gruzovye-avtomobili, mototehnika, spetstekhnika), Realty (kvartiry, komnaty, doma-dachi-kottedzhi, uchastki, garazhi-mashinomesta, kommercheskaya-nedvizhimost).
+  - **API Endpoints**: `/api/pricing/ad/:adId/market` (seller analytics), `/api/pricing/brief/:adId` (buyer badge), `/api/pricing/brief/batch` (batch), `/api/pricing/estimate` (new ad estimation).
+  - **Frontend Components**: PriceHint (seller price recommendations with 500ms debounce, category reset), PriceBadge (buyer market badges with green/yellow colors).
+  - **Cache Invalidation**: Ad post-save hook deletes AdPriceSnapshot when price changes.
 
 ## External Dependencies
 
