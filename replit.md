@@ -16,6 +16,7 @@ Preferred communication style: Simple, everyday language.
 ### Technical Implementations
 - **Backend**: Node.js with Express.js, providing a RESTful API and Telegram bot logic. It uses JWT authentication for secure endpoints.
 - **Data Model**: MongoDB Atlas with Mongoose manages data for User, Category (hierarchical with 3D icon support), Ad (listings with geolocation), and Order entities. A permanent `short_term_rental` Season is configured for promotions.
+- **Geo-Search API**: `/api/ads/search` endpoint supports radius-based search using `buyerLat`/`buyerLng` and `maxDistanceKm` parameters. Returns `distanceKm` field (kilometers with 2 decimals) for each result. Fully supports sorting modes: `price_asc`/`price_desc`, `popular` (by views), `newest`/`oldest` (by date), and `distance` (default when geo-coordinates provided).
 - **Telegram Bot**: Built with Telegraf, handling user interactions, ad management, and a JWT-authenticated moderation panel.
 - **Frontend**: Two React applications built with TypeScript and Vite.
     - **Web Admin Panel**: For managing products, categories, ads, and users. Uses shadcn/ui (Radix UI), TanStack Query, Wouter, and Tailwind CSS. Authentication includes Telegram Login Widget, one-time links, and SMS codes.
