@@ -54,10 +54,10 @@ function sortItems(items, sortKey, hasGeoContext) {
     case 'distance':
       if (hasGeoContext) {
         return sorted.sort((a, b) => {
-          if (a.distance == null && b.distance == null) return 0;
-          if (a.distance == null) return 1;
-          if (b.distance == null) return -1;
-          return a.distance - b.distance;
+          if (a.distanceKm == null && b.distanceKm == null) return 0;
+          if (a.distanceKm == null) return 1;
+          if (b.distanceKm == null) return -1;
+          return a.distanceKm - b.distanceKm;
         });
       }
       return sorted;
@@ -146,12 +146,12 @@ router.get('/search', async (req, res) => {
 
           return {
             ...ad,
-            distance: roundedDistance,
+            distanceKm: roundedDistance,
           };
         })
         .filter(Boolean);
     } else {
-      filtered = filtered.map((ad) => ({ ...ad, distance: null }));
+      filtered = filtered.map((ad) => ({ ...ad, distanceKm: null }));
     }
 
     const totalMatches = filtered.length;

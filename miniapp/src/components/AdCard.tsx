@@ -148,7 +148,7 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
           {ad.title}
         </h3>
 
-        {ad.city && (
+        {(ad.city || ad.distanceKm != null) && (
           <div 
             style={{ 
               display: 'flex', 
@@ -160,7 +160,7 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
             <MapPin 
               size={12} 
               style={{ 
-                color: 'var(--color-secondary)', 
+                color: ad.distanceKm != null ? '#10b981' : 'var(--color-secondary)', 
                 flexShrink: 0 
               }} 
             />
@@ -169,7 +169,7 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
               className="ad-card-location"
               style={{ margin: 0 }}
             >
-              {ad.city}
+              {formatCityDistance(ad.city, ad.distanceKm)}
             </p>
           </div>
         )}
