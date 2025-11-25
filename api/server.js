@@ -33,6 +33,7 @@ import globalSearchRoutes from './routes/globalSearch.js';
 import trendsRoutes from './routes/trends.js';
 import aiRoutes from './routes/ai.js';
 import recommendationsRoutes from './routes/recommendations.js';
+import geoIntelligenceRoutes from './routes/geoIntelligence.js';
 
 const app = express();
 
@@ -115,5 +116,6 @@ app.use('/api/search', globalSearchRoutes);
 app.use('/api/trends', trendsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
+app.use('/api/geo-intelligence', geoIntelligenceRoutes);
 
 export default app;
