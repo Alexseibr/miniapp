@@ -2,6 +2,7 @@ import { Router } from 'express';
 import Category from '../../models/Category.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 import categoryMatchingService from '../services/categoryMatching.js';
+import CategorySuggestService from '../../services/CategorySuggestService.js';
 
 const router = Router();
 
@@ -76,7 +77,31 @@ router.get(
   })
 );
 
-// Новый endpoint для умного подбора категорий
+// POST endpoint для автоподбора категории по заголовку/описанию
+router.post(
+  '/suggest',
+  asyncHandler(async (req, res) => {
+    const { title, description } = req.body;
+
+    if (!title || typeof title !== 'string' || title.trim().length < 3) {
+      return res.json({ bestMatch: null, alternatives: [] });
+    }
+
+    try {
+      const result = await CategorySuggestService.suggest(title, description || '');
+      res.json(result);
+    } catch (error) {
+      console.error('Category suggest error:', error);
+      res.status(500).json({ 
+        error: 'Failed to suggest category',
+        bestMatch: null, 
+        alternatives: [] 
+      });
+    }
+  })
+);
+
+// GET endpoint для умного подбора категорий (legacy)
 router.get(
   '/suggest',
   asyncHandler(async (req, res) => {

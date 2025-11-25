@@ -1155,10 +1155,107 @@ function Step5Confirm({
   );
 }
 
+interface CategorySuggestion {
+  categoryId: string | null;
+  categoryName: string;
+  categorySlug: string;
+  subcategoryId: string | null;
+  subcategoryName: string | null;
+  subcategorySlug: string | null;
+  confidence: number;
+}
+
 function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }: { info: InfoData; categories: CategoryNode[]; onSetInfo: (info: Partial<InfoData>) => void; city?: string; noPhotos?: boolean; onGoToPhotos?: () => void }) {
   const selectedCategory = categories.find(c => c.slug === info.categoryId);
   const subcategories = selectedCategory?.subcategories || [];
   const priceNumber = parseFloat(info.price) || 0;
+  
+  const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+
+  useEffect(() => {
+    if (suggestionDismissed || info.categoryId) {
+      setSuggestion(null);
+      return;
+    }
+
+    if (!info.title || info.title.length < 3) {
+      setSuggestion(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setSuggestionLoading(true);
+      try {
+        const response = await fetch('/api/categories/suggest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title: info.title, description: info.description }),
+        });
+        const data = await response.json();
+        
+        if (data.bestMatch && data.bestMatch.categorySlug) {
+          setSuggestion(data.bestMatch);
+        } else {
+          setSuggestion(null);
+        }
+      } catch (err) {
+        console.error('Category suggest error:', err);
+        setSuggestion(null);
+      } finally {
+        setSuggestionLoading(false);
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [info.title, info.description, info.categoryId, suggestionDismissed]);
+
+  const applySuggestion = () => {
+    if (!suggestion) return;
+    
+    const catSlug = suggestion.categorySlug;
+    const subSlug = suggestion.subcategorySlug;
+    
+    const findInTree = (targetSlug: string): { topLevel: string; subLevel: string } | null => {
+      for (const cat of categories) {
+        if (cat.slug === targetSlug) {
+          return { topLevel: cat.slug, subLevel: '' };
+        }
+        
+        for (const sub of cat.subcategories || []) {
+          if (sub.slug === targetSlug) {
+            return { topLevel: cat.slug, subLevel: sub.slug };
+          }
+          
+          for (const nested of sub.subcategories || []) {
+            if (nested.slug === targetSlug) {
+              return { topLevel: cat.slug, subLevel: sub.slug };
+            }
+          }
+        }
+      }
+      return null;
+    };
+    
+    let result = subSlug ? findInTree(subSlug) : null;
+    
+    if (!result) {
+      result = findInTree(catSlug);
+    }
+    
+    if (result) {
+      onSetInfo({ categoryId: result.topLevel, subcategoryId: result.subLevel });
+    }
+    
+    setSuggestion(null);
+    setSuggestionDismissed(true);
+  };
+
+  const dismissSuggestion = () => {
+    setSuggestion(null);
+    setSuggestionDismissed(true);
+  };
 
   return (
     <div style={{ padding: 24, paddingBottom: 120 }}>
@@ -1214,6 +1311,72 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
           data-testid="input-title"
         />
         <div style={{ fontSize: 13, color: '#9CA3AF', marginTop: 4 }}>{info.title.length}/50</div>
+        
+        {suggestionLoading && (
+          <div style={{ marginTop: 8, fontSize: 14, color: '#6B7280' }}>
+            Подбираем категорию...
+          </div>
+        )}
+        
+        {suggestion && !info.categoryId && (
+          <div 
+            style={{
+              marginTop: 12,
+              padding: 14,
+              background: '#F0F9FF',
+              border: '1px solid #3B73FC',
+              borderRadius: 12,
+            }}
+            data-testid="category-suggestion-card"
+          >
+            <div style={{ fontSize: 14, color: '#3B73FC', fontWeight: 500, marginBottom: 6 }}>
+              Мы подобрали категорию:
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 600, color: '#1E40AF', marginBottom: 12 }}>
+              {suggestion.categoryName}
+              {suggestion.subcategoryName && (
+                <span style={{ fontWeight: 400 }}> → {suggestion.subcategoryName}</span>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={applySuggestion}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  background: '#3B73FC',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                }}
+                data-testid="button-apply-suggestion"
+              >
+                Применить
+              </button>
+              <button
+                type="button"
+                onClick={dismissSuggestion}
+                style={{
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  color: '#3B73FC',
+                  border: '1px solid #3B73FC',
+                  borderRadius: 8,
+                  fontSize: 15,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+                data-testid="button-dismiss-suggestion"
+              >
+                Выбрать другую
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={{ marginBottom: 20 }}>
