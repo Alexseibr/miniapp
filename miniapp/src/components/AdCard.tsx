@@ -36,12 +36,23 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
     const element = cardRef.current;
     if (!element) return;
 
+    let visibilityTimer: ReturnType<typeof setTimeout> | null = null;
+    let hasTracked = false;
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            trackImpression(ad._id);
-            observer.unobserve(element);
+          if (entry.isIntersecting && !hasTracked) {
+            visibilityTimer = setTimeout(() => {
+              if (!hasTracked) {
+                trackImpression(ad._id);
+                hasTracked = true;
+                observer.unobserve(element);
+              }
+            }, 1000);
+          } else if (!entry.isIntersecting && visibilityTimer) {
+            clearTimeout(visibilityTimer);
+            visibilityTimer = null;
           }
         });
       },
@@ -49,7 +60,12 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
     );
 
     observer.observe(element);
-    return () => observer.disconnect();
+    return () => {
+      if (visibilityTimer) {
+        clearTimeout(visibilityTimer);
+      }
+      observer.disconnect();
+    };
   }, [ad._id]);
 
   const handleCardClick = () => {
