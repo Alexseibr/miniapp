@@ -9,6 +9,12 @@ export function useGeo(syncWithBackend = true) {
   const requestLocation = useGeoStore((state) => state.requestLocation);
   const setRadius = useGeoStore((state) => state.setRadius);
   const radiusKm = useGeoStore((state) => state.radiusKm);
+  const cityName = useGeoStore((state) => state.cityName);
+  const setCityName = useGeoStore((state) => state.setCityName);
+  const setCoords = useGeoStore((state) => state.setCoords);
+  const hasCompletedOnboarding = useGeoStore((state) => state.hasCompletedOnboarding);
+  const completeOnboarding = useGeoStore((state) => state.completeOnboarding);
+  const resetGeo = useGeoStore((state) => state.resetGeo);
 
   useEffect(() => {
     if (syncWithBackend && coords) {
@@ -21,8 +27,14 @@ export function useGeo(syncWithBackend = true) {
     status,
     error,
     radiusKm,
+    cityName,
+    hasCompletedOnboarding,
     requestLocation,
     setRadius,
+    setCityName,
+    setCoords,
+    completeOnboarding,
+    resetGeo,
   };
 }
 
@@ -47,4 +59,11 @@ export function formatCityDistance(city?: string | null, distanceKm?: number) {
     : '';
   
   return [cityPart, distancePart].filter(Boolean).join(' • ');
+}
+
+export function formatRadiusLabel(km: number): string {
+  if (km < 1) {
+    return `${Math.round(km * 1000)} м`;
+  }
+  return `${km} км`;
 }

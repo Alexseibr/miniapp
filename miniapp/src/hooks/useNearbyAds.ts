@@ -9,6 +9,7 @@ interface UseNearbyAdsParams {
   subcategoryId?: string | null;
   query?: string | null;
   enabled?: boolean;
+  limit?: number;
 }
 
 interface UseNearbyAdsResult {
@@ -29,6 +30,7 @@ export function useNearbyAds({
   subcategoryId,
   query,
   enabled = true,
+  limit = 50,
 }: UseNearbyAdsParams): UseNearbyAdsResult {
   const [ads, setAds] = useState<AdPreview[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,7 +68,7 @@ export function useNearbyAds({
         categoryId: categoryId || undefined,
         subcategoryId: subcategoryId || undefined,
         q: query || undefined,
-        limit: 50,
+        limit,
         signal: currentController.signal,
       });
 
