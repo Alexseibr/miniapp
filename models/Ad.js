@@ -203,6 +203,55 @@ const adSchema = new mongoose.Schema(
       default: 'active',
       index: true,
     },
+    
+    // === Lifecycle Management ===
+    lifetimeType: {
+      type: String,
+      enum: ['perishable_daily', 'fast', 'medium', 'long'],
+      default: 'fast',
+      index: true,
+    },
+    repeatMode: {
+      type: String,
+      enum: ['none', 'daily'],
+      default: 'none',
+    },
+    repeatUntil: {
+      type: Date,
+      default: null,
+    },
+    expiresAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    scheduledAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    isSoldOut: {
+      type: Boolean,
+      default: false,
+    },
+    templateId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Ad',
+      default: null,
+    },
+    isTemplate: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    reminderSentAt: {
+      type: Date,
+      default: null,
+    },
+    midLifeReminderSent: {
+      type: Boolean,
+      default: false,
+    },
     moderationStatus: {
       type: String,
       enum: ['pending', 'approved', 'rejected', 'scheduled'],

@@ -40,6 +40,19 @@ const searchLogSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  detectedCategoryId: {
+    type: String,
+    default: null,
+    index: true,
+  },
+  alertCreated: {
+    type: Boolean,
+    default: false,
+  },
+  radiusKm: {
+    type: Number,
+    default: null,
+  },
   createdAt: {
     type: Date,
     default: Date.now,

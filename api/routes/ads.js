@@ -11,6 +11,8 @@ import requireInternalAuth from '../../middleware/internalAuth.js';
 import { findMatchingSubscriptions, sendSubscriptionNotifications } from '../../services/subscriptionNotifications.js';
 import { bot } from '../../telegram/bot.js';
 import BrandDetectionService from '../../services/BrandDetectionService.js';
+import AdLifecycleService from '../../services/AdLifecycleService.js';
+import SearchAlertService from '../../services/SearchAlertService.js';
 
 const router = Router();
 
@@ -1742,6 +1744,136 @@ router.post('/:id/track-contact', async (req, res) => {
   } catch (error) {
     console.error('[track-contact]', error.message);
     res.status(500).json({ error: 'Failed to track contact click' });
+  }
+});
+
+router.post('/:id/extend', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sellerId = getSellerIdFromRequest(req);
+    
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+    
+    const ad = await AdLifecycleService.extendAd(id, sellerId);
+    
+    res.json({
+      success: true,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        status: ad.status,
+        expiresAt: ad.expiresAt,
+        lifetimeType: ad.lifetimeType,
+      },
+      message: 'Объявление успешно продлено',
+    });
+  } catch (error) {
+    console.error('[extend-ad]', error.message);
+    const status = error.message.includes('не найдено') ? 404 : 
+                   error.message.includes('прав') ? 403 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+router.post('/:id/archive', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sellerId = getSellerIdFromRequest(req);
+    
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+    
+    const ad = await AdLifecycleService.archiveAd(id, sellerId);
+    
+    res.json({
+      success: true,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        status: ad.status,
+      },
+      message: 'Объявление архивировано',
+    });
+  } catch (error) {
+    console.error('[archive-ad]', error.message);
+    const status = error.message.includes('не найдено') ? 404 : 
+                   error.message.includes('прав') ? 403 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+router.post('/:id/sold-out', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sellerId = getSellerIdFromRequest(req);
+    const { isSoldOut = true } = req.body;
+    
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+    
+    const ad = await AdLifecycleService.markSoldOut(id, sellerId, isSoldOut);
+    
+    res.json({
+      success: true,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        status: ad.status,
+        isSoldOut: ad.isSoldOut,
+      },
+      message: isSoldOut ? 'Товар помечен как распроданный' : 'Товар снова в наличии',
+    });
+  } catch (error) {
+    console.error('[sold-out-ad]', error.message);
+    const status = error.message.includes('не найдено') ? 404 : 
+                   error.message.includes('прав') ? 403 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+router.get('/:id/lifecycle-info', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const ad = await Ad.findById(id).select(
+      'title status lifetimeType expiresAt scheduledAt repeatMode repeatUntil isSoldOut createdAt'
+    ).lean();
+    
+    if (!ad) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+    
+    const now = new Date();
+    let daysLeft = null;
+    let isExpired = false;
+    
+    if (ad.expiresAt) {
+      const diff = new Date(ad.expiresAt) - now;
+      daysLeft = Math.ceil(diff / (24 * 60 * 60 * 1000));
+      isExpired = diff <= 0;
+    }
+    
+    res.json({
+      _id: ad._id,
+      title: ad.title,
+      status: ad.status,
+      lifetimeType: ad.lifetimeType,
+      expiresAt: ad.expiresAt,
+      scheduledAt: ad.scheduledAt,
+      repeatMode: ad.repeatMode,
+      repeatUntil: ad.repeatUntil,
+      isSoldOut: ad.isSoldOut,
+      createdAt: ad.createdAt,
+      daysLeft,
+      isExpired,
+    });
+  } catch (error) {
+    console.error('[lifecycle-info]', error.message);
+    res.status(500).json({ error: 'Ошибка получения информации' });
   }
 });
 

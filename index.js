@@ -16,6 +16,8 @@ import { startCategoryStatsCleanupWorker } from './workers/categoryStatsCleanup.
 import categoryEvolutionWorker from './workers/categoryEvolutionWorker.js';
 import { startTrendAnalyticsWorker } from './workers/trendAnalyticsWorker.js';
 import { startHotSearchWorker } from './workers/hotSearchWorker.js';
+import { startAdLifecycleWorker, setNotificationCallback } from './workers/adLifecycleWorker.js';
+import { startDemandWorker, setDemandNotificationCallback } from './workers/demandWorker.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -336,6 +338,21 @@ async function start() {
     startCategoryStatsCleanupWorker();
     startTrendAnalyticsWorker();
     startHotSearchWorker();
+    
+    const sendTelegramNotification = async (telegramId, message, type) => {
+      try {
+        if (bot && telegramId) {
+          await bot.telegram.sendMessage(telegramId, message);
+        }
+      } catch (err) {
+        console.error(`[Notification] Failed to send ${type} notification to ${telegramId}:`, err.message);
+      }
+    };
+    
+    setNotificationCallback(sendTelegramNotification);
+    setDemandNotificationCallback(sendTelegramNotification);
+    startAdLifecycleWorker();
+    startDemandWorker();
     
     // Регистрируем error handlers в самом конце, после всех middleware
     app.use(logErrors);

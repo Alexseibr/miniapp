@@ -3,6 +3,8 @@ import { Router } from 'express';
 import Ad from '../../models/Ad.js';
 import { haversineDistanceKm } from '../../utils/haversine.js';
 import HotSearchService from '../../services/HotSearchService.js';
+import SearchAlertService from '../../services/SearchAlertService.js';
+import DemandNotificationService from '../../services/DemandNotificationService.js';
 
 const router = Router();
 const DEFAULT_LIMIT = 100;
@@ -211,6 +213,128 @@ router.get('/hot', async (req, res) => {
     });
   } catch (error) {
     console.error('GET /api/search/hot error:', error);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+router.post('/alerts', async (req, res) => {
+  try {
+    const { telegramId, query, detectedCategoryId, lat, lng, radiusKm, citySlug } = req.body;
+    
+    if (!telegramId) {
+      return res.status(400).json({ ok: false, error: 'telegramId обязателен' });
+    }
+    
+    if (!query || query.trim().length < 2) {
+      return res.status(400).json({ ok: false, error: 'Запрос должен содержать минимум 2 символа' });
+    }
+    
+    const alert = await SearchAlertService.createOrUpdateAlert({
+      telegramId,
+      query,
+      detectedCategoryId,
+      lat: parseNumber(lat),
+      lng: parseNumber(lng),
+      radiusKm: parseNumber(radiusKm) || 5,
+      citySlug,
+    });
+    
+    res.json({
+      ok: true,
+      alert: {
+        _id: alert._id,
+        query: alert.query,
+        normalizedQuery: alert.normalizedQuery,
+        isActive: alert.isActive,
+        createdAt: alert.createdAt,
+      },
+      message: 'Подписка на уведомления создана',
+    });
+  } catch (error) {
+    console.error('POST /api/search/alerts error:', error);
+    res.status(500).json({ ok: false, error: error.message || 'Server error' });
+  }
+});
+
+router.get('/alerts/my', async (req, res) => {
+  try {
+    const { telegramId, activeOnly = 'true', limit = '20', skip = '0' } = req.query;
+    
+    if (!telegramId) {
+      return res.status(400).json({ ok: false, error: 'telegramId обязателен' });
+    }
+    
+    const alerts = await SearchAlertService.getMyAlerts(parseNumber(telegramId), {
+      activeOnly: activeOnly === 'true',
+      limit: Math.min(parseNumber(limit) || 20, 50),
+      skip: parseNumber(skip) || 0,
+    });
+    
+    res.json({
+      ok: true,
+      alerts,
+      count: alerts.length,
+    });
+  } catch (error) {
+    console.error('GET /api/search/alerts/my error:', error);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+router.post('/alerts/:id/deactivate', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { telegramId } = req.body;
+    
+    if (!telegramId) {
+      return res.status(400).json({ ok: false, error: 'telegramId обязателен' });
+    }
+    
+    const alert = await SearchAlertService.deactivateAlert(id, parseNumber(telegramId));
+    
+    if (!alert) {
+      return res.status(404).json({ ok: false, error: 'Подписка не найдена' });
+    }
+    
+    res.json({
+      ok: true,
+      alert: {
+        _id: alert._id,
+        isActive: alert.isActive,
+      },
+      message: 'Подписка отключена',
+    });
+  } catch (error) {
+    console.error('POST /api/search/alerts/:id/deactivate error:', error);
+    res.status(500).json({ ok: false, error: 'Server error' });
+  }
+});
+
+router.get('/demand/local', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = '10', limit = '10' } = req.query;
+    
+    const latNumber = parseNumber(lat);
+    const lngNumber = parseNumber(lng);
+    
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ ok: false, error: 'lat и lng обязательны' });
+    }
+    
+    const trends = await DemandNotificationService.getLocalDemandTrends(
+      latNumber,
+      lngNumber,
+      parseNumber(radiusKm) || 10,
+      Math.min(parseNumber(limit) || 10, 20)
+    );
+    
+    res.json({
+      ok: true,
+      trends,
+      count: trends.length,
+    });
+  } catch (error) {
+    console.error('GET /api/search/demand/local error:', error);
     res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
