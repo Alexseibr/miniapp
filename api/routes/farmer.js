@@ -226,6 +226,7 @@ router.get('/ads', async (req, res) => {
           distanceField: 'distance',
           maxDistance: radiusMeters,
           spherical: true,
+          key: 'location.geo',
         },
       });
     }
@@ -309,6 +310,7 @@ router.get('/nearby', async (req, res) => {
               distanceField: 'distance',
               maxDistance: radiusMeters,
               spherical: true,
+              key: 'location.geo',
               query: {
                 subcategoryId: cat.slug,
                 status: 'active',

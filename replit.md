@@ -41,6 +41,15 @@ Preferred communication style: Simple, everyday language.
 - **Ad History Tracking**: `AdHistoryEvent` model tracks ad lifecycle events for admin monitoring.
 - **Category Auto-Suggestion**: Hybrid approach combining rule-based keywords and statistical learning from user behavior, using `CategoryWordStats` and `CategorySuggestService`. Frontend integrates a dismissible suggestion card.
 - **Category Evolution System**: Enables gradual growth of category hierarchy based on real ads. Each root category has an "Other" subcategory (`isOther: true`). Ads placed in "Other" are flagged with `needsCategoryReview: true`. `CategoryEvolutionService` analyzes these ads daily (4 AM), extracts frequent keywords, and creates `CategoryProposal` entries for admin review. Admins can approve (creates new subcategory, moves ads) or reject proposals via `/api/admin/category-proposals/*` endpoints.
+- **Farmer Category System**: Specialized system for agricultural products with:
+  - Root category "Фермерский рынок" with 11 subcategories (Овощи, Фрукты, Ягоды, Зелень, Картофель, Консервация, Мёд, Молочка, Мясо, Рассада, Корма)
+  - 5 seasonal subcategories with auto-activation by date (Valentine's Day, March 8, Easter, Harvest, New Year)
+  - `FarmerCategoryService` for keyword-based category suggestion (confidence ≥ 0.5 auto-selects)
+  - Unit types: kg, g, piece, liter, pack, jar, bunch, bag with price conversion
+  - Ad model extensions: `isFarmerAd`, `unitType`, `quantity`, `pricePerKg`, `deliveryFromFarm`, `canDeliver`, `farmLocation`
+  - Quick-post API for simplified ad creation with auto-category detection
+  - Nearby farmers endpoint with geo-search by category groups
+  - API endpoints: `/api/farmer/categories`, `/suggest-category`, `/detect-quantity`, `/calculate-price`, `/quick-post`, `/nearby`, `/ads`, `/units`
 - **Media Upload System**: Manages file size limits, thumbnail generation (via `sharp`), and cleanup. Uses `MediaFile` model to track uploads and a `MediaService` for validation and session management.
 
 ## External Dependencies
