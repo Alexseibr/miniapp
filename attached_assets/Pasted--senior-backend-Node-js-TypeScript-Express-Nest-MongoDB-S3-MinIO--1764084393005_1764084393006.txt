@@ -1,0 +1,336 @@
+Ты — senior backend-разработчик (Node.js + TypeScript + Express/Nest + MongoDB, S3/MinIO) в проекте KETMAR Market.
+
+Нужно допилить БЭКЕНД-ЛОГИКУ ЗАГРУЗКИ ФОТО:
+
+1) Ограничить максимальный размер файла (например, 10 МБ).
+2) Хранить две версии изображения:
+   - thumbnail (превью),
+   - full (оригинал/крупное, но всё равно ужатое).
+3) Иметь возможность чистить незавершённые/неиспользованные загрузки.
+
+========================================
+0. КОНТЕКСТ (ПРИНЯТЬ КАК ДАНО)
+========================================
+
+Сейчас фронт:
+- получает от backend `uploadUrl` + `fileUrl` для фото,
+- загружает файл напрямую в S3/MinIO (PUT/POST),
+- потом при сохранении объявления передаёт массив фото:
+  - `[{ url: fileUrl, isMain: true }, ...]`.
+
+Backend:
+- Node.js + TS,
+- MongoDB (Mongoose),
+- S3-совместимое хранилище (S3/MinIO/Backblaze и т.п.),
+- уже есть базовый маршрут вида:
+  - `POST /api/uploads/url` или `/api/media/presign`.
+
+Нужно доработать это.
+
+========================================
+1. МОДЕЛЬ ДЛЯ ХРАНЕНИЯ МЕТАДАННЫХ ФАЙЛОВ
+========================================
+
+Создай модель `MediaFile` (если её ещё нет):
+
+```ts
+interface MediaFile {
+  _id: ObjectId;
+  type: 'image';           // на будущее можно расширить
+  ownerTelegramId?: number;
+  adId?: ObjectId;         // к какому объявлению привязано (может быть null поначалу)
+  createdAt: Date;
+  updatedAt: Date;
+
+  // S3 ключи
+  originalKey: string;     // key в бакете для full-версии
+  thumbKey: string;        // key для thumbnail
+
+  originalUrl: string;     // публичный/подписанный адрес
+  thumbUrl: string;
+
+  size: number;            // размер оригинала в байтах
+  mimeType: string;
+
+  status: 'temporary' | 'attached' | 'deleted';
+}
+Индексы:
+
+ts
+Копировать код
+MediaFileSchema.index({ adId: 1 });
+MediaFileSchema.index({ status: 1, createdAt: 1 });
+status:
+
+temporary — загружен, но ещё ни к одному объявлению не привязан;
+
+attached — используется (привязан к adId);
+
+deleted — логически удалён.
+
+========================================
+2. ЛИМИТ МАКСИМАЛЬНОГО РАЗМЕРА ФАЙЛА
+Максимальный размер, например, 10 МБ:
+
+в .env:
+
+UPLOAD_MAX_SIZE_BYTES=10485760
+
+В обработчике выдачи presigned URL:
+
+ts
+Копировать код
+const MAX_SIZE = Number(process.env.UPLOAD_MAX_SIZE_BYTES ?? 10 * 1024 * 1024);
+
+// фронт может передавать размер файла в байтах
+const { mimeType, size } = req.body;
+
+if (size && size > MAX_SIZE) {
+  return res.status(400).json({
+    error: 'FILE_TOO_LARGE',
+    message: 'Файл слишком большой. Максимальный размер — 10 МБ.'
+  });
+}
+Если фронт не передаёт size — всё равно логируем и контролируем размер уже на стороне S3 (можно ещё и по Content-Length в policy).
+
+Дополнительно:
+
+проверка mimeType — разрешать только image/jpeg, image/png, image/webp.
+
+========================================
+3. СОЗДАНИЕ ДВУХ ВЕРСИЙ: THUMBNAIL + FULL
+Есть два варианта:
+А) ресайз делать на фронте (мы уже сжимаем, но нужно всё равно перестраховаться),
+Б) ресайз делать на backend (через worker/queue).
+
+Сделай простую схему:
+
+Фронт загружает ОДИН файл на originalKey.
+
+После успешной загрузки backend:
+
+либо через отдельный endpoint,
+
+либо через worker,
+
+создаёт thumbnail.
+
+Реализация:
+
+Используй Sharp или Jimp.
+
+Пример сервиса:
+
+ts
+Копировать код
+import sharp from 'sharp';
+import { s3Client } from '../core/s3Client';
+
+class MediaService {
+  async createImageVariantsFromOriginal(params: {
+    bucket: string;
+    originalKey: string;
+    thumbKey: string;
+  }) {
+    // 1. скачиваем оригинал из S3
+    const originalStream = await s3Client.getObject({
+      Bucket: params.bucket,
+      Key: params.originalKey,
+    }).createReadStream();
+
+    // 2. прогоняем через sharp
+    const transformer = sharp()
+      .resize(400, 400, { fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 75 });
+
+    // 3. заливаем обратно в S3 в thumbKey
+    const uploadResult = await s3Client.upload({
+      Bucket: params.bucket,
+      Key: params.thumbKey,
+      Body: originalStream.pipe(transformer),
+      ContentType: 'image/jpeg',
+      ACL: 'public-read' // либо своя политика
+    }).promise();
+
+    return uploadResult;
+  }
+}
+thumbKey можно строить так же, как original, но с суффиксом:
+
+ts
+Копировать код
+const originalKey = `ads/${uuid()}.jpg`;
+const thumbKey = `ads/thumbs/${uuid()}.jpg`;
+========================================
+4. API: ВЫДАЧА UPLOAD URL + СОЗДАНИЕ MediaFile
+Маршрут POST /api/uploads/url (или аналог):
+
+Вход:
+
+json
+Копировать код
+{
+  "mimeType": "image/jpeg",
+  "size": 123456,
+  "purpose": "ad-photo"
+}
+Логика:
+
+Проверить размер и mimeType (см. выше).
+
+Сгенерировать originalKey.
+
+Сформировать uploadUrl через S3/MinIO SDK (presign).
+
+Создать запись MediaFile со статусом temporary:
+
+ts
+Копировать код
+const media = await MediaFile.create({
+  type: 'image',
+  ownerTelegramId: currentUser?.telegramId,
+  originalKey,
+  thumbKey: null,          // пока пусто
+  originalUrl: publicUrlFromKey(originalKey),
+  thumbUrl: null,
+  size,
+  mimeType,
+  status: 'temporary',
+});
+Вернуть фронту:
+
+json
+Копировать код
+{
+  "uploadUrl": "...",
+  "fileId": "media._id",
+  "fileUrl": "media.originalUrl"
+}
+Фронт загрузит файл на uploadUrl.
+
+После загрузки:
+
+либо фронт вызывает POST /api/uploads/:fileId/complete,
+
+либо cron/worker периодически ищет новые temporary файлы и создаёт для них thumbnail.
+
+Endpoint POST /api/uploads/:fileId/complete:
+
+проверяет, что объект в S3 есть,
+
+создаёт thumb через MediaService.createImageVariantsFromOriginal,
+
+обновляет запись MediaFile:
+
+thumbKey, thumbUrl,
+
+status: 'temporary' (пока не будет привязано к объявлению).
+
+========================================
+5. ПРИВЯЗКА ФОТО К ОБЪЯВЛЕНИЮ
+Когда создаётся/обновляется объявление:
+
+фронт вместо голых URL передаёт fileId (или массив):
+
+json
+Копировать код
+{
+  "photos": [
+    { "fileId": "64...", "isMain": true },
+    { "fileId": "65...", "isMain": false }
+  ]
+}
+Backend:
+
+Проверяет, что MediaFile с такими _id существуют и принадлежат этому пользователю (опционально).
+
+Обновляет MediaFile:
+
+ts
+Копировать код
+await MediaFile.updateMany(
+  { _id: { $in: photoIds } },
+  { $set: { adId: ad._id, status: 'attached' } },
+);
+В модель Ad сохраняет массив:
+
+ts
+Копировать код
+photos: [
+  { thumbUrl: media.thumbUrl, originalUrl: media.originalUrl, isMain: true },
+  ...
+]
+========================================
+6. ОЧИСТКА НЕИСПОЛЬЗУЕМЫХ ЗАГРУЗОК
+Нужно почистить:
+
+MediaFile со статусом temporary, которые:
+
+старше, чем N часов/дней (например, 24 часа),
+
+не привязаны к adId.
+
+Физические объекты в S3 для этих файлов.
+
+Сделай cron/worker (раз в час) или отдельный service с ручным запуском:
+
+ts
+Копировать код
+async function cleanupUnusedMedia() {
+  const threshold = new Date(Date.now() - 24 * 60 * 60 * 1000);
+
+  const unused = await MediaFile.find({
+    status: 'temporary',
+    createdAt: { $lt: threshold }
+  });
+
+  for (const media of unused) {
+    // удалить из S3
+    const objectsToDelete = [{ Key: media.originalKey }];
+    if (media.thumbKey) objectsToDelete.push({ Key: media.thumbKey });
+
+    await s3Client.deleteObjects({
+      Bucket: process.env.S3_BUCKET!,
+      Delete: { Objects: objectsToDelete }
+    }).promise();
+
+    // пометить как deleted
+    media.status = 'deleted';
+    await media.save();
+  }
+}
+Можно повесить это на:
+
+node-cron,
+
+или отдельный worker-процесс.
+
+========================================
+7. ЗАЩИТА И БЕЗОПАСНОСТЬ
+Не доверять mimeType от клиента — опционально можно распознавать тип файла на backend (по сигнатуре, через file-type).
+
+Ограничить типы: только изображения.
+
+Не логировать сам файл и полное содержание URL с приватными токенами.
+
+В presigned URL выставить разумный TTL (например, 5–10 минут).
+
+========================================
+8. ФИНАЛЬНЫЙ ОТЧЁТ
+После реализации выведи список добавленных/изменённых файлов, например:
+
+models/MediaFile.ts — модель хранения метаданных изображений.
+
+routes/uploads.ts — выдача presigned URL, endpoint /complete.
+
+services/MediaService.ts — создание thumbnail из оригинала.
+
+cron/cleanupUnusedMedia.ts — очистка старых temporary-файлов.
+
+services/adService.ts — привязка MediaFile к объявлению при создании/редактировании.
+
+И укажи ENV-переменные, которые нужно добавить:
+
+UPLOAD_MAX_SIZE_BYTES
+
+S3_BUCKET, S3_REGION, S3_ACCESS_KEY, S3_SECRET_KEY (если ещё не описаны).

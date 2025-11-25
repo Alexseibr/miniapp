@@ -84,12 +84,13 @@ export interface AdPreview {
 }
 
 export interface Ad extends AdPreview {
-  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'scheduled';
   lifetimeDays: number;
   validUntil?: string;
   updatedAt?: string;
   views?: number;
   sellerName?: string;
+  publishAt?: string | Date | null;
 }
 
 export interface FavoriteItem {

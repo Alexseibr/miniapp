@@ -8,6 +8,7 @@ import { CategoryNode } from '@/types';
 import { ArrowLeft, MapPin, Loader2, Camera, X, Check } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import PriceHint from '@/components/PriceHint';
+import { SchedulePublishBlock } from '@/components/schedule/SchedulePublishBlock';
 
 interface LocationData {
   lat: number;
@@ -793,7 +794,7 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
   const priceNumber = parseFloat(info.price) || 0;
 
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, paddingBottom: 120 }}>
       {noPhotos && (
         <button
           onClick={onGoToPhotos}
@@ -931,57 +932,24 @@ function Step4Contacts({
   onSetPublishAt,
 }: {
   contacts: ContactsData;
-  user: any;
+  user: { phone?: string; username?: string } | null;
   onSetContacts: (contacts: Partial<ContactsData>) => void;
   publishAt: Date | null;
   onSetPublishAt: (date: Date | null) => void;
 }) {
   const hasPhone = !!user?.phone;
   const hasUsername = !!user?.username;
-  const [scheduleMode, setScheduleMode] = useState<'now' | 'later'>(publishAt ? 'later' : 'now');
-  const [scheduledDate, setScheduledDate] = useState<string>(() => {
-    if (publishAt) {
-      return publishAt.toISOString().slice(0, 16);
-    }
-    const now = new Date();
-    now.setHours(now.getHours() + 1);
-    return now.toISOString().slice(0, 16);
-  });
 
   useEffect(() => {
     if (hasPhone && !contacts.contactPhone) {
-      onSetContacts({ contactType: 'telegram_phone', contactPhone: user.phone });
+      onSetContacts({ contactType: 'telegram_phone', contactPhone: user?.phone });
     } else if (hasUsername && !contacts.contactUsername) {
-      onSetContacts({ contactType: 'telegram_username', contactUsername: user.username });
+      onSetContacts({ contactType: 'telegram_username', contactUsername: user?.username });
     }
   }, [hasPhone, hasUsername]);
 
-  const handleScheduleModeChange = (mode: 'now' | 'later') => {
-    setScheduleMode(mode);
-    if (mode === 'now') {
-      onSetPublishAt(null);
-    } else {
-      const date = new Date(scheduledDate);
-      if (!isNaN(date.getTime())) {
-        onSetPublishAt(date);
-      }
-    }
-  };
-
-  const handleScheduledDateChange = (value: string) => {
-    setScheduledDate(value);
-    if (scheduleMode === 'later') {
-      const date = new Date(value);
-      if (!isNaN(date.getTime())) {
-        onSetPublishAt(date);
-      }
-    }
-  };
-
-  const minDateTime = new Date().toISOString().slice(0, 16);
-
   return (
-    <div style={{ padding: 24 }}>
+    <div style={{ padding: 24, paddingBottom: 120 }}>
       <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 12px', color: '#111827' }}>
         Как с вами свяжутся?
       </h2>
@@ -991,7 +959,8 @@ function Step4Contacts({
 
       {hasPhone && (
         <button
-          onClick={() => onSetContacts({ contactType: 'telegram_phone', contactPhone: user.phone })}
+          type="button"
+          onClick={() => onSetContacts({ contactType: 'telegram_phone', contactPhone: user?.phone })}
           style={{
             width: '100%',
             padding: '16px',
@@ -1006,13 +975,14 @@ function Step4Contacts({
           data-testid="button-contact-phone"
         >
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Телефон из Telegram</div>
-          <div style={{ color: '#6B7280' }}>{user.phone}</div>
+          <div style={{ color: '#6B7280' }}>{user?.phone}</div>
         </button>
       )}
 
       {hasUsername && (
         <button
-          onClick={() => onSetContacts({ contactType: 'telegram_username', contactUsername: user.username })}
+          type="button"
+          onClick={() => onSetContacts({ contactType: 'telegram_username', contactUsername: user?.username })}
           style={{
             width: '100%',
             padding: '16px',
@@ -1027,7 +997,7 @@ function Step4Contacts({
           data-testid="button-contact-username"
         >
           <div style={{ fontWeight: 600, marginBottom: 4 }}>Telegram</div>
-          <div style={{ color: '#6B7280' }}>@{user.username}</div>
+          <div style={{ color: '#6B7280' }}>@{user?.username}</div>
         </button>
       )}
 
@@ -1063,124 +1033,10 @@ function Step4Contacts({
       </div>
 
       <div style={{ marginTop: 32, paddingTop: 24, borderTop: '1px solid #E5E7EB' }}>
-        <h3 style={{ fontSize: 18, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
-          Когда опубликовать?
-        </h3>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <button
-            onClick={() => handleScheduleModeChange('now')}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              background: scheduleMode === 'now' ? '#EBF3FF' : '#fff',
-              border: `2px solid ${scheduleMode === 'now' ? '#3B73FC' : '#E5E7EB'}`,
-              borderRadius: 12,
-              fontSize: 15,
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
-            data-testid="button-publish-now"
-          >
-            <div style={{
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              border: `2px solid ${scheduleMode === 'now' ? '#3B73FC' : '#D1D5DB'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {scheduleMode === 'now' && (
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#3B73FC' }} />
-              )}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, color: scheduleMode === 'now' ? '#3B73FC' : '#111827' }}>
-                Опубликовать сейчас
-              </div>
-              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                Объявление сразу появится в каталоге
-              </div>
-            </div>
-          </button>
-
-          <button
-            onClick={() => handleScheduleModeChange('later')}
-            style={{
-              width: '100%',
-              padding: '14px 16px',
-              background: scheduleMode === 'later' ? '#EBF3FF' : '#fff',
-              border: `2px solid ${scheduleMode === 'later' ? '#3B73FC' : '#E5E7EB'}`,
-              borderRadius: 12,
-              fontSize: 15,
-              textAlign: 'left',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
-            data-testid="button-publish-later"
-          >
-            <div style={{
-              width: 20,
-              height: 20,
-              borderRadius: '50%',
-              border: `2px solid ${scheduleMode === 'later' ? '#3B73FC' : '#D1D5DB'}`,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-            }}>
-              {scheduleMode === 'later' && (
-                <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#3B73FC' }} />
-              )}
-            </div>
-            <div>
-              <div style={{ fontWeight: 600, color: scheduleMode === 'later' ? '#3B73FC' : '#111827' }}>
-                Запланировать на позже
-              </div>
-              <div style={{ fontSize: 13, color: '#6B7280', marginTop: 2 }}>
-                Выберите дату и время публикации
-              </div>
-            </div>
-          </button>
-        </div>
-
-        {scheduleMode === 'later' && (
-          <div style={{ marginTop: 16 }}>
-            <label style={{ display: 'block', fontSize: 14, fontWeight: 500, marginBottom: 8, color: '#111827' }}>
-              Дата и время публикации
-            </label>
-            <input
-              type="datetime-local"
-              value={scheduledDate}
-              min={minDateTime}
-              onChange={(e) => handleScheduledDateChange(e.target.value)}
-              style={{
-                width: '100%',
-                padding: '14px',
-                border: '1px solid #E5E7EB',
-                borderRadius: 8,
-                fontSize: 16,
-                fontFamily: 'inherit',
-              }}
-              data-testid="input-publish-datetime"
-            />
-            {publishAt && (
-              <p style={{ fontSize: 13, color: '#6B7280', marginTop: 8 }}>
-                Объявление будет опубликовано: {publishAt.toLocaleString('ru-RU', {
-                  day: 'numeric',
-                  month: 'long',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })}
-              </p>
-            )}
-          </div>
-        )}
+        <SchedulePublishBlock
+          publishAt={publishAt}
+          onChange={onSetPublishAt}
+        />
       </div>
     </div>
   );

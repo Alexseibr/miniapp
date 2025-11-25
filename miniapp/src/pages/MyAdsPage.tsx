@@ -5,14 +5,16 @@ import { Ad } from '@/types';
 import { fetchMyAds } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { formatRelativeTime } from '@/utils/time';
-import { Plus, Eye, MapPin, Loader2, Edit } from 'lucide-react';
+import { Plus, Eye, MapPin, Loader2, Edit, Clock, Calendar } from 'lucide-react';
+import { ScheduledAdBadge, ScheduledAdChip } from '@/components/schedule/ScheduledAdBadge';
+import { formatPublishAt } from '@/utils/dateUtils';
 
 export default function MyAdsPage() {
   const user = useUserStore((state) => state.user);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string>('');
-  const [filter, setFilter] = useState<'all' | 'active' | 'archived'>('all');
+  const [filter, setFilter] = useState<'all' | 'active' | 'scheduled' | 'archived'>('all');
 
   useEffect(() => {
     async function loadMyAds() {
@@ -37,13 +39,23 @@ export default function MyAdsPage() {
     loadMyAds();
   }, [user]);
 
+  const scheduledAds = ads.filter((ad) => ad.status === 'scheduled');
+  const activeAds = ads.filter((ad) => ad.status === 'active' || ad.status === 'draft');
+  const archivedAds = ads.filter((ad) => ad.status === 'archived' || ad.status === 'sold');
+  
   const filteredAds = ads.filter((ad) => {
     if (filter === 'active') return ad.status === 'active' || ad.status === 'draft';
+    if (filter === 'scheduled') return ad.status === 'scheduled';
     if (filter === 'archived') return ad.status === 'archived' || ad.status === 'sold';
     return true;
   });
 
-  const getStatusBadge = (status: string, moderationStatus?: string) => {
+  const getStatusBadge = (ad: Ad) => {
+    const { status, moderationStatus, publishAt } = ad;
+    
+    if (status === 'scheduled' && publishAt) {
+      return <ScheduledAdChip publishAt={publishAt} />;
+    }
     if (moderationStatus === 'rejected') {
       return <span className="badge" style={{ background: '#fee2e2', color: '#991b1b' }}>Отклонено</span>;
     }
@@ -123,7 +135,7 @@ export default function MyAdsPage() {
         </Link>
       </div>
 
-      <div className="tab-nav" style={{ marginBottom: 20 }}>
+      <div className="tab-nav" style={{ marginBottom: 20, flexWrap: 'wrap', gap: 8 }}>
         <button
           className={filter === 'all' ? 'active' : ''}
           onClick={() => setFilter('all')}
@@ -136,14 +148,29 @@ export default function MyAdsPage() {
           onClick={() => setFilter('active')}
           data-testid="filter-active"
         >
-          Активные ({ads.filter((a) => a.status === 'active' || a.status === 'draft').length})
+          Активные ({activeAds.length})
         </button>
+        {scheduledAds.length > 0 && (
+          <button
+            className={filter === 'scheduled' ? 'active' : ''}
+            onClick={() => setFilter('scheduled')}
+            style={{
+              background: filter === 'scheduled' ? '#EEF2FF' : undefined,
+              borderColor: filter === 'scheduled' ? '#6366F1' : undefined,
+              color: filter === 'scheduled' ? '#4338CA' : undefined,
+            }}
+            data-testid="filter-scheduled"
+          >
+            <Clock size={14} style={{ marginRight: 4 }} />
+            Запланированные ({scheduledAds.length})
+          </button>
+        )}
         <button
           className={filter === 'archived' ? 'active' : ''}
           onClick={() => setFilter('archived')}
           data-testid="filter-archived"
         >
-          Архив ({ads.filter((a) => a.status === 'archived' || a.status === 'sold').length})
+          Архив ({archivedAds.length})
         </button>
       </div>
 
@@ -169,8 +196,12 @@ export default function MyAdsPage() {
                     {ad.categoryId} {ad.subcategoryId && `/ ${ad.subcategoryId}`}
                   </p>
                 </div>
-                {getStatusBadge(ad.status || 'draft', ad.moderationStatus)}
+                {getStatusBadge(ad)}
               </div>
+
+              {ad.status === 'scheduled' && ad.publishAt && (
+                <ScheduledAdBadge publishAt={ad.publishAt} />
+              )}
 
               {ad.description && (
                 <p style={{ fontSize: 14, color: '#475467', marginBottom: 12, lineHeight: 1.5 }}>

@@ -43,6 +43,13 @@ Preferred communication style: Simple, everyday language.
 - **Single-Select Category Filtering**: FeedPage uses single-select (not multi-select) to align with backend API capabilities, preventing client-side filtering confusion.
 - **Local AbortController Capture**: useNearbyAds captures AbortController locally at fetch start to prevent race conditions when rapid radius/location changes abort in-flight requests.
 - **Deferred Publishing**: Ads can be scheduled for future publication via `publishAt` field. Scheduled ads have `status='scheduled'` and `moderationStatus='scheduled'`. Cron worker (`workers/publishScheduler.js`) runs every minute, activating ads where `publishAt <= now`. On activation, status becomes 'active', moderationStatus stays unchanged (unless it was 'scheduled'), and validUntil is calculated from publishAt date (not creation date). Scheduled ads are hidden from public search but visible to owners in "My ads".
+  - **Frontend Components** (`miniapp/src/components/schedule/`):
+    - **IOSDateTimePicker**: iOS-style date/time picker with smooth scrolling "wheel" UI. CSS transform-based selection, touch-friendly 48px items, visible ±2 items from center.
+    - **SchedulePublishBlock**: "Now vs Later" toggle with radio-style buttons and integrated IOSDateTimePicker for scheduling. Minimum 5 minutes from now validation.
+    - **ScheduledAdBadge**: Displays countdown or formatted date for scheduled ads. Uses formatScheduledDate and formatRelativeTime from dateUtils.
+    - **ScheduledAdChip**: Compact chip for ad cards showing "Запланировано" status.
+  - **Date Utilities** (`miniapp/src/utils/dateUtils.ts`): formatScheduledDate (locale-aware), formatRelativeTime (countdown), parseISO8601 helpers using date-fns.
+  - **MyAdsPage Integration**: "Scheduled" filter tab showing owner's upcoming scheduled ads with countdown display.
 - **Price Comparison System**: Comprehensive market analytics with category-specific comparison logic:
   - **Ad Model Extensions**: Normalized fields for electronics (brand, model, storageGb, ramGb), cars (carMake, carModel, carYear, carEngineVolume, carTransmission), realty (realtyType, realtyRooms, realtyAreaTotal, realtyCity, realtyDistrict, pricePerSqm with auto-calculation).
   - **AdPriceSnapshot Model**: Caches pricing analytics per ad with 6-hour TTL index for automatic cleanup.
