@@ -3,6 +3,13 @@ import { Link } from 'react-router-dom';
 import { Package } from 'lucide-react';
 import { CategoryNode } from '@/types';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
+import LazyImage from '@/components/LazyImage';
+
+const FallbackIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" strokeWidth="1.5">
+    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+  </svg>
+);
 
 interface Props {
   categories: CategoryNode[];
@@ -85,24 +92,17 @@ const CategoryGrid = memo(({ categories }: Props) => {
               }}
             >
               {iconSrc ? (
-                <img
+                <LazyImage
                   src={iconSrc}
                   alt={category.name}
-                  loading="lazy"
-                  decoding="async"
+                  rootMargin="100px"
                   style={{
                     width: '100%',
                     height: '100%',
                     objectFit: 'cover',
                   }}
+                  fallback={<FallbackIcon />}
                   data-testid={`category-icon-${category.slug}`}
-                  onError={(e) => {
-                    const parent = e.currentTarget.parentElement;
-                    if (parent) {
-                      e.currentTarget.style.display = 'none';
-                      parent.innerHTML = '<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9ca3af" stroke-width="1.5"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path></svg>';
-                    }
-                  }}
                 />
               ) : (
                 <Package size={28} strokeWidth={1.5} color="#9ca3af" data-testid={`category-icon-fallback-${category.slug}`} />
