@@ -25,7 +25,12 @@ The project includes two React applications built with TypeScript and Vite:
 ### UI/UX Decisions
 - **Category Icons**: Utilizes 3D WebP icons for all categories across hierarchy levels, with lazy loading and async decoding for performance.
 - **Admin Panel**: Tabbed design with robust filtering and management tools.
-- **MiniApp**: Designed for mobile compatibility within Telegram, with features like `Swiper` for image carousels and `Leaflet` for maps.
+- **MiniApp**: 
+  - Mobile-optimized Kufar-style design with modern ad feed
+  - Advanced filtering: category selection, price range (min/max), multi-option sorting (newest/cheapest/most expensive)
+  - Infinite scroll with IntersectionObserver for seamless pagination
+  - Per-filter-set state management to avoid pagination race conditions
+  - Features `Swiper` for image carousels, `Leaflet` for maps, and date-fns for relative timestamps
 
 ## External Dependencies
 
@@ -49,3 +54,42 @@ The project includes two React applications built with TypeScript and Vite:
 - **Photo Upload API**: POST /api/uploads/presigned-url endpoint protected by Telegram auth, returns both upload URL (presigned) and public URL (proxy).
 - **ImageUploader Component** (miniapp/src/components/ImageUploader.tsx): Supports file selection and camera capture with client-side validation (10MB max).
 - **Architecture Note**: Direct GCS public access is prevented by bucket policy. All photo access flows through server-side proxy for authentication and caching.
+
+## Recent Changes (November 25, 2025)
+
+### HomePage Redesign: Modern Ad Feed with Filters
+Completely redesigned the main page from Server-Driven UI blocks to a modern Kufar-inspired ad feed with comprehensive filtering and infinite scroll.
+
+**Key Features:**
+1. **FilterPanel Component** (`miniapp/src/components/FilterPanel.tsx`):
+   - Category selection with hierarchical tree
+   - Price range filters (min/max inputs)
+   - Sorting options: newest first, price low-to-high, price high-to-low
+   - Active filter badge with count
+   - Local state management with sync on modal open/close
+
+2. **Advanced Pagination Architecture** (`miniapp/src/pages/HomePage.tsx`):
+   - Per-filter-set state: `pages: Record<string, number>` keyed by JSON.stringify(filters)
+   - Ad accumulation: `adsMap: Record<string, AdPreview[]>` with deduplication by _id
+   - Race-condition-free filter changes: setPages before setFilters ensures page=1 on every filter switch
+   - Automatic first-page reset when returning to previous filter combinations
+
+3. **Infinite Scroll**:
+   - IntersectionObserver with 100px rootMargin for smooth UX
+   - isFetching-based guards to prevent duplicate loads
+   - hasMore calculation validates data availability and page size
+
+4. **Enhanced AdCard** (`miniapp/src/components/AdCard.tsx`):
+   - Relative date badges using date-fns formatDistanceToNow
+   - Improved price and location display
+   - Swiper photo gallery integration
+
+5. **Empty State Handling**:
+   - Shows friendly message when no ads match filters
+   - Suggests resetting filters to see more results
+
+**Technical Implementation:**
+- TanStack Query v5 with queryKey: ['/api/ads/search', filtersKey, currentPage]
+- React batched state updates for setPages + setFilters synchronization
+- Functional state updaters to prevent stale closures
+- Complete deduplication logic in adsMap accumulation
