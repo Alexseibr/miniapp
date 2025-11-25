@@ -69,6 +69,11 @@ export interface CreateAdPayload {
   photos?: string[];
   sellerTelegramId: number;
   city?: string;
+  geoLabel?: string;
+  contactType?: 'telegram_phone' | 'telegram_username' | 'instagram' | 'none';
+  contactPhone?: string;
+  contactUsername?: string;
+  contactInstagram?: string;
   deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup';
   deliveryRadiusKm?: number;
   location?: {

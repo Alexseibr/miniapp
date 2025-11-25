@@ -25,6 +25,7 @@ import phoneAuthRoutes from './routes/phoneAuth.js';
 import chatRoutes from './routes/chat.js';
 import uploadsRoutes from './routes/uploads.js';
 import mediaRoutes from './routes/media.js';
+import geoRoutes from './routes/geo.js';
 
 const app = express();
 
@@ -99,5 +100,6 @@ app.use('/api/auth', phoneAuthRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/media', mediaRoutes);
+app.use('/api/geo', geoRoutes);
 
 export default app;

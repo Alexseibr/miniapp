@@ -121,6 +121,31 @@ const adSchema = new mongoose.Schema(
       index: true,
       default: null,
     },
+    geoLabel: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    contactType: {
+      type: String,
+      enum: ['telegram_phone', 'telegram_username', 'instagram', 'none'],
+      default: 'none',
+    },
+    contactPhone: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    contactUsername: {
+      type: String,
+      trim: true,
+      default: null,
+    },
+    contactInstagram: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     deliveryType: {
       type: String,
       enum: ['pickup_only', 'delivery_only', 'delivery_and_pickup'],

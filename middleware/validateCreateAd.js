@@ -180,6 +180,11 @@ async function validateCreateAd(req, res, next) {
 
     const validUntil = calculateValidUntil(new Date(), lifetimeDays);
 
+    const allowedContactTypes = ['telegram_phone', 'telegram_username', 'instagram', 'none'];
+    const contactType = payload.contactType && allowedContactTypes.includes(payload.contactType)
+      ? payload.contactType
+      : 'none';
+
     const sanitized = {
       title,
       description: normalizeString(payload.description),
@@ -191,6 +196,11 @@ async function validateCreateAd(req, res, next) {
       attributes,
       sellerTelegramId,
       city: payload.city ? normalizeString(payload.city) : null,
+      geoLabel: payload.geoLabel ? normalizeString(payload.geoLabel) : null,
+      contactType,
+      contactPhone: payload.contactPhone ? normalizeString(payload.contactPhone) : null,
+      contactUsername: payload.contactUsername ? normalizeString(payload.contactUsername) : null,
+      contactInstagram: payload.contactInstagram ? normalizeString(payload.contactInstagram) : null,
       deliveryType,
       deliveryRadiusKm,
       location,
