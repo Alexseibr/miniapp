@@ -10,6 +10,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
+import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
 
 interface AdCardProps {
   ad: AdPreview;
@@ -81,19 +82,24 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
             e.stopPropagation();
           }}
         >
-          {photos.map((photo, index) => (
-            <SwiperSlide key={index}>
-              <img
-                src={photo}
-                alt={`${ad.title} - фото ${index + 1}`}
-                loading="lazy"
-                decoding="async"
-                data-testid={`ad-image-${ad._id}-${index}`}
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                onClick={handleCardClick}
-              />
-            </SwiperSlide>
-          ))}
+          {photos.map((photo, index) => {
+            const isPlaceholder = photo.startsWith('data:');
+            return (
+              <SwiperSlide key={index}>
+                <img
+                  src={photo}
+                  srcSet={!isPlaceholder ? generateSrcSet(photo) : undefined}
+                  sizes={!isPlaceholder ? generateAdCardSizes() : undefined}
+                  alt={`${ad.title} - фото ${index + 1}`}
+                  loading="lazy"
+                  decoding="async"
+                  data-testid={`ad-image-${ad._id}-${index}`}
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  onClick={handleCardClick}
+                />
+              </SwiperSlide>
+            );
+          })}
         </Swiper>
         <div className="ad-card-favorite">
           <FavoriteButton adId={ad._id} />
