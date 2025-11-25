@@ -13,9 +13,10 @@ const FallbackIcon = () => (
 
 interface Props {
   categories: CategoryNode[];
+  priorityCount?: number;
 }
 
-const CategoryGrid = memo(({ categories }: Props) => {
+const CategoryGrid = memo(({ categories, priorityCount = 6 }: Props) => {
   if (!categories.length) {
     return null;
   }
@@ -48,8 +49,9 @@ const CategoryGrid = memo(({ categories }: Props) => {
         gap: '12px',
       }}
     >
-      {categories.map((category) => {
+      {categories.map((category, index) => {
         const iconSrc = getCategoryIcon(category);
+        const isPriority = index < priorityCount;
         
         return (
           <Link
@@ -96,7 +98,7 @@ const CategoryGrid = memo(({ categories }: Props) => {
                   src={iconSrc}
                   alt={category.name}
                   rootMargin="100px"
-                  priority={false}
+                  priority={isPriority}
                   style={{
                     width: '100%',
                     height: '100%',
