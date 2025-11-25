@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import NotificationEvent from './NotificationEvent.js';
 import AdChange from './AdChange.js';
 import AdPriceSnapshot from './AdPriceSnapshot.js';
+import CategoryWordStatsService from '../services/CategoryWordStatsService.js';
 
 const priceHistorySchema = new mongoose.Schema(
   {
@@ -516,6 +517,25 @@ adSchema.post('save', async function (doc, next) {
   } catch (error) {
     return next(error);
   }
+});
+
+adSchema.post('save', async function (doc, next) {
+  if (!doc.categoryId || !doc.title) {
+    return next();
+  }
+
+  const validStatuses = ['active', 'pending', 'draft'];
+  if (!validStatuses.includes(doc.status)) {
+    return next();
+  }
+
+  try {
+    await CategoryWordStatsService.updateStatsForAd(doc);
+  } catch (error) {
+    console.warn('[Ad] Failed to update category word stats:', error.message);
+  }
+
+  return next();
 });
 
 // Составные индексы

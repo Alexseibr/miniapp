@@ -1,17 +1,17 @@
 import Category from '../models/Category.js';
 import { CATEGORY_KEYWORD_RULES } from '../config/categoryKeywordsConfig.js';
+import CategoryWordStatsService from './CategoryWordStatsService.js';
+import { normalizeText } from '../utils/textTokenizer.js';
+
+const RULE_WEIGHT = 0.6;
+const STATS_WEIGHT = 0.4;
 
 class CategorySuggestService {
   normalize(text) {
-    return text
-      .toLowerCase()
-      .replace(/ё/g, 'е')
-      .replace(/[^a-z0-9а-яё\s-]/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
+    return normalizeText(text);
   }
 
-  suggestCategoryByText(text) {
+  suggestCategoryByRules(text) {
     const normalized = this.normalize(text);
     
     if (!normalized || normalized.length < 2) {
@@ -38,6 +38,7 @@ class CategorySuggestService {
           subcategorySlug: rule.subcategorySlug,
           score: ruleScore,
           matchedKeywords,
+          source: 'rules',
         });
       }
     }
@@ -61,6 +62,7 @@ class CategorySuggestService {
       subcategorySlug: s.subcategorySlug,
       score: s.score,
       matchedKeywords: s.matchedKeywords,
+      source: 'rules',
     }));
 
     const best = suggestions[0];
@@ -74,6 +76,7 @@ class CategorySuggestService {
         subcategorySlug: best.subcategorySlug,
         confidence,
         matchedKeywords: best.matchedKeywords,
+        source: 'rules',
       },
       suggestions,
     };
@@ -88,23 +91,33 @@ class CategorySuggestService {
     }
 
     const allSlugs = new Set();
-    if (result.bestMatch) {
-      allSlugs.add(result.bestMatch.categorySlug);
-      if (result.bestMatch.subcategorySlug) {
-        allSlugs.add(result.bestMatch.subcategorySlug);
-      }
+    const allIds = new Set();
+
+    const collectFromItem = (item) => {
+      if (item.categorySlug) allSlugs.add(item.categorySlug);
+      if (item.subcategorySlug) allSlugs.add(item.subcategorySlug);
+      if (item.categoryId) allIds.add(item.categoryId);
+      if (item.subcategoryId) allIds.add(item.subcategoryId);
+    };
+
+    if (result.bestMatch) collectFromItem(result.bestMatch);
+    for (const s of result.suggestions) collectFromItem(s);
+
+    const queries = [];
+    if (allSlugs.size > 0) {
+      queries.push(Category.find({ slug: { $in: Array.from(allSlugs) } }).lean());
     }
-    for (const s of result.suggestions) {
-      allSlugs.add(s.categorySlug);
-      if (s.subcategorySlug) {
-        allSlugs.add(s.subcategorySlug);
-      }
+    if (allIds.size > 0) {
+      queries.push(Category.find({ _id: { $in: Array.from(allIds) } }).lean());
     }
 
-    const categories = await Category.find({ slug: { $in: Array.from(allSlugs) } }).lean();
+    const results = await Promise.all(queries);
+    const categories = results.flat();
+    
     const categoryMap = new Map();
     for (const cat of categories) {
       categoryMap.set(cat.slug, cat);
+      categoryMap.set(cat._id.toString(), cat);
     }
 
     const parentSlugs = new Set();
@@ -114,14 +127,29 @@ class CategorySuggestService {
       }
     }
     
-    const parentCategories = await Category.find({ slug: { $in: Array.from(parentSlugs) } }).lean();
-    for (const cat of parentCategories) {
-      categoryMap.set(cat.slug, cat);
+    if (parentSlugs.size > 0) {
+      const parentCategories = await Category.find({ slug: { $in: Array.from(parentSlugs) } }).lean();
+      for (const cat of parentCategories) {
+        categoryMap.set(cat.slug, cat);
+        categoryMap.set(cat._id.toString(), cat);
+      }
     }
 
     const enrichSuggestion = (s) => {
-      const mainCat = categoryMap.get(s.categorySlug);
-      const subCat = s.subcategorySlug ? categoryMap.get(s.subcategorySlug) : null;
+      let mainCat = null;
+      let subCat = null;
+
+      if (s.categorySlug) {
+        mainCat = categoryMap.get(s.categorySlug);
+      } else if (s.categoryId) {
+        mainCat = categoryMap.get(s.categoryId);
+      }
+
+      if (s.subcategorySlug) {
+        subCat = categoryMap.get(s.subcategorySlug);
+      } else if (s.subcategoryId) {
+        subCat = categoryMap.get(s.subcategoryId);
+      }
       
       let parentCat = null;
       if (subCat && subCat.parentSlug) {
@@ -133,14 +161,15 @@ class CategorySuggestService {
 
       return {
         categoryId: actualParent?._id?.toString() || null,
-        categoryName: actualParent?.name || s.categorySlug,
-        categorySlug: actualParent?.slug || s.categorySlug,
+        categoryName: actualParent?.name || s.categorySlug || 'Неизвестно',
+        categorySlug: actualParent?.slug || s.categorySlug || null,
         subcategoryId: actualChild?._id?.toString() || null,
         subcategoryName: actualChild?.name || null,
         subcategorySlug: actualChild?.slug || null,
         score: s.score,
         confidence: s.confidence,
-        matchedKeywords: s.matchedKeywords,
+        matchedKeywords: s.matchedKeywords || [],
+        source: s.source || 'unknown',
       };
     };
 
@@ -160,6 +189,74 @@ class CategorySuggestService {
     };
   }
 
+  async combineResults(rulesResult, statsResult) {
+    const combined = new Map();
+
+    const addToMap = (item, weight, source) => {
+      const key = item.categorySlug || item.categoryId;
+      if (!key) return;
+
+      const existing = combined.get(key) || {
+        categorySlug: item.categorySlug,
+        categoryId: item.categoryId,
+        subcategorySlug: item.subcategorySlug,
+        subcategoryId: item.subcategoryId,
+        score: 0,
+        matchedKeywords: [],
+        sources: [],
+      };
+
+      existing.score += item.score * weight;
+      existing.sources.push(source);
+      if (item.matchedKeywords) {
+        existing.matchedKeywords.push(...item.matchedKeywords);
+      }
+      if (item.subcategorySlug && !existing.subcategorySlug) {
+        existing.subcategorySlug = item.subcategorySlug;
+      }
+      if (item.subcategoryId && !existing.subcategoryId) {
+        existing.subcategoryId = item.subcategoryId;
+      }
+
+      combined.set(key, existing);
+    };
+
+    if (rulesResult.suggestions) {
+      for (const s of rulesResult.suggestions) {
+        addToMap(s, RULE_WEIGHT, 'rules');
+      }
+    }
+
+    if (statsResult.suggestions) {
+      for (const s of statsResult.suggestions) {
+        addToMap(s, STATS_WEIGHT, 'stats');
+      }
+    }
+
+    const sorted = Array.from(combined.values())
+      .sort((a, b) => b.score - a.score)
+      .slice(0, 5);
+
+    if (!sorted.length) {
+      return { bestMatch: null, suggestions: [] };
+    }
+
+    const totalScore = sorted.reduce((acc, s) => acc + s.score, 0);
+    const best = sorted[0];
+
+    return {
+      bestMatch: {
+        ...best,
+        confidence: best.score / totalScore,
+        source: best.sources.join('+'),
+      },
+      suggestions: sorted.map(s => ({
+        ...s,
+        source: s.sources.join('+'),
+      })),
+    };
+  }
+
   async suggest(title, description = '') {
     const text = `${title || ''} ${description || ''}`.trim();
     
@@ -167,8 +264,32 @@ class CategorySuggestService {
       return { bestMatch: null, alternatives: [] };
     }
 
-    const result = this.suggestCategoryByText(text);
-    return await this.enrichWithCategoryData(result);
+    const rulesResult = this.suggestCategoryByRules(text);
+
+    let statsResult = { bestMatch: null, suggestions: [] };
+    try {
+      statsResult = await CategoryWordStatsService.suggestByStats(text, 5);
+    } catch (error) {
+      console.error('[CategorySuggest] Stats error:', error.message);
+    }
+
+    let finalResult;
+    
+    if (rulesResult.bestMatch && statsResult.bestMatch) {
+      finalResult = await this.combineResults(rulesResult, statsResult);
+    } else if (rulesResult.bestMatch) {
+      finalResult = rulesResult;
+    } else if (statsResult.bestMatch) {
+      finalResult = statsResult;
+    } else {
+      return { bestMatch: null, alternatives: [] };
+    }
+
+    return await this.enrichWithCategoryData(finalResult);
+  }
+
+  suggestCategoryByText(text) {
+    return this.suggestCategoryByRules(text);
   }
 }
 
