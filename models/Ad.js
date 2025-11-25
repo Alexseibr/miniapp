@@ -20,6 +20,16 @@ const statusHistorySchema = new mongoose.Schema(
   { _id: false }
 );
 
+/**
+ * GeoJSON Point Schema для геолокации объявлений
+ * Используется для geo-поиска с помощью MongoDB 2dsphere индекса
+ * 
+ * @property {String} type - Тип GeoJSON, всегда 'Point'
+ * @property {Number[]} coordinates - Массив [longitude, latitude] (долгота, широта)
+ * 
+ * Важно: порядок координат [lng, lat], а не [lat, lng]!
+ * Пример: [27.5615, 53.9045] для Минска (долгота 27.56°, широта 53.90°)
+ */
 const GeoPointSchema = new mongoose.Schema(
   {
     type: {
@@ -29,13 +39,20 @@ const GeoPointSchema = new mongoose.Schema(
     },
     coordinates: {
       type: [Number],
-      index: '2dsphere',
+      index: '2dsphere', // Геопространственный индекс для быстрого поиска
       default: undefined,
     },
   },
   { _id: false }
 );
 
+/**
+ * Location Schema - содержит координаты объявления в разных форматах
+ * 
+ * @property {Number} lat - Широта (для удобства, дублирует geo.coordinates[1])
+ * @property {Number} lng - Долгота (для удобства, дублирует geo.coordinates[0])
+ * @property {GeoPointSchema} geo - GeoJSON Point для MongoDB geo-запросов
+ */
 const LocationSchema = new mongoose.Schema(
   {
     lat: { type: Number },
@@ -194,6 +211,8 @@ const adSchema = new mongoose.Schema(
   }
 );
 
+// Геопространственный индекс для эффективного поиска объявлений по координатам
+// Используется в endpoints: /api/ads/search (с $geoNear), /api/ads/nearby, /api/ads/live-spots
 adSchema.index({ 'location.geo': '2dsphere' });
 
 // Автоматический расчет validUntil при создании
