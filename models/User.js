@@ -36,13 +36,9 @@ const userSchema = new mongoose.Schema(
   {
     telegramId: {
       type: Number,
-      sparse: true,
-      index: true,
     },
     appUserId: {
       type: String,
-      sparse: true,
-      index: true,
     },
     authProviders: {
       type: [AuthProviderSchema],
@@ -78,7 +74,6 @@ const userSchema = new mongoose.Schema(
     },
     phone: {
       type: String,
-      sparse: true,
       trim: true,
     },
     phoneVerified: {
