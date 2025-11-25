@@ -40,6 +40,7 @@ Preferred communication style: Simple, everyday language.
 - **Favorites System**: Enables users to favorite ads with notification preferences, managed via API endpoints and a Zustand store.
 - **Ad History Tracking**: `AdHistoryEvent` model tracks ad lifecycle events for admin monitoring.
 - **Category Auto-Suggestion**: Hybrid approach combining rule-based keywords and statistical learning from user behavior, using `CategoryWordStats` and `CategorySuggestService`. Frontend integrates a dismissible suggestion card.
+- **Category Evolution System**: Enables gradual growth of category hierarchy based on real ads. Each root category has an "Other" subcategory (`isOther: true`). Ads placed in "Other" are flagged with `needsCategoryReview: true`. `CategoryEvolutionService` analyzes these ads daily (4 AM), extracts frequent keywords, and creates `CategoryProposal` entries for admin review. Admins can approve (creates new subcategory, moves ads) or reject proposals via `/api/admin/category-proposals/*` endpoints.
 - **Media Upload System**: Manages file size limits, thumbnail generation (via `sharp`), and cleanup. Uses `MediaFile` model to track uploads and a `MediaService` for validation and session management.
 
 ## External Dependencies

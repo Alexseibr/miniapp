@@ -544,21 +544,25 @@ adSchema.post('save', async function (doc, next) {
 });
 
 adSchema.pre('save', async function (next) {
-  if (!this.isModified('subcategoryId') && !this.isNew) {
+  if (!this.subcategoryId) {
     return next();
   }
 
-  if (!this.subcategoryId) {
+  const subcategoryChanged = this.isModified('subcategoryId');
+  const isNew = this.isNew;
+  const needsReviewChanged = this.isModified('needsCategoryReview');
+  
+  if (!subcategoryChanged && !isNew && needsReviewChanged) {
     return next();
   }
 
   try {
     const Category = mongoose.model('Category');
-    const subcategory = await Category.findOne({ slug: this.subcategoryId });
+    const subcategory = await Category.findOne({ slug: this.subcategoryId }).select('isOther').lean();
     
     if (subcategory && subcategory.isOther === true) {
       this.needsCategoryReview = true;
-    } else {
+    } else if (subcategoryChanged || isNew) {
       this.needsCategoryReview = false;
     }
   } catch (error) {

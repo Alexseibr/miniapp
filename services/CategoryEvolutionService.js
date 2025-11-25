@@ -35,7 +35,8 @@ class CategoryEvolutionService {
     const ads = await Ad.find({
       subcategoryId: otherCategory.slug,
       needsCategoryReview: true,
-      status: { $in: ['active', 'approved'] },
+      status: 'active',
+      moderationStatus: 'approved',
     }).select('_id title description').lean();
 
     console.log(`[CategoryEvolution] Category "${otherCategory.name}": ${ads.length} ads with needsCategoryReview`);
