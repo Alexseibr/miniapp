@@ -1,13 +1,15 @@
+import { useNavigate } from 'react-router-dom';
 import { CategoryNode } from '@/types';
 
 interface GroupSelectorProps {
   categories: CategoryNode[];
-  selectedGroupSlug: string | null;
-  onSelect: (slug: string | null) => void;
+  selectedGroupSlug?: string | null;
+  onSelect?: (slug: string | null) => void;
   loading?: boolean;
 }
 
 export default function GroupSelector({ categories, selectedGroupSlug, onSelect, loading = false }: GroupSelectorProps) {
+  const navigate = useNavigate();
   if (loading) {
     return (
       <div style={{ padding: '16px' }}>
@@ -53,10 +55,18 @@ export default function GroupSelector({ categories, selectedGroupSlug, onSelect,
           const isSelected = selectedGroupSlug === cat.slug;
           const subcategoryCount = cat.subcategories?.length || 0;
           
+          const handleClick = () => {
+            if (subcategoryCount > 0) {
+              navigate(`/category/${cat.slug}`);
+            } else if (onSelect) {
+              onSelect(isSelected ? null : cat.slug);
+            }
+          };
+          
           return (
             <button
               key={cat.slug}
-              onClick={() => onSelect(isSelected ? null : cat.slug)}
+              onClick={handleClick}
               style={{
                 padding: 0,
                 background: isSelected 
@@ -185,35 +195,6 @@ export default function GroupSelector({ categories, selectedGroupSlug, onSelect,
         })}
       </div>
 
-      {selectedGroupSlug && (
-        <div style={{ marginTop: 14 }}>
-          <button
-            onClick={() => onSelect(null)}
-            style={{
-              width: '100%',
-              padding: '12px',
-              background: '#F2F2F7',
-              border: 'none',
-              borderRadius: 12,
-              fontSize: 14,
-              color: '#6B7280',
-              cursor: 'pointer',
-              minHeight: 44,
-              fontWeight: 500,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 6,
-            }}
-            data-testid="button-clear-group"
-          >
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-              <path d="M3.5 3.5L10.5 10.5M3.5 10.5L10.5 3.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
-            Сбросить
-          </button>
-        </div>
-      )}
     </div>
   );
 }
