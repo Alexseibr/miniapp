@@ -329,6 +329,7 @@ router.get('/search', async (req, res, next) => {
       buyerLng,
       maxDistanceKm,
       seasonCode,
+      sort,
       limit = 20,
       offset = 0,
     } = req.query;
@@ -478,7 +479,24 @@ router.get('/search', async (req, res, next) => {
       });
     }
 
-    pipeline.push({ $sort: hasGeo ? { distance: 1, createdAt: -1 } : { createdAt: -1 } });
+    let sortStage = {};
+    if (sort === 'price_asc' || sort === 'cheapest') {
+      sortStage = { price: 1, createdAt: -1 };
+    } else if (sort === 'price_desc' || sort === 'expensive') {
+      sortStage = { price: -1, createdAt: -1 };
+    } else if (sort === 'newest' || sort === 'date_desc') {
+      sortStage = { createdAt: -1 };
+    } else if (sort === 'oldest' || sort === 'date_asc') {
+      sortStage = { createdAt: 1 };
+    } else if (sort === 'popular') {
+      sortStage = { views: -1, createdAt: -1 };
+    } else if (hasGeo && (sort === 'distance' || !sort)) {
+      sortStage = { distance: 1, createdAt: -1 };
+    } else {
+      sortStage = { createdAt: -1 };
+    }
+
+    pipeline.push({ $sort: sortStage });
 
     if (hasGeo) {
       pipeline.push({
