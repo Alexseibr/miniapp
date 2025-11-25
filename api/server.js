@@ -31,6 +31,8 @@ import farmerRoutes from './routes/farmer.js';
 import farmerSubscriptionsRoutes from './routes/farmer-subscriptions.js';
 import globalSearchRoutes from './routes/globalSearch.js';
 import trendsRoutes from './routes/trends.js';
+import aiRoutes from './routes/ai.js';
+import recommendationsRoutes from './routes/recommendations.js';
 
 const app = express();
 
@@ -111,5 +113,7 @@ app.use('/api/farmer', farmerRoutes);
 app.use('/api/farmer/subscriptions', farmerSubscriptionsRoutes);
 app.use('/api/search', globalSearchRoutes);
 app.use('/api/trends', trendsRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/recommendations', recommendationsRoutes);
 
 export default app;

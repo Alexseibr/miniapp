@@ -1638,6 +1638,27 @@ router.post('/:id/premium-card', async (req, res) => {
   }
 });
 
+router.get('/:id/similar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 6 } = req.query;
+    
+    const aiGateway = require('../../services/ai/AiGateway');
+    const result = await aiGateway.getSimilarAds({
+      adId: id,
+      limit: parseInt(limit)
+    });
+    
+    return res.json(result);
+  } catch (error) {
+    console.error('[Ads] Similar ads error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Ошибка получения похожих объявлений'
+    });
+  }
+});
+
 router.get('/trending', async (req, res, next) => {
   try {
     const { cityCode, limit = 20, offset = 0 } = req.query;
