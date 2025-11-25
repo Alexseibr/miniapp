@@ -15,6 +15,7 @@ export interface ListAdsParams {
   radiusKm?: number;
   minPrice?: number;
   maxPrice?: number;
+  signal?: AbortSignal;
 }
 
 export interface NearbyAdsParams {
@@ -35,7 +36,11 @@ export async function getAd(id: string, params?: { lat?: number; lng?: number })
 }
 
 export async function listNearbyAds(params: ListAdsParams): Promise<AdsResponse> {
-  const response = await http.get('/api/ads/nearby', { params });
+  const { signal, ...queryParams } = params;
+  const response = await http.get('/api/ads/nearby', { 
+    params: queryParams,
+    signal 
+  });
   return response.data;
 }
 

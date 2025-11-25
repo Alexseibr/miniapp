@@ -44,7 +44,8 @@ const useGeoStore = create<GeoState>((set) => ({
     set({ status: 'error', error: 'Геолокация не поддерживается' });
   },
   setRadius(value) {
-    set({ radiusKm: value });
+    const clampedValue = Math.max(0.1, Math.min(100, value));
+    set({ radiusKm: clampedValue });
   },
 }));
 

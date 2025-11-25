@@ -5,8 +5,15 @@ const prefetchedRoutes = new Set<string>();
 export function useRoutePrefetch() {
   useEffect(() => {
     const handleMouseEnter = (e: MouseEvent) => {
-      const target = e.target as HTMLElement;
-      const link = target.closest('a[href^="/"]');
+      let link: HTMLAnchorElement | null = null;
+      
+      const path = e.composedPath();
+      for (const element of path) {
+        if (element instanceof HTMLAnchorElement && element.getAttribute('href')?.startsWith('/')) {
+          link = element;
+          break;
+        }
+      }
       
       if (!link) return;
       

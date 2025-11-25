@@ -60,7 +60,7 @@ export default function GroupSelector({ categories, selectedGroupSlug, onSelect,
                 />
               )}
               <div style={{
-                fontSize: 16,
+                fontSize: 17,
                 fontWeight: isSelected ? 600 : 500,
                 color: isSelected ? '#3B73FC' : '#111827',
                 lineHeight: 1.3,
@@ -68,7 +68,7 @@ export default function GroupSelector({ categories, selectedGroupSlug, onSelect,
                 {cat.name}
               </div>
               {cat.subcategories && cat.subcategories.length > 0 && (
-                <div style={{ fontSize: 12, color: '#9CA3AF' }}>
+                <div style={{ fontSize: 13, color: '#9CA3AF' }}>
                   {cat.subcategories.length} категорий
                 </div>
               )}
@@ -83,13 +83,14 @@ export default function GroupSelector({ categories, selectedGroupSlug, onSelect,
             onClick={() => onSelect(null)}
             style={{
               width: '100%',
-              padding: '12px',
+              padding: '14px',
               background: 'transparent',
               border: '1px solid #E5E7EB',
               borderRadius: 12,
-              fontSize: 15,
+              fontSize: 16,
               color: '#6B7280',
               cursor: 'pointer',
+              minHeight: 48,
             }}
             data-testid="button-clear-group"
           >

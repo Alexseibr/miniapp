@@ -25,17 +25,18 @@ export default function SubcategoryChips({ subcategories, selectedSlug, onSelect
         <button
           onClick={() => onSelect(null)}
           style={{
-            padding: '10px 20px',
+            padding: '12px 22px',
             background: selectedSlug === null ? '#3B73FC' : '#F9FAFB',
             color: selectedSlug === null ? '#ffffff' : '#374151',
             border: selectedSlug === null ? 'none' : '1px solid #E5E7EB',
             borderRadius: 20,
-            fontSize: 15,
+            fontSize: 17,
             fontWeight: selectedSlug === null ? 600 : 500,
             cursor: 'pointer',
             whiteSpace: 'nowrap',
             flex: '0 0 auto',
             transition: 'all 0.2s',
+            minHeight: 44,
           }}
           data-testid="chip-all"
         >
@@ -50,17 +51,18 @@ export default function SubcategoryChips({ subcategories, selectedSlug, onSelect
               key={subcat.slug}
               onClick={() => onSelect(isSelected ? null : subcat.slug)}
               style={{
-                padding: '10px 20px',
+                padding: '12px 22px',
                 background: isSelected ? '#3B73FC' : '#F9FAFB',
                 color: isSelected ? '#ffffff' : '#374151',
                 border: isSelected ? 'none' : '1px solid #E5E7EB',
                 borderRadius: 20,
-                fontSize: 15,
+                fontSize: 17,
                 fontWeight: isSelected ? 600 : 500,
                 cursor: 'pointer',
                 whiteSpace: 'nowrap',
                 flex: '0 0 auto',
                 transition: 'all 0.2s',
+                minHeight: 44,
               }}
               data-testid={`chip-${subcat.slug}`}
             >

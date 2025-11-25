@@ -1,145 +1,204 @@
-import { useEffect } from 'react';
-import { Loader2, MapPin } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState, useMemo } from 'react';
+import { Loader2, MapPin, PlusCircle } from 'lucide-react';
 import Header from '@/components/Header';
-import CategoryGrid from '@/components/CategoryGrid';
+import GroupSelector from '@/components/GroupSelector';
+import SubcategoryChips from '@/components/SubcategoryChips';
+import RadiusControl from '@/components/RadiusControl';
+import AdCard from '@/components/AdCard';
 import EmptyState from '@/widgets/EmptyState';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { useGeo } from '@/utils/geo';
+import { useNearbyAds } from '@/hooks/useNearbyAds';
 
 export default function HomePage() {
-  const { categories, loading, loadCategories } = useCategoriesStore();
-  const navigate = useNavigate();
-  const { requestLocation, status: geoStatus } = useGeo(false);
+  const { categories, loading: categoriesLoading, loadCategories } = useCategoriesStore();
+  const { coords, status: geoStatus, requestLocation, radiusKm, setRadius } = useGeo(false);
+  
+  const [selectedGroupSlug, setSelectedGroupSlug] = useState<string | null>(null);
+  const [selectedSubcategorySlug, setSelectedSubcategorySlug] = useState<string | null>(null);
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
 
-  const showContent = categories.length > 0;
+  const selectedGroup = useMemo(() => {
+    return categories.find((cat) => cat.slug === selectedGroupSlug) || null;
+  }, [categories, selectedGroupSlug]);
 
-  const handleNearbyClick = async () => {
-    await requestLocation();
-    navigate('/feed?sort=distance');
+  const { ads, loading: adsLoading, isEmpty, hasVeryFew } = useNearbyAds({
+    coords,
+    radiusKm,
+    categoryId: selectedGroupSlug || undefined,
+    subcategoryId: selectedSubcategorySlug || undefined,
+    enabled: !!selectedGroupSlug && !!coords,
+  });
+
+  const handleIncreaseRadius = () => {
+    const newRadius = Math.min(radiusKm + 5, 50);
+    setRadius(newRadius);
   };
 
+  const needsLocation = !coords && geoStatus !== 'loading';
+  const showAds = !!selectedGroupSlug && !!coords;
+
   return (
-    <div style={{ paddingBottom: '80px' }}>
+    <div style={{ paddingBottom: '80px', background: '#F8FAFC', minHeight: '100vh' }}>
       <Header />
-      
-      {/* Кнопка "Рядом со мной" */}
-      <div style={{ padding: '16px 16px 0' }}>
-        <button
-          onClick={handleNearbyClick}
-          disabled={geoStatus === 'loading'}
-          style={{
-            width: '100%',
-            padding: '16px',
-            backgroundColor: '#3B73FC',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '16px',
-            fontSize: '1rem',
-            fontWeight: 600,
-            cursor: geoStatus === 'loading' ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            boxShadow: '0 4px 16px rgba(59, 115, 252, 0.25)',
-            transition: 'all 0.2s',
-            opacity: geoStatus === 'loading' ? 0.7 : 1,
-          }}
-          onMouseEnter={(e) => {
-            if (geoStatus !== 'loading') {
-              e.currentTarget.style.transform = 'translateY(-2px)';
-              e.currentTarget.style.boxShadow = '0 6px 20px rgba(59, 115, 252, 0.35)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (geoStatus !== 'loading') {
-              e.currentTarget.style.transform = 'translateY(0)';
-              e.currentTarget.style.boxShadow = '0 4px 16px rgba(59, 115, 252, 0.25)';
-            }
-          }}
-          data-testid="button-nearby"
-        >
-          <MapPin size={20} />
-          <span>{geoStatus === 'loading' ? 'Получаем геолокацию...' : 'Рядом со мной'}</span>
-        </button>
-        <p 
-          style={{ 
-            textAlign: 'center', 
-            fontSize: '0.75rem', 
-            color: '#6b7280', 
-            marginTop: '8px',
-            marginBottom: 0
-          }}
-          data-testid="text-nearby-subtitle"
-        >
-          Показать объявления в радиусе 5 км
-        </p>
-      </div>
-      
-      <div style={{ paddingTop: '16px' }}>
-        {showContent && <CategoryGrid categories={categories} />}
-        
-        {loading && !showContent && (
-          <div style={{ textAlign: 'center', padding: '40px 20px' }}>
-            <div style={{ marginBottom: '16px', display: 'flex', justifyContent: 'center' }}>
-              <Loader2 size={48} color="#4F46E5" style={{ animation: 'spin 1s linear infinite' }} data-testid="icon-loading" />
-            </div>
-            <h3 style={{ margin: '0 0 8px' }}>Загружаем категории</h3>
-            <p style={{ color: '#6b7280', margin: 0 }}>Подождите несколько секунд</p>
+
+      {/* 1. GroupSelector */}
+      <GroupSelector
+        categories={categories}
+        selectedGroupSlug={selectedGroupSlug}
+        onSelect={(slug) => {
+          setSelectedGroupSlug(slug);
+          setSelectedSubcategorySlug(null);
+        }}
+        loading={categoriesLoading}
+      />
+
+      {/* 2. SubcategoryChips */}
+      {selectedGroup && selectedGroup.subcategories && selectedGroup.subcategories.length > 0 && (
+        <SubcategoryChips
+          subcategories={selectedGroup.subcategories}
+          selectedSlug={selectedSubcategorySlug}
+          onSelect={setSelectedSubcategorySlug}
+        />
+      )}
+
+      {/* 3. Геолокация CTA или RadiusControl */}
+      <div style={{ padding: '16px' }}>
+        {needsLocation && selectedGroupSlug && (
+          <div style={{ 
+            background: '#ffffff', 
+            borderRadius: 16, 
+            padding: 24, 
+            textAlign: 'center',
+            border: '1px solid #E5E7EB',
+          }}>
+            <MapPin size={48} color="#3B73FC" style={{ margin: '0 auto 16px' }} />
+            <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 8px', color: '#111827' }}>
+              Определите местоположение
+            </h3>
+            <p style={{ fontSize: 16, color: '#6B7280', margin: '0 0 20px' }}>
+              Чтобы показать объявления рядом с вами
+            </p>
+            <button
+              onClick={requestLocation}
+              disabled={geoStatus === 'loading'}
+              style={{
+                width: '100%',
+                padding: '16px',
+                background: '#3B73FC',
+                color: '#ffffff',
+                border: 'none',
+                borderRadius: 12,
+                fontSize: 18,
+                fontWeight: 600,
+                cursor: geoStatus === 'loading' ? 'not-allowed' : 'pointer',
+                opacity: geoStatus === 'loading' ? 0.7 : 1,
+                minHeight: 52,
+              }}
+              data-testid="button-request-location"
+            >
+              {geoStatus === 'loading' ? 'Получаем геолокацию...' : 'Определить местоположение'}
+            </button>
           </div>
         )}
-        
-        {!loading && !showContent && (
-          <EmptyState title="Категории не найдены" description="Попробуйте обновить страницу" />
+
+        {coords && selectedGroupSlug && (
+          <RadiusControl
+            value={radiusKm}
+            onChange={setRadius}
+            disabled={false}
+          />
         )}
       </div>
 
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          backgroundColor: '#FFFFFF',
-          borderTop: '1px solid #E5E7EB',
-          padding: '12px 16px',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          boxShadow: '0 -2px 8px rgba(0, 0, 0, 0.05)',
-          zIndex: 50,
-        }}
-        data-testid="bottom-bar"
-      >
-        <div style={{ display: 'flex', flexDirection: 'column' }} data-testid="bottom-bar-branding">
-          <span style={{ fontSize: '0.75rem', color: '#6B7280', marginBottom: '2px' }} data-testid="text-marketplace-label">
-            Маркетплейс
-          </span>
-          <span style={{ fontSize: '1rem', fontWeight: 600, color: '#111827' }} data-testid="text-brand-name">
-            KETMAR Market
-          </span>
+      {/* 4. Список объявлений или пустые состояния */}
+      {showAds && (
+        <div style={{ padding: '0 16px 20px' }}>
+          {adsLoading && (
+            <div style={{ textAlign: 'center', padding: '40px 20px' }}>
+              <Loader2 size={40} color="#3B73FC" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 16px' }} />
+              <p style={{ fontSize: 16, color: '#6B7280', margin: 0 }}>Загружаем объявления...</p>
+            </div>
+          )}
+
+          {!adsLoading && isEmpty && (
+            <div style={{
+              background: '#ffffff',
+              borderRadius: 16,
+              padding: 32,
+              textAlign: 'center',
+              border: '1px solid #E5E7EB',
+            }}>
+              <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 12px', color: '#111827' }}>
+                Объявлений не найдено
+              </h3>
+              <p style={{ fontSize: 16, color: '#6B7280', margin: '0 0 20px' }}>
+                В радиусе {radiusKm} км нет объявлений в категории "{selectedGroup?.name}"
+              </p>
+              <button
+                onClick={handleIncreaseRadius}
+                style={{
+                  padding: '14px 24px',
+                  background: '#3B73FC',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 12,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  minHeight: 48,
+                }}
+                data-testid="button-increase-radius"
+              >
+                <PlusCircle size={20} />
+                Увеличить радиус (+5 км)
+              </button>
+            </div>
+          )}
+
+          {!adsLoading && hasVeryFew && (
+            <div style={{
+              background: '#FEF3C7',
+              border: '1px solid #FCD34D',
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+            }}>
+              <p style={{ fontSize: 15, color: '#92400E', margin: 0 }}>
+                Нашли мало объявлений ({ads.length}). Попробуйте увеличить радиус.
+              </p>
+            </div>
+          )}
+
+          {!adsLoading && ads.length > 0 && (
+            <div>
+              <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
+                Найдено объявлений: {ads.length}
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                {ads.map((ad) => (
+                  <AdCard key={ad._id} ad={ad} />
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        {showContent && (
-          <div
-            style={{
-              backgroundColor: '#4F46E5',
-              color: '#FFFFFF',
-              padding: '10px 20px',
-              borderRadius: '12px',
-              fontSize: '0.875rem',
-              fontWeight: 600,
-            }}
-            data-testid="badge-category-count"
-          >
-            {categories.length} категорий
-          </div>
-        )}
-      </div>
+      )}
+
+      {/* Пустое состояние - если группа не выбрана */}
+      {!selectedGroupSlug && !categoriesLoading && (
+        <div style={{ padding: '40px 16px', textAlign: 'center' }}>
+          <p style={{ fontSize: 18, color: '#9CA3AF' }}>
+            ☝️ Выберите категорию выше, чтобы начать поиск
+          </p>
+        </div>
+      )}
     </div>
   );
 }

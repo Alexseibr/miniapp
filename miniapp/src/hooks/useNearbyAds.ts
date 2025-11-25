@@ -36,7 +36,13 @@ export function useNearbyAds({
 
   const loadAds = useCallback(async () => {
     if (!coords || !enabled) {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+      setLoading(false);
       setAds([]);
+      setError(null);
       return;
     }
 
@@ -44,7 +50,8 @@ export function useNearbyAds({
       abortControllerRef.current.abort();
     }
 
-    abortControllerRef.current = new AbortController();
+    const currentController = new AbortController();
+    abortControllerRef.current = currentController;
     setLoading(true);
     setError(null);
 
@@ -57,19 +64,21 @@ export function useNearbyAds({
         categoryId: categoryId || undefined,
         subcategoryId: subcategoryId || undefined,
         limit: 50,
+        signal: currentController.signal,
       });
 
-      if (!abortControllerRef.current?.signal.aborted) {
+      if (!currentController.signal.aborted) {
         setAds(response.items || []);
       }
     } catch (err: any) {
-      if (!abortControllerRef.current?.signal.aborted) {
+      if (err.name === 'AbortError') return;
+      
+      if (!currentController.signal.aborted) {
         console.error('useNearbyAds error:', err);
         setError(err.message || 'Не удалось загрузить объявления');
-        setAds([]);
       }
     } finally {
-      if (!abortControllerRef.current?.signal.aborted) {
+      if (!currentController.signal.aborted) {
         setLoading(false);
       }
     }

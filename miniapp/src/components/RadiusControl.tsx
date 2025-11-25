@@ -6,7 +6,7 @@ interface RadiusControlProps {
   disabled?: boolean;
 }
 
-const PRESETS = [1, 3, 5, 10, 15, 30];
+const PRESETS = [0.3, 0.5, 1, 3, 5, 10];
 
 function formatRadius(km: number): string {
   if (km < 1) {
@@ -33,15 +33,15 @@ export default function RadiusControl({ value, onChange, disabled = false }: Rad
 
   return (
     <div style={{ padding: '20px 16px', background: '#ffffff', borderRadius: 16, border: '1px solid #E5E7EB' }}>
-      <h3 style={{ margin: '0 0 16px', fontSize: 20, fontWeight: 600, color: '#111827' }}>
+      <h3 style={{ margin: '0 0 16px', fontSize: 24, fontWeight: 600, color: '#111827' }}>
         Поиск объявлений вокруг вас
       </h3>
       
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <div style={{ fontSize: 32, fontWeight: 700, color: '#3B73FC', marginBottom: 8 }}>
+        <div style={{ fontSize: 36, fontWeight: 700, color: '#3B73FC', marginBottom: 8 }}>
           Радиус: {formatRadius(value)}
         </div>
-        <p style={{ fontSize: 15, color: '#6B7280', margin: 0 }}>
+        <p style={{ fontSize: 17, color: '#6B7280', margin: 0 }}>
           на каком расстоянии от вас искать объявления
         </p>
       </div>
@@ -77,7 +77,7 @@ export default function RadiusControl({ value, onChange, disabled = false }: Rad
         <input
           type="range"
           min="0.1"
-          max="50"
+          max="100"
           step="0.1"
           value={value}
           onChange={handleSliderChange}
@@ -86,7 +86,7 @@ export default function RadiusControl({ value, onChange, disabled = false }: Rad
             width: '100%',
             height: 8,
             borderRadius: 4,
-            background: `linear-gradient(to right, #3B73FC 0%, #3B73FC ${((value - 0.1) / 49.9) * 100}%, #E5E7EB ${((value - 0.1) / 49.9) * 100}%, #E5E7EB 100%)`,
+            background: `linear-gradient(to right, #3B73FC 0%, #3B73FC ${((value - 0.1) / 99.9) * 100}%, #E5E7EB ${((value - 0.1) / 99.9) * 100}%, #E5E7EB 100%)`,
             outline: 'none',
             cursor: disabled ? 'not-allowed' : 'pointer',
             opacity: disabled ? 0.5 : 1,
@@ -137,7 +137,7 @@ export default function RadiusControl({ value, onChange, disabled = false }: Rad
 
       <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 13, color: '#9CA3AF' }}>
         <span>100 м</span>
-        <span>50 км</span>
+        <span>100 км</span>
       </div>
     </div>
   );
