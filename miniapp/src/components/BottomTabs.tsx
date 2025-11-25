@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Compass, ShoppingBag, Heart, User } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { getTelegramWebApp } from '@/utils/telegram';
 
 const tabs = [
   { path: '/', label: 'Главная', Icon: Home },
@@ -12,6 +13,11 @@ const tabs = [
 
 export default function BottomTabs() {
   const location = useLocation();
+  const isTelegramWebApp = !!getTelegramWebApp();
+
+  if (!isTelegramWebApp) {
+    return null;
+  }
 
   return (
     <nav

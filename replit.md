@@ -57,6 +57,25 @@ The project includes two React applications built with TypeScript and Vite:
 
 ## Recent Changes (November 25, 2025)
 
+### Desktop Browser Optimization
+Fixed bottom navigation bar visibility for better desktop experience.
+
+**Changes:**
+- **BottomTabs Component** (`miniapp/src/components/BottomTabs.tsx`):
+  - Added Telegram WebApp detection using `getTelegramWebApp()` utility
+  - Bottom navigation now shows ONLY in Telegram MiniApp environment
+  - Hidden in regular desktop browsers to prevent:
+    * Blocking standard browser scrollbar
+    * Unnecessary navigation on desktop where it's not needed
+  - Clean conditional rendering: `if (!isTelegramWebApp) return null;`
+
+**User Experience:**
+- **In Telegram**: Full mobile navigation with bottom tabs (Главная, Лента, Мои, Избранное, Профиль)
+- **In Desktop Browser**: Clean interface without bottom bar, standard browser controls visible
+- Seamless platform-specific UX
+
+## Earlier Changes (November 25, 2025)
+
 ### HomePage Redesign: Modern Ad Feed with Filters
 Completely redesigned the main page from Server-Driven UI blocks to a modern Kufar-inspired ad feed with comprehensive filtering and infinite scroll.
 
