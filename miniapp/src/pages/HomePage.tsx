@@ -6,6 +6,7 @@ import GeoOnboarding from '@/components/GeoOnboarding';
 import LocationSettingsModal from '@/components/LocationSettingsModal';
 import GlobalSearchBar from '@/components/GlobalSearchBar';
 import AdCardSmall from '@/components/AdCardSmall';
+import TrendingNow from '@/components/TrendingNow';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { useGeo, formatRadiusLabel } from '@/utils/geo';
 import { useNearbyAds } from '@/hooks/useNearbyAds';
@@ -281,6 +282,12 @@ export default function HomePage() {
             </button>
           )}
         </section>
+
+        {coords && (
+          <section style={{ marginBottom: 20 }}>
+            <TrendingNow scope="local" limit={5} />
+          </section>
+        )}
 
         <section style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 14px', color: '#111827' }}>

@@ -29,6 +29,7 @@ import geoRoutes from './routes/geo.js';
 import pricingRoutes from './routes/pricing.js';
 import farmerRoutes from './routes/farmer.js';
 import globalSearchRoutes from './routes/globalSearch.js';
+import trendsRoutes from './routes/trends.js';
 
 const app = express();
 
@@ -107,5 +108,6 @@ app.use('/api/geo', geoRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/farmer', farmerRoutes);
 app.use('/api/search', globalSearchRoutes);
+app.use('/api/trends', trendsRoutes);
 
 export default app;
