@@ -1194,4 +1194,201 @@ router.get('/price-recommendation', async (req, res) => {
   }
 });
 
+router.get('/season-events', async (req, res) => {
+  try {
+    const now = new Date();
+    
+    const seasonalEvents = [
+      {
+        id: 'valentines',
+        slug: 'valentines',
+        name: '14 февраля',
+        emoji: '💐',
+        description: 'Тюльпаны, розы, подарки',
+        startDate: new Date(now.getFullYear(), 1, 1),
+        endDate: new Date(now.getFullYear(), 1, 14),
+        categories: ['tulips', 'flowers', 'gifts'],
+        color: '#FF6B9D',
+        bannerGradient: 'linear-gradient(135deg, #FF6B9D 0%, #FF4F81 100%)',
+      },
+      {
+        id: 'march8',
+        slug: 'march8',
+        name: '8 марта',
+        emoji: '🌷',
+        description: 'Тюльпаны, мимозы, подарки для женщин',
+        startDate: new Date(now.getFullYear(), 2, 1),
+        endDate: new Date(now.getFullYear(), 2, 8),
+        categories: ['tulips', 'flowers', 'gifts'],
+        color: '#FF9F43',
+        bannerGradient: 'linear-gradient(135deg, #FF9F43 0%, #FF7675 100%)',
+      },
+      {
+        id: 'easter',
+        slug: 'easter',
+        name: 'Пасха',
+        emoji: '🧁',
+        description: 'Куличи, выпечка, яйца',
+        startDate: new Date(now.getFullYear(), 3, 1),
+        endDate: new Date(now.getFullYear(), 4, 15),
+        categories: ['pastry', 'eggs', 'dairy'],
+        color: '#FFEAA7',
+        bannerGradient: 'linear-gradient(135deg, #FFEAA7 0%, #FDCB6E 100%)',
+      },
+      {
+        id: 'berries',
+        slug: 'berries',
+        name: 'Сезон ягод',
+        emoji: '🍓',
+        description: 'Свежие ягоды: клубника, малина, черешня',
+        startDate: new Date(now.getFullYear(), 5, 1),
+        endDate: new Date(now.getFullYear(), 7, 31),
+        categories: ['berries', 'fruits'],
+        color: '#E74C3C',
+        bannerGradient: 'linear-gradient(135deg, #E74C3C 0%, #C0392B 100%)',
+      },
+      {
+        id: 'harvest',
+        slug: 'harvest',
+        name: 'Урожай',
+        emoji: '🥔',
+        description: 'Картофель, овощи, яблоки',
+        startDate: new Date(now.getFullYear(), 8, 1),
+        endDate: new Date(now.getFullYear(), 10, 30),
+        categories: ['vegetables', 'potato', 'fruits'],
+        color: '#27AE60',
+        bannerGradient: 'linear-gradient(135deg, #27AE60 0%, #1ABC9C 100%)',
+      },
+      {
+        id: 'newyear',
+        slug: 'newyear',
+        name: 'Новый год',
+        emoji: '🎄',
+        description: 'Праздничная выпечка, консервация, подарки',
+        startDate: new Date(now.getFullYear(), 11, 1),
+        endDate: new Date(now.getFullYear(), 11, 31),
+        categories: ['pastry', 'preserves', 'gifts', 'honey'],
+        color: '#8E44AD',
+        bannerGradient: 'linear-gradient(135deg, #8E44AD 0%, #9B59B6 100%)',
+      },
+    ];
+
+    const events = seasonalEvents.map(event => {
+      const isActive = now >= event.startDate && now <= event.endDate;
+      const daysUntilStart = Math.ceil((event.startDate - now) / (1000 * 60 * 60 * 24));
+      const daysUntilEnd = Math.ceil((event.endDate - now) / (1000 * 60 * 60 * 24));
+      
+      return {
+        ...event,
+        isActive,
+        status: isActive ? 'active' : daysUntilStart > 0 ? 'upcoming' : 'ended',
+        daysUntilStart: daysUntilStart > 0 ? daysUntilStart : null,
+        daysRemaining: isActive ? daysUntilEnd : null,
+      };
+    });
+
+    const activeEvents = events.filter(e => e.status === 'active');
+    const upcomingEvents = events.filter(e => e.status === 'upcoming').sort((a, b) => a.daysUntilStart - b.daysUntilStart);
+
+    res.json({
+      success: true,
+      data: {
+        active: activeEvents,
+        upcoming: upcomingEvents.slice(0, 3),
+        all: events,
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error getting season events:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get season events' 
+    });
+  }
+});
+
+router.get('/season-events/:slug/ads', async (req, res) => {
+  try {
+    const { slug } = req.params;
+    const { lat, lng, radiusKm = 50, limit = 20, page = 1 } = req.query;
+
+    const categoryMapping = {
+      valentines: ['tulips', 'flowers'],
+      march8: ['tulips', 'flowers'],
+      easter: ['pastry', 'eggs', 'dairy'],
+      berries: ['berries', 'fruits'],
+      harvest: ['vegetables', 'potato', 'fruits'],
+      newyear: ['pastry', 'preserves', 'honey'],
+    };
+
+    const categorySlugs = categoryMapping[slug] || [];
+    
+    if (categorySlugs.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Season event not found',
+      });
+    }
+
+    const categories = await Category.find({ slug: { $in: categorySlugs } });
+    const categoryIds = categories.map(c => c._id);
+
+    const query = {
+      status: 'active',
+      isFarmerAd: true,
+      categoryId: { $in: categoryIds },
+    };
+
+    if (lat && lng) {
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const radiusNum = parseFloat(radiusKm) * 1000;
+
+      if (!isNaN(latNum) && !isNaN(lngNum)) {
+        query.geo = {
+          $nearSphere: {
+            $geometry: {
+              type: 'Point',
+              coordinates: [lngNum, latNum],
+            },
+            $maxDistance: radiusNum,
+          },
+        };
+      }
+    }
+
+    const limitNum = Math.min(parseInt(limit) || 20, 50);
+    const pageNum = parseInt(page) || 1;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [ads, total] = await Promise.all([
+      Ad.find(query)
+        .sort({ boostedAt: -1, isPremiumCard: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .populate('categoryId', 'name slug icon'),
+      Ad.countDocuments({ ...query, geo: undefined }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        ads,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error getting season event ads:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get season event ads' 
+    });
+  }
+});
+
 export default router;

@@ -28,6 +28,7 @@ import mediaRoutes from './routes/media.js';
 import geoRoutes from './routes/geo.js';
 import pricingRoutes from './routes/pricing.js';
 import farmerRoutes from './routes/farmer.js';
+import farmerSubscriptionsRoutes from './routes/farmer-subscriptions.js';
 import globalSearchRoutes from './routes/globalSearch.js';
 import trendsRoutes from './routes/trends.js';
 
@@ -107,6 +108,7 @@ app.use('/api/media', mediaRoutes);
 app.use('/api/geo', geoRoutes);
 app.use('/api/pricing', pricingRoutes);
 app.use('/api/farmer', farmerRoutes);
+app.use('/api/farmer/subscriptions', farmerSubscriptionsRoutes);
 app.use('/api/search', globalSearchRoutes);
 app.use('/api/trends', trendsRoutes);
 

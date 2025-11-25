@@ -1,0 +1,390 @@
+PROMPT ДЛЯ REPLIT / CODEX  
+Задача: Настроить для проекта KETMAR Market полноценную инфраструктуру:
+
+- монорепозиторий (backend + miniapp + admin + bot),
+- Docker для всех сервисов,
+- docker-compose для dev и prod,
+- Nginx как reverse proxy,
+- CI/CD через GitHub Actions (build → push → deploy),
+- документацию: как запускать локально и в проде.
+
+Работай поверх текущего кода монорепо, НЕ ломая существующую бизнес-логику.
+
+====================================================================
+0. КОНТЕКСТ ПРОЕКТА
+====================================================================
+
+Монорепозиторий KETMAR Market содержит как минимум:
+
+- backend (Node.js + TypeScript + MongoDB),
+- miniapp (Telegram WebApp / React + TS / Vite),
+- admin-panel (React + TS),
+- telegram-bot (Node.js + Telegraf),
+- возможно ещё shared-библиотеки (models, utils и т.п.).
+
+Сейчас:
+
+- есть отдельные package.json для сервисов,
+- есть уже рабочий API, MiniApp, бот, админка,
+- НО:
+  - нет нормальных Dockerfile для каждого сервиса,
+  - нет единого docker-compose для prod/dev,
+  - нет Nginx-конфига,
+  - нет CI/CD (GitHub Actions).
+
+Нужно всё это аккуратно добавить.
+
+====================================================================
+1. СТРУКТУРА МОНРЕПО
+====================================================================
+
+Если уже есть структура — использовать её.  
+Если нет — привести к следующему виду:
+
+/backend
+package.json
+src/...
+tsconfig.json
+Dockerfile
+
+/miniapp
+package.json
+src/...
+vite.config.ts
+Dockerfile
+
+/admin
+package.json
+src/...
+vite.config.ts (или CRA)
+Dockerfile
+
+/bot
+package.json
+src/...
+Dockerfile
+
+/infra
+docker-compose.dev.yml
+docker-compose.prod.yml
+nginx/
+nginx.conf
+k8s/ (опционально, пока можно пустую папку)
+README_INFRA.md
+
+/package.json (root, если нужен для workspace)
+/README.md (основной)
+
+markdown
+Копировать код
+
+Если монорепо уже настроен (npm workspaces / pnpm / turbo), НЕ ломать, только адаптировать.
+
+====================================================================
+2. DOCKERFILE ДЛЯ КАЖДОГО СЕРВИСА
+====================================================================
+
+Сделать 4 Dockerfile:
+
+1) `/backend/Dockerfile`
+2) `/miniapp/Dockerfile`
+3) `/admin/Dockerfile`
+4) `/bot/Dockerfile`
+
+Требования:
+
+- base image: `node:20-alpine` (или аналогичный лёгкий образ),
+- два стейджа: `builder` и `runner` (multi-stage build),
+- не тянуть dev-зависимости в финальный образ,
+- использовать `npm ci` или `pnpm install --frozen-lockfile` (если используется pnpm/yarn),
+- выставить `NODE_ENV=production` в runner-стейдже.
+
+=== 2.1. backend/Dockerfile (пример логики)
+
+- Стейдж builder:
+  - устанавливаем зависимости,
+  - билдим TypeScript → JavaScript в папку `dist`,
+- Стейдж runner:
+  - копируем только `dist` + `package.json` + `package-lock.json`,
+  - устанавливаем только production-зависимости (`npm ci --omit=dev`),
+  - `CMD ["node", "dist/index.js"]` или другой entrypoint, который у тебя в проекте.
+
+Обязательно:
+
+- порт экспонируется через `EXPOSE` (например, 3000),
+- использовать `USER node`, если возможно.
+
+=== 2.2. miniapp/Dockerfile и admin/Dockerfile
+
+- builder:
+  - `npm ci`,
+  - `npm run build` (Vite/CRA) → результат в `dist` или `build`,
+- runner:
+  - использовать `nginx:alpine` (или `caddy`, но лучше nginx),
+  - копировать статические файлы в `/usr/share/nginx/html`,
+  - добавить свой `nginx.conf`, если нужен кастомный роутинг (особенно для React Router).
+
+=== 2.3. bot/Dockerfile
+
+- builder:
+  - `npm ci`,
+  - билд TypeScript → `dist`,
+- runner:
+  - `node dist/index.js` (или путь к главному файлу бота),
+  - не забыть передавать `BOT_TOKEN`, `MINIAPP_BASE_URL` и другие envs через docker-compose.
+
+====================================================================
+3. docker-compose ДЛЯ DEV И PROD
+====================================================================
+
+Создать в `/infra` файлы:
+
+- `docker-compose.dev.yml`
+- `docker-compose.prod.yml`
+
+Они должны поднимать:
+
+- `mongo` (MongoDB),
+- `backend`,
+- `miniapp`,
+- `admin`,
+- `bot`,
+- `nginx` (reverse proxy).
+
+=== 3.1. docker-compose.dev.yml
+
+Цели:
+
+- быстро запустить всё локально,
+- использовать bind-mount (volume) для кода (чтобы работал hot-reload),
+- не заморачиваться с оптимизацией, главное — удобство разработки.
+
+Пример логики:
+
+- `backend`:
+  - build: `../backend`,
+  - volumes: `../backend:/app`,
+  - command: `npm run dev` (nodemon),
+  - environment: `MONGO_URI=mongodb://mongo:27017/ketmar`, `NODE_ENV=development`, и т.п.
+
+- `miniapp`, `admin`:
+  - build: `../miniapp`, `../admin`,
+  - volumes: `../miniapp:/app`, `../admin:/app`,
+  - команды: `npm run dev -- --host 0.0.0.0`,
+  - порты пробросить наружу (для удобной разработки).
+
+- `bot`:
+  - build: `../bot`,
+  - команду и env взять из текущего проекта.
+
+- `mongo`:
+  - образ: `mongo:6`,
+  - volume для данных,
+  - env (root user/pass) можно задать, если надо.
+
+- `nginx`:
+  - build: `./nginx`,
+  - прокидывает запросы:
+    - `/api` → `backend`,
+    - `/miniapp` → `miniapp`,
+    - `/admin` → `admin`,
+  - проксирует бота webhook, если нужно.
+
+=== 3.2. docker-compose.prod.yml
+
+Цели:
+
+- использовать только собранные образы,
+- никакого подмены кода через volumes,
+- минимум env в compose → максимум из .env файлов/секретов.
+
+Сервисы:
+
+- `backend`:
+  - `image: <registry>/ketmar-backend:latest`,
+- `miniapp`:
+  - `image: <registry>/ketmar-miniapp:latest`,
+- `admin`:
+  - `image: <registry>/ketmar-admin:latest`,
+- `bot`:
+  - `image: <registry>/ketmar-bot:latest`,
+- `mongo`:
+  - `mongo:6`,
+- `nginx`:
+  - `image: <registry>/ketmar-nginx:latest` или локально собирать.
+
+Все сети:
+
+- общая сеть: `ketmar_net`.
+
+====================================================================
+4. NGINX КАК REVERSE PROXY
+====================================================================
+
+В `/infra/nginx/nginx.conf` настроить:
+
+- upstream для:
+  - backend (`backend:3000`),
+  - miniapp (static nginx внутри или `/miniapp`),
+  - admin,
+- роутинг:
+
+Пример:
+
+- `https://domain.com/api` → backend
+- `https://domain.com/miniapp` → miniapp
+- `https://domain.com/admin` → admin
+- `https://domain.com/bot/webhook` → bot (если нужен webhook)
+
+Также:
+
+- включить gzip для статики,
+- правильные заголовки Cache-Control для статических файлов (1 год, fingerprinted),
+- ограничение body_size для upload (фото).
+
+====================================================================
+5. CI/CD ЧЕРЕЗ GITHUB ACTIONS
+====================================================================
+
+Создать workflow-файлы в `.github/workflows`:
+
+1) `ci.yml` — прогон тестов, линтов, сборок
+2) `cd.yml` — деплой на прод
+
+=== 5.1. ci.yml
+
+Шаги:
+
+- триггеры:
+  - `on: [push, pull_request]` в основные ветки (develop, main),
+- matrix build или по отдельным jobs:
+  - `backend-test`,
+  - `miniapp-build`,
+  - `admin-build`,
+  - `bot-test`.
+
+Каждый job:
+
+- `actions/checkout`,
+- установка Node 20 (`actions/setup-node`),
+- `npm ci` или `pnpm install`,
+- `npm run lint`,
+- `npm test`,
+- `npm run build` (для frontend).
+
+=== 5.2. cd.yml (DEPLOY)
+
+Цели:
+
+- при пуше в `main`:
+  - собрать Docker-образы,
+  - запушить в контейнерный registry (GitHub Container Registry или другой),
+  - на сервере:
+    - `docker-compose pull`,
+    - `docker-compose up -d`.
+
+Требования:
+
+- использовать **secrets**:
+  - REGISTRY_URL,
+  - REGISTRY_USER,
+  - REGISTRY_PASSWORD,
+  - PROD_SSH_HOST,
+  - PROD_SSH_USER,
+  - PROD_SSH_KEY,
+- шаги:
+
+1. Генерация тегов:
+   - `backend:sha-<commit>`, `backend:latest` и т.п.
+
+2. Логин в registry (`docker login`).
+
+3. Сборка и push:
+
+   - `docker build -t $REGISTRY/ketmar-backend:latest backend`
+   - `docker push $REGISTRY/ketmar-backend:latest`
+   - аналогично для miniapp, admin, bot.
+
+4. Деплой по SSH:
+
+   - использовать action `appleboy/ssh-action` или аналог,
+   - на сервере:
+     - `cd /path/to/infra`,
+     - `docker-compose -f docker-compose.prod.yml pull`,
+     - `docker-compose -f docker-compose.prod.yml up -d`.
+
+====================================================================
+6. .ENV И СЕКРЕТЫ
+====================================================================
+
+Сделать шаблоны:
+
+- `/backend/.env.example`
+- `/miniapp/.env.example`
+- `/admin/.env.example`
+- `/bot/.env.example`
+
+В `/infra/README_INFRA.md` описать:
+
+- какие переменные нужны,
+- откуда брать:
+  - MONGO_URI,
+  - JWT_SECRET,
+  - TELEGRAM_BOT_TOKEN,
+  - MINIAPP_BASE_URL,
+  - ADMIN_BASE_URL,
+  - HOST/PORT.
+
+В Docker-compose использовать `env_file` или `environment` с минимумом чувствительных значений.
+
+====================================================================
+7. ДОКУМЕНТАЦИЯ
+====================================================================
+
+Создать `/infra/README_INFRA.md`:
+
+Обязательно описать:
+
+1) Как запустить dev-окружение:
+   - `cd infra`,
+   - `docker-compose -f docker-compose.dev.yml up --build`,
+   - какие URL:
+     - backend,
+     - miniapp,
+     - admin.
+
+2) Как собирать и запускать prod:
+   - команды на сервере,
+   - как обновить образы,
+   - как рестартануть бота.
+
+3) Как работает CI/CD:
+   - какие workflows есть,
+   - что происходит при пуше в main,
+   - какие secrets нужно настроить.
+
+4) Как добавлять новый сервис в монорепо:
+   - создать папку,
+   - добавить Dockerfile,
+   - дописать его в docker-compose,
+   - добавить в CI.
+
+====================================================================
+8. КАЧЕСТВО КОДА И НЕ ЛОМАТЬ СУЩЕСТВУЮЩЕЕ
+====================================================================
+
+Обязательно:
+
+- НИЧЕГО не ломать в текущем рабочем приложении (по API, UI, MiniApp логике).
+- Весь новый код и конфиги — аккуратно и постепенно.
+- Оставить старый способ разработки (локально без Docker), если он есть, и добавить Docker как альтернативу.
+- Подписывать комментариями ключевые места:
+  - где запускается backend,
+  - где точка входа MiniApp,
+  - где webhook бота.
+
+Результат: полностью рабочий монорепозиторий с Docker, docker-compose, Nginx и CI/CD, который:
+
+- легко поднять в dev одним `docker-compose up`,
+- легко деплоить через GitHub Actions,
+- прозрачно масштабировать и поддерживать.

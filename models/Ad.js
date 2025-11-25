@@ -341,6 +341,42 @@ const adSchema = new mongoose.Schema(
       default: 0,
       min: 0,
     },
+    
+    // === Premium/Monetization Features ===
+    isPremiumCard: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    premiumBadge: {
+      type: String,
+      enum: ['none', 'gold', 'purple', 'top'],
+      default: 'none',
+    },
+    boostLevel: {
+      type: Number,
+      default: 0,
+      min: 0,
+    },
+    boostedAt: {
+      type: Date,
+      default: null,
+      index: true,
+    },
+    isShowcased: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    showcasePosition: {
+      type: Number,
+      default: null,
+    },
+    premiumExpiresAt: {
+      type: Date,
+      default: null,
+    },
+    
     needsCategoryReview: {
       type: Boolean,
       default: false,
