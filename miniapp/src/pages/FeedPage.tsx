@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Home, SlidersHorizontal, ChevronDown, X, Search } from 'lucide-react';
+import { MapPin, Home, SlidersHorizontal, ChevronDown, X, Search, Globe } from 'lucide-react';
 import RadiusControl from '@/components/RadiusControl';
 import NearbyAdsGrid from '@/components/NearbyAdsGrid';
 import CategoriesSheet from '@/components/CategoriesSheet';
@@ -9,6 +9,8 @@ import { useNearbyAds } from '@/hooks/useNearbyAds';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { getNearbyStats } from '@/api/ads';
 import { CategoryStat } from '@/types';
+
+type ScopeType = 'local' | 'country';
 
 export default function FeedPage() {
   const navigate = useNavigate();
@@ -20,6 +22,7 @@ export default function FeedPage() {
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
   const [totalAds, setTotalAds] = useState(0);
+  const [scope, setScope] = useState<ScopeType>('local');
   
   const statsAbortRef = useRef<AbortController | null>(null);
   
@@ -139,7 +142,11 @@ export default function FeedPage() {
             <Home size={22} />
           </button>
           <h1 style={{ flex: 1, margin: 0, fontSize: 20, fontWeight: 600, color: '#111827' }}>
-            {searchQuery ? `Поиск: "${searchQuery}"` : 'Рядом со мной'}
+            {searchQuery 
+              ? `Поиск: "${searchQuery}"` 
+              : scope === 'country' 
+                ? 'Вся страна' 
+                : 'Рядом со мной'}
           </h1>
         </div>
         
@@ -231,10 +238,73 @@ export default function FeedPage() {
         </div>
       ) : (
         <>
-          {/* RadiusControl */}
-          <div style={{ padding: '20px 16px 16px' }}>
-            <RadiusControl value={radiusKm} onChange={setRadius} disabled={false} />
+          {/* Scope Toggle */}
+          <div style={{ padding: '16px 16px 8px' }}>
+            <div
+              style={{
+                display: 'flex',
+                background: '#F3F4F6',
+                borderRadius: 12,
+                padding: 4,
+              }}
+            >
+              <button
+                onClick={() => setScope('local')}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  background: scope === 'local' ? '#FFFFFF' : 'transparent',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: scope === 'local' ? '#3B73FC' : '#6B7280',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: scope === 'local' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.2s',
+                }}
+                data-testid="button-scope-local"
+              >
+                <MapPin size={18} />
+                Рядом со мной
+              </button>
+              <button
+                onClick={() => setScope('country')}
+                style={{
+                  flex: 1,
+                  padding: '12px 16px',
+                  background: scope === 'country' ? '#FFFFFF' : 'transparent',
+                  border: 'none',
+                  borderRadius: 10,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: scope === 'country' ? '#3B73FC' : '#6B7280',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  boxShadow: scope === 'country' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
+                  transition: 'all 0.2s',
+                }}
+                data-testid="button-scope-country"
+              >
+                <Globe size={18} />
+                Вся страна
+              </button>
+            </div>
           </div>
+
+          {/* RadiusControl - only for local scope */}
+          {scope === 'local' && (
+            <div style={{ padding: '12px 16px 16px' }}>
+              <RadiusControl value={radiusKm} onChange={setRadius} disabled={false} />
+            </div>
+          )}
 
           {/* Category Filter Button */}
           <div style={{ padding: '0 16px 16px' }}>

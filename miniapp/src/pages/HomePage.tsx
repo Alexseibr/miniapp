@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, MapPin, ChevronRight, Search, RefreshCw } from 'lucide-react';
+import { Loader2, MapPin, ChevronRight, RefreshCw } from 'lucide-react';
 import { LogoFull } from '@/components/Logo';
 import GeoOnboarding from '@/components/GeoOnboarding';
 import LocationSettingsModal from '@/components/LocationSettingsModal';
+import GlobalSearchBar from '@/components/GlobalSearchBar';
 import AdCardSmall from '@/components/AdCardSmall';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { useGeo, formatRadiusLabel } from '@/utils/geo';
@@ -37,7 +38,6 @@ export default function HomePage() {
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [showLocationSettings, setShowLocationSettings] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
 
   useEffect(() => {
     loadCategories();
@@ -58,25 +58,6 @@ export default function HomePage() {
 
   const handleOnboardingComplete = () => {
     setShowOnboarding(false);
-  };
-
-  const handleSearch = useCallback(() => {
-    if (searchQuery.trim()) {
-      const params = new URLSearchParams();
-      params.set('q', searchQuery.trim());
-      if (coords) {
-        params.set('lat', coords.lat.toString());
-        params.set('lng', coords.lng.toString());
-        params.set('radiusKm', radiusKm.toString());
-      }
-      navigate(`/feed?${params.toString()}`);
-    }
-  }, [searchQuery, coords, radiusKm, navigate]);
-
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') {
-      handleSearch();
-    }
   };
 
   const handleCategoryClick = (category: CategoryNode) => {
@@ -152,73 +133,10 @@ export default function HomePage() {
           <ChevronRight size={16} style={{ marginLeft: 'auto' }} />
         </button>
 
-        <div
-          style={{
-            position: 'relative',
-            display: 'flex',
-            alignItems: 'center',
-          }}
-        >
-          <div
-            style={{
-              position: 'absolute',
-              left: 14,
-              top: '50%',
-              transform: 'translateY(-50%)',
-              pointerEvents: 'none',
-              zIndex: 1,
-            }}
-          >
-            <Search size={18} color="#8E8E93" />
-          </div>
-          <input
-            type="search"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Что вы ищете?"
-            style={{
-              width: '100%',
-              padding: '12px 44px 12px 44px',
-              fontSize: 16,
-              border: 'none',
-              borderRadius: 12,
-              background: '#F2F2F7',
-              outline: 'none',
-              WebkitAppearance: 'none',
-              transition: 'background 0.2s',
-            }}
-            onFocus={(e) => {
-              e.currentTarget.style.background = '#E5E5EA';
-            }}
-            onBlur={(e) => {
-              e.currentTarget.style.background = '#F2F2F7';
-            }}
-            data-testid="input-search-home"
-          />
-          {searchQuery && (
-            <button
-              onClick={handleSearch}
-              style={{
-                position: 'absolute',
-                right: 8,
-                top: '50%',
-                transform: 'translateY(-50%)',
-                background: '#3B73FC',
-                border: 'none',
-                borderRadius: 8,
-                padding: '6px 12px',
-                color: '#fff',
-                fontSize: 14,
-                fontWeight: 600,
-                cursor: 'pointer',
-              }}
-              data-testid="button-search-submit"
-            >
-              Найти
-            </button>
-          )}
-        </div>
+        <GlobalSearchBar 
+          placeholder="Что вы ищете?" 
+          compact 
+        />
       </header>
 
       <div style={{ padding: '20px 16px' }}>
