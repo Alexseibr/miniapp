@@ -11,7 +11,10 @@ import authService from '../../services/auth/AuthService.js';
 const router = Router();
 
 function buildSessionToken(telegramId) {
-  const secret = process.env.SESSION_SECRET || config.botToken || 'ketmar-market-secret';
+  const secret = process.env.SESSION_SECRET;
+  if (!secret) {
+    throw new Error('SESSION_SECRET environment variable is required');
+  }
   return crypto
     .createHmac('sha256', secret)
     .update(`${telegramId}:${Date.now()}`)
