@@ -1,5 +1,5 @@
 import http from './http';
-import { Ad, AdPreview, AdsResponse } from '@/types';
+import { Ad, AdPreview, AdsResponse, NearbyStatsResponse } from '@/types';
 
 export interface ListAdsParams {
   categoryId?: string;
@@ -119,4 +119,20 @@ export async function getSimilarAds(adId: string, subcategoryId: string, limit: 
     ...response.data,
     items: items.slice(0, limit)
   };
+}
+
+export interface NearbyStatsParams {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  signal?: AbortSignal;
+}
+
+export async function getNearbyStats(params: NearbyStatsParams): Promise<NearbyStatsResponse> {
+  const { signal, ...queryParams } = params;
+  const response = await http.get('/api/ads/nearby-stats', { 
+    params: queryParams,
+    signal 
+  });
+  return response.data;
 }

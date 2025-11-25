@@ -1,24 +1,68 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, MapPin, Home, SlidersHorizontal, PlusCircle } from 'lucide-react';
-import AdCard from '@/components/AdCard';
+import { MapPin, Home, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
 import RadiusControl from '@/components/RadiusControl';
-import EmptyState from '@/widgets/EmptyState';
+import NearbyAdsGrid from '@/components/NearbyAdsGrid';
+import CategoriesSheet from '@/components/CategoriesSheet';
 import { useGeo } from '@/utils/geo';
 import { useNearbyAds } from '@/hooks/useNearbyAds';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
-import { CategoryNode } from '@/types';
+import { getNearbyStats } from '@/api/ads';
+import { CategoryStat } from '@/types';
 
 export default function FeedPage() {
   const navigate = useNavigate();
   const { coords, status: geoStatus, requestLocation, radiusKm, setRadius } = useGeo();
   const { categories, loading: categoriesLoading, loadCategories } = useCategoriesStore();
-  const [showCategoryFilter, setShowCategoryFilter] = useState(false);
+  
+  const [showCategoriesSheet, setShowCategoriesSheet] = useState(false);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
+  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
+  const [totalAds, setTotalAds] = useState(0);
+  
+  const statsAbortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     loadCategories();
   }, [loadCategories]);
+
+  const loadCategoryStats = useCallback(async () => {
+    if (!coords) return;
+
+    if (statsAbortRef.current) {
+      statsAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    statsAbortRef.current = controller;
+
+    try {
+      const response = await getNearbyStats({
+        lat: coords.lat,
+        lng: coords.lng,
+        radiusKm,
+        signal: controller.signal,
+      });
+
+      if (!controller.signal.aborted) {
+        setCategoryStats(response.stats);
+        setTotalAds(response.total);
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+        console.error('Failed to load category stats:', err);
+      }
+    }
+  }, [coords, radiusKm]);
+
+  useEffect(() => {
+    loadCategoryStats();
+    return () => {
+      if (statsAbortRef.current) {
+        statsAbortRef.current.abort();
+      }
+    };
+  }, [loadCategoryStats]);
 
   const { ads, loading: adsLoading, isEmpty, hasVeryFew } = useNearbyAds({
     coords,
@@ -31,10 +75,10 @@ export default function FeedPage() {
 
   const handleSelectCategory = (categoryId: string | null) => {
     setSelectedCategoryId(categoryId);
-    setShowCategoryFilter(false);
+    setShowCategoriesSheet(false);
   };
 
-  const handleClearFilters = () => {
+  const handleClearCategory = () => {
     setSelectedCategoryId(null);
   };
 
@@ -42,6 +86,14 @@ export default function FeedPage() {
     const newRadius = Math.min(radiusKm + 5, 100);
     setRadius(newRadius);
   };
+
+  const selectedCategory = selectedCategoryId
+    ? categories.find((c) => c.slug === selectedCategoryId)
+    : null;
+
+  const selectedCategoryCount = selectedCategoryId
+    ? categoryStats.find((s) => s.categoryId === selectedCategoryId)?.count || 0
+    : totalAds;
 
   return (
     <div style={{ paddingBottom: '80px', background: '#F8FAFC', minHeight: '100vh' }}>
@@ -62,21 +114,18 @@ export default function FeedPage() {
             style={{
               display: 'inline-flex',
               alignItems: 'center',
-              gap: 8,
-              padding: '10px 16px',
+              justifyContent: 'center',
+              width: 44,
+              height: 44,
               background: '#3B73FC',
               color: '#ffffff',
               border: 'none',
               borderRadius: 12,
-              fontSize: 16,
-              fontWeight: 600,
               cursor: 'pointer',
-              minHeight: 44,
             }}
             data-testid="button-home"
           >
-            <Home size={20} />
-            <span>Главная</span>
+            <Home size={22} />
           </button>
           <h1 style={{ flex: 1, margin: 0, fontSize: 20, fontWeight: 600, color: '#111827' }}>
             Рядом со мной
@@ -84,7 +133,7 @@ export default function FeedPage() {
         </div>
       </div>
 
-      {/* Geo Request or Radius Control */}
+      {/* Geo Request */}
       {needsLocation ? (
         <div style={{ padding: 20 }}>
           <div
@@ -101,7 +150,7 @@ export default function FeedPage() {
               Определите ваше местоположение
             </h2>
             <p style={{ fontSize: 18, color: '#6B7280', margin: '0 0 24px', lineHeight: 1.5 }}>
-              Чтобы показать объявления рядом с вами, нужно определить ваше местоположение
+              Чтобы показать объявления рядом с вами
             </p>
             <button
               onClick={requestLocation}
@@ -128,240 +177,122 @@ export default function FeedPage() {
       ) : (
         <>
           {/* RadiusControl */}
-          <div style={{ padding: '20px 16px' }}>
+          <div style={{ padding: '20px 16px 16px' }}>
             <RadiusControl value={radiusKm} onChange={setRadius} disabled={false} />
           </div>
 
-          {/* Filter Button */}
+          {/* Category Filter Button */}
           <div style={{ padding: '0 16px 16px' }}>
             <button
-              onClick={() => setShowCategoryFilter(!showCategoryFilter)}
+              onClick={() => setShowCategoriesSheet(true)}
               disabled={categoriesLoading}
               style={{
                 width: '100%',
                 padding: '14px 20px',
-                background: showCategoryFilter ? '#EBF3FF' : '#FFFFFF',
-                border: showCategoryFilter ? '2px solid #3B73FC' : '1px solid #E5E7EB',
-                borderRadius: 12,
+                background: selectedCategoryId ? '#EBF3FF' : '#FFFFFF',
+                border: selectedCategoryId ? '2px solid #3B73FC' : '1px solid #E5E7EB',
+                borderRadius: 14,
                 fontSize: 17,
                 fontWeight: 600,
-                color: showCategoryFilter ? '#3B73FC' : '#374151',
+                color: selectedCategoryId ? '#3B73FC' : '#374151',
                 cursor: categoriesLoading ? 'not-allowed' : 'pointer',
-                opacity: categoriesLoading ? 0.6 : 1,
                 display: 'flex',
                 alignItems: 'center',
-                justifyContent: 'center',
-                gap: 10,
-                minHeight: 48,
+                gap: 12,
+                minHeight: 52,
               }}
-              data-testid="button-toggle-filters"
+              data-testid="button-open-categories"
             >
-              {categoriesLoading ? (
-                <>
-                  <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
-                  <span>Загрузка...</span>
-                </>
-              ) : (
-                <>
-                  <SlidersHorizontal size={20} />
-                  <span>
-                    {selectedCategoryId
-                      ? categories.find(c => c.slug === selectedCategoryId)?.name || 'Категория'
-                      : 'Все категории'}
-                  </span>
-                </>
+              <SlidersHorizontal size={22} />
+              <span style={{ flex: 1, textAlign: 'left' }}>
+                {selectedCategory ? selectedCategory.name : 'Все категории'}
+              </span>
+              {selectedCategoryCount > 0 && (
+                <span
+                  style={{
+                    background: selectedCategoryId ? '#3B73FC' : '#E5E7EB',
+                    color: selectedCategoryId ? '#fff' : '#374151',
+                    padding: '4px 10px',
+                    borderRadius: 20,
+                    fontSize: 14,
+                    fontWeight: 500,
+                  }}
+                >
+                  {selectedCategoryCount}
+                </span>
               )}
+              <ChevronDown size={20} color="#9CA3AF" />
             </button>
           </div>
 
-          {/* Category Filter Panel */}
-          {showCategoryFilter && (
-            <div style={{ padding: '0 16px 20px' }}>
-              <div style={{
-                background: '#ffffff',
-                borderRadius: 16,
-                padding: 20,
-                border: '1px solid #E5E7EB',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 600, color: '#111827' }}>
-                    Выберите категорию
-                  </h3>
-                  {selectedCategoryId && (
-                    <button
-                      onClick={handleClearFilters}
-                      style={{
-                        padding: '8px 16px',
-                        background: 'transparent',
-                        border: '1px solid #E5E7EB',
-                        borderRadius: 8,
-                        fontSize: 14,
-                        color: '#6B7280',
-                        cursor: 'pointer',
-                      }}
-                      data-testid="button-clear-filters"
-                    >
-                      Сбросить
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <button
-                    onClick={() => handleSelectCategory(null)}
-                    style={{
-                      padding: '12px 16px',
-                      background: !selectedCategoryId ? '#EBF3FF' : '#F9FAFB',
-                      border: !selectedCategoryId ? '2px solid #3B73FC' : '1px solid #E5E7EB',
-                      borderRadius: 12,
-                      fontSize: 16,
-                      fontWeight: !selectedCategoryId ? 600 : 500,
-                      color: !selectedCategoryId ? '#3B73FC' : '#374151',
-                      cursor: 'pointer',
-                      textAlign: 'left',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 12,
-                      minHeight: 48,
-                    }}
-                    data-testid="filter-category-all"
-                  >
-                    <span style={{ flex: 1 }}>Все категории</span>
-                    {!selectedCategoryId && <span style={{ fontSize: 20 }}>✓</span>}
-                  </button>
-                  
-                  {categories.map((cat) => {
-                    const isSelected = selectedCategoryId === cat.slug;
-                    
-                    return (
-                      <button
-                        key={cat.slug}
-                        onClick={() => handleSelectCategory(cat.slug)}
-                        style={{
-                          padding: '12px 16px',
-                          background: isSelected ? '#EBF3FF' : '#F9FAFB',
-                          border: isSelected ? '2px solid #3B73FC' : '1px solid #E5E7EB',
-                          borderRadius: 12,
-                          fontSize: 16,
-                          fontWeight: isSelected ? 600 : 500,
-                          color: isSelected ? '#3B73FC' : '#374151',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 12,
-                          minHeight: 48,
-                        }}
-                        data-testid={`filter-category-${cat.slug}`}
-                      >
-                        {cat.icon3d && (
-                          <img
-                            src={cat.icon3d}
-                            alt={cat.name}
-                            style={{ width: 32, height: 32, objectFit: 'contain' }}
-                          />
-                        )}
-                        <span style={{ flex: 1 }}>{cat.name}</span>
-                        {isSelected && <span style={{ fontSize: 20 }}>✓</span>}
-                      </button>
-                    );
-                  })}
-                </div>
+          {/* Selected Category Badge */}
+          {selectedCategory && (
+            <div style={{ padding: '0 16px 12px' }}>
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  background: '#EBF3FF',
+                  border: '1px solid #BFDBFE',
+                  padding: '8px 12px',
+                  borderRadius: 10,
+                }}
+              >
+                {selectedCategory.icon3d && (
+                  <img
+                    src={selectedCategory.icon3d}
+                    alt=""
+                    style={{ width: 24, height: 24, objectFit: 'contain' }}
+                  />
+                )}
+                <span style={{ fontSize: 15, fontWeight: 500, color: '#3B73FC' }}>
+                  {selectedCategory.name}
+                </span>
+                <button
+                  onClick={handleClearCategory}
+                  style={{
+                    width: 24,
+                    height: 24,
+                    borderRadius: '50%',
+                    border: 'none',
+                    background: '#3B73FC',
+                    color: '#fff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    marginLeft: 4,
+                  }}
+                  data-testid="button-clear-category"
+                >
+                  <X size={14} />
+                </button>
               </div>
             </div>
           )}
 
-          {/* Ads List */}
-          <div style={{ padding: '0 16px 20px' }}>
-            {adsLoading && (
-              <div style={{ textAlign: 'center', padding: '60px 20px' }}>
-                <Loader2 size={48} color="#3B73FC" style={{ animation: 'spin 1s linear infinite', margin: '0 auto 20px' }} />
-                <p style={{ fontSize: 18, color: '#6B7280', margin: 0 }}>Загружаем объявления...</p>
-              </div>
-            )}
+          {/* Ads Grid */}
+          <NearbyAdsGrid
+            ads={ads}
+            loading={adsLoading}
+            isEmpty={isEmpty}
+            hasVeryFew={hasVeryFew}
+            radiusKm={radiusKm}
+            onIncreaseRadius={handleIncreaseRadius}
+          />
 
-            {!adsLoading && isEmpty && (
-              <div style={{
-                background: '#ffffff',
-                borderRadius: 16,
-                padding: 40,
-                textAlign: 'center',
-                border: '1px solid #E5E7EB',
-              }}>
-                <h3 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 12px', color: '#111827' }}>
-                  В радиусе {radiusKm} км объявлений не найдено
-                </h3>
-                <p style={{ fontSize: 17, color: '#6B7280', margin: '0 0 24px' }}>
-                  Попробуйте увеличить радиус поиска
-                </p>
-                <button
-                  onClick={handleIncreaseRadius}
-                  style={{
-                    padding: '16px 28px',
-                    background: '#3B73FC',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: 12,
-                    fontSize: 17,
-                    fontWeight: 600,
-                    cursor: 'pointer',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    minHeight: 52,
-                  }}
-                  data-testid="button-increase-radius"
-                >
-                  <PlusCircle size={22} />
-                  Увеличить радиус (+5 км)
-                </button>
-              </div>
-            )}
-
-            {!adsLoading && hasVeryFew && (
-              <div style={{
-                background: '#FEF3C7',
-                border: '1px solid #FCD34D',
-                borderRadius: 12,
-                padding: 16,
-                marginBottom: 16,
-              }}>
-                <p style={{ fontSize: 16, color: '#92400E', margin: 0, lineHeight: 1.5 }}>
-                  Нашли мало объявлений ({ads.length}) в радиусе {radiusKm} км.
-                  <br />
-                  <button
-                    onClick={handleIncreaseRadius}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: '#B45309',
-                      textDecoration: 'underline',
-                      cursor: 'pointer',
-                      fontSize: 16,
-                      fontWeight: 600,
-                      padding: 0,
-                      marginTop: 4,
-                    }}
-                  >
-                    Увеличить радиус на 5 км →
-                  </button>
-                </p>
-              </div>
-            )}
-
-            {!adsLoading && ads.length > 0 && (
-              <div>
-                <h3 style={{ fontSize: 20, fontWeight: 600, margin: '0 0 16px', color: '#111827' }}>
-                  Найдено: {ads.length} {ads.length === 1 ? 'объявление' : 'объявлений'}
-                </h3>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                  {ads.map((ad) => (
-                    <AdCard key={ad._id} ad={ad} />
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
+          {/* Categories Sheet */}
+          <CategoriesSheet
+            isOpen={showCategoriesSheet}
+            onClose={() => setShowCategoriesSheet(false)}
+            categories={categories}
+            categoryStats={categoryStats}
+            selectedCategoryId={selectedCategoryId}
+            onSelectCategory={handleSelectCategory}
+            radiusKm={radiusKm}
+            totalAds={totalAds}
+          />
         </>
       )}
     </div>

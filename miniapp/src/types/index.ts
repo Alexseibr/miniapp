@@ -150,3 +150,14 @@ export interface OrderSummary {
   seasonCode?: string | null;
   items: OrderItemSummary[];
 }
+
+export interface CategoryStat {
+  categoryId: string;
+  count: number;
+}
+
+export interface NearbyStatsResponse {
+  stats: CategoryStat[];
+  total: number;
+  radiusKm: number;
+}

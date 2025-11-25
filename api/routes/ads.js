@@ -734,6 +734,86 @@ router.get('/nearby', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/ads/nearby-stats
+ * 
+ * Статистика объявлений по категориям в заданном радиусе.
+ * Возвращает количество объявлений для каждой категории.
+ * 
+ * @route GET /api/ads/nearby-stats
+ * @param {number} lat - Широта точки поиска (обязательно)
+ * @param {number} lng - Долгота точки поиска (обязательно)
+ * @param {number} [radiusKm=10] - Радиус поиска в километрах
+ * 
+ * @returns {Object} { stats: CategoryStat[], total: number }
+ */
+router.get('/nearby-stats', async (req, res, next) => {
+  try {
+    const { lat, lng, radiusKm = 10 } = req.query;
+
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
+    }
+
+    const radiusNumber = Number(radiusKm);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 
+      ? Math.min(radiusNumber, 100) 
+      : 10;
+
+    const baseFilter = {
+      status: 'active',
+      moderationStatus: 'approved',
+      'location.lat': { $ne: null },
+      'location.lng': { $ne: null },
+    };
+
+    // Используем $geoNear агрегацию для подсчёта по категориям
+    const pipeline = [
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          maxDistance: finalRadiusKm * 1000,
+          spherical: true,
+          query: baseFilter,
+          key: 'location.geo',
+        },
+      },
+      {
+        $group: {
+          _id: '$categoryId',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { count: -1 },
+      },
+    ];
+
+    const results = await Ad.aggregate(pipeline);
+
+    // Форматируем результаты
+    const stats = results.map(item => ({
+      categoryId: item._id,
+      count: item.count,
+    }));
+
+    // Общее количество объявлений
+    const total = stats.reduce((sum, item) => sum + item.count, 0);
+
+    return res.json({ stats, total, radiusKm: finalRadiusKm });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/ads/live-spots — geo search for live locations
 router.get('/live-spots', async (req, res) => {
   try {
