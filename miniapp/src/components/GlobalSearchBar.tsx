@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, ChevronRight, Loader2, MapPin, Tag, TrendingUp } from 'lucide-react';
+import { Search, X, ChevronRight, Loader2, MapPin, Tag, TrendingUp, Flame } from 'lucide-react';
 import { useGeo } from '@/utils/geo';
+import { useHotSearches } from '@/hooks/useHotSearches';
 
 interface CategorySuggestion {
   slug: string;
@@ -62,6 +63,14 @@ export default function GlobalSearchBar({
   const containerRef = useRef<HTMLDivElement>(null);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  const { searches: hotSearches } = useHotSearches({
+    lat: coords?.lat,
+    lng: coords?.lng,
+    limit: 8,
+    scope: coords ? 'local' : 'country',
+    enabled: true,
+  });
 
   const fetchSuggestions = useCallback(async (searchQuery: string) => {
     if (searchQuery.trim().length < 2) {
@@ -223,6 +232,20 @@ export default function GlobalSearchBar({
       suggestions.brands.length > 0 ||
       suggestions.keywords.length > 0);
 
+  const showHotSearches = showSuggestions && !query.trim() && hotSearches.length > 0;
+
+  const handleHotSearchClick = (searchQuery: string) => {
+    setQuery(searchQuery);
+    setShowSuggestions(false);
+    
+    const params = new URLSearchParams({
+      q: searchQuery,
+      ...(coords && { lat: coords.lat.toString(), lng: coords.lng.toString() }),
+      radiusKm: '3',
+    });
+    navigate(`/feed?${params.toString()}`);
+  };
+
   return (
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       <div
@@ -295,7 +318,122 @@ export default function GlobalSearchBar({
         </button>
       </div>
 
-      {showSuggestions && hasSuggestions && (
+      {showHotSearches && (
+        <div
+          style={{
+            position: 'absolute',
+            top: '100%',
+            left: 0,
+            right: 0,
+            marginTop: 8,
+            background: '#FFFFFF',
+            borderRadius: 14,
+            boxShadow: '0 4px 20px rgba(0, 0, 0, 0.15)',
+            border: '1px solid #E5E7EB',
+            overflow: 'hidden',
+            zIndex: 1000,
+            maxHeight: 400,
+            overflowY: 'auto',
+          }}
+          data-testid="hot-searches-dropdown"
+        >
+          <div style={{ padding: '8px 0' }}>
+            <div
+              style={{
+                padding: '8px 16px',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <Flame size={16} color="#EF4444" />
+              <span
+                style={{
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: '#6B7280',
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.5,
+                }}
+              >
+                Популярное рядом
+              </span>
+            </div>
+            {hotSearches.map((hs, idx) => (
+              <button
+                key={hs.normalizedQuery}
+                onClick={() => handleHotSearchClick(hs.query)}
+                style={{
+                  width: '100%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 16px',
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = '#F3F4F6')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
+                data-testid={`hot-search-${idx}`}
+              >
+                <div
+                  style={{
+                    width: 32,
+                    height: 32,
+                    borderRadius: 8,
+                    background: 'linear-gradient(135deg, #FEF3C7 0%, #FDE68A 100%)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <TrendingUp size={16} color="#D97706" />
+                </div>
+                <span style={{ fontSize: 15, color: '#111827', fontWeight: 500 }}>
+                  {hs.query}
+                </span>
+                {hs.count > 5 && (
+                  <span
+                    style={{
+                      marginLeft: 'auto',
+                      fontSize: 11,
+                      color: '#9CA3AF',
+                      background: '#F3F4F6',
+                      padding: '2px 8px',
+                      borderRadius: 10,
+                    }}
+                  >
+                    {hs.count} запросов
+                  </span>
+                )}
+                <ChevronRight size={16} color="#9CA3AF" />
+              </button>
+            ))}
+          </div>
+          {coords && (
+            <div
+              style={{
+                padding: '12px 16px',
+                borderTop: '1px solid #F3F4F6',
+                background: '#F9FAFB',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <MapPin size={14} color="#3B73FC" />
+              <span style={{ fontSize: 12, color: '#6B7280' }}>
+                Популярные запросы рядом с вами
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {showSuggestions && hasSuggestions && !showHotSearches && (
         <div
           style={{
             position: 'absolute',

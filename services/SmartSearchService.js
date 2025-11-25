@@ -2,6 +2,7 @@ import Ad from '../models/Ad.js';
 import Category from '../models/Category.js';
 import CategoryWordStats from '../models/CategoryWordStats.js';
 import { haversineDistanceKm } from '../utils/haversine.js';
+import HotSearchService from './HotSearchService.js';
 
 const EARTH_RADIUS_KM = 6371;
 const FUZZY_THRESHOLD = 0.7;
@@ -101,6 +102,15 @@ class SmartSearchService {
     });
 
     results = this.sortResults(results, sort, !!coords);
+
+    if (query && query.trim().length >= 2) {
+      HotSearchService.logSearch({
+        query,
+        lat: coords?.lat,
+        lng: coords?.lng,
+        resultsCount: results.length,
+      }).catch(err => console.error('[SmartSearch] Log error:', err.message));
+    }
 
     return {
       items: results.slice(0, limit),

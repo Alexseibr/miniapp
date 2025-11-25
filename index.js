@@ -15,6 +15,7 @@ import { startMediaCleanupWorker } from './workers/mediaCleanup.js';
 import { startCategoryStatsCleanupWorker } from './workers/categoryStatsCleanup.js';
 import categoryEvolutionWorker from './workers/categoryEvolutionWorker.js';
 import { startTrendAnalyticsWorker } from './workers/trendAnalyticsWorker.js';
+import { startHotSearchWorker } from './workers/hotSearchWorker.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -334,6 +335,7 @@ async function start() {
     startMediaCleanupWorker();
     startCategoryStatsCleanupWorker();
     startTrendAnalyticsWorker();
+    startHotSearchWorker();
     
     // Регистрируем error handlers в самом конце, после всех middleware
     app.use(logErrors);

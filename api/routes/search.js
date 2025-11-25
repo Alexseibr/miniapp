@@ -2,6 +2,7 @@ import express from 'express';
 import { Router } from 'express';
 import Ad from '../../models/Ad.js';
 import { haversineDistanceKm } from '../../utils/haversine.js';
+import HotSearchService from '../../services/HotSearchService.js';
 
 const router = Router();
 const DEFAULT_LIMIT = 100;
@@ -162,6 +163,16 @@ router.get('/search', async (req, res) => {
     const sortedItems = sortItems(filtered, sort, hasGeo);
     const limitedItems = sortedItems.slice(0, limitNumber);
 
+    if (q && q.trim().length >= 2) {
+      HotSearchService.logSearch({
+        query: q,
+        userId: req.user?._id || null,
+        lat: latNumber,
+        lng: lngNumber,
+        resultsCount: totalMatches,
+      }).catch(err => console.error('[Search] Log error:', err.message));
+    }
+
     res.json({
       items: limitedItems,
       count: totalMatches,
@@ -169,6 +180,38 @@ router.get('/search', async (req, res) => {
   } catch (error) {
     console.error('GET /api/ads/search error:', error);
     res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.get('/hot', async (req, res) => {
+  try {
+    const { lat, lng, limit = '10', scope = 'local' } = req.query;
+
+    const latNumber = parseNumber(lat);
+    const lngNumber = parseNumber(lng);
+    const limitNumber = Math.min(parseInt(limit, 10) || 10, 20);
+
+    let hotSearches;
+
+    if (scope === 'country') {
+      hotSearches = await HotSearchService.getHotSearchesCountryWide(limitNumber);
+    } else {
+      hotSearches = await HotSearchService.getHotSearches({
+        lat: latNumber,
+        lng: lngNumber,
+        limit: limitNumber,
+        countryWide: false,
+      });
+    }
+
+    res.json({
+      ok: true,
+      searches: hotSearches,
+      scope: scope === 'country' ? 'country' : 'local',
+    });
+  } catch (error) {
+    console.error('GET /api/search/hot error:', error);
+    res.status(500).json({ ok: false, error: 'Server error' });
   }
 });
 
