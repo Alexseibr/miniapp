@@ -89,6 +89,23 @@ export default function App() {
         // Prefetch критичных данных в фоне
         prefetchCriticalData().catch(console.error);
         
+        // Очистка старых координат из localStorage (одноразово)
+        const geoStoreKey = 'ketmar-geo-store';
+        try {
+          const stored = localStorage.getItem(geoStoreKey);
+          if (stored) {
+            const parsed = JSON.parse(stored);
+            if (parsed.state?.coords) {
+              console.log('🗑️ Удаляем старые координаты из кэша:', parsed.state.coords);
+              delete parsed.state.coords;
+              delete parsed.state.cityName;
+              localStorage.setItem(geoStoreKey, JSON.stringify(parsed));
+            }
+          }
+        } catch (e) {
+          console.warn('Ошибка очистки localStorage:', e);
+        }
+        
         // Автоматический запрос геолокации при каждом входе
         console.log('📍 Запрашиваем актуальную геолокацию...');
         refreshLocationOnAppStart().catch((err) => {
