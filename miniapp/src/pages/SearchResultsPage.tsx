@@ -23,11 +23,12 @@ interface FilterChip {
 }
 
 const RADIUS_OPTIONS = [
-  { value: 0.3, label: '300м' },
-  { value: 1, label: '1 км' },
   { value: 5, label: '5 км' },
   { value: 10, label: '10 км' },
-  { value: 20, label: '20 км' },
+  { value: 30, label: '30 км' },
+  { value: 50, label: '50 км' },
+  { value: 100, label: '100 км' },
+  { value: 500, label: 'Вся страна' },
 ];
 
 const SORT_OPTIONS = [
@@ -43,14 +44,15 @@ export default function SearchResultsPage() {
   const query = searchParams.get('q') || '';
   
   const user = useUserStore((state) => state.user);
-  const userLat = user?.location?.lat || 55.7558;
-  const userLng = user?.location?.lng || 37.6173;
+  // Дефолтная локация - Минск, Беларусь
+  const userLat = user?.location?.lat || 53.9;
+  const userLng = user?.location?.lng || 27.5667;
   
   const [searchText, setSearchText] = useState(query);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
-  const [selectedRadius, setSelectedRadius] = useState(5);
+  const [selectedRadius, setSelectedRadius] = useState(100); // Дефолтный радиус 100 км
   const [sortBy, setSortBy] = useState('newest');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
