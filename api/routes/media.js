@@ -240,9 +240,36 @@ router.get('/placeholder', (req, res) => {
   res.send(PLACEHOLDER_SVG);
 });
 
+const resizedImageCache = new Map();
+const RESIZED_CACHE_TTL = 30 * 60 * 1000;
+const MAX_RESIZED_CACHE_SIZE = 200;
+
+function cleanResizedCache() {
+  const now = Date.now();
+  for (const [key, value] of resizedImageCache.entries()) {
+    if (now - value.timestamp > RESIZED_CACHE_TTL) {
+      resizedImageCache.delete(key);
+    }
+  }
+  if (resizedImageCache.size > MAX_RESIZED_CACHE_SIZE) {
+    const entries = Array.from(resizedImageCache.entries());
+    entries.sort((a, b) => a[1].timestamp - b[1].timestamp);
+    const toDelete = entries.slice(0, resizedImageCache.size - MAX_RESIZED_CACHE_SIZE);
+    toDelete.forEach(([key]) => resizedImageCache.delete(key));
+  }
+}
+
 router.get('/:bucketName/:objectPath(*)', async (req, res) => {
   try {
     const { bucketName, objectPath } = req.params;
+    const { w, h, q, f } = req.query;
+    
+    const width = w ? parseInt(w, 10) : null;
+    const height = h ? parseInt(h, 10) : null;
+    const quality = q ? Math.min(parseInt(q, 10), 100) : 75;
+    const format = f === 'webp' ? 'webp' : 'jpeg';
+    
+    const needsResize = width || height || q;
     
     const bucket = objectStorageClient.bucket(bucketName);
     const file = bucket.file(objectPath);
@@ -260,6 +287,61 @@ router.get('/:bucketName/:objectPath(*)', async (req, res) => {
     }
     
     const contentType = metadata.contentType || 'application/octet-stream';
+    const isImage = contentType.startsWith('image/');
+    
+    if (needsResize && isImage) {
+      const cacheKey = `${bucketName}/${objectPath}_${width || 'auto'}_${height || 'auto'}_${quality}_${format}`;
+      
+      if (resizedImageCache.has(cacheKey)) {
+        const cached = resizedImageCache.get(cacheKey);
+        res.setHeader('Content-Type', cached.contentType);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('X-Optimized', 'cache-hit');
+        res.setHeader('X-Original-Size', metadata.size || 0);
+        res.setHeader('X-Optimized-Size', cached.data.length);
+        return res.send(cached.data);
+      }
+      
+      try {
+        const [originalBuffer] = await file.download();
+        
+        let transformer = sharp(originalBuffer);
+        
+        if (width || height) {
+          transformer = transformer.resize(width || undefined, height || undefined, {
+            fit: 'cover',
+            withoutEnlargement: true,
+          });
+        }
+        
+        let optimizedBuffer;
+        let outputContentType;
+        
+        if (format === 'webp') {
+          optimizedBuffer = await transformer.webp({ quality }).toBuffer();
+          outputContentType = 'image/webp';
+        } else {
+          optimizedBuffer = await transformer.jpeg({ quality, progressive: true }).toBuffer();
+          outputContentType = 'image/jpeg';
+        }
+        
+        cleanResizedCache();
+        resizedImageCache.set(cacheKey, {
+          data: optimizedBuffer,
+          contentType: outputContentType,
+          timestamp: Date.now()
+        });
+        
+        res.setHeader('Content-Type', outputContentType);
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        res.setHeader('X-Optimized', 'resized');
+        res.setHeader('X-Original-Size', originalBuffer.length);
+        res.setHeader('X-Optimized-Size', optimizedBuffer.length);
+        return res.send(optimizedBuffer);
+      } catch (sharpErr) {
+        console.warn('[Media] Sharp resize failed, streaming original:', sharpErr.message);
+      }
+    }
     
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Link } from 'react-router-dom';
 import { Sparkles, ChevronRight, Loader2, MapPin } from 'lucide-react';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 interface SimilarAd {
   _id: string;
@@ -65,13 +66,11 @@ export default function SimilarProducts({
     return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
-  const getPhotoUrl = (photos?: string[]) => {
+  const getPhotoUrlForAd = (photos?: string[]) => {
     if (!photos || photos.length === 0) {
-      return 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%23f1f5f9" width="100" height="100"/><text x="50" y="55" text-anchor="middle" fill="%2394a3b8" font-size="12">Нет фото</text></svg>';
+      return NO_PHOTO_PLACEHOLDER;
     }
-    const photo = photos[0];
-    if (photo.startsWith('http')) return photo;
-    return `/api/media/${photo}`;
+    return getThumbnailUrl(photos[0]);
   };
 
   return (
@@ -184,7 +183,7 @@ export default function SimilarProducts({
                   }}
                 >
                   <img
-                    src={getPhotoUrl(ad.photos)}
+                    src={getPhotoUrlForAd(ad.photos)}
                     alt={ad.title}
                     loading="lazy"
                     style={{

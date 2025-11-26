@@ -8,9 +8,8 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import 'swiper/css';
 import 'swiper/css/pagination';
-import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
 import { trackImpression } from '@/api/ads';
-import { NO_PHOTO_PLACEHOLDER, getPhotoUrl } from '@/constants/placeholders';
+import { NO_PHOTO_PLACEHOLDER, getThumbnailUrl } from '@/constants/placeholders';
 
 interface AdCardProps {
   ad: AdPreview;
@@ -29,7 +28,7 @@ export default function AdCard({ ad, onSelect }: AdCardProps) {
   
   const rawPhotos = ad.photos && ad.photos.length > 0 ? ad.photos : [];
   const photos = rawPhotos.length > 0 
-    ? rawPhotos.map(p => getPhotoUrl(p)) 
+    ? rawPhotos.map(p => getThumbnailUrl(p)) 
     : [NO_PHOTO_PLACEHOLDER];
 
   useEffect(() => {

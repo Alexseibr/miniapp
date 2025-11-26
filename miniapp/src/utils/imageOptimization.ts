@@ -6,7 +6,7 @@ export interface ResponsiveImageSizes {
   original: string;  // full size
 }
 
-const ENABLE_RESPONSIVE_IMAGES = false;
+const ENABLE_RESPONSIVE_IMAGES = true;
 
 export function getResponsiveImageUrls(originalUrl: string): ResponsiveImageSizes {
   if (!originalUrl || originalUrl.startsWith('data:') || !ENABLE_RESPONSIVE_IMAGES) {

@@ -30,7 +30,8 @@ export function getOptimizedPhotoUrl(
   photoUrl: string | undefined | null,
   width?: number,
   height?: number,
-  quality?: number
+  quality?: number,
+  format?: 'jpeg' | 'webp'
 ): string {
   const baseUrl = getPhotoUrl(photoUrl);
   
@@ -38,16 +39,29 @@ export function getOptimizedPhotoUrl(
     return baseUrl;
   }
   
-  if (baseUrl.includes('/api/media/proxy')) {
-    const params = new URLSearchParams();
-    if (width) params.set('w', width.toString());
-    if (height) params.set('h', height.toString());
-    if (quality) params.set('q', quality.toString());
-    
-    const separator = baseUrl.includes('?') ? '&' : '?';
-    const paramStr = params.toString();
-    return paramStr ? `${baseUrl}${separator}${paramStr}` : baseUrl;
+  const params = new URLSearchParams();
+  if (width) params.set('w', width.toString());
+  if (height) params.set('h', height.toString());
+  if (quality) params.set('q', quality.toString());
+  if (format) params.set('f', format);
+  
+  const paramStr = params.toString();
+  if (!paramStr) {
+    return baseUrl;
   }
   
-  return baseUrl;
+  const separator = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${separator}${paramStr}`;
+}
+
+export function getThumbnailUrl(photoUrl: string | undefined | null): string {
+  return getOptimizedPhotoUrl(photoUrl, 400, undefined, 70, 'webp');
+}
+
+export function getFeedImageUrl(photoUrl: string | undefined | null): string {
+  return getOptimizedPhotoUrl(photoUrl, 600, undefined, 75, 'webp');
+}
+
+export function getFullImageUrl(photoUrl: string | undefined | null): string {
+  return getOptimizedPhotoUrl(photoUrl, 1200, undefined, 85);
 }

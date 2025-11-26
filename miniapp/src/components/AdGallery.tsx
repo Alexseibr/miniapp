@@ -3,7 +3,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-import { NO_PHOTO_PLACEHOLDER, getPhotoUrl } from '@/constants/placeholders';
+import { NO_PHOTO_PLACEHOLDER, getFullImageUrl } from '@/constants/placeholders';
 
 interface AdGalleryProps {
   images?: string[];
@@ -13,7 +13,7 @@ interface AdGalleryProps {
 export function AdGallery({ images = [], alt = 'Фото объявления' }: AdGalleryProps) {
   const sanitizedImages = images
     .filter((url: string) => typeof url === 'string' && url.trim())
-    .map(url => getPhotoUrl(url));
+    .map(url => getFullImageUrl(url));
   const galleryImages = sanitizedImages.length ? sanitizedImages : [NO_PHOTO_PLACEHOLDER];
 
   if (galleryImages.length === 1) {

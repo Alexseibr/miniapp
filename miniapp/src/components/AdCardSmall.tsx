@@ -3,7 +3,7 @@ import { MapPin, Heart } from 'lucide-react';
 import { AdPreview } from '@/types';
 import { formatDistance } from '@/utils/geo';
 import { PriceBadgeChip } from './pricing';
-import { NO_PHOTO_PLACEHOLDER, getPhotoUrl } from '@/constants/placeholders';
+import { NO_PHOTO_PLACEHOLDER, getThumbnailUrl } from '@/constants/placeholders';
 
 interface AdCardSmallProps {
   ad: AdPreview;
@@ -13,7 +13,7 @@ interface AdCardSmallProps {
 export default function AdCardSmall({ ad, onSelect }: AdCardSmallProps) {
   const navigate = useNavigate();
   
-  const photo = ad.photos && ad.photos.length > 0 ? getPhotoUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER;
+  const photo = ad.photos && ad.photos.length > 0 ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER;
   const distanceLabel = formatDistance(ad.distanceKm);
 
   const handleClick = () => {
