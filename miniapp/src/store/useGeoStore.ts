@@ -149,6 +149,8 @@ const useGeoStore = create<GeoState>()(
       
       async refreshLocationOnAppStart() {
         console.log('🔄 Запрос актуальной геолокации при старте приложения...');
+        // Сбрасываем старые координаты чтобы получить свежие
+        set({ coords: null, status: 'loading', cityName: null });
         await get().requestLocation();
       },
 
@@ -206,9 +208,8 @@ const useGeoStore = create<GeoState>()(
     {
       name: 'ketmar-geo-store',
       partialize: (state) => ({
-        coords: state.coords,
+        // НЕ сохраняем coords и cityName - они должны обновляться при каждом запуске
         radiusKm: state.radiusKm,
-        cityName: state.cityName,
         hasCompletedOnboarding: state.hasCompletedOnboarding,
         smartRadiusEnabled: state.smartRadiusEnabled,
       }),

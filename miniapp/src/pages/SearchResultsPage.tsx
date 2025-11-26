@@ -80,23 +80,21 @@ export default function SearchResultsPage() {
         console.log('📏 Радиус:', selectedRadius, 'км');
         
         const params = new URLSearchParams({
-          q: query,
+          query: query,
           lat: String(userLat),
           lng: String(userLng),
-          maxDistanceKm: String(selectedRadius),
-          sort: sortBy,
+          radiusKm: String(selectedRadius),
+          sort: sortBy === 'newest' ? 'date' : sortBy,
           limit: '50',
         });
-        
-        if (activeFilter === 'farmer') {
-          params.set('categoryId', 'farmer-market');
-        }
         
         console.log('🌐 API запрос:', `/api/search?${params.toString()}`);
         const response = await fetch(`/api/search?${params.toString()}`);
         const data = await response.json();
         
-        let items = data.items || data || [];
+        console.log('📦 Ответ API:', data);
+        
+        let items = data.items || data.ads || [];
         
         if (activeFilter === 'fresh') {
           const now = new Date();
