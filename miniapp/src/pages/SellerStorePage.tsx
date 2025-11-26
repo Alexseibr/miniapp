@@ -14,6 +14,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/platform/PlatformProvider';
 import LazyImage from '@/components/LazyImage';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface SellerProfile {
   _id: string;
@@ -429,7 +430,7 @@ export default function SellerStorePage() {
                     <div className="aspect-square relative bg-muted">
                       {item.photos?.[0] ? (
                         <LazyImage
-                          src={item.photos[0]}
+                          src={getThumbnailUrl(item.photos[0])}
                           alt={item.title}
                           className="w-full h-full object-cover"
                         />

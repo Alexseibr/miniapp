@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import useGeoStore from '../../store/useGeoStore';
 import { ChevronUp, ChevronDown, MapPin, TrendingUp, Search } from 'lucide-react';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface Ad {
   _id: string;
@@ -179,7 +180,7 @@ export function GeoFeedSheet({ isOpen, onOpenChange, categoryId, onAdClick }: Ge
               >
                 {ad.photos?.[0] ? (
                   <img 
-                    src={ad.photos[0]} 
+                    src={getThumbnailUrl(ad.photos[0])} 
                     alt={ad.title}
                     className="w-20 h-20 rounded-lg object-cover"
                     loading="lazy"

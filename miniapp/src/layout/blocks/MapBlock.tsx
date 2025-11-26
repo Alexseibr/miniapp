@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface MapBlockProps {
   title?: string;
@@ -127,7 +128,7 @@ export default function MapBlock(props: MapBlockProps) {
               >
                 {ad.photos && ad.photos.length > 0 && (
                   <img
-                    src={ad.photos[0]}
+                    src={getThumbnailUrl(ad.photos[0])}
                     alt={ad.title}
                     loading="lazy"
                     style={{

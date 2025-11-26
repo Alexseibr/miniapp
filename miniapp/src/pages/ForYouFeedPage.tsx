@@ -398,8 +398,8 @@ export default function ForYouFeedPage() {
           >
             <div className="relative h-full w-full">
               {currentAd.photos?.[0] ? (
-                <img
-                  src={currentAd.photos[0]}
+                <LazyImage
+                  src={getFeedImageUrl(currentAd.photos[0])}
                   alt={currentAd.title}
                   className="w-full h-full object-cover"
                 />

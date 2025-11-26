@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface FarmerProductCardProps {
   ad: AdPreview & {
@@ -147,7 +148,7 @@ export default function FarmerProductCard({ ad, compact = false }: FarmerProduct
       }}>
         {ad.photos && ad.photos.length > 0 ? (
           <img
-            src={ad.photos[0]}
+            src={getThumbnailUrl(ad.photos[0])}
             alt={ad.title}
             loading="lazy"
             decoding="async"
