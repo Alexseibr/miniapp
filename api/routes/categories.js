@@ -113,10 +113,11 @@ router.get(
 );
 
 // POST endpoint для автоподбора категории по заголовку/описанию
+// Теперь с возможностью авто-создания подкатегорий
 router.post(
   '/suggest',
   asyncHandler(async (req, res) => {
-    const { title, description } = req.body;
+    const { title, description, autoCreate = false } = req.body;
 
     if (!title || typeof title !== 'string' || title.trim().length < 3) {
       return res.json({ bestMatch: null, alternatives: [] });
@@ -124,7 +125,36 @@ router.post(
 
     try {
       const result = await CategorySuggestService.suggest(title, description || '');
-      res.json(result);
+      
+      if (result.bestMatch && result.bestMatch.categoryId) {
+        return res.json(result);
+      }
+      
+      if (autoCreate) {
+        const AutoCategorizationService = (await import('../../services/AutoCategorizationService.js')).default;
+        const autoResult = await AutoCategorizationService.autoCategorizeAd({
+          title: title.trim(),
+          description: description?.trim() || ''
+        });
+        
+        return res.json({
+          bestMatch: {
+            categoryId: autoResult.categoryId,
+            categoryName: autoResult.categoryName,
+            categorySlug: autoResult.categorySlug,
+            subcategoryId: autoResult.subcategoryId,
+            subcategoryName: autoResult.subcategoryName,
+            subcategorySlug: autoResult.subcategorySlug,
+            confidence: autoResult.confidence,
+            source: autoResult.source,
+            matchedKeywords: [],
+            createdSubcategory: autoResult.createdSubcategory
+          },
+          alternatives: autoResult.alternatives || []
+        });
+      }
+      
+      return res.json(result);
     } catch (error) {
       console.error('Category suggest error:', error);
       res.status(500).json({ 

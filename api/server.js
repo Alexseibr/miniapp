@@ -42,6 +42,7 @@ import dynamicPriceRoutes from './routes/dynamicPrice.js';
 import sellerTwinRoutes from './routes/sellerTwin.js';
 import queuesRoutes from './routes/queues.js';
 import feedRoutes from './routes/feed.js';
+import autoCategorizationRoutes from './routes/autoCategorization.js';
 
 const app = express();
 
@@ -133,5 +134,6 @@ app.use('/api/dynamic-price', dynamicPriceRoutes);
 app.use('/api/seller-twin', sellerTwinRoutes);
 app.use('/api/queues', queuesRoutes);
 app.use('/api/feed', feedRoutes);
+app.use('/api/auto-categorize', autoCategorizationRoutes);
 
 export default app;
