@@ -2,7 +2,10 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, MapPin, Package } from 'lucide-react';
 import { FeedItem } from '@/types';
-import { getPhotoUrl } from '@/constants/placeholders';
+import { getOptimizedPhotoUrl } from '@/constants/placeholders';
+
+const FEED_IMAGE_WIDTH = 600;
+const FEED_IMAGE_QUALITY = 50;
 
 interface FeedCardProps {
   item: FeedItem;
@@ -28,13 +31,13 @@ export default function FeedCard({
 
   const images = item.images?.length ? item.images : item.photos || [];
   const rawMainImage = item.previewUrl || images[0];
-  const mainImage = rawMainImage ? getPhotoUrl(rawMainImage) : '';
+  const mainImage = rawMainImage ? getOptimizedPhotoUrl(rawMainImage, FEED_IMAGE_WIDTH, undefined, FEED_IMAGE_QUALITY) : '';
   const hasImage = !!rawMainImage && !imageError;
 
   useEffect(() => {
     if (nextImageUrl && isActive) {
       const img = new Image();
-      img.src = getPhotoUrl(nextImageUrl);
+      img.src = getOptimizedPhotoUrl(nextImageUrl, FEED_IMAGE_WIDTH, undefined, FEED_IMAGE_QUALITY);
       preloadRef.current = img;
     }
     return () => {

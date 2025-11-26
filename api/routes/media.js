@@ -3,6 +3,7 @@ import { objectStorageClient } from '../services/objectStorage.js';
 import https from 'https';
 import http from 'http';
 import { URL } from 'url';
+import sharp from 'sharp';
 
 const router = express.Router();
 
@@ -29,6 +30,8 @@ const ALLOWED_HOSTS = [
   'cdn.telegram.org',
   't.me',
   'telegram.org',
+  'replit.dev',
+  'spock.replit.dev',
 ];
 
 const BLOCKED_IP_RANGES = [
@@ -94,7 +97,10 @@ function cleanCache() {
 
 router.get('/proxy', async (req, res) => {
   try {
-    const { url } = req.query;
+    const { url, w, h, q } = req.query;
+    const width = w ? parseInt(w, 10) : null;
+    const height = h ? parseInt(h, 10) : null;
+    const quality = q ? parseInt(q, 10) : 60;
     
     if (!url) {
       res.setHeader('Content-Type', 'image/svg+xml');
@@ -111,7 +117,7 @@ router.get('/proxy', async (req, res) => {
       return res.send(PLACEHOLDER_SVG);
     }
 
-    const cacheKey = decodedUrl;
+    const cacheKey = `${decodedUrl}_${width || 'auto'}_${height || 'auto'}_${quality}`;
     
     if (imageCache.has(cacheKey)) {
       const cached = imageCache.get(cacheKey);
@@ -162,19 +168,43 @@ router.get('/proxy', async (req, res) => {
         chunks.push(chunk);
       });
       
-      proxyRes.on('end', () => {
+      proxyRes.on('end', async () => {
         if (res.headersSent) return;
         
-        const data = Buffer.concat(chunks);
+        let data = Buffer.concat(chunks);
+        let outputContentType = contentType;
+        
+        if (width || height || quality < 100) {
+          try {
+            let transformer = sharp(data);
+            
+            if (width || height) {
+              transformer = transformer.resize(width || undefined, height || undefined, {
+                fit: 'cover',
+                withoutEnlargement: true,
+              });
+            }
+            
+            if (contentType.includes('png')) {
+              data = await transformer.png({ quality: Math.min(quality, 100), compressionLevel: 9 }).toBuffer();
+              outputContentType = 'image/png';
+            } else {
+              data = await transformer.jpeg({ quality: Math.min(quality, 100), progressive: true }).toBuffer();
+              outputContentType = 'image/jpeg';
+            }
+          } catch (sharpErr) {
+            console.warn('[MediaProxy] Sharp resize failed:', sharpErr.message);
+          }
+        }
         
         cleanCache();
         imageCache.set(cacheKey, {
           data,
-          contentType,
+          contentType: outputContentType,
           timestamp: Date.now()
         });
 
-        res.setHeader('Content-Type', contentType);
+        res.setHeader('Content-Type', outputContentType);
         res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
         res.setHeader('X-Cache', 'MISS');
         res.send(data);
