@@ -119,20 +119,28 @@ router.get('/search', async (req, res) => {
       moderationStatus: 'approved',
     };
 
+    // Получаем скрытые категории для фильтрации
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    
+    // Проверяем что запрашиваемые категории не скрыты
+    if (categoryId && hiddenSlugs.includes(categoryId)) {
+      return res.json([]);
+    }
+    if (subcategoryId && hiddenSlugs.includes(subcategoryId)) {
+      return res.json([]);
+    }
+    
     if (categoryId) baseQuery.categoryId = categoryId;
     if (subcategoryId) baseQuery.subcategoryId = subcategoryId;
     if (seasonCode) baseQuery.seasonCode = seasonCode;
 
     // Исключаем объявления из скрытых категорий (быстрый маркет)
     // Только если не указаны конкретные категории
-    if (!categoryId && !subcategoryId) {
-      const hiddenSlugs = await getHiddenCategorySlugs();
-      if (hiddenSlugs.length > 0) {
-        baseQuery.$and = [
-          { categoryId: { $nin: hiddenSlugs } },
-          { subcategoryId: { $nin: hiddenSlugs } },
-        ];
-      }
+    if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+      baseQuery.$and = [
+        { categoryId: { $nin: hiddenSlugs } },
+        { subcategoryId: { $nin: hiddenSlugs } },
+      ];
     }
 
     const minPriceNumber = parseNumber(minPrice);

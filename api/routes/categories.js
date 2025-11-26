@@ -72,7 +72,8 @@ router.get(
   '/',
   asyncHandler(async (req, res) => {
     const now = Date.now();
-    const showAll = req.query.all === 'true';
+    // Поддержка обоих параметров: all=true и includeAll=true
+    const showAll = req.query.all === 'true' || req.query.includeAll === 'true';
     
     if (showAll) {
       if (cachedTree && (now - cacheTimestamp) < CACHE_DURATION) {

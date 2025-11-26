@@ -15,6 +15,7 @@ export interface ListAdsParams {
   radiusKm?: number;
   minPrice?: number;
   maxPrice?: number;
+  brands?: string;
   signal?: AbortSignal;
 }
 

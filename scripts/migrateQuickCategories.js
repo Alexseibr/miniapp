@@ -137,17 +137,32 @@ async function migrate() {
     }
     console.log(`   Updated ${slowByKeywordCount} categories by keywords`);
 
-    console.log('\n4. Hiding subcategories of slow parent categories...');
-    const slowParents = await Category.find({ slowCategory: true, parentSlug: null });
-    for (const parent of slowParents) {
+    console.log('\n4. Recursively hiding all descendants of slow categories...');
+    let totalHidden = 0;
+    let moreToHide = true;
+    let iteration = 0;
+    
+    while (moreToHide && iteration < 10) {
+      iteration++;
+      const slowCategories = await Category.find({ slowCategory: true }, { slug: 1 }).lean();
+      const slowSlugs = slowCategories.map(c => c.slug);
+      
       const result = await Category.updateMany(
-        { parentSlug: parent.slug },
+        { 
+          parentSlug: { $in: slowSlugs },
+          slowCategory: { $ne: true }
+        },
         { $set: { visible: false, slowCategory: true } }
       );
+      
       if (result.modifiedCount > 0) {
-        console.log(`   Hidden ${result.modifiedCount} subcategories of ${parent.name}`);
+        console.log(`   Iteration ${iteration}: Hidden ${result.modifiedCount} descendants`);
+        totalHidden += result.modifiedCount;
+      } else {
+        moreToHide = false;
       }
     }
+    console.log(`   Total descendants hidden: ${totalHidden}`)
 
     console.log('\n5. Ensuring quick categories are visible...');
     const quickResult = await Category.updateMany(

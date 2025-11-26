@@ -395,19 +395,27 @@ router.get('/search', async (req, res, next) => {
       moderationStatus: 'approved',
     };
 
+    // Получаем скрытые категории для фильтрации
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    
+    // Проверяем что запрашиваемые категории не скрыты
+    if (categoryId && hiddenSlugs.includes(categoryId)) {
+      return res.json({ items: [], total: 0, message: 'Категория недоступна' });
+    }
+    if (subcategoryId && hiddenSlugs.includes(subcategoryId)) {
+      return res.json({ items: [], total: 0, message: 'Подкатегория недоступна' });
+    }
+    
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
 
     // Исключаем объявления из скрытых категорий (быстрый маркет)
     // Только если не указаны конкретные категории
-    if (!categoryId && !subcategoryId) {
-      const hiddenSlugs = await getHiddenCategorySlugs();
-      if (hiddenSlugs.length > 0) {
-        baseFilter.$and = [
-          { categoryId: { $nin: hiddenSlugs } },
-          { subcategoryId: { $nin: hiddenSlugs } },
-        ];
-      }
+    if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+      baseFilter.$and = [
+        { categoryId: { $nin: hiddenSlugs } },
+        { subcategoryId: { $nin: hiddenSlugs } },
+      ];
     }
 
     const normalizedSeason = normalizeSeasonCode(seasonCode);
@@ -705,20 +713,28 @@ router.get('/nearby', async (req, res, next) => {
       'location.lng': { $ne: null },
     };
 
+    // Получаем скрытые категории для фильтрации
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    
+    // Проверяем что запрашиваемые категории не скрыты
+    if (categoryId && hiddenSlugs.includes(categoryId)) {
+      return res.json({ items: [], total: 0, radiusKm: finalRadiusKm });
+    }
+    if (subcategoryId && hiddenSlugs.includes(subcategoryId)) {
+      return res.json({ items: [], total: 0, radiusKm: finalRadiusKm });
+    }
+    
     // Дополнительные фильтры
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
 
     // Исключаем объявления из скрытых категорий (быстрый маркет)
     // Только если не указаны конкретные категории
-    if (!categoryId && !subcategoryId) {
-      const hiddenSlugs = await getHiddenCategorySlugs();
-      if (hiddenSlugs.length > 0) {
-        baseFilter.$and = [
-          { categoryId: { $nin: hiddenSlugs } },
-          { subcategoryId: { $nin: hiddenSlugs } },
-        ];
-      }
+    if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+      baseFilter.$and = [
+        { categoryId: { $nin: hiddenSlugs } },
+        { subcategoryId: { $nin: hiddenSlugs } },
+      ];
     }
 
     // Фильтр по цене
