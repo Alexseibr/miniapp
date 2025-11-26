@@ -2,6 +2,7 @@ import express from 'express';
 import { Router } from 'express';
 import Ad from '../../models/Ad.js';
 import Category from '../../models/Category.js';
+import SearchLog from '../../models/SearchLog.js';
 import { haversineDistanceKm } from '../../utils/haversine.js';
 import HotSearchService from '../../services/HotSearchService.js';
 import SearchAlertService from '../../services/SearchAlertService.js';
@@ -234,6 +235,16 @@ router.get('/search', async (req, res) => {
         lng: lngNumber,
         resultsCount: totalMatches,
       }).catch(err => console.error('[Search] Log error:', err.message));
+      
+      SearchLog.logFarmerSearch({
+        query: q,
+        telegramId: req.user?.telegramId || null,
+        lat: latNumber,
+        lng: lngNumber,
+        radiusKm: radiusNumber,
+        resultsCount: totalMatches,
+        citySlug: req.query.citySlug || null,
+      }).catch(err => console.error('[FarmerSearch] Log error:', err.message));
     }
 
     res.json({

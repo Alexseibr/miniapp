@@ -368,4 +368,86 @@ class FarmerNotificationService {
   }
 }
 
+export async function sendFarmerSuggestion(suggestion) {
+  const { farmerTelegramId, message, productKey, demandInfo } = suggestion;
+  
+  if (!farmerTelegramId) {
+    return { success: false, error: 'No telegram ID' };
+  }
+  
+  try {
+    const TelegramBotService = (await import('./TelegramBotService.js')).default;
+    
+    const keyboard = {
+      inline_keyboard: [
+        [
+          {
+            text: 'Создать объявление',
+            url: `https://t.me/KetmarM_bot?startapp=create_farmer_${productKey}`,
+          },
+        ],
+        [
+          {
+            text: 'Посмотреть спрос в районе',
+            url: 'https://t.me/KetmarM_bot?startapp=farmer_demand',
+          },
+        ],
+      ],
+    };
+    
+    const fullMessage = `🌾 *Подсказка для фермера*\n\n${message}\n\n📊 Статистика: ${demandInfo?.searches24h || 0} запросов за 24ч`;
+    
+    const result = await TelegramBotService.sendMessage(
+      farmerTelegramId,
+      fullMessage,
+      {
+        parse_mode: 'Markdown',
+        reply_markup: keyboard,
+      }
+    );
+    
+    if (result && result.message_id) {
+      console.log(`[FarmerNotification] Sent suggestion to ${farmerTelegramId}: ${productKey}`);
+      return { success: true, messageId: result.message_id };
+    }
+    
+    return { success: false, error: 'No message ID returned' };
+  } catch (error) {
+    console.error(`[FarmerNotification] Failed to send to ${farmerTelegramId}:`, error.message);
+    
+    if (error.message?.includes('blocked') || error.message?.includes('deactivated')) {
+      return { success: false, error: 'User blocked bot' };
+    }
+    
+    return { success: false, error: error.message };
+  }
+}
+
+export async function sendDemandAlert(telegramId, demandData) {
+  const { productKey, searches24h, trend, regionName } = demandData;
+  
+  try {
+    const TelegramBotService = (await import('./TelegramBotService.js')).default;
+    
+    let trendEmoji = '➡️';
+    if (trend === 'up') trendEmoji = '📈';
+    if (trend === 'down') trendEmoji = '📉';
+    
+    const message = `${trendEmoji} *Спрос в вашем районе*\n\n` +
+      `Товар: ${productKey}\n` +
+      `Запросов за 24ч: ${searches24h}\n` +
+      `Тренд: ${trend === 'up' ? 'растет' : trend === 'down' ? 'падает' : 'стабильный'}\n` +
+      (regionName ? `Район: ${regionName}` : '');
+    
+    await TelegramBotService.sendMessage(telegramId, message, {
+      parse_mode: 'Markdown',
+    });
+    
+    return { success: true };
+  } catch (error) {
+    console.error(`[FarmerNotification] sendDemandAlert failed:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
 export default FarmerNotificationService;

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import ngeohash from 'ngeohash';
 
 const FARMER_KEYWORDS = [
   'картошка', 'картофель', 'морковь', 'свекла', 'лук', 'капуста',
@@ -120,7 +121,7 @@ searchLogSchema.statics.findFarmerKeywords = function(tokens) {
 };
 
 searchLogSchema.statics.logFarmerSearch = async function(data) {
-  const { query, telegramId, location, regionId, radiusKm, resultsCount = 0 } = data;
+  const { query, telegramId, location, lat, lng, radiusKm, resultsCount = 0, citySlug } = data;
   
   const normalizedTokens = this.normalizeQueryToTokens(query);
   const matchedFarmerKeywords = this.findFarmerKeywords(normalizedTokens);
@@ -128,13 +129,39 @@ searchLogSchema.statics.logFarmerSearch = async function(data) {
   
   if (!isFarmerSearch) return null;
   
+  let geoHash = null;
+  let regionId = null;
+  let geoLocation = location;
+  
+  let latitude = lat || location?.lat;
+  let longitude = lng || location?.lng;
+  
+  if (!latitude && !longitude && location?.coordinates?.length === 2) {
+    longitude = location.coordinates[0];
+    latitude = location.coordinates[1];
+  }
+  
+  if (latitude && longitude) {
+    geoHash = ngeohash.encode(latitude, longitude, 5);
+    regionId = geoHash.substring(0, 4);
+    
+    if (!geoLocation) {
+      geoLocation = {
+        type: 'Point',
+        coordinates: [longitude, latitude],
+      };
+    }
+  }
+  
   return this.create({
     query,
     normalizedQuery: query.toLowerCase().trim(),
     normalizedTokens,
     telegramId,
-    location,
+    location: geoLocation,
+    geoHash,
     regionId,
+    citySlug,
     matchedFarmerKeywords,
     isFarmerSearch,
     radiusKm,

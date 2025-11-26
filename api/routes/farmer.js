@@ -1391,4 +1391,151 @@ router.get('/season-events/:slug/ads', async (req, res) => {
   }
 });
 
+import FarmerDemand from '../../models/FarmerDemand.js';
+import FarmerSuggestion from '../../models/FarmerSuggestion.js';
+
+router.get('/suggestions', async (req, res) => {
+  try {
+    const { 
+      regionId, 
+      productKey, 
+      status, 
+      limit = 50, 
+      page = 1 
+    } = req.query;
+
+    const query = {};
+    if (regionId) query.regionId = regionId;
+    if (productKey) query.productKey = productKey.toLowerCase();
+    if (status) query.status = status;
+
+    const limitNum = Math.min(parseInt(limit) || 50, 100);
+    const pageNum = parseInt(page) || 1;
+    const skip = (pageNum - 1) * limitNum;
+
+    const [suggestions, total, stats] = await Promise.all([
+      FarmerSuggestion.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      FarmerSuggestion.countDocuments(query),
+      FarmerSuggestion.getStats({ regionId, days: 7 }),
+    ]);
+
+    const statusCounts = {};
+    for (const stat of stats) {
+      statusCounts[stat._id] = stat.count;
+    }
+
+    res.json({
+      success: true,
+      data: {
+        suggestions,
+        stats: statusCounts,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          pages: Math.ceil(total / limitNum),
+        },
+      },
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error getting suggestions:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get farmer suggestions' 
+    });
+  }
+});
+
+router.get('/demand', async (req, res) => {
+  try {
+    const { 
+      regionId, 
+      minSearches = 3, 
+      trend, 
+      limit = 20 
+    } = req.query;
+
+    const query = {};
+    if (regionId) query.regionId = regionId;
+    if (trend) query.trend = trend;
+    
+    query.searches24h = { $gte: parseInt(minSearches) };
+
+    const demands = await FarmerDemand.find(query)
+      .sort({ searches24h: -1, trendPercent: -1 })
+      .limit(parseInt(limit))
+      .lean();
+
+    res.json({
+      success: true,
+      data: demands,
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error getting demand:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get farmer demand' 
+    });
+  }
+});
+
+router.get('/demand/top-products', async (req, res) => {
+  try {
+    const { regionId, limit = 10 } = req.query;
+
+    if (!regionId) {
+      return res.status(400).json({
+        success: false,
+        error: 'regionId is required',
+      });
+    }
+
+    const products = await FarmerDemand.getTopProductsInRegion(
+      regionId, 
+      parseInt(limit)
+    );
+
+    res.json({
+      success: true,
+      data: products,
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error getting top products:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to get top products' 
+    });
+  }
+});
+
+router.post('/suggestions/:id/clicked', async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const suggestion = await FarmerSuggestion.markAsClicked(id);
+
+    if (!suggestion) {
+      return res.status(404).json({
+        success: false,
+        error: 'Suggestion not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: suggestion,
+    });
+  } catch (error) {
+    console.error('[FarmerAPI] Error marking suggestion as clicked:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to mark suggestion as clicked' 
+    });
+  }
+});
+
 export default router;
