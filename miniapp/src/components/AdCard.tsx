@@ -1,11 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Heart, MapPin, Package } from 'lucide-react';
-import FavoriteButton from './FavoriteButton';
-import { PriceBadgeChip } from './pricing';
+import { useUserStore, useIsFavorite } from '@/store/useUserStore';
 import { AdPreview, PriceBadgeData } from '@/types';
 import { formatCityDistance } from '@/utils/geo';
-import { formatRelativeTime } from '@/utils/time';
 import { Swiper, SwiperSlide } from 'swiper/react';
 import { Pagination } from 'swiper/modules';
 import 'swiper/css';
@@ -23,10 +21,13 @@ interface AdCardProps {
 const NO_PHOTO_PLACEHOLDER =
   "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23F5F6F8'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239CA3AF' font-size='16' font-family='Inter, sans-serif'>Нет фото</text></svg>";
 
-export default function AdCard({ ad, onSelect, showActions = true, priceBrief }: AdCardProps) {
+export default function AdCard({ ad, onSelect }: AdCardProps) {
   const navigate = useNavigate();
   const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
   const cardRef = useRef<HTMLElement>(null);
+  const toggleFavorite = useUserStore((state) => state.toggleFavorite);
+  const isFavorite = useIsFavorite(ad._id);
+  const [pending, setPending] = useState(false);
   
   const photos = ad.photos && ad.photos.length > 0 ? ad.photos : [NO_PHOTO_PLACEHOLDER];
 
@@ -74,9 +75,18 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
     }
   };
 
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(true);
+    try {
+      await toggleFavorite(ad._id, isFavorite);
+    } finally {
+      setPending(false);
+    }
+  };
+
   const isFree = ad.price === 0;
-  const isFresh = ad.createdAt && 
-    (Date.now() - new Date(ad.createdAt).getTime()) < 48 * 60 * 60 * 1000;
 
   return (
     <article
@@ -96,8 +106,6 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
         borderRadius: 16,
         overflow: 'hidden',
         cursor: 'pointer',
-        transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
       }}
     >
       {/* Image Container */}
@@ -107,6 +115,7 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
           aspectRatio: '1',
           background: '#F5F6F8',
           overflow: 'hidden',
+          borderRadius: 16,
         }}
         onClick={(e) => e.stopPropagation()}
       >
@@ -164,63 +173,36 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
             );
           })}
         </Swiper>
-
-        {/* Fresh Badge */}
-        {isFresh && !isFree && (
-          <div style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            background: '#22C55E',
-            color: '#FFFFFF',
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '4px 10px',
-            borderRadius: 8,
-            zIndex: 10,
-          }}>
-            Свежее
-          </div>
-        )}
-
-        {/* Free Badge */}
-        {isFree && (
-          <div style={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            background: '#EC4899',
-            color: '#FFFFFF',
-            fontSize: 11,
-            fontWeight: 600,
-            padding: '4px 10px',
-            borderRadius: 8,
-            zIndex: 10,
-          }}>
-            Даром
-          </div>
-        )}
         
-        {/* Favorite Button */}
-        <div style={{
-          position: 'absolute',
-          top: 8,
-          right: 8,
-          zIndex: 10,
-        }}>
-          <div style={{
+        {/* Favorite Button - Heart in circle */}
+        <button
+          onClick={handleFavoriteClick}
+          disabled={pending}
+          data-testid={`button-favorite-${ad._id}`}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 10,
             width: 32,
             height: 32,
-            background: '#FFFFFF',
+            background: 'rgba(255, 255, 255, 0.95)',
             borderRadius: '50%',
+            border: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            cursor: pending ? 'wait' : 'pointer',
             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          }}>
-            <FavoriteButton adId={ad._id} />
-          </div>
-        </div>
+          }}
+        >
+          <Heart
+            size={18}
+            fill={isFavorite ? '#EF4444' : 'none'}
+            color={isFavorite ? '#EF4444' : '#9CA3AF'}
+            strokeWidth={2}
+          />
+        </button>
         
         {/* Photo Counter */}
         {photos.length > 1 && (
@@ -228,12 +210,12 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
             style={{
               position: 'absolute',
               bottom: 8,
-              left: 8,
-              background: 'rgba(0, 0, 0, 0.6)',
-              padding: '4px 10px',
+              right: 8,
+              background: 'rgba(0, 0, 0, 0.5)',
+              padding: '4px 8px',
               borderRadius: 10,
               fontSize: 11,
-              fontWeight: 600,
+              fontWeight: 500,
               color: '#FFFFFF',
               zIndex: 10,
             }}
@@ -245,40 +227,27 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
       </div>
 
       {/* Content */}
-      <div style={{ padding: 12 }}>
-        {/* Price Row */}
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center',
-          gap: 8, 
-          marginBottom: 6,
-        }}>
-          <p
-            data-testid={`ad-price-${ad._id}`}
-            style={{ 
-              margin: 0,
-              fontSize: 18,
-              fontWeight: 700,
-              color: '#1F2937',
-            }}
-          >
-            {isFree ? 'Даром' : `₽${ad.price.toLocaleString('ru-RU')}`}
-          </p>
-          {(priceBrief || ad.priceBadge) && (
-            <PriceBadgeChip 
-              badge={priceBrief || ad.priceBadge} 
-              size="small" 
-            />
-          )}
-        </div>
+      <div style={{ padding: '12px 4px 8px' }}>
+        {/* Price */}
+        <p
+          data-testid={`ad-price-${ad._id}`}
+          style={{ 
+            margin: '0 0 4px',
+            fontSize: 16,
+            fontWeight: 700,
+            color: '#1F2937',
+          }}
+        >
+          {isFree ? 'Даром' : `${ad.price.toLocaleString('ru-RU')} BYN`}
+        </p>
 
         {/* Title */}
         <h3
           data-testid={`ad-title-${ad._id}`}
           style={{
-            margin: '0 0 6px',
-            fontSize: 14,
-            fontWeight: 500,
+            margin: '0 0 4px',
+            fontSize: 13,
+            fontWeight: 400,
             color: '#6B7280',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -292,29 +261,17 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
         </h3>
 
         {/* Location */}
-        {(ad.city || ad.distanceKm != null) && (
-          <div 
+        {ad.city && (
+          <p
+            data-testid={`ad-location-${ad._id}`}
             style={{ 
-              display: 'flex', 
-              alignItems: 'center', 
-              gap: 4,
+              margin: 0,
+              fontSize: 12,
+              color: '#9CA3AF',
             }}
           >
-            <MapPin size={12} color="#9CA3AF" />
-            <p
-              data-testid={`ad-location-${ad._id}`}
-              style={{ 
-                margin: 0,
-                fontSize: 12,
-                color: '#9CA3AF',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {formatCityDistance(ad.city, ad.distanceKm)}
-            </p>
-          </div>
+            {ad.city}
+          </p>
         )}
       </div>
     </article>
