@@ -217,7 +217,7 @@ export default function CreateAdPage() {
   const [, navigate] = useLocation();
 
   return (
-    <div style={{ background: '#F9FAFB', minHeight: '100vh', paddingBottom: 100 }}>
+    <div style={{ background: '#F9FAFB', minHeight: '100vh', paddingBottom: 160 }}>
       {/* Main sticky header with KETMAR - prevents MiniApp from closing on scroll */}
       <header
         style={{
@@ -318,7 +318,19 @@ export default function CreateAdPage() {
         </div>
       )}
 
-      <div style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: '#fff', borderTop: '1px solid #E5E7EB', padding: 16, display: 'flex', gap: 12 }}>
+      {/* Fixed button above bottom navbar */}
+      <div style={{ 
+        position: 'fixed', 
+        bottom: 'calc(60px + env(safe-area-inset-bottom, 0px))', 
+        left: 0, 
+        right: 0, 
+        background: '#fff', 
+        borderTop: '1px solid #E5E7EB', 
+        padding: '12px 16px', 
+        display: 'flex', 
+        gap: 12,
+        zIndex: 90,
+      }}>
         <button
           onClick={handleNext}
           disabled={!canGoNext() || submitting}
