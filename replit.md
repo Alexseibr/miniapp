@@ -80,6 +80,17 @@ Preferred communication style: Simple, everyday language.
   - Warnings system: alerts for photos, declining views, etc.
   - API endpoints: /api/seller-analytics/overview, /views, /contacts, /price-position, /category-performance, /hotspots, /suggestions, /warnings, /track
   - MiniApp page: SellerAnalyticsPage with 5-tab interface (Overview, Prices, Categories, Geo, Tips)
+- **MEGA-PROMPT 14.0 Digital Twin**: AI-powered personalized shopping assistant with:
+  - UserTwin model for tracking buyer interests, watchlist, preferences, and recommendations
+  - DigitalTwinService for AI chat, context-aware recommendations, and personalized summaries
+  - DigitalTwinNotificationService for push notifications on new matches and price drops
+  - Watchlist management with price monitoring, radius filtering, and notification preferences
+  - AI chat interface with context-aware responses, nearby ad suggestions, and reminder creation
+  - Interest learning from search/view/favorite activity patterns
+  - Integration with SmartSearchService, GeoEngine, and RecommendationService
+  - API endpoints: /api/twin/me, /api/twin/chat, /api/twin/watch-items, /api/twin/preferences, /api/twin/activity
+  - MiniApp pages: TwinPage (assistant dashboard), TwinChatPage (AI chat interface)
+  - Deep link support: twin for direct access via Telegram
 
 ## External Dependencies
 

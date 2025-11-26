@@ -13,6 +13,7 @@ import { bot } from '../../telegram/bot.js';
 import BrandDetectionService from '../../services/BrandDetectionService.js';
 import AdLifecycleService from '../../services/AdLifecycleService.js';
 import SearchAlertService from '../../services/SearchAlertService.js';
+import DigitalTwinNotificationService from '../../services/DigitalTwinNotificationService.js';
 
 const router = Router();
 
@@ -1353,6 +1354,14 @@ router.post('/', validateCreateAd, async (req, res, next) => {
           }
         } catch (error) {
           console.error('Error sending subscription notifications:', error);
+        }
+      });
+
+      setImmediate(async () => {
+        try {
+          await DigitalTwinNotificationService.processNewAd(ad);
+        } catch (error) {
+          console.error('[DigitalTwin] Error processing new ad:', error);
         }
       });
     }
