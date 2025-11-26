@@ -310,4 +310,157 @@ router.get('/check/:adId', async (req, res) => {
   }
 });
 
+router.get('/profile', async (req, res) => {
+  try {
+    const telegramId = getUserTelegramId(req);
+    
+    if (!telegramId) {
+      return res.json(null);
+    }
+
+    const favorites = await Favorite.find({ userTelegramId: String(telegramId) });
+    if (!favorites.length) {
+      return res.json(null);
+    }
+
+    const adIds = favorites.map(f => f.adId);
+    const ads = await Ad.find({ _id: { $in: adIds } }).lean();
+
+    if (!ads.length) {
+      return res.json(null);
+    }
+
+    const prices = ads.filter(a => a.price > 0).map(a => a.price);
+    const averageBudget = prices.length > 0 
+      ? Math.round(prices.reduce((sum, p) => sum + p, 0) / prices.length)
+      : 0;
+
+    const categoryCount = {};
+    ads.forEach(ad => {
+      if (ad.categoryId) {
+        categoryCount[ad.categoryId] = (categoryCount[ad.categoryId] || 0) + 1;
+      }
+    });
+    const preferredCategories = Object.entries(categoryCount)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5)
+      .map(([cat]) => cat);
+
+    const distances = ads
+      .filter(a => a.location?.lat && a.location?.lng)
+      .map(a => {
+        const userLat = parseFloat(req.query.lat) || 53.9;
+        const userLng = parseFloat(req.query.lng) || 27.5;
+        return calculateDistance(userLat, userLng, a.location.lat, a.location.lng);
+      })
+      .filter(d => d !== null);
+    const preferredRadius = distances.length > 0 
+      ? Math.round(Math.max(...distances) * 1.2) 
+      : 10;
+
+    const sellerTypes = { private: 0, farmer: 0, shop: 0 };
+    ads.forEach(ad => {
+      if (ad.sellerType && sellerTypes[ad.sellerType] !== undefined) {
+        sellerTypes[ad.sellerType]++;
+      }
+    });
+    const maxType = Object.entries(sellerTypes).sort((a, b) => b[1] - a[1])[0];
+    const preferredSellerType = maxType[1] > 0 ? maxType[0] : 'any';
+
+    const lastActivity = await AnalyticsEvent.findOne({ 
+      sellerTelegramId: telegramId 
+    }).sort({ timestamp: -1 });
+
+    let activeSegment = 'C';
+    if (lastActivity) {
+      const daysSinceActive = (Date.now() - new Date(lastActivity.timestamp).getTime()) / (1000 * 60 * 60 * 24);
+      if (daysSinceActive <= 2) activeSegment = 'A';
+      else if (daysSinceActive <= 30) activeSegment = 'B';
+    }
+
+    return res.json({
+      averageBudget,
+      preferredCategories,
+      preferredRadius,
+      preferredSellerType,
+      totalFavorites: favorites.length,
+      activeSegment,
+    });
+  } catch (error) {
+    console.error('[Favorites] Failed to get profile:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+router.get('/recommendations', async (req, res) => {
+  try {
+    const telegramId = getUserTelegramId(req);
+    
+    if (!telegramId) {
+      return res.json({ items: [] });
+    }
+
+    const userLat = parseFloat(req.query.lat) || 53.9;
+    const userLng = parseFloat(req.query.lng) || 27.5;
+    const radiusKm = 3;
+
+    const favorites = await Favorite.find({ userTelegramId: String(telegramId) });
+    const favoriteAdIds = favorites.map(f => f.adId.toString());
+
+    if (!favorites.length) {
+      return res.json({ items: [] });
+    }
+
+    const favAds = await Ad.find({ _id: { $in: favoriteAdIds } }).lean();
+    const categoryIds = [...new Set(favAds.map(a => a.categoryId).filter(Boolean))];
+    
+    const prices = favAds.filter(a => a.price > 0).map(a => a.price);
+    const avgPrice = prices.length > 0 
+      ? prices.reduce((s, p) => s + p, 0) / prices.length 
+      : 0;
+    const minPrice = avgPrice * 0.7;
+    const maxPrice = avgPrice * 1.3;
+
+    const earthRadiusKm = 6371;
+    const latDelta = (radiusKm / earthRadiusKm) * (180 / Math.PI);
+    const lngDelta = (radiusKm / earthRadiusKm) * (180 / Math.PI) / Math.cos(userLat * Math.PI / 180);
+
+    const similarAds = await Ad.find({
+      _id: { $nin: favoriteAdIds },
+      status: 'active',
+      moderationStatus: 'approved',
+      categoryId: { $in: categoryIds },
+      'photos.0': { $exists: true },
+      'location.lat': { $gte: userLat - latDelta, $lte: userLat + latDelta },
+      'location.lng': { $gte: userLng - lngDelta, $lte: userLng + lngDelta },
+      ...(avgPrice > 0 && { price: { $gte: minPrice, $lte: maxPrice } }),
+    })
+      .sort({ createdAt: -1 })
+      .limit(10)
+      .lean();
+
+    const items = similarAds.map(ad => {
+      const distanceKm = calculateDistance(userLat, userLng, ad.location?.lat, ad.location?.lng);
+      const priceAdvantage = avgPrice > 0 && ad.price < avgPrice 
+        ? Math.round(((avgPrice - ad.price) / avgPrice) * 100) 
+        : null;
+
+      return {
+        ...ad,
+        _id: ad._id.toString(),
+        distanceKm: distanceKm ? Math.round(distanceKm * 10) / 10 : null,
+        priceAdvantage,
+        matchScore: Math.random() * 0.3 + 0.7,
+      };
+    });
+
+    items.sort((a, b) => (a.distanceKm ?? 999) - (b.distanceKm ?? 999));
+
+    return res.json({ items: items.slice(0, 5) });
+  } catch (error) {
+    console.error('[Favorites] Failed to get recommendations:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 export default router;

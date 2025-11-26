@@ -102,10 +102,32 @@ export interface Ad extends AdPreview {
 
 export interface FavoriteItem {
   adId: string;
-  ad?: AdPreview;
+  ad?: AdPreview & {
+    oldPrice?: number | null;
+    priceChangePercent?: number | null;
+    sellerType?: 'private' | 'farmer' | 'shop' | null;
+    categoryName?: string | null;
+    isUnavailable?: boolean;
+  };
   createdAt: string;
   lastKnownPrice?: number | null;
   lastKnownStatus?: string | null;
+  notifyOnPriceChange?: boolean;
+  notifyOnStatusChange?: boolean;
+}
+
+export interface BuyerProfile {
+  averageBudget: number;
+  preferredCategories: string[];
+  preferredRadius: number;
+  preferredSellerType: 'private' | 'farmer' | 'shop' | 'any';
+  totalFavorites: number;
+  activeSegment: 'A' | 'B' | 'C';
+}
+
+export interface SimilarAd extends AdPreview {
+  matchScore?: number;
+  priceAdvantage?: number;
 }
 
 export interface AdsResponse {
