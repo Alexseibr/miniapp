@@ -42,16 +42,16 @@ export function formatDistance(distanceKm?: number): string {
   if (distanceKm == null || isNaN(distanceKm)) return '';
 
   if (distanceKm < 0.1) {
-    return `📍 < 100 м`;
+    return '< 100 м';
   }
 
   if (distanceKm < 1) {
     const meters = Math.round(distanceKm * 100) * 10;
-    return `📍 ${meters} м`;
+    return `${meters} м`;
   }
 
   const value = Number(distanceKm.toFixed(1));
-  return `📍 ${value} км`;
+  return `${value} км`;
 }
 
 export function formatCityDistance(city?: string | null, distanceKm?: number) {
@@ -60,12 +60,12 @@ export function formatCityDistance(city?: string | null, distanceKm?: number) {
   
   if (distanceKm != null) {
     if (distanceKm < 0.1) {
-      distancePart = '📍 < 100 м';
+      distancePart = '< 100 м';
     } else if (distanceKm < 1) {
       const meters = Math.round(distanceKm * 100) * 10;
-      distancePart = `📍 ${meters} м`;
+      distancePart = `${meters} м`;
     } else {
-      distancePart = `📍 ${distanceKm.toFixed(1)} км`;
+      distancePart = `${distanceKm.toFixed(1)} км`;
     }
   }
   

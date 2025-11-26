@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { MapPin, Truck } from 'lucide-react';
 import { getAd } from '@/api/ads';
 import { Ad } from '@/types';
 import { useCartStore } from '@/store/cart';
@@ -73,14 +74,16 @@ export default function AdDetailsModal({ adId, onClose }: Props) {
             )}
 
             {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
-              <div className="badge" style={{ alignSelf: 'flex-start', marginBottom: 10 }}>
-                🚚 Доставка {ad.deliveryRadiusKm ? `в радиусе ${ad.deliveryRadiusKm} км` : ''}
+              <div className="badge" style={{ alignSelf: 'flex-start', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Truck size={14} />
+                Доставка {ad.deliveryRadiusKm ? `в радиусе ${ad.deliveryRadiusKm} км` : ''}
               </div>
             )}
 
             {ad.isLiveSpot && (
-              <div className="badge" style={{ alignSelf: 'flex-start', background: '#ecfeff', color: '#0ea5e9' }}>
-                📍 На ярмарке сейчас
+              <div className="badge" style={{ alignSelf: 'flex-start', background: '#ecfeff', color: '#0ea5e9', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <MapPin size={14} />
+                На ярмарке сейчас
               </div>
             )}
 

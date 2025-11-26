@@ -1,20 +1,33 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { MapPin, Truck } from 'lucide-react';
 import { listAds, getNearbyAds } from '@/api/ads';
 import { useFavorites } from '@/features/favorites/useFavorites';
 import { AdPreview, AdsResponse } from '@/types';
 
 type RequestState = 'idle' | 'loading' | 'success' | 'error';
 
-function getDeliveryIcon(ad: AdPreview) {
+type DeliveryInfo = {
+  icon: 'truck' | 'pin';
+  label: string;
+};
+
+function getDeliveryIcon(ad: AdPreview): DeliveryInfo {
   if (ad.deliveryType === 'delivery_only' || ad.deliveryType === 'delivery_and_pickup') {
-    return { icon: '🚚', label: 'Доставка доступна' };
+    return { icon: 'truck', label: 'Доставка доступна' };
   }
   if (ad.deliveryType === 'pickup_only') {
-    return { icon: '📍', label: 'Самовывоз' };
+    return { icon: 'pin', label: 'Самовывоз' };
   }
   const hasDeliveryOption = ad.deliveryOptions?.some((option) => option.type?.includes('delivery'));
-  return hasDeliveryOption ? { icon: '🚚', label: 'Доставка возможна' } : { icon: '📍', label: 'Самовывоз' };
+  return hasDeliveryOption ? { icon: 'truck', label: 'Доставка возможна' } : { icon: 'pin', label: 'Самовывоз' };
+}
+
+function DeliveryIcon({ type }: { type: 'truck' | 'pin' }) {
+  if (type === 'truck') {
+    return <Truck size={14} style={{ color: '#3B82F6' }} />;
+  }
+  return <MapPin size={14} style={{ color: '#10B981' }} />;
 }
 
 function truncate(text?: string, limit = 140) {
@@ -212,8 +225,11 @@ export default function AdsPage() {
                     Категория: {category || ad.categoryId || '—'} / {subcategory || ad.subcategoryId || '—'}
                   </p>
                   <p className="ad-card__description">{truncate(ad.description)}</p>
-                  <div className="ad-card__footer">
-                    <span>{delivery.icon} {delivery.label}</span>
+                  <div className="ad-card__footer" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                      <DeliveryIcon type={delivery.icon} />
+                      {delivery.label}
+                    </span>
                     {ad.distanceKm !== undefined && <span className="muted">{ad.distanceKm.toFixed(1)} км</span>}
                   </div>
                 </article>

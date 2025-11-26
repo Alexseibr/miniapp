@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, MapPin } from 'lucide-react';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -261,10 +261,15 @@ export default function FilterDrawer({
                       cursor: 'pointer',
                       marginTop: 8,
                       width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
                     }}
                     data-testid="button-request-location"
                   >
-                    📍 Включить геолокацию
+                    <MapPin size={16} />
+                    Включить геолокацию
                   </button>
                 )}
               </>

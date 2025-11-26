@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
-import { MapPin, Heart } from 'lucide-react';
+import { Heart } from 'lucide-react';
 import { AdPreview } from '@/types';
-import { formatDistance } from '@/utils/geo';
+import { DistanceBadge } from './DistanceBadge';
 import { PriceBadgeChip } from './pricing';
 import { NO_PHOTO_PLACEHOLDER, getThumbnailUrl } from '@/constants/placeholders';
 
@@ -14,7 +14,6 @@ export default function AdCardSmall({ ad, onSelect }: AdCardSmallProps) {
   const navigate = useNavigate();
   
   const photo = ad.photos && ad.photos.length > 0 ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER;
-  const distanceLabel = formatDistance(ad.distanceKm);
 
   const handleClick = () => {
     if (onSelect) {
@@ -133,28 +132,9 @@ export default function AdCardSmall({ ad, onSelect }: AdCardSmallProps) {
           {ad.title}
         </h3>
         
-        {distanceLabel && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 4,
-              marginTop: 8,
-            }}
-          >
-            <MapPin
-              size={12}
-              style={{ color: '#10b981', flexShrink: 0 }}
-            />
-            <span
-              style={{
-                fontSize: 12,
-                color: '#6B7280',
-              }}
-              data-testid={`ad-distance-small-${ad._id}`}
-            >
-              {distanceLabel}
-            </span>
+        {ad.distanceKm != null && (
+          <div style={{ marginTop: 8 }} data-testid={`ad-distance-small-${ad._id}`}>
+            <DistanceBadge distanceKm={ad.distanceKm} />
           </div>
         )}
       </div>

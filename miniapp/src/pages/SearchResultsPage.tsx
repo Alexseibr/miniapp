@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useGeo } from '@/utils/geo';
 import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
+import { DistanceBadge } from '@/components/DistanceBadge';
 
 interface Ad {
   _id: string;
@@ -143,13 +144,6 @@ export default function SearchResultsPage() {
 
   const handleAdClick = (adId: string) => {
     navigate(`/ads/${adId}`);
-  };
-
-  const formatDistance = (km?: number) => {
-    if (km === undefined || km === null) return '';
-    if (km < 0.1) return '< 100 м';
-    if (km < 1) return `${Math.round(km * 100) * 10} м`;
-    return `${km.toFixed(1)} км`;
   };
 
   const formatPrice = (price?: number) => {
@@ -472,16 +466,7 @@ export default function SearchResultsPage() {
                     {ad.title}
                   </div>
                   {ad.distanceKm !== undefined && (
-                    <div style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: 4,
-                      fontSize: 12,
-                      color: '#9CA3AF',
-                    }}>
-                      <span>📍</span>
-                      <span>{formatDistance(ad.distanceKm)}</span>
-                    </div>
+                    <DistanceBadge distanceKm={ad.distanceKm} />
                   )}
                 </div>
               </div>
