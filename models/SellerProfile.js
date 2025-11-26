@@ -189,6 +189,15 @@ const sellerProfileSchema = new mongoose.Schema(
       maxlength: 500,
       default: null,
     },
+    showPhone: {
+      type: Boolean,
+      default: true,
+    },
+    region: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     tags: [{
       type: String,
       trim: true,

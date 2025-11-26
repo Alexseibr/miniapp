@@ -116,7 +116,8 @@ router.put('/', authMiddleware, async (req, res) => {
     const allowedFields = [
       'name', 'avatar', 'banner', 'description', 'isFarmer',
       'phone', 'instagram', 'telegramUsername', 'address',
-      'city', 'cityCode', 'workingHours', 'deliveryInfo', 'tags',
+      'city', 'cityCode', 'region', 'workingHours', 'deliveryInfo', 
+      'showPhone', 'tags',
     ];
     
     for (const field of allowedFields) {
@@ -161,14 +162,21 @@ router.get('/my', authMiddleware, async (req, res) => {
   try {
     const user = req.currentUser;
     
-    const profile = await SellerProfile.findOne({ userId: user._id });
+    let profile = await SellerProfile.findOne({ userId: user._id });
     
     if (!profile) {
-      return res.json({
-        success: true,
-        profile: null,
-        hasStore: false,
+      const slug = await SellerProfile.generateSlug('Мой магазин');
+      profile = new SellerProfile({
+        userId: user._id,
+        telegramId: user.telegramId,
+        slug,
+        name: 'Мой магазин',
+        phone: user.phone || null,
+        telegramUsername: user.username || null,
+        showPhone: true,
       });
+      await profile.save();
+      console.log(`[SellerProfile] Auto-created store for user ${user.telegramId}`);
     }
     
     await profile.updateProductsCount();
@@ -180,6 +188,154 @@ router.get('/my', authMiddleware, async (req, res) => {
     });
   } catch (error) {
     console.error('[SellerProfile] Get my store error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+    });
+  }
+});
+
+router.get('/my/ads', authMiddleware, async (req, res) => {
+  try {
+    const user = req.currentUser;
+    const { status, page = 1, limit = 50 } = req.query;
+    
+    const profile = await SellerProfile.findOne({ userId: user._id });
+    
+    if (!profile) {
+      return res.json({
+        success: true,
+        items: [],
+        total: 0,
+      });
+    }
+    
+    const query = { sellerTelegramId: profile.telegramId };
+    
+    if (status) {
+      if (status === 'hidden') {
+        query.status = { $in: ['hidden', 'archived'] };
+      } else {
+        query.status = status;
+      }
+    }
+    
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const [items, total] = await Promise.all([
+      Ad.find(query)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(parseInt(limit))
+        .select('_id title price currency photos status viewsTotal favoritesCount createdAt unitType isFarmerAd categoryId')
+        .lean(),
+      Ad.countDocuments(query),
+    ]);
+    
+    res.json({
+      success: true,
+      items,
+      total,
+      page: parseInt(page),
+      totalPages: Math.ceil(total / parseInt(limit)),
+    });
+  } catch (error) {
+    console.error('[SellerProfile] Get my ads error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'server_error',
+    });
+  }
+});
+
+router.get('/my/stats', authMiddleware, async (req, res) => {
+  try {
+    const user = req.currentUser;
+    
+    const profile = await SellerProfile.findOne({ userId: user._id });
+    
+    if (!profile) {
+      return res.json({
+        success: true,
+        stats: {
+          totalAds: 0,
+          activeAds: 0,
+          hiddenAds: 0,
+          viewsLast7Days: 0,
+          contactClicksLast7Days: 0,
+          topAds: [],
+        },
+      });
+    }
+    
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    
+    const [adStats, topAds, recentAdsViews] = await Promise.all([
+      Ad.aggregate([
+        { $match: { sellerTelegramId: profile.telegramId } },
+        {
+          $group: {
+            _id: null,
+            totalAds: { $sum: 1 },
+            activeAds: {
+              $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] },
+            },
+            hiddenAds: {
+              $sum: { $cond: [{ $in: ['$status', ['hidden', 'archived']] }, 1, 0] },
+            },
+            totalViews: { $sum: '$viewsTotal' },
+            totalContactClicks: { $sum: { $ifNull: ['$contactRevealCount', 0] } },
+          },
+        },
+      ]),
+      Ad.find({ sellerTelegramId: profile.telegramId, status: 'active' })
+        .sort({ viewsTotal: -1 })
+        .limit(3)
+        .select('_id title viewsTotal photos')
+        .lean(),
+      Ad.aggregate([
+        { 
+          $match: { 
+            sellerTelegramId: profile.telegramId,
+            updatedAt: { $gte: sevenDaysAgo },
+          } 
+        },
+        {
+          $group: {
+            _id: null,
+            viewsLast7Days: { $sum: '$viewsToday' },
+          },
+        },
+      ]),
+    ]);
+    
+    const stats = adStats[0] || {
+      totalAds: 0,
+      activeAds: 0,
+      hiddenAds: 0,
+      totalViews: 0,
+      totalContactClicks: 0,
+    };
+    
+    res.json({
+      success: true,
+      stats: {
+        totalAds: stats.totalAds,
+        activeAds: stats.activeAds,
+        hiddenAds: stats.hiddenAds,
+        viewsLast7Days: recentAdsViews[0]?.viewsLast7Days || stats.totalViews,
+        contactClicksLast7Days: profile.analytics?.contactOpens || stats.totalContactClicks,
+        topAds: topAds.map(ad => ({
+          _id: ad._id,
+          title: ad.title,
+          viewsCount: ad.viewsTotal || 0,
+          photo: ad.photos?.[0] || null,
+        })),
+      },
+    });
+  } catch (error) {
+    console.error('[SellerProfile] Get my stats error:', error);
     res.status(500).json({
       success: false,
       error: 'server_error',
