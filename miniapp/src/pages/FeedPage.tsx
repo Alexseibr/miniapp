@@ -5,11 +5,12 @@ import RadiusControl from '@/components/RadiusControl';
 import NearbyAdsGrid from '@/components/NearbyAdsGrid';
 import CategoriesSheet from '@/components/CategoriesSheet';
 import BrandFilter from '@/components/BrandFilter';
+import EmptySearchResult from '@/components/EmptySearchResult';
 import { useGeo } from '@/utils/geo';
 import { useNearbyAds } from '@/hooks/useNearbyAds';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
-import { getNearbyStats } from '@/api/ads';
-import { CategoryStat } from '@/types';
+import { getNearbyStats, listNearbyAds, listAds } from '@/api/ads';
+import { CategoryStat, AdPreview } from '@/types';
 
 type ScopeType = 'local' | 'country';
 
@@ -25,8 +26,10 @@ export default function FeedPage() {
   const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
   const [totalAds, setTotalAds] = useState(0);
   const [scope, setScope] = useState<ScopeType>('local');
+  const [fallbackNearbyAds, setFallbackNearbyAds] = useState<AdPreview[]>([]);
   
   const statsAbortRef = useRef<AbortController | null>(null);
+  const fallbackAbortRef = useRef<AbortController | null>(null);
   
   const searchQuery = searchParams.get('q') || '';
   const urlCategoryId = searchParams.get('categoryId');
@@ -87,6 +90,62 @@ export default function FeedPage() {
     scope,
     enabled: scope === 'country' || !!coords,
   });
+
+  const isEmptySearch = !adsLoading && ads.length === 0 && !!searchQuery && (scope === 'country' || !!coords);
+
+  const loadFallbackNearbyAds = useCallback(async () => {
+    if (!isEmptySearch) {
+      setFallbackNearbyAds([]);
+      return;
+    }
+
+    if (fallbackAbortRef.current) {
+      fallbackAbortRef.current.abort();
+    }
+
+    const controller = new AbortController();
+    fallbackAbortRef.current = controller;
+
+    try {
+      let response;
+      
+      if (scope === 'country' || !coords) {
+        response = await listAds({
+          sort: 'newest',
+          categoryId: selectedCategoryId || undefined,
+          limit: 10,
+          signal: controller.signal,
+        });
+      } else {
+        response = await listNearbyAds({
+          lat: coords.lat,
+          lng: coords.lng,
+          radiusKm,
+          categoryId: selectedCategoryId || undefined,
+          sort: 'distance',
+          limit: 10,
+          signal: controller.signal,
+        });
+      }
+
+      if (!controller.signal.aborted) {
+        setFallbackNearbyAds(response.items || []);
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
+        console.error('Failed to load fallback ads:', err);
+      }
+    }
+  }, [isEmptySearch, coords, radiusKm, scope, selectedCategoryId]);
+
+  useEffect(() => {
+    loadFallbackNearbyAds();
+    return () => {
+      if (fallbackAbortRef.current) {
+        fallbackAbortRef.current.abort();
+      }
+    };
+  }, [loadFallbackNearbyAds]);
 
   const needsLocation = scope === 'local' && !coords && geoStatus !== 'loading';
 
@@ -514,15 +573,25 @@ export default function FeedPage() {
             </div>
           )}
 
-          {/* Ads Grid */}
-          <NearbyAdsGrid
-            ads={ads}
-            loading={adsLoading}
-            isEmpty={isEmpty}
-            hasVeryFew={hasVeryFew}
-            radiusKm={radiusKm}
-            onIncreaseRadius={handleIncreaseRadius}
-          />
+          {/* Ads Grid or Empty Search Result */}
+          {isEmptySearch ? (
+            <EmptySearchResult
+              query={searchQuery}
+              lat={coords?.lat}
+              lng={coords?.lng}
+              radiusKm={radiusKm}
+              nearbyAds={fallbackNearbyAds}
+            />
+          ) : (
+            <NearbyAdsGrid
+              ads={ads}
+              loading={adsLoading}
+              isEmpty={isEmpty}
+              hasVeryFew={hasVeryFew}
+              radiusKm={radiusKm}
+              onIncreaseRadius={handleIncreaseRadius}
+            />
+          )}
 
           {/* Categories Sheet */}
           <CategoriesSheet
