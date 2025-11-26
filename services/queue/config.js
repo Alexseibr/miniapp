@@ -28,10 +28,15 @@ export function getRedisConnection() {
   try {
     const isUpstash = REDIS_URL.includes('upstash.io');
     
-    redisConnection = new IORedis(REDIS_URL, {
+    let connectionUrl = REDIS_URL;
+    if (isUpstash && connectionUrl.startsWith('redis://')) {
+      connectionUrl = connectionUrl.replace('redis://', 'rediss://');
+      console.log('[Queue] Auto-converted to TLS for Upstash');
+    }
+    
+    redisConnection = new IORedis(connectionUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
-      ...(isUpstash ? { tls: {} } : {}),
       retryStrategy: (times) => {
         if (times > 3) {
           console.error('[Queue] Redis connection failed after 3 retries');
@@ -42,7 +47,11 @@ export function getRedisConnection() {
     });
 
     redisConnection.on('connect', () => {
-      console.log('[Queue] Redis connected');
+      console.log('[Queue] Redis connected successfully');
+    });
+
+    redisConnection.on('ready', () => {
+      console.log('[Queue] Redis ready');
     });
 
     redisConnection.on('error', (err) => {
