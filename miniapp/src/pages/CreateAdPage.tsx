@@ -5,7 +5,7 @@ import { fetchCategories } from '@/api/categories';
 import { createAd, CreateAdPayload } from '@/api/ads';
 import { resolveGeoLocation, getPresetLocations, PresetLocation } from '@/api/geo';
 import { CategoryNode } from '@/types';
-import { ArrowLeft, MapPin, Loader2, Camera, X, Check, RefreshCw, Edit3, Info } from 'lucide-react';
+import { ArrowLeft, MapPin, Loader2, Camera, X, Check, RefreshCw, Edit3, Info, Bell } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import PriceHint from '@/components/PriceHint';
 import { SchedulePublishBlock } from '@/components/schedule/SchedulePublishBlock';
@@ -214,14 +214,61 @@ export default function CreateAdPage() {
     }
   };
 
+  const [, navigate] = useLocation();
+
   return (
     <div style={{ background: '#F9FAFB', minHeight: '100vh', paddingBottom: 100 }}>
-      <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '12px 16px', position: 'sticky', top: 0, zIndex: 10 }}>
+      {/* Main sticky header with KETMAR - prevents MiniApp from closing on scroll */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          background: '#FFFFFF',
+          borderBottom: '1px solid #E5E7EB',
+          zIndex: 100,
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+            color: '#1F2937',
+            letterSpacing: '-0.5px',
+          }}
+        >
+          KETMAR
+        </h1>
+        <button
+          onClick={() => navigate('/notifications')}
+          data-testid="button-notifications-header"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            border: 'none',
+            background: '#F5F6F8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <Bell size={20} color="#6B7280" />
+        </button>
+      </header>
+
+      {/* Step header */}
+      <div style={{ background: '#fff', borderBottom: '1px solid #E5E7EB', padding: '12px 16px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
           <button onClick={handleBack} style={{ background: 'none', border: 'none', padding: 8, cursor: 'pointer' }} data-testid="button-back">
             <ArrowLeft size={24} color="#111827" />
           </button>
-          <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Подача объявления</h1>
+          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Подача объявления</h2>
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {[1, 2, 3, 4, 5].map((step) => (
