@@ -1,611 +1,715 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Home, SlidersHorizontal, ChevronDown, X, Search, Globe } from 'lucide-react';
-import RadiusControl from '@/components/RadiusControl';
-import NearbyAdsGrid from '@/components/NearbyAdsGrid';
-import CategoriesSheet from '@/components/CategoriesSheet';
-import BrandFilter from '@/components/BrandFilter';
-import EmptySearchResult from '@/components/EmptySearchResult';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, MapPin, Loader2 } from 'lucide-react';
+import FeedCard from '@/components/FeedCard';
 import { useGeo } from '@/utils/geo';
-import { useNearbyAds } from '@/hooks/useNearbyAds';
-import { useCategoriesStore } from '@/hooks/useCategoriesStore';
-import { getNearbyStats, listNearbyAds, listAds } from '@/api/ads';
-import { CategoryStat, AdPreview } from '@/types';
+import { FeedItem, FeedEvent } from '@/types';
+import http from '@/api/http';
 
-type ScopeType = 'local' | 'country';
+const FEED_RADIUS_KM = 20;
+const FEED_LIMIT = 20;
+const SWIPE_THRESHOLD = 50;
 
 export default function FeedPage() {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const { coords, status: geoStatus, requestLocation, radiusKm, setRadius } = useGeo();
-  const { categories, loading: categoriesLoading, loadCategories } = useCategoriesStore();
+  const { coords, status: geoStatus, requestLocation } = useGeo();
   
-  const [showCategoriesSheet, setShowCategoriesSheet] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
-  const [selectedBrands, setSelectedBrands] = useState<string[]>([]);
-  const [categoryStats, setCategoryStats] = useState<CategoryStat[]>([]);
-  const [totalAds, setTotalAds] = useState(0);
-  const [scope, setScope] = useState<ScopeType>('local');
-  const [fallbackNearbyAds, setFallbackNearbyAds] = useState<AdPreview[]>([]);
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [showSwipeHints, setShowSwipeHints] = useState(true);
   
-  const statsAbortRef = useRef<AbortController | null>(null);
-  const fallbackAbortRef = useRef<AbortController | null>(null);
-  
-  const searchQuery = searchParams.get('q') || '';
-  const urlCategoryId = searchParams.get('categoryId');
+  const currentStartTime = useRef<number | null>(null);
+  const pendingEvents = useRef<FeedEvent[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const touchStartY = useRef<number>(0);
+  const touchDeltaY = useRef<number>(0);
+  const isTransitioning = useRef<boolean>(false);
 
-  useEffect(() => {
-    loadCategories();
-  }, [loadCategories]);
-
-  useEffect(() => {
-    if (urlCategoryId && urlCategoryId !== selectedCategoryId) {
-      setSelectedCategoryId(urlCategoryId);
-    }
-  }, [urlCategoryId]);
-
-  const loadCategoryStats = useCallback(async () => {
-    if (scope === 'local' && !coords) return;
-
-    if (statsAbortRef.current) {
-      statsAbortRef.current.abort();
-    }
-
-    const controller = new AbortController();
-    statsAbortRef.current = controller;
-
+  const sendEvents = useCallback(async (events: FeedEvent[]) => {
+    if (events.length === 0) return;
+    
     try {
-      const response = await getNearbyStats({
-        lat: scope === 'country' ? undefined : coords?.lat,
-        lng: scope === 'country' ? undefined : coords?.lng,
-        radiusKm: scope === 'country' ? undefined : radiusKm,
-        signal: controller.signal,
-      });
-
-      if (!controller.signal.aborted) {
-        setCategoryStats(response.stats);
-        setTotalAds(response.total);
-      }
-    } catch (err: any) {
-      if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
-        console.error('Failed to load category stats:', err);
-      }
+      await http.post('/api/feed/events', { events });
+    } catch (error) {
+      console.error('Failed to send feed events:', error);
     }
-  }, [coords, radiusKm, scope]);
+  }, []);
 
-  useEffect(() => {
-    loadCategoryStats();
-    return () => {
-      if (statsAbortRef.current) {
-        statsAbortRef.current.abort();
-      }
-    };
-  }, [loadCategoryStats]);
-
-  const { ads, loading: adsLoading, isEmpty, hasVeryFew } = useNearbyAds({
-    coords,
-    radiusKm,
-    categoryId: selectedCategoryId || undefined,
-    query: searchQuery || undefined,
-    scope,
-    enabled: scope === 'country' || !!coords,
-  });
-
-  const isEmptySearch = !adsLoading && ads.length === 0 && !!searchQuery && (scope === 'country' || !!coords);
-
-  const loadFallbackNearbyAds = useCallback(async () => {
-    if (!isEmptySearch) {
-      setFallbackNearbyAds([]);
-      return;
+  const flushPendingEvents = useCallback(() => {
+    if (pendingEvents.current.length > 0) {
+      sendEvents([...pendingEvents.current]);
+      pendingEvents.current = [];
     }
+  }, [sendEvents]);
 
-    if (fallbackAbortRef.current) {
-      fallbackAbortRef.current.abort();
+  const trackEvent = useCallback((event: FeedEvent) => {
+    pendingEvents.current.push(event);
+    
+    if (pendingEvents.current.length >= 5) {
+      flushPendingEvents();
     }
+  }, [flushPendingEvents]);
 
-    const controller = new AbortController();
-    fallbackAbortRef.current = controller;
-
+  const loadFeed = useCallback(async (cursor?: string) => {
+    if (!coords) return;
+    
     try {
-      let response;
+      setIsLoading(true);
       
-      if (scope === 'country' || !coords) {
-        response = await listAds({
-          sort: 'newest',
-          categoryId: selectedCategoryId || undefined,
-          limit: 10,
-          signal: controller.signal,
-        });
+      const params = new URLSearchParams({
+        lat: coords.lat.toString(),
+        lng: coords.lng.toString(),
+        radiusKm: FEED_RADIUS_KM.toString(),
+        limit: FEED_LIMIT.toString(),
+      });
+      
+      if (cursor) {
+        params.append('cursor', cursor);
+      }
+      
+      const response = await http.get(`/api/feed?${params.toString()}`);
+      const data = response.data as {
+        items: FeedItem[];
+        nextCursor: string | null;
+        hasMore: boolean;
+      };
+      
+      if (cursor) {
+        setItems(prev => [...prev, ...data.items]);
       } else {
-        response = await listNearbyAds({
-          lat: coords.lat,
-          lng: coords.lng,
-          radiusKm,
-          categoryId: selectedCategoryId || undefined,
-          sort: 'distance',
-          limit: 10,
-          signal: controller.signal,
-        });
+        setItems(data.items);
+        setCurrentIndex(0);
+        
+        if (data.items.length > 0) {
+          currentStartTime.current = Date.now();
+          trackEvent({
+            adId: data.items[0]._id,
+            eventType: 'impression',
+            positionIndex: 0,
+            radiusKm: FEED_RADIUS_KM,
+            meta: { categoryId: data.items[0].categoryId },
+          });
+        }
       }
-
-      if (!controller.signal.aborted) {
-        setFallbackNearbyAds(response.items || []);
-      }
-    } catch (err: any) {
-      if (err.name !== 'AbortError' && err.name !== 'CanceledError') {
-        console.error('Failed to load fallback ads:', err);
-      }
+      
+      setNextCursor(data.nextCursor);
+      setHasMore(data.hasMore);
+    } catch (error) {
+      console.error('Failed to load feed:', error);
+    } finally {
+      setIsLoading(false);
     }
-  }, [isEmptySearch, coords, radiusKm, scope, selectedCategoryId]);
+  }, [coords, trackEvent]);
 
   useEffect(() => {
-    loadFallbackNearbyAds();
+    if (coords) {
+      loadFeed();
+    }
+  }, [coords, loadFeed]);
+
+  useEffect(() => {
+    if (hasMore && nextCursor && currentIndex >= items.length - 3) {
+      loadFeed(nextCursor);
+    }
+  }, [currentIndex, items.length, hasMore, nextCursor, loadFeed]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowSwipeHints(false);
+    }, 5000);
+    
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
     return () => {
-      if (fallbackAbortRef.current) {
-        fallbackAbortRef.current.abort();
-      }
+      flushPendingEvents();
     };
-  }, [loadFallbackNearbyAds]);
+  }, [flushPendingEvents]);
 
-  const needsLocation = scope === 'local' && !coords && geoStatus !== 'loading';
+  const goToNext = useCallback(() => {
+    if (currentIndex >= items.length - 1 || isTransitioning.current) return;
+    
+    isTransitioning.current = true;
+    
+    if (currentStartTime.current) {
+      const dwellTimeMs = Date.now() - currentStartTime.current;
+      trackEvent({
+        adId: items[currentIndex]._id,
+        eventType: 'impression',
+        dwellTimeMs,
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+      });
+    }
+    
+    trackEvent({
+      adId: items[currentIndex]._id,
+      eventType: 'scroll_next',
+      positionIndex: currentIndex,
+      radiusKm: FEED_RADIUS_KM,
+    });
+    
+    setCurrentIndex(prev => prev + 1);
+    currentStartTime.current = Date.now();
+    
+    const nextItem = items[currentIndex + 1];
+    if (nextItem) {
+      trackEvent({
+        adId: nextItem._id,
+        eventType: 'impression',
+        positionIndex: currentIndex + 1,
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: nextItem.categoryId },
+      });
+    }
+    
+    setTimeout(() => {
+      isTransitioning.current = false;
+    }, 300);
+  }, [currentIndex, items, trackEvent]);
 
-  const handleSelectCategory = (categoryId: string | null) => {
-    setSelectedCategoryId(categoryId);
-    setShowCategoriesSheet(false);
-  };
+  const goToPrev = useCallback(() => {
+    if (currentIndex <= 0 || isTransitioning.current) return;
+    
+    isTransitioning.current = true;
+    
+    if (currentStartTime.current) {
+      const dwellTimeMs = Date.now() - currentStartTime.current;
+      trackEvent({
+        adId: items[currentIndex]._id,
+        eventType: 'impression',
+        dwellTimeMs,
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+      });
+    }
+    
+    trackEvent({
+      adId: items[currentIndex]._id,
+      eventType: 'scroll_prev',
+      positionIndex: currentIndex,
+      radiusKm: FEED_RADIUS_KM,
+    });
+    
+    setCurrentIndex(prev => prev - 1);
+    currentStartTime.current = Date.now();
+    
+    const prevItem = items[currentIndex - 1];
+    if (prevItem) {
+      trackEvent({
+        adId: prevItem._id,
+        eventType: 'impression',
+        positionIndex: currentIndex - 1,
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: prevItem.categoryId },
+      });
+    }
+    
+    setTimeout(() => {
+      isTransitioning.current = false;
+    }, 300);
+  }, [currentIndex, items, trackEvent]);
 
-  const handleClearCategory = () => {
-    setSelectedCategoryId(null);
-  };
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    touchStartY.current = e.touches[0].clientY;
+    touchDeltaY.current = 0;
+  }, []);
 
-  const handleIncreaseRadius = () => {
-    const newRadius = Math.min(radiusKm + 5, 100);
-    setRadius(newRadius);
-  };
+  const handleTouchMove = useCallback((e: React.TouchEvent) => {
+    touchDeltaY.current = e.touches[0].clientY - touchStartY.current;
+  }, []);
 
-  const selectedCategory = selectedCategoryId
-    ? categories.find((c) => c.slug === selectedCategoryId)
-    : null;
+  const handleTouchEnd = useCallback(() => {
+    if (Math.abs(touchDeltaY.current) > SWIPE_THRESHOLD) {
+      if (touchDeltaY.current < 0) {
+        goToNext();
+      } else {
+        goToPrev();
+      }
+    }
+    touchDeltaY.current = 0;
+  }, [goToNext, goToPrev]);
 
-  const selectedCategoryCount = selectedCategoryId
-    ? categoryStats.find((s) => s.categoryId === selectedCategoryId)?.count || 0
-    : totalAds;
+  const handleLike = useCallback(() => {
+    const item = items[currentIndex];
+    if (item) {
+      trackEvent({
+        adId: item._id,
+        eventType: 'like',
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: item.categoryId },
+      });
+      flushPendingEvents();
+    }
+  }, [currentIndex, items, trackEvent, flushPendingEvents]);
 
-  return (
-    <div style={{ 
-      paddingBottom: 90, 
-      background: '#000000', 
-      minHeight: '100vh',
-      position: 'relative',
-    }}>
-      {/* Background gradients */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: `
-          radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.06), transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.05), transparent 50%)
-        `,
-        pointerEvents: 'none',
-        zIndex: 0,
-      }} />
+  const handleDislike = useCallback(() => {
+    const item = items[currentIndex];
+    if (item) {
+      trackEvent({
+        adId: item._id,
+        eventType: 'dislike',
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: item.categoryId },
+      });
+    }
+    goToNext();
+  }, [currentIndex, items, trackEvent, goToNext]);
 
-      {/* Header */}
+  const handleViewOpen = useCallback(() => {
+    const item = items[currentIndex];
+    if (item) {
+      trackEvent({
+        adId: item._id,
+        eventType: 'view_open',
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: item.categoryId },
+      });
+      flushPendingEvents();
+    }
+  }, [currentIndex, items, trackEvent, flushPendingEvents]);
+
+  const needsLocation = !coords && geoStatus !== 'loading';
+  const currentItem = items[currentIndex];
+
+  if (needsLocation) {
+    return (
       <div
         style={{
-          position: 'sticky',
-          top: 0,
-          background: 'rgba(10, 15, 26, 0.95)',
-          backdropFilter: 'blur(20px)',
-          zIndex: 10,
-          borderBottom: '1px solid rgba(59, 130, 246, 0.15)',
-          padding: '14px 16px',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          background: '#FFFFFF',
         }}
       >
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent)',
-        }} />
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button
-            onClick={() => navigate('/')}
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderBottom: '1px solid #E5E7EB',
+            background: '#FFFFFF',
+          }}
+        >
+          <h1
             style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 44,
-              height: 44,
-              background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
-              color: '#ffffff',
-              border: 'none',
-              borderRadius: 12,
-              cursor: 'pointer',
-              boxShadow: '0 0 15px rgba(59, 130, 246, 0.4)',
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#1F2937',
+              letterSpacing: '-0.5px',
             }}
-            data-testid="button-home"
           >
-            <Home size={22} />
-          </button>
-          <h1 style={{ 
-            flex: 1, 
-            margin: 0, 
-            fontSize: 18, 
-            fontWeight: 700, 
-            color: '#F8FAFC',
-            textShadow: '0 0 20px rgba(59, 130, 246, 0.3)',
-          }}>
-            {searchQuery 
-              ? `Поиск: "${searchQuery}"` 
-              : scope === 'country' 
-                ? 'Вся страна' 
-                : 'Рядом со мной'}
+            KETMAR
           </h1>
-        </div>
-        
-        {searchQuery && (
-          <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 8,
-                background: 'rgba(59, 130, 246, 0.15)',
-                border: '1px solid rgba(59, 130, 246, 0.3)',
-                padding: '8px 14px',
-                borderRadius: 12,
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <Search size={16} color="#3B82F6" />
-              <span style={{ 
-                fontSize: 14, 
-                fontWeight: 600, 
-                color: '#3B82F6',
-                textShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
-              }}>
-                {searchQuery}
-              </span>
-              <button
-                onClick={() => {
-                  const newParams = new URLSearchParams(searchParams);
-                  newParams.delete('q');
-                  setSearchParams(newParams);
-                }}
-                style={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: '50%',
-                  border: 'none',
-                  background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
-                  color: '#fff',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  cursor: 'pointer',
-                  marginLeft: 4,
-                }}
-                data-testid="button-clear-search"
-              >
-                <X size={12} />
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Geo Request */}
-      {needsLocation ? (
-        <div style={{ padding: 20, position: 'relative', zIndex: 1 }}>
-          <div
+          <button
+            onClick={() => navigate('/notifications')}
+            data-testid="button-notifications"
             style={{
-              background: 'rgba(10, 15, 26, 0.8)',
-              borderRadius: 20,
-              padding: 32,
-              textAlign: 'center',
-              border: '1px solid rgba(59, 130, 246, 0.2)',
-              backdropFilter: 'blur(10px)',
-            }}
-          >
-            <div style={{
-              width: 80,
-              height: 80,
-              margin: '0 auto 24px',
-              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(124, 58, 237, 0.2))',
+              width: 40,
+              height: 40,
               borderRadius: '50%',
+              border: 'none',
+              background: '#F5F6F8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 0 30px rgba(59, 130, 246, 0.3)',
-              border: '1px solid rgba(59, 130, 246, 0.3)',
-            }}>
-              <MapPin 
-                size={36} 
-                color="#3B82F6" 
-                style={{ filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))' }}
-              />
-            </div>
-            <h2 style={{ 
-              fontSize: 22, 
-              fontWeight: 700, 
-              margin: '0 0 12px', 
-              color: '#F8FAFC',
-              textShadow: '0 0 20px rgba(59, 130, 246, 0.3)',
-            }}>
-              Определите местоположение
-            </h2>
-            <p style={{ 
-              fontSize: 15, 
-              color: '#94A3B8', 
-              margin: '0 0 24px', 
-              lineHeight: 1.5 
-            }}>
-              Чтобы показать объявления рядом с вами
-            </p>
-            <button
-              onClick={requestLocation}
-              disabled={geoStatus === 'loading'}
-              style={{
-                width: '100%',
-                padding: '16px',
-                background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
-                color: '#ffffff',
-                border: 'none',
-                borderRadius: 14,
-                fontSize: 16,
-                fontWeight: 600,
-                cursor: geoStatus === 'loading' ? 'not-allowed' : 'pointer',
-                opacity: geoStatus === 'loading' ? 0.6 : 1,
-                minHeight: 52,
-                boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)',
-              }}
-              data-testid="button-request-location"
-            >
-              {geoStatus === 'loading' ? 'Получаем геолокацию...' : 'Определить местоположение'}
-            </button>
+              cursor: 'pointer',
+            }}
+          >
+            <Bell size={20} color="#6B7280" />
+          </button>
+        </header>
+
+        <main
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: '#F0F4FF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
+            }}
+          >
+            <MapPin size={36} color="#3A7BFF" />
           </div>
-        </div>
-      ) : (
-        <div style={{ position: 'relative', zIndex: 1 }}>
-          {/* Scope Toggle */}
-          <div style={{ padding: '16px 16px 8px' }}>
-            <div
-              style={{
-                display: 'flex',
-                background: 'rgba(10, 15, 26, 0.8)',
-                border: '1px solid rgba(59, 130, 246, 0.15)',
-                borderRadius: 14,
-                padding: 4,
-                backdropFilter: 'blur(10px)',
-              }}
-            >
-              <button
-                onClick={() => setScope('local')}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  background: scope === 'local' 
-                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(124, 58, 237, 0.2))' 
-                    : 'transparent',
-                  border: scope === 'local' 
-                    ? '1px solid rgba(59, 130, 246, 0.4)' 
-                    : '1px solid transparent',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: scope === 'local' ? '#3B82F6' : '#64748B',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  boxShadow: scope === 'local' ? '0 0 15px rgba(59, 130, 246, 0.2)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                }}
-                data-testid="button-scope-local"
-              >
-                <MapPin size={18} />
-                Рядом со мной
-              </button>
-              <button
-                onClick={() => setScope('country')}
-                style={{
-                  flex: 1,
-                  padding: '12px 16px',
-                  background: scope === 'country' 
-                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(124, 58, 237, 0.2))' 
-                    : 'transparent',
-                  border: scope === 'country' 
-                    ? '1px solid rgba(59, 130, 246, 0.4)' 
-                    : '1px solid transparent',
-                  borderRadius: 10,
-                  fontSize: 14,
-                  fontWeight: 600,
-                  color: scope === 'country' ? '#3B82F6' : '#64748B',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                  boxShadow: scope === 'country' ? '0 0 15px rgba(59, 130, 246, 0.2)' : 'none',
-                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                }}
-                data-testid="button-scope-country"
-              >
-                <Globe size={18} />
-                Вся страна
-              </button>
-            </div>
-          </div>
+          
+          <h2
+            style={{
+              margin: '0 0 12px',
+              fontSize: 22,
+              fontWeight: 700,
+              color: '#1F2937',
+              textAlign: 'center',
+            }}
+          >
+            Определите местоположение
+          </h2>
+          
+          <p
+            style={{
+              margin: '0 0 24px',
+              fontSize: 15,
+              color: '#6B7280',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}
+          >
+            Чтобы показать товары рядом с вами
+          </p>
+          
+          <button
+            onClick={requestLocation}
+            disabled={(geoStatus as string) === 'loading'}
+            data-testid="button-request-location"
+            style={{
+              width: '100%',
+              maxWidth: 300,
+              padding: '16px 24px',
+              background: '#3A7BFF',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: (geoStatus as string) === 'loading' ? 'not-allowed' : 'pointer',
+              opacity: (geoStatus as string) === 'loading' ? 0.6 : 1,
+            }}
+          >
+            {(geoStatus as string) === 'loading' ? 'Получаем геолокацию...' : 'Определить местоположение'}
+          </button>
+        </main>
+      </div>
+    );
+  }
 
-          {/* RadiusControl - only for local scope */}
-          {scope === 'local' && (
-            <div style={{ padding: '12px 16px 16px' }}>
-              <RadiusControl value={radiusKm} onChange={setRadius} disabled={false} />
-            </div>
-          )}
+  if (isLoading && items.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          background: '#000',
+        }}
+      >
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            background: 'rgba(0,0,0,0.5)',
+            backdropFilter: 'blur(10px)',
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            zIndex: 20,
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#FFFFFF',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            KETMAR
+          </h1>
+          <button
+            onClick={() => navigate('/notifications')}
+            data-testid="button-notifications"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: 'none',
+              background: 'rgba(255,255,255,0.15)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <Bell size={20} color="#FFFFFF" />
+          </button>
+        </header>
 
-          {/* Category Filter Button */}
-          <div style={{ padding: '0 16px 16px' }}>
-            <button
-              onClick={() => setShowCategoriesSheet(true)}
-              disabled={categoriesLoading}
-              style={{
-                width: '100%',
-                padding: '14px 20px',
-                background: selectedCategoryId 
-                  ? 'rgba(59, 130, 246, 0.15)' 
-                  : 'rgba(10, 15, 26, 0.8)',
-                border: selectedCategoryId 
-                  ? '1px solid rgba(59, 130, 246, 0.4)' 
-                  : '1px solid rgba(59, 130, 246, 0.15)',
-                borderRadius: 14,
-                fontSize: 15,
-                fontWeight: 600,
-                color: selectedCategoryId ? '#3B82F6' : '#94A3B8',
-                cursor: categoriesLoading ? 'not-allowed' : 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 12,
-                minHeight: 52,
-                backdropFilter: 'blur(10px)',
-                transition: 'all 0.3s',
-              }}
-              data-testid="button-open-categories"
-            >
-              <SlidersHorizontal size={20} />
-              <span style={{ flex: 1, textAlign: 'left' }}>
-                {selectedCategory ? selectedCategory.name : 'Все категории'}
-              </span>
-              {selectedCategoryCount > 0 && (
-                <span
-                  style={{
-                    background: selectedCategoryId 
-                      ? 'linear-gradient(135deg, #3B82F6, #7C3AED)' 
-                      : 'rgba(100, 116, 139, 0.3)',
-                    color: '#fff',
-                    padding: '4px 12px',
-                    borderRadius: 20,
-                    fontSize: 12,
-                    fontWeight: 700,
-                    fontFamily: "'JetBrains Mono', monospace",
-                    boxShadow: selectedCategoryId ? '0 0 10px rgba(59, 130, 246, 0.3)' : 'none',
-                  }}
-                >
-                  {selectedCategoryCount}
-                </span>
-              )}
-              <ChevronDown size={18} color="#64748B" />
-            </button>
-          </div>
-
-          {/* Selected Category Badge */}
-          {selectedCategory && (
-            <div style={{ padding: '0 16px 12px' }}>
-              <div
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 10,
-                  background: 'rgba(59, 130, 246, 0.15)',
-                  border: '1px solid rgba(59, 130, 246, 0.3)',
-                  padding: '10px 14px',
-                  borderRadius: 12,
-                  backdropFilter: 'blur(10px)',
-                }}
-              >
-                {selectedCategory.icon3d && (
-                  <img
-                    src={selectedCategory.icon3d}
-                    alt=""
-                    style={{ 
-                      width: 24, 
-                      height: 24, 
-                      objectFit: 'contain',
-                      filter: 'drop-shadow(0 0 5px rgba(59, 130, 246, 0.3))',
-                    }}
-                  />
-                )}
-                <span style={{ 
-                  fontSize: 14, 
-                  fontWeight: 600, 
-                  color: '#3B82F6',
-                  textShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
-                }}>
-                  {selectedCategory.name}
-                </span>
-                <button
-                  onClick={handleClearCategory}
-                  style={{
-                    width: 22,
-                    height: 22,
-                    borderRadius: '50%',
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
-                    color: '#fff',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    marginLeft: 4,
-                  }}
-                  data-testid="button-clear-category"
-                >
-                  <X size={12} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Brand Filter - показываем если выбрана категория */}
-          {selectedCategoryId && (
-            <div style={{ padding: '0 16px 16px' }}>
-              <BrandFilter
-                categorySlug={selectedCategoryId}
-                selectedBrands={selectedBrands}
-                onBrandsChange={setSelectedBrands}
-                scope={scope}
-              />
-            </div>
-          )}
-
-          {/* Ads Grid or Empty Search Result */}
-          {isEmptySearch ? (
-            <EmptySearchResult
-              query={searchQuery}
-              lat={coords?.lat}
-              lng={coords?.lng}
-              radiusKm={radiusKm}
-              nearbyAds={fallbackNearbyAds}
-            />
-          ) : (
-            <NearbyAdsGrid
-              ads={ads}
-              loading={adsLoading}
-              isEmpty={isEmpty}
-              hasVeryFew={hasVeryFew}
-              radiusKm={radiusKm}
-              onIncreaseRadius={handleIncreaseRadius}
-            />
-          )}
-
-          {/* Categories Sheet */}
-          <CategoriesSheet
-            isOpen={showCategoriesSheet}
-            onClose={() => setShowCategoriesSheet(false)}
-            categories={categories}
-            categoryStats={categoryStats}
-            selectedCategoryId={selectedCategoryId}
-            onSelectCategory={handleSelectCategory}
-            radiusKm={radiusKm}
-            totalAds={totalAds}
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Loader2
+            size={48}
+            color="#3A7BFF"
+            style={{ animation: 'spin 1s linear infinite' }}
           />
+          <p
+            style={{
+              marginTop: 16,
+              fontSize: 16,
+              color: '#FFFFFF',
+              opacity: 0.7,
+            }}
+          >
+            Загружаем ленту...
+          </p>
         </div>
-      )}
+
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          background: '#FFFFFF',
+        }}
+      >
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderBottom: '1px solid #E5E7EB',
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#1F2937',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            KETMAR
+          </h1>
+          <button
+            onClick={() => navigate('/notifications')}
+            data-testid="button-notifications"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: 'none',
+              background: '#F5F6F8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <Bell size={20} color="#6B7280" />
+          </button>
+        </header>
+
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: '#F5F6F8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
+            }}
+          >
+            <MapPin size={36} color="#9CA3AF" />
+          </div>
+          
+          <h2
+            style={{
+              margin: '0 0 12px',
+              fontSize: 20,
+              fontWeight: 600,
+              color: '#1F2937',
+              textAlign: 'center',
+            }}
+          >
+            Нет товаров поблизости
+          </h2>
+          
+          <p
+            style={{
+              margin: 0,
+              fontSize: 15,
+              color: '#6B7280',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}
+          >
+            В радиусе {FEED_RADIUS_KM} км пока нет объявлений
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      data-testid="feed-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: '#000',
+        overflow: 'hidden',
+        touchAction: 'pan-y',
+      }}
+    >
+      <header
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)',
+          zIndex: 20,
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+            color: '#FFFFFF',
+            letterSpacing: '-0.5px',
+            textShadow: '0 2px 4px rgba(0,0,0,0.3)',
+          }}
+        >
+          KETMAR
+        </h1>
+        <button
+          onClick={() => navigate('/notifications')}
+          data-testid="button-notifications"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            border: 'none',
+            background: 'rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(10px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <Bell size={20} color="#FFFFFF" />
+        </button>
+      </header>
+
+      <main
+        style={{
+          flex: 1,
+          position: 'relative',
+          overflow: 'hidden',
+        }}
+      >
+        {currentItem && (
+          <FeedCard
+            key={currentItem._id}
+            item={currentItem}
+            onLike={handleLike}
+            onDislike={handleDislike}
+            onViewOpen={handleViewOpen}
+            showSwipeHints={showSwipeHints}
+            isFirst={currentIndex === 0}
+            isLast={currentIndex === items.length - 1 && !hasMore}
+          />
+        )}
+
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 'calc(env(safe-area-inset-bottom) + 90px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            display: 'flex',
+            gap: 6,
+            padding: '8px 12px',
+            background: 'rgba(0,0,0,0.4)',
+            backdropFilter: 'blur(10px)',
+            borderRadius: 16,
+          }}
+        >
+          {items.slice(Math.max(0, currentIndex - 2), currentIndex + 3).map((item, idx) => {
+            const actualIndex = Math.max(0, currentIndex - 2) + idx;
+            const isActive = actualIndex === currentIndex;
+            
+            return (
+              <div
+                key={item._id}
+                style={{
+                  width: isActive ? 24 : 8,
+                  height: 8,
+                  borderRadius: 4,
+                  background: isActive ? '#3A7BFF' : 'rgba(255,255,255,0.4)',
+                  transition: 'all 0.3s ease',
+                }}
+              />
+            );
+          })}
+        </div>
+      </main>
     </div>
   );
 }

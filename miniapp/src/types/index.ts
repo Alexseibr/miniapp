@@ -116,6 +116,45 @@ export interface AdsResponse {
   items: AdPreview[];
 }
 
+export interface FeedItem {
+  _id: string;
+  title: string;
+  images: string[];
+  city: string;
+  district: string;
+  geo: {
+    type: string;
+    coordinates: [number, number];
+  } | null;
+  categoryId: string;
+  subcategoryId?: string;
+  createdAt: string;
+  price: number;
+  currency: string;
+  distanceMeters: number;
+  sellerName?: string;
+  sellerUsername?: string;
+}
+
+export interface FeedResponse {
+  items: FeedItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  radiusKm: number;
+  total: number;
+}
+
+export type FeedEventType = 'impression' | 'view_open' | 'like' | 'dislike' | 'scroll_next' | 'scroll_prev';
+
+export interface FeedEvent {
+  adId: string;
+  eventType: FeedEventType;
+  dwellTimeMs?: number;
+  positionIndex?: number;
+  radiusKm?: number;
+  meta?: Record<string, unknown>;
+}
+
 export interface SeasonInfo {
   _id: string;
   code: string;
