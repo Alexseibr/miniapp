@@ -23,7 +23,7 @@ interface UseNearbyAdsResult {
   increaseRadius: () => void;
 }
 
-const DEBOUNCE_MS = 400;
+const DEBOUNCE_MS = 200;
 
 export function useNearbyAds({
   coords,
