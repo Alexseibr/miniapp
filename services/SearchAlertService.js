@@ -112,17 +112,16 @@ class SearchAlertService {
     const descWords = this.normalizeQuery(ad.description || '').split(' ').filter(w => w.length > 2);
     const allWords = [...new Set([...titleWords, ...descWords])];
     
+    console.log('[SearchAlert] Looking for matches:', { 
+      adTitle: ad.title, 
+      titleWords,
+      adLocation: ad.location?.geo?.coordinates 
+    });
+    
     if (allWords.length === 0 && !ad.categoryId) {
+      console.log('[SearchAlert] No words or category to match');
       return [];
     }
-    
-    const baseFilter = {
-      isActive: true,
-      $or: [
-        { notifiedAt: null },
-        { notifiedAt: { $lt: oneDayAgo } },
-      ],
-    };
     
     const matchConditions = [];
     
@@ -141,12 +140,28 @@ class SearchAlertService {
     }
     
     if (matchConditions.length === 0) {
+      console.log('[SearchAlert] No match conditions generated');
       return [];
     }
     
-    baseFilter.$or = [...baseFilter.$or, ...matchConditions];
+    const filter = {
+      isActive: true,
+      $and: [
+        {
+          $or: [
+            { notifiedAt: null },
+            { notifiedAt: { $exists: false } },
+            { notifiedAt: { $lt: oneDayAgo } },
+          ],
+        },
+        {
+          $or: matchConditions,
+        },
+      ],
+    };
     
-    let alerts = await SearchAlert.find(baseFilter).limit(100).lean();
+    let alerts = await SearchAlert.find(filter).limit(100).lean();
+    console.log('[SearchAlert] Found alerts before geo filter:', alerts.length);
     
     if (ad.location?.geo?.coordinates || ad.geo?.coordinates) {
       const adCoords = ad.location?.geo?.coordinates || ad.geo?.coordinates;
@@ -161,10 +176,21 @@ class SearchAlertService {
           alert.location.coordinates[1], alert.location.coordinates[0]
         );
         
-        return distance <= (alert.radiusKm || 10);
+        const maxRadius = alert.radiusKm || 50;
+        const inRange = distance <= maxRadius;
+        
+        console.log('[SearchAlert] Distance check:', {
+          alertQuery: alert.query,
+          distance: distance.toFixed(1) + 'km',
+          maxRadius,
+          inRange
+        });
+        
+        return inRange;
       });
     }
     
+    console.log('[SearchAlert] Matched alerts after geo filter:', alerts.length);
     return alerts;
   }
 
