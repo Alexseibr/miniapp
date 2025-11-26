@@ -5,33 +5,28 @@ export async function fetchFavorites(telegramId: number) {
   if (!telegramId) {
     return { items: [], count: 0 };
   }
-  const response = await http.get('/api/favorites/my', {
-    params: { telegramId },
-  });
+  // Сервер получает telegramId из headers (X-Telegram-Init-Data)
+  const response = await http.get('/api/favorites/my');
   return response.data as { items: FavoriteItem[]; count?: number };
 }
 
 export async function addFavorite(telegramId: number, adId: string) {
-  const response = await http.post('/api/favorites/add', { telegramId, adId });
-  return response.data as { ok: boolean; items: FavoriteItem[] };
+  // POST /api/favorites - добавить в избранное
+  const response = await http.post('/api/favorites', { adId });
+  return response.data;
 }
 
 export async function removeFavorite(telegramId: number, adId: string) {
-  const response = await http.delete(`/api/favorites/${adId}`, {
-    data: { telegramId },
-  });
-  return response.data as { ok: boolean; items: FavoriteItem[] };
+  // DELETE /api/favorites/:adId - удалить из избранного
+  const response = await http.delete(`/api/favorites/${adId}`);
+  return response.data as { ok: boolean };
 }
 
 export async function toggleFavorite(telegramId: number, adId: string, isFavorite: boolean) {
-  const response = await http.post('/api/favorites/toggle', { 
-    telegramId, 
-    adId, 
-    isFavorite,
-  });
-  return response.data as { 
-    isFavorite: boolean; 
-    notifyOnPriceChange: boolean; 
-    notifyOnStatusChange: boolean;
-  };
+  // isFavorite = true значит нужно удалить, false - добавить
+  if (isFavorite) {
+    return removeFavorite(telegramId, adId);
+  } else {
+    return addFavorite(telegramId, adId);
+  }
 }

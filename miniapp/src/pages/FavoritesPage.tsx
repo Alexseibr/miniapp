@@ -110,18 +110,24 @@ export default function FavoritesPage() {
   const user = useUserStore((state) => state.user);
   const [removing, setRemoving] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [hasFetched, setHasFetched] = useState(false);
 
   useEffect(() => {
+    if (!user?.telegramId || hasFetched) return;
+    
     const loadFavorites = async () => {
       setIsLoading(true);
       try {
         await refreshFavorites();
+        setHasFetched(true);
+      } catch (error) {
+        console.error('favorites load error:', error);
       } finally {
         setIsLoading(false);
       }
     };
     loadFavorites();
-  }, [refreshFavorites]);
+  }, [user?.telegramId, refreshFavorites, hasFetched]);
 
   const handleRemove = async (adId: string) => {
     setRemoving(adId);

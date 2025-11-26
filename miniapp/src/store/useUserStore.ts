@@ -141,19 +141,24 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
   async refreshFavorites() {
     const telegramId = get().user?.telegramId;
-    console.log('[Store] refreshFavorites called, telegramId:', telegramId);
+    console.log('[refreshFavorites] called, telegramId:', telegramId);
     if (!telegramId) {
-      console.log('[Store] No telegramId, setting empty favorites');
+      console.log('[refreshFavorites] no telegramId, setting empty');
       set({ favorites: [] });
       return;
     }
     try {
+      console.log('[refreshFavorites] calling fetchFavorites API...');
       const response = await fetchFavorites(telegramId);
-      console.log('[Store] fetchFavorites response:', JSON.stringify(response, null, 2));
-      set({ favorites: response.items || [] });
-      console.log('[Store] favorites set, count:', (response.items || []).length);
+      console.log('[refreshFavorites] API response:', JSON.stringify(response).slice(0, 500));
+      // Фильтруем записи без данных объявления
+      const validItems = (response.items || []).filter(item => item.ad);
+      console.log('[refreshFavorites] valid items count:', validItems.length);
+      set({ favorites: validItems });
     } catch (error) {
-      console.error('[Store] favorites fetch error', error);
+      console.error('[refreshFavorites] error:', error);
+      // При ошибке очищаем favorites чтобы не было stale данных
+      set({ favorites: [] });
     }
   },
   async toggleFavorite(adId, isFavorite) {

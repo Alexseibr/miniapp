@@ -10,9 +10,13 @@ router.use(telegramInitDataMiddleware, requireAuth);
 
 router.get('/my', async (req, res) => {
   try {
+    console.log('[FavoriteRoutes] GET /my called');
+    console.log('[FavoriteRoutes] currentUser:', req.currentUser?.telegramId);
     const telegramId = req.query.telegramId || req.currentUser?.telegramId;
+    console.log('[FavoriteRoutes] telegramId resolved:', telegramId);
     
     if (!telegramId) {
+      console.log('[FavoriteRoutes] No telegramId, returning empty');
       return res.json({ items: [], count: 0 });
     }
 
@@ -34,6 +38,7 @@ router.get('/my', async (req, res) => {
       ad: adsMap.get(fav.adId.toString()) || null,
     })).filter(item => item.ad !== null);
 
+    console.log('[FavoriteRoutes] Returning', items.length, 'items');
     return res.json({ items, count: items.length });
   } catch (error) {
     console.error('Failed to load favorites', error);
