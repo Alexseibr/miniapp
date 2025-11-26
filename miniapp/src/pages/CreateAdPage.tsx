@@ -1401,6 +1401,10 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
   const [generatingDescription, setGeneratingDescription] = useState(false);
+  
+  const [descriptionSuggestion, setDescriptionSuggestion] = useState<string | null>(null);
+  const [descriptionSuggestionDismissed, setDescriptionSuggestionDismissed] = useState(false);
+  const [descriptionSuggestionLoading, setDescriptionSuggestionLoading] = useState(false);
 
   useEffect(() => {
     if (suggestionDismissed || info.categoryId) {
@@ -1438,6 +1442,64 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
 
     return () => clearTimeout(timer);
   }, [info.title, info.description, info.categoryId, suggestionDismissed]);
+
+  useEffect(() => {
+    if (descriptionSuggestionDismissed || info.description) {
+      setDescriptionSuggestion(null);
+      return;
+    }
+
+    if (!info.title || info.title.length < 3 || !info.categoryId) {
+      setDescriptionSuggestion(null);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setDescriptionSuggestionLoading(true);
+      try {
+        const response = await fetch('/api/ai/suggest-description', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: info.title,
+            categoryId: info.categoryId,
+            subcategoryId: info.subcategoryId || undefined,
+          }),
+        });
+        const data = await response.json();
+        
+        if (data.success && data.data?.description) {
+          setDescriptionSuggestion(data.data.description);
+        } else {
+          const isFarmer = info.categoryId === 'farmer-market' || info.categoryId?.startsWith('farmer');
+          const fallback = isFarmer
+            ? `${info.title}\n\nСвежий продукт отличного качества. Выращено с заботой, натуральный вкус!\n\nВозможна доставка или самовывоз.`
+            : `${info.title}\n\nОтличное состояние, готов к использованию.\n\nВсе вопросы по телефону.`;
+          setDescriptionSuggestion(fallback);
+        }
+      } catch (err) {
+        console.error('Description suggest error:', err);
+        const fallback = `${info.title}\n\nОтличное состояние. Продаю по выгодной цене!`;
+        setDescriptionSuggestion(fallback);
+      } finally {
+        setDescriptionSuggestionLoading(false);
+      }
+    }, 800);
+
+    return () => clearTimeout(timer);
+  }, [info.title, info.categoryId, info.subcategoryId, info.description, descriptionSuggestionDismissed]);
+
+  const applyDescriptionSuggestion = () => {
+    if (!descriptionSuggestion) return;
+    onSetInfo({ description: descriptionSuggestion });
+    setDescriptionSuggestion(null);
+    setDescriptionSuggestionDismissed(true);
+  };
+
+  const dismissDescriptionSuggestion = () => {
+    setDescriptionSuggestion(null);
+    setDescriptionSuggestionDismissed(true);
+  };
 
   const applySuggestion = () => {
     if (!suggestion) return;
@@ -1704,38 +1766,122 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
       <div style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
           <label style={{ fontSize: 15, fontWeight: 500, color: '#111827' }}>Описание (по желанию)</label>
-          <button
-            type="button"
-            onClick={handleGenerateDescription}
-            disabled={generatingDescription || !info.title || info.title.length < 3}
-            style={{
-              padding: '6px 12px',
-              background: generatingDescription ? '#E5E7EB' : '#EBF3FF',
-              border: `1px solid ${generatingDescription ? '#D1D5DB' : '#3B73FC'}`,
-              borderRadius: 8,
-              fontSize: 13,
-              fontWeight: 500,
-              color: generatingDescription ? '#6B7280' : '#3B73FC',
-              cursor: (generatingDescription || !info.title || info.title.length < 3) ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 6,
-            }}
-            data-testid="button-generate-description"
-          >
-            {generatingDescription ? (
-              <>
-                <Loader2 size={14} className="animate-spin" />
-                Генерирую...
-              </>
-            ) : (
-              <>
-                <Edit3 size={14} />
-                Помочь с описанием
-              </>
-            )}
-          </button>
+          {!descriptionSuggestion && !info.description && (
+            <button
+              type="button"
+              onClick={handleGenerateDescription}
+              disabled={generatingDescription || !info.title || info.title.length < 3}
+              style={{
+                padding: '6px 12px',
+                background: generatingDescription ? '#E5E7EB' : '#EBF3FF',
+                border: `1px solid ${generatingDescription ? '#D1D5DB' : '#3B73FC'}`,
+                borderRadius: 8,
+                fontSize: 13,
+                fontWeight: 500,
+                color: generatingDescription ? '#6B7280' : '#3B73FC',
+                cursor: (generatingDescription || !info.title || info.title.length < 3) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+              data-testid="button-generate-description"
+            >
+              {generatingDescription ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" />
+                  Генерирую...
+                </>
+              ) : (
+                <>
+                  <Edit3 size={14} />
+                  Помочь с описанием
+                </>
+              )}
+            </button>
+          )}
         </div>
+        
+        {descriptionSuggestionLoading && !info.description && (
+          <div style={{ marginBottom: 12, fontSize: 14, color: '#6B7280', display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Loader2 size={16} className="animate-spin" style={{ color: '#3B73FC' }} />
+            Подбираем описание...
+          </div>
+        )}
+        
+        {descriptionSuggestion && !info.description && (
+          <div 
+            style={{
+              marginBottom: 12,
+              padding: 14,
+              background: '#F0FDF4',
+              border: '1px solid #10B981',
+              borderRadius: 12,
+            }}
+            data-testid="description-suggestion-card"
+          >
+            <div style={{ fontSize: 14, color: '#059669', fontWeight: 500, marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Edit3 size={16} />
+              Мы подготовили описание:
+            </div>
+            <div style={{ 
+              fontSize: 14, 
+              color: '#065F46', 
+              marginBottom: 12,
+              whiteSpace: 'pre-wrap',
+              lineHeight: 1.5,
+              background: '#fff',
+              padding: 12,
+              borderRadius: 8,
+              maxHeight: 120,
+              overflow: 'auto',
+            }}>
+              {descriptionSuggestion}
+            </div>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="button"
+                onClick={applyDescriptionSuggestion}
+                style={{
+                  flex: 1,
+                  padding: '10px 16px',
+                  background: '#10B981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                }}
+                data-testid="button-apply-description"
+              >
+                <Check size={16} />
+                Использовать
+              </button>
+              <button
+                type="button"
+                onClick={dismissDescriptionSuggestion}
+                style={{
+                  padding: '10px 16px',
+                  background: 'transparent',
+                  color: '#059669',
+                  border: '1px solid #10B981',
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                }}
+                data-testid="button-dismiss-description"
+              >
+                Напишу сам
+              </button>
+            </div>
+          </div>
+        )}
+        
         <textarea
           value={info.description}
           onChange={(e) => onSetInfo({ description: e.target.value })}

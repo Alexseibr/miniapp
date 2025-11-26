@@ -1,3 +1,46 @@
+const FARMER_DESCRIPTIONS = {
+  berries: [
+    'Свежая ягода с собственного участка! Выращена без химии, натуральный вкус.',
+    'Собрано утром — максимум свежести и витаминов. Идеально для варенья или заморозки.',
+    'Домашняя ягода отличного качества. Сладкая, ароматная, с грядки!',
+  ],
+  vegetables: [
+    'Свежие овощи со своего огорода. Выращены без пестицидов, экологически чистые.',
+    'Домашние овощи отменного качества. Натуральный вкус, как в деревне!',
+    'Урожай этого сезона. Свежие, хрустящие, полезные!',
+  ],
+  fruits: [
+    'Спелые фрукты из собственного сада. Сочные, ароматные, без химии.',
+    'Свежий урожай! Фрукты выращены с заботой, отборное качество.',
+    'Домашние фрукты — настоящий вкус, как у бабушки в деревне!',
+  ],
+  dairy: [
+    'Натуральная молочная продукция от домашних коров/коз. Свежее, без добавок.',
+    'Фермерская молочка высшего качества. Проверенный продукт!',
+    'Домашнее производство — натуральный вкус и польза.',
+  ],
+  honey: [
+    'Натуральный мёд с собственной пасеки. Качество гарантировано!',
+    'Пчелиный мёд — чистый, ароматный, без примесей. Проверенное качество.',
+    'Домашний мёд — кладезь витаминов. Собран в экологически чистом районе.',
+  ],
+  meat: [
+    'Домашнее мясо отличного качества. Свежее, без антибиотиков.',
+    'Фермерское мясо — натуральный откорм, проверенный продукт.',
+    'Свежее мясо от производителя. Качество и вкус гарантированы!',
+  ],
+  eggs: [
+    'Домашние яйца от деревенских кур. Крупные, свежие, желток яркий!',
+    'Фермерские яйца — натуральное питание, отличный вкус.',
+    'Свежие яйца каждый день! Куры на свободном выгуле.',
+  ],
+  default: [
+    'Натуральный фермерский продукт отличного качества!',
+    'Свежий урожай, выращен с заботой. Проверенное качество!',
+    'Домашний продукт — вкусно, полезно, натурально!',
+  ],
+};
+
 const CATEGORY_TEMPLATES = {
   electronics: {
     titleTemplates: [
@@ -22,11 +65,9 @@ const CATEGORY_TEMPLATES = {
     ],
     descriptionTemplate: `{title}
 
-Свежий урожай! {quality}
+{farmerDescription}
 
-{features}
-
-Возможна доставка. Оптом дешевле.`
+Возможна доставка или самовывоз. При покупке оптом — скидка!`
   },
   auto: {
     titleTemplates: [
@@ -217,15 +258,64 @@ class AiTextService {
     return variants.slice(0, 5);
   }
 
-  generateDescription(input) {
-    const { title = '', categoryId, bulletPoints = [], attributes = {} } = input;
+  getFarmerSubcategoryType(title, subcategoryId) {
+    const titleLower = (title || '').toLowerCase();
     
-    const detectedCategory = categoryId || this.detectCategoryFromText(title);
+    if (subcategoryId) {
+      if (subcategoryId.includes('berries') || subcategoryId.includes('ягод')) return 'berries';
+      if (subcategoryId.includes('vegetables') || subcategoryId.includes('овощ')) return 'vegetables';
+      if (subcategoryId.includes('fruits') || subcategoryId.includes('фрукт')) return 'fruits';
+      if (subcategoryId.includes('dairy') || subcategoryId.includes('молоч')) return 'dairy';
+      if (subcategoryId.includes('honey') || subcategoryId.includes('мёд')) return 'honey';
+      if (subcategoryId.includes('meat') || subcategoryId.includes('мяс')) return 'meat';
+      if (subcategoryId.includes('eggs') || subcategoryId.includes('яйц')) return 'eggs';
+    }
+    
+    const keywords = {
+      berries: ['малина', 'клубника', 'черника', 'ягода', 'смородина', 'крыжовник', 'ежевика', 'голубика', 'вишня', 'черешня'],
+      vegetables: ['картофель', 'картошка', 'морковь', 'свекла', 'капуста', 'огурец', 'помидор', 'томат', 'лук', 'чеснок', 'кабачок', 'тыква', 'перец', 'баклажан', 'редис'],
+      fruits: ['яблоко', 'яблок', 'груша', 'слива', 'абрикос', 'персик', 'виноград', 'арбуз', 'дыня'],
+      dairy: ['молоко', 'творог', 'сметана', 'сыр', 'кефир', 'масло сливочное', 'йогурт', 'ряженка'],
+      honey: ['мёд', 'мед', 'пасека', 'прополис', 'пчел'],
+      meat: ['мясо', 'свинина', 'говядина', 'курица', 'кролик', 'баранина', 'индейка', 'утка', 'гусь'],
+      eggs: ['яйц', 'яйца', 'яйцо'],
+    };
+    
+    for (const [type, words] of Object.entries(keywords)) {
+      for (const word of words) {
+        if (titleLower.includes(word)) {
+          return type;
+        }
+      }
+    }
+    
+    return 'default';
+  }
+
+  generateDescription(input) {
+    const { title = '', categoryId, subcategoryId, bulletPoints = [], attributes = {} } = input;
+    
+    const isFarmer = categoryId && (
+      categoryId === 'farmer' ||
+      categoryId === 'farmer-market' ||
+      categoryId.startsWith('farmer') ||
+      categoryId.includes('farmer') ||
+      categoryId.includes('фермер')
+    );
+    
+    const detectedCategory = isFarmer ? 'farmer' : (categoryId || this.detectCategoryFromText(title));
     const templates = CATEGORY_TEMPLATES[detectedCategory] || CATEGORY_TEMPLATES.default;
     
     let description = templates.descriptionTemplate;
     
     description = description.replace('{title}', title);
+    
+    if (isFarmer) {
+      const farmerType = this.getFarmerSubcategoryType(title, subcategoryId);
+      const descOptions = FARMER_DESCRIPTIONS[farmerType] || FARMER_DESCRIPTIONS.default;
+      const randomDesc = descOptions[Math.floor(Math.random() * descOptions.length)];
+      description = description.replace('{farmerDescription}', randomDesc);
+    }
     
     for (const [key, value] of Object.entries(attributes)) {
       description = description.replace(`{${key}}`, value || '');
