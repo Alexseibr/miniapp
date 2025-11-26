@@ -195,19 +195,49 @@ export default function FeedPage() {
     };
   }, [flushPendingEvents]);
 
-  // Handle scroll to detect current card and track events
+  // Create infinite scroll list (3x items for seamless looping)
+  const infiniteItems = items.length > 0 ? [...items, ...items, ...items] : [];
+  const itemsPerSet = items.length;
+  
+  // Initialize scroll position to middle set
+  useEffect(() => {
+    if (scrollContainerRef.current && items.length > 0) {
+      const container = scrollContainerRef.current;
+      const cardHeight = container.clientHeight;
+      // Start at middle set (index = itemsPerSet)
+      container.scrollTop = cardHeight * itemsPerSet;
+      lastScrollIndex.current = itemsPerSet;
+    }
+  }, [items.length > 0]);
+
+  // Handle scroll with infinite loop logic
   const handleScroll = useCallback(() => {
-    if (!scrollContainerRef.current) return;
+    if (!scrollContainerRef.current || items.length === 0) return;
     
     const container = scrollContainerRef.current;
-    const cardHeight = container.scrollHeight / items.length;
+    const cardHeight = container.clientHeight;
     const scrollTop = container.scrollTop;
-    const newIndex = Math.round(scrollTop / cardHeight);
+    const virtualIndex = Math.round(scrollTop / cardHeight);
     
-    if (newIndex !== lastScrollIndex.current && newIndex >= 0 && newIndex < items.length) {
-      const prevIndex = lastScrollIndex.current;
-      const prevItem = items[prevIndex];
-      const newItem = items[newIndex];
+    // Calculate real index (0 to items.length-1)
+    const realIndex = ((virtualIndex % itemsPerSet) + itemsPerSet) % itemsPerSet;
+    
+    // Jump to middle set if at edges (for seamless infinite scroll)
+    if (virtualIndex < itemsPerSet * 0.5) {
+      // Near start - jump forward to middle set
+      container.scrollTop = cardHeight * (itemsPerSet + realIndex);
+      lastScrollIndex.current = itemsPerSet + realIndex;
+    } else if (virtualIndex > itemsPerSet * 2.5) {
+      // Near end - jump back to middle set
+      container.scrollTop = cardHeight * (itemsPerSet + realIndex);
+      lastScrollIndex.current = itemsPerSet + realIndex;
+    }
+    
+    if (virtualIndex !== lastScrollIndex.current) {
+      const prevVirtualIndex = lastScrollIndex.current;
+      const prevRealIndex = ((prevVirtualIndex % itemsPerSet) + itemsPerSet) % itemsPerSet;
+      const prevItem = items[prevRealIndex];
+      const newItem = items[realIndex];
       
       // Track dwell time for previous item
       if (currentStartTime.current && prevItem) {
@@ -216,7 +246,7 @@ export default function FeedPage() {
           adId: prevItem._id,
           eventType: 'impression',
           dwellTimeMs,
-          positionIndex: prevIndex,
+          positionIndex: prevRealIndex,
           radiusKm: FEED_RADIUS_KM,
         });
       }
@@ -225,8 +255,8 @@ export default function FeedPage() {
       if (prevItem) {
         trackEvent({
           adId: prevItem._id,
-          eventType: newIndex > prevIndex ? 'scroll_next' : 'scroll_prev',
-          positionIndex: prevIndex,
+          eventType: virtualIndex > prevVirtualIndex ? 'scroll_next' : 'scroll_prev',
+          positionIndex: prevRealIndex,
           radiusKm: FEED_RADIUS_KM,
         });
       }
@@ -236,18 +266,18 @@ export default function FeedPage() {
         trackEvent({
           adId: newItem._id,
           eventType: 'impression',
-          positionIndex: newIndex,
+          positionIndex: realIndex,
           radiusKm: FEED_RADIUS_KM,
           meta: { categoryId: newItem.categoryId },
         });
       }
       
-      lastScrollIndex.current = newIndex;
+      lastScrollIndex.current = virtualIndex;
       currentStartTime.current = Date.now();
-      setCurrentIndex(newIndex);
+      setCurrentIndex(realIndex);
       dismissHint();
     }
-  }, [items, trackEvent, dismissHint]);
+  }, [items, itemsPerSet, trackEvent, dismissHint]);
 
   const handleLike = useCallback(async (adId: string) => {
     if (!user?.telegramId) return;
@@ -681,7 +711,7 @@ export default function FeedPage() {
         </button>
       </header>
 
-      {/* Main content - Instagram-style scroll */}
+      {/* Main content - Instagram-style infinite scroll */}
       <main
         ref={scrollContainerRef}
         onScroll={handleScroll}
@@ -691,31 +721,36 @@ export default function FeedPage() {
           overflowX: 'hidden',
           scrollSnapType: 'y mandatory',
           WebkitOverflowScrolling: 'touch',
-          scrollBehavior: 'smooth',
         }}
       >
-        {items.map((item, index) => (
-          <div
-            key={item._id}
-            data-index={index}
-            style={{
-              height: 'calc(100vh - 65px - env(safe-area-inset-bottom) - 60px)',
-              scrollSnapAlign: 'start',
-              scrollSnapStop: 'always',
-              padding: '8px 16px 16px',
-              boxSizing: 'border-box',
-            }}
-          >
-            <FeedCard
-              item={item}
-              onLike={handleLike}
-              onViewOpen={handleViewOpen}
-              isActive={index === currentIndex}
-              nextImageUrl={items[index + 1]?.previewUrl || items[index + 1]?.images?.[0] || items[index + 1]?.photos?.[0]}
-              isLiked={favoriteIds.has(item._id)}
-            />
-          </div>
-        ))}
+        {infiniteItems.map((item, index) => {
+          const realIndex = index % itemsPerSet;
+          const nextRealIndex = (realIndex + 1) % itemsPerSet;
+          const nextItem = items[nextRealIndex];
+          
+          return (
+            <div
+              key={`${item._id}-${index}`}
+              data-index={index}
+              style={{
+                height: 'calc(100vh - 65px - env(safe-area-inset-bottom) - 60px)',
+                scrollSnapAlign: 'start',
+                scrollSnapStop: 'always',
+                padding: '8px 16px 16px',
+                boxSizing: 'border-box',
+              }}
+            >
+              <FeedCard
+                item={item}
+                onLike={handleLike}
+                onViewOpen={handleViewOpen}
+                isActive={realIndex === currentIndex}
+                nextImageUrl={nextItem?.previewUrl || nextItem?.images?.[0] || nextItem?.photos?.[0]}
+                isLiked={favoriteIds.has(item._id)}
+              />
+            </div>
+          );
+        })}
       </main>
 
       {/* Swipe hint overlay */}
