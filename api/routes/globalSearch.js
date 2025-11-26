@@ -9,6 +9,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const { query, lat, lng, radiusKm = '10', limit = '50', sort = 'distance' } = req.query;
 
+    console.log('🔍 [GlobalSearch] Запрос:', {
+      query,
+      lat: lat || 'НЕТ',
+      lng: lng || 'НЕТ',
+      radiusKm,
+      sort
+    });
+
     if (!query || query.trim().length < 2) {
       return res.status(400).json({
         ok: false,
