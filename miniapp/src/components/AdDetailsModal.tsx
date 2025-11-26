@@ -3,6 +3,7 @@ import { getAd } from '@/api/ads';
 import { Ad } from '@/types';
 import { useCartStore } from '@/store/cart';
 import FavoriteButton from './FavoriteButton';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface Props {
   adId: string | null;
@@ -45,8 +46,9 @@ export default function AdDetailsModal({ adId, onClose }: Props) {
                 {ad.photos.map((photo) => (
                   <img
                     key={photo}
-                    src={photo}
+                    src={getThumbnailUrl(photo)}
                     alt={ad.title}
+                    loading="lazy"
                     style={{ width: 160, height: 120, objectFit: 'cover', borderRadius: 12 }}
                   />
                 ))}

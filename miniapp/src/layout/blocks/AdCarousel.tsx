@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { useState, useRef} from 'react';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface AdCarouselProps {
   title?: string;
@@ -169,7 +170,7 @@ export default function AdCarousel(props: AdCarouselProps) {
           >
             {ad.photos?.[0] && (
               <img
-                src={ad.photos[0]}
+                src={getThumbnailUrl(ad.photos[0])}
                 alt={ad.title}
                 loading="lazy"
                 decoding="async"

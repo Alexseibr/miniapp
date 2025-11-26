@@ -16,6 +16,7 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 import 'swiper/css/navigation';
 import 'swiper/css/zoom';
+import { getFullImageUrl, getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 export default function AdPage() {
   const { id } = useParams();
@@ -238,8 +239,9 @@ export default function AdPage() {
                 <SwiperSlide key={index}>
                   <div className="swiper-zoom-container">
                     <img
-                      src={photo}
+                      src={getFullImageUrl(photo)}
                       alt={`${ad.title} - фото ${index + 1}`}
+                      loading={index === 0 ? 'eager' : 'lazy'}
                       style={{ 
                         width: '100%', 
                         height: '100%', 
@@ -578,8 +580,9 @@ export default function AdPage() {
                       }}>
                         {similarAd.photos && similarAd.photos.length > 0 ? (
                           <img
-                            src={similarAd.photos[0]}
+                            src={getThumbnailUrl(similarAd.photos[0])}
                             alt={similarAd.title}
+                            loading="lazy"
                             style={{
                               width: '100%',
                               height: '100%',
@@ -751,8 +754,9 @@ export default function AdPage() {
                 <SwiperSlide key={index}>
                   <div className="swiper-zoom-container">
                     <img
-                      src={photo}
+                      src={getFullImageUrl(photo)}
                       alt={`${ad.title} - фото ${index + 1}`}
+                      loading={index === 0 ? 'eager' : 'lazy'}
                       style={{ 
                         width: '100%', 
                         height: '100%', 

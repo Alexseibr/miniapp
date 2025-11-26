@@ -8,6 +8,7 @@ import { useGeo } from '@/utils/geo';
 import { AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
 import { useUserStore } from '@/store/useUserStore';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 import farmerMarketIcon from '@assets/generated_images/farmer_market_vegetables_icon.png';
 import vegetablesIcon from '@assets/generated_images/fruits_vegetables_apple_icon.png';
@@ -498,7 +499,7 @@ function NearbyAdCard({
     return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
-  const photoUrl = ad.photos?.[0] || '/placeholder-ad.jpg';
+  const photoUrl = ad.photos?.[0] ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER;
   const photoCount = ad.photos?.length || 0;
 
   return (

@@ -6,6 +6,7 @@ import {
   ChevronUp, ChevronDown, Sparkles, X, AlertCircle, RefreshCw,
   Leaf, Store, User, Loader2
 } from 'lucide-react';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 const RADIUS_OPTIONS = [
   { value: 0.3, label: '300м' },
@@ -463,7 +464,7 @@ export default function GeoFeedScreen() {
                       <div className="flex-shrink-0 relative">
                         {ad.photos?.[0] ? (
                           <img 
-                            src={ad.photos[0]} 
+                            src={getThumbnailUrl(ad.photos[0])} 
                             alt={ad.title}
                             className="w-20 h-20 rounded-xl object-cover bg-gray-200"
                             loading="lazy"

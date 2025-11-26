@@ -5,6 +5,7 @@ import { useGeo } from '@/utils/geo';
 import { useNearbyAds } from '@/hooks/useNearbyAds';
 import { fetchCategories } from '@/api/categories';
 import { CategoryNode } from '@/types';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 const RADIUS_OPTIONS = [
   { value: 0.3, label: '300м' },
@@ -386,7 +387,7 @@ export default function CategoryResultsPage() {
                 }}>
                   {ad.photos && ad.photos.length > 0 ? (
                     <img
-                      src={`/api/media/photo/${ad.photos[0]}`}
+                      src={getThumbnailUrl(ad.photos[0])}
                       alt={ad.title}
                       loading="lazy"
                       style={{

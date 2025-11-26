@@ -1,4 +1,5 @@
 import { Star, Zap, Crown, Eye, MessageCircle, Heart } from 'lucide-react';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface Ad {
   _id: string;
@@ -98,7 +99,7 @@ export default function FarmerPremiumCard({ ad, onClick }: FarmerPremiumCardProp
   const hasGradientBorder = boostLevel >= 2;
 
   const photoUrl = ad.photos?.[0] 
-    ? `/api/media/photo/${ad.photos[0]}`
+    ? getThumbnailUrl(ad.photos[0])
     : '/placeholder-product.jpg';
 
   return (

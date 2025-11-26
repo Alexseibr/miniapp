@@ -7,6 +7,7 @@ import { useGeo } from '@/utils/geo';
 import { AdPreview, CategoryNode } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
 import { useUserStore } from '@/store/useUserStore';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 const RADIUS_PRESETS = [
   { value: 0.3, label: '300м' },
@@ -709,7 +710,7 @@ function CategoryAdCard({ ad }: { ad: AdPreview }) {
   };
 
   const photoUrl = ad.photos?.[0] 
-    ? `/api/media/proxy?url=${encodeURIComponent(ad.photos[0])}&w=600&h=400`
+    ? getThumbnailUrl(ad.photos[0])
     : null;
 
   const isFresh = ad.createdAt && 

@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/useUserStore';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 interface Ad {
   _id: string;
@@ -401,7 +402,7 @@ export default function SearchResultsPage() {
                 }}>
                   {ad.photos && ad.photos.length > 0 ? (
                     <img
-                      src={`/api/media/photo/${ad.photos[0]}`}
+                      src={getThumbnailUrl(ad.photos[0])}
                       alt={ad.title}
                       loading="lazy"
                       style={{

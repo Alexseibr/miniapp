@@ -5,6 +5,7 @@ import { Ad } from '@/types';
 import { fetchMyAds } from '@/api/ads';
 import { Plus, Loader2, Clock, Package, Eye, ShoppingBag, Archive, MapPin } from 'lucide-react';
 import { ScheduledAdChip } from '@/components/schedule/ScheduledAdBadge';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 export default function MyAdsPage() {
   const navigate = useNavigate();
@@ -335,7 +336,7 @@ function MyAdListCard({ ad, onClick }: MyAdListCardProps) {
   };
 
   const photoUrl = ad.photos?.[0] 
-    ? `/api/media/proxy?url=${encodeURIComponent(ad.photos[0])}&w=200&h=200`
+    ? getThumbnailUrl(ad.photos[0])
     : null;
 
   const getStatusStyle = () => {

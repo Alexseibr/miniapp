@@ -12,6 +12,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useUserStore } from '@/store/useUserStore';
 import FavoriteButton from '@/components/FavoriteButton';
 import LazyImage from '@/components/LazyImage';
+import { getFeedImageUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 interface Ad {
   _id: string;
@@ -301,7 +302,7 @@ export default function ForYouFeedPage() {
             >
               {ad.photos?.[0] ? (
                 <LazyImage
-                  src={ad.photos[0]}
+                  src={getFeedImageUrl(ad.photos[0])}
                   alt={ad.title}
                   className="w-full h-full object-cover"
                 />

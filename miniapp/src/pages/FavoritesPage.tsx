@@ -5,6 +5,7 @@ import AuthScreen from '@/components/AuthScreen';
 import { FavoriteItem, BuyerProfile, SimilarAd } from '@/types';
 import { useNavigate } from 'react-router-dom';
 import http from '@/api/http';
+import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 type SortOption = 'distance' | 'newest' | 'price_asc' | 'price_desc';
 
@@ -76,9 +77,7 @@ function FavoriteCard({ favorite, index, onRemove, removing, onClick }: Favorite
     : null;
 
   const photoUrl = ad.photos?.[0] 
-    ? ad.photos[0].startsWith('http') 
-      ? ad.photos[0] 
-      : `/api/media/photo/${encodeURIComponent(ad.photos[0])}`
+    ? getThumbnailUrl(ad.photos[0])
     : null;
 
   const isToday = ad.updatedAt && new Date(ad.updatedAt).toDateString() === new Date().toDateString();
@@ -317,9 +316,7 @@ function RecommendationCard({ ad, onClick }: { ad: SimilarAd; onClick: () => voi
     : null;
 
   const photoUrl = ad.photos?.[0] 
-    ? ad.photos[0].startsWith('http') 
-      ? ad.photos[0] 
-      : `/api/media/photo/${encodeURIComponent(ad.photos[0])}`
+    ? getThumbnailUrl(ad.photos[0])
     : null;
 
   return (
