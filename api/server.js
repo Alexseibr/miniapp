@@ -6,7 +6,6 @@ import adsRoutes from './routes/ads.js';
 import categoriesRoutes from './routes/categories.js';
 import seasonsRoutes from './routes/seasons.js';
 import ordersRoutes from './routes/orders.js';
-import favoritesRoutes from './routes/favorites.js';
 import alertsRoutes from './routes/alerts.js';
 import notificationsRoutes from './routes/notifications.js';
 import moderationRoutes from './routes/moderation.js';
@@ -104,7 +103,6 @@ app.use('/api/categories', categoriesRoutes);
 app.use('/api/seasons', seasonsRoutes);
 app.use('/api/subscriptions', subscriptionsRoutes);
 app.use('/api/orders', telegramAuthMiddleware, ordersRoutes);
-app.use('/api/favorites', telegramAuthMiddleware, favoritesRoutes);
 app.use('/api/mod', telegramAuthMiddleware, moderationRoutes);
 // Public admin auth endpoints (NOT protected by adminAuth)
 app.use('/api/admin/auth', adminAuthRoutes);

@@ -20,6 +20,7 @@ import { startAdLifecycleWorker, setNotificationCallback } from './workers/adLif
 import { startDemandWorker, setDemandNotificationCallback } from './workers/demandWorker.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
 import PriceWatcher from './workers/PriceWatcher.js';
+import FavoriteNotificationWorker from './workers/FavoriteNotificationWorker.js';
 import farmerDemandWorker from './workers/FarmerDemandWorker.js';
 import farmerSuggestionWorker from './workers/FarmerSuggestionWorker.js';
 import { initializeQueues, shutdownQueues, isQueueEnabled } from './services/queue/index.js';
@@ -358,6 +359,7 @@ async function start() {
     startAdLifecycleWorker();
     startDemandWorker();
     PriceWatcher.start();
+    FavoriteNotificationWorker.start();
     farmerDemandWorker.start();
     farmerSuggestionWorker.start();
     

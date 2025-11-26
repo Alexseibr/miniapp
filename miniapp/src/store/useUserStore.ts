@@ -9,9 +9,12 @@ export interface UserState {
   status: 'idle' | 'loading' | 'ready' | 'error' | 'need_phone' | 'guest';
   error?: string;
   favorites: FavoriteItem[];
+  favoritesLoading: boolean;
+  favoriteIds: Set<string>;
   initialize: () => Promise<void>;
-  refreshFavorites: () => Promise<void>;
-  toggleFavorite: (adId: string, isFavorite: boolean) => Promise<void>;
+  refreshFavorites: (userLat?: number, userLng?: number) => Promise<void>;
+  toggleFavorite: (adId: string) => Promise<boolean>;
+  isFavorite: (adId: string) => boolean;
   setCityCode: (cityCode: string) => void;
   submitPhone: (phone: string) => Promise<void>;
   skipPhoneRequest: () => void;
@@ -23,45 +26,33 @@ export const useUserStore = create<UserState>((set, get) => ({
   status: 'idle',
   error: undefined,
   favorites: [],
+  favoritesLoading: false,
+  favoriteIds: new Set(),
+
   async initialize() {
-    console.log('🔄 UserStore.initialize() started');
     if (get().status === 'loading') {
-      console.log('⚠️ Already loading, skipping');
       return;
     }
     const initData = window.Telegram?.WebApp?.initData;
     if (!initData) {
-      console.log('⚠️ No Telegram initData, setting ready');
       set({ status: 'ready', cityCode: 'brest' });
       return;
     }
     
-    // Проверяем localStorage - отказался ли пользователь от номера
     const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
     const phoneSkipped = localStorage.getItem(`phone_skipped_${telegramId}`);
-    console.log('📱 Telegram ID:', telegramId);
-    console.log('🔍 Phone skipped:', phoneSkipped);
     
     try {
       set({ status: 'loading', error: undefined });
-      console.log('📡 Calling validateSession...');
       const response = await validateSession(initData);
-      console.log('✅ ValidateSession response:', response);
       
       if (response.user) {
-        console.log('👤 User data:', response.user);
-        console.log('📞 User phone:', response.user.phone);
-        
-        // Проверяем есть ли номер телефона
         if (!response.user.phone && !phoneSkipped) {
-          console.log('🚨 NO PHONE & NOT SKIPPED → setting need_phone');
           set({ status: 'need_phone', cityCode: 'brest' });
           return;
         }
         
-        // Если номер пропущен - режим гостя
         if (!response.user.phone && phoneSkipped) {
-          console.log('👁️ NO PHONE & SKIPPED → setting guest mode');
           set({ 
             user: response.user as UserProfile,
             status: 'guest',
@@ -70,7 +61,6 @@ export const useUserStore = create<UserState>((set, get) => ({
           return;
         }
         
-        console.log('✅ User has phone → setting ready');
         set({ 
           user: response.user as UserProfile,
           cityCode: (response as any).cityCode || 'brest'
@@ -78,14 +68,14 @@ export const useUserStore = create<UserState>((set, get) => ({
         await get().refreshFavorites();
         set({ status: 'ready' });
       } else {
-        console.log('⚠️ No user in response → setting ready');
         set({ status: 'ready' });
       }
     } catch (error) {
-      console.error('❌ MiniApp auth error', error);
+      console.error('MiniApp auth error', error);
       set({ status: 'error', error: 'Не удалось пройти авторизацию', cityCode: 'brest' });
     }
   },
+
   async submitPhone(phone: string) {
     const initData = window.Telegram?.WebApp?.initData;
     if (!initData) {
@@ -110,14 +100,14 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ status: 'error', error: 'Не удалось сохранить номер телефона' });
     }
   },
+
   skipPhoneRequest() {
     const telegramData = window.Telegram?.WebApp?.initDataUnsafe?.user;
     if (telegramData?.id) {
       localStorage.setItem(`phone_skipped_${telegramData.id}`, 'true');
       
-      // Создаем минимальный объект пользователя из Telegram данных
       const guestUser: UserProfile = {
-        id: '', // Будет установлен после первого API вызова
+        id: '',
         telegramId: telegramData.id,
         username: telegramData.username || '',
         firstName: telegramData.first_name || '',
@@ -136,55 +126,74 @@ export const useUserStore = create<UserState>((set, get) => ({
       set({ status: 'guest', cityCode: 'brest' });
     }
   },
+
   setCityCode(cityCode: string) {
     set({ cityCode });
   },
-  async refreshFavorites() {
+
+  async refreshFavorites(userLat?: number, userLng?: number) {
     const telegramId = get().user?.telegramId;
-    console.log('[refreshFavorites] called, telegramId:', telegramId);
     if (!telegramId) {
-      console.log('[refreshFavorites] no telegramId, setting empty');
-      set({ favorites: [] });
+      set({ favorites: [], favoriteIds: new Set() });
       return;
     }
     try {
-      console.log('[refreshFavorites] calling fetchFavorites API...');
-      const response = await fetchFavorites(telegramId);
-      console.log('[refreshFavorites] API response:', JSON.stringify(response).slice(0, 500));
-      // Фильтруем записи без данных объявления
+      set({ favoritesLoading: true });
+      const response = await fetchFavorites(userLat, userLng);
       const validItems = (response.items || []).filter(item => item.ad);
-      console.log('[refreshFavorites] valid items count:', validItems.length);
-      set({ favorites: validItems });
+      const ids = new Set(validItems.map(item => item.adId || item.ad?._id).filter(Boolean) as string[]);
+      set({ favorites: validItems, favoriteIds: ids, favoritesLoading: false });
     } catch (error) {
-      console.error('[refreshFavorites] error:', error);
-      // При ошибке очищаем favorites чтобы не было stale данных
-      set({ favorites: [] });
+      console.error('refreshFavorites error:', error);
+      set({ favorites: [], favoriteIds: new Set(), favoritesLoading: false });
     }
   },
-  async toggleFavorite(adId, isFavorite) {
+
+  async toggleFavorite(adId: string) {
     const telegramId = get().user?.telegramId;
     if (!telegramId) {
       throw new Error('Для добавления в избранное нужно авторизоваться');
     }
-    
-    if (isFavorite) {
+
+    const currentIds = get().favoriteIds;
+    const wasAdded = currentIds.has(adId);
+
+    const newIds = new Set(currentIds);
+    if (wasAdded) {
+      newIds.delete(adId);
       set((state) => ({
+        favoriteIds: newIds,
         favorites: state.favorites.filter((f) => f.adId !== adId && f.ad?._id !== adId),
       }));
+    } else {
+      newIds.add(adId);
+      set({ favoriteIds: newIds });
     }
-    
+
     try {
-      await apiToggleFavorite(telegramId, adId, isFavorite);
-      await get().refreshFavorites();
+      const result = await apiToggleFavorite(adId);
+      const isNowFavorite = result.status === 'added';
+      
+      if (isNowFavorite !== !wasAdded) {
+        await get().refreshFavorites();
+      }
+      
+      return isNowFavorite;
     } catch (error) {
+      const revertIds = new Set(currentIds);
+      set({ favoriteIds: revertIds });
       await get().refreshFavorites();
       throw error;
     }
   },
+
+  isFavorite(adId: string) {
+    return get().favoriteIds.has(adId);
+  },
 }));
 
 export function useIsFavorite(adId?: string) {
-  const favorites = useUserStore((state) => state.favorites);
+  const favoriteIds = useUserStore((state) => state.favoriteIds);
   if (!adId) return false;
-  return favorites.some((fav) => fav.adId === adId || fav.ad?._id === adId);
+  return favoriteIds.has(adId);
 }

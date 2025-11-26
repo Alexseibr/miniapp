@@ -81,7 +81,7 @@ export default function AdCard({ ad, onSelect }: AdCardProps) {
     if (pending) return;
     setPending(true);
     try {
-      await toggleFavorite(ad._id, isFavorite);
+      await toggleFavorite(ad._id);
     } finally {
       setPending(false);
     }
