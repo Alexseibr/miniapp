@@ -10,6 +10,7 @@ import 'swiper/css';
 import 'swiper/css/pagination';
 import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
 import { trackImpression } from '@/api/ads';
+import { NO_PHOTO_PLACEHOLDER, getPhotoUrl } from '@/constants/placeholders';
 
 interface AdCardProps {
   ad: AdPreview;
@@ -17,9 +18,6 @@ interface AdCardProps {
   showActions?: boolean;
   priceBrief?: PriceBadgeData | null;
 }
-
-const NO_PHOTO_PLACEHOLDER =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23F5F6F8'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%239CA3AF' font-size='16' font-family='Inter, sans-serif'>Нет фото</text></svg>";
 
 export default function AdCard({ ad, onSelect }: AdCardProps) {
   const navigate = useNavigate();
@@ -29,7 +27,10 @@ export default function AdCard({ ad, onSelect }: AdCardProps) {
   const isFavorite = useIsFavorite(ad._id);
   const [pending, setPending] = useState(false);
   
-  const photos = ad.photos && ad.photos.length > 0 ? ad.photos : [NO_PHOTO_PLACEHOLDER];
+  const rawPhotos = ad.photos && ad.photos.length > 0 ? ad.photos : [];
+  const photos = rawPhotos.length > 0 
+    ? rawPhotos.map(p => getPhotoUrl(p)) 
+    : [NO_PHOTO_PLACEHOLDER];
 
   useEffect(() => {
     const element = cardRef.current;

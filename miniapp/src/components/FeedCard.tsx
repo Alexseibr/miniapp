@@ -1,7 +1,8 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, X, MapPin, ChevronUp, ChevronDown } from 'lucide-react';
+import { Heart, X, MapPin, ChevronUp, ChevronDown, Package } from 'lucide-react';
 import { FeedItem } from '@/types';
+import { getPhotoUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 interface FeedCardProps {
   item: FeedItem;
@@ -11,6 +12,8 @@ interface FeedCardProps {
   showSwipeHints?: boolean;
   isFirst?: boolean;
   isLast?: boolean;
+  isActive?: boolean;
+  nextImageUrl?: string;
 }
 
 export default function FeedCard({
@@ -21,11 +24,37 @@ export default function FeedCard({
   showSwipeHints = false,
   isFirst = false,
   isLast = false,
+  isActive = true,
+  nextImageUrl,
 }: FeedCardProps) {
   const navigate = useNavigate();
   const [liked, setLiked] = useState(false);
   const [disliked, setDisliked] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  const preloadRef = useRef<HTMLImageElement | null>(null);
+
+  const rawMainImage = item.images?.[0] || item.photos?.[0];
+  const mainImage = rawMainImage ? getPhotoUrl(rawMainImage) : '';
+  const hasImage = !!rawMainImage && !imageError;
+
+  useEffect(() => {
+    if (nextImageUrl && isActive) {
+      const img = new Image();
+      img.src = getPhotoUrl(nextImageUrl);
+      preloadRef.current = img;
+    }
+    return () => {
+      if (preloadRef.current) {
+        preloadRef.current = null;
+      }
+    };
+  }, [nextImageUrl, isActive]);
+
+  useEffect(() => {
+    setImageLoaded(false);
+    setImageError(false);
+  }, [item._id]);
 
   const handleLike = useCallback((e: React.MouseEvent) => {
     e.stopPropagation();
@@ -50,6 +79,16 @@ export default function FeedCard({
     navigate(`/ads/${item._id}`);
   }, [item._id, navigate, onViewOpen]);
 
+  const handleImageLoad = useCallback(() => {
+    setImageLoaded(true);
+    setImageError(false);
+  }, []);
+
+  const handleImageError = useCallback(() => {
+    setImageError(true);
+    setImageLoaded(true);
+  }, []);
+
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {
       return `${Math.round(meters)} м`;
@@ -61,7 +100,6 @@ export default function FeedCard({
     return `${price.toLocaleString('ru-RU')} ${currency}`;
   };
 
-  const mainImage = item.images?.[0] || '';
   const location = item.district
     ? `${item.city} (${item.district})`
     : item.city || 'Беларусь';
@@ -104,11 +142,14 @@ export default function FeedCard({
         </div>
       )}
 
-      {mainImage && (
+      {hasImage && mainImage ? (
         <img
           src={mainImage}
           alt={item.title}
-          onLoad={() => setImageLoaded(true)}
+          loading={isActive ? 'eager' : 'lazy'}
+          decoding="async"
+          onLoad={handleImageLoad}
+          onError={handleImageError}
           style={{
             position: 'absolute',
             inset: 0,
@@ -119,13 +160,51 @@ export default function FeedCard({
             transition: 'opacity 0.3s ease',
           }}
         />
+      ) : (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background: 'linear-gradient(135deg, #F5F6F8 0%, #E5E7EB 100%)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 16,
+          }}
+        >
+          <div
+            style={{
+              width: 100,
+              height: 80,
+              borderRadius: 12,
+              background: '#E5E7EB',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Package size={40} color="#9CA3AF" strokeWidth={1.5} />
+          </div>
+          <span
+            style={{
+              fontSize: 16,
+              color: '#9CA3AF',
+              fontWeight: 500,
+            }}
+          >
+            Нет фото
+          </span>
+        </div>
       )}
 
       <div
         style={{
           position: 'absolute',
           inset: 0,
-          background: 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.4) 100%)',
+          background: hasImage 
+            ? 'linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 40%, transparent 60%, rgba(0,0,0,0.4) 100%)'
+            : 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)',
           pointerEvents: 'none',
         }}
       />

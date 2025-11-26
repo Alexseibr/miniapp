@@ -3,19 +3,17 @@ import { MapPin, Heart } from 'lucide-react';
 import { AdPreview } from '@/types';
 import { formatDistance } from '@/utils/geo';
 import { PriceBadgeChip } from './pricing';
+import { NO_PHOTO_PLACEHOLDER, getPhotoUrl } from '@/constants/placeholders';
 
 interface AdCardSmallProps {
   ad: AdPreview;
   onSelect?: (ad: AdPreview) => void;
 }
 
-const NO_PHOTO_PLACEHOLDER =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='150' viewBox='0 0 200 150'><rect width='200' height='150' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='14' font-family='Inter, sans-serif'>Нет фото</text></svg>";
-
 export default function AdCardSmall({ ad, onSelect }: AdCardSmallProps) {
   const navigate = useNavigate();
   
-  const photo = ad.photos && ad.photos.length > 0 ? ad.photos[0] : NO_PHOTO_PLACEHOLDER;
+  const photo = ad.photos && ad.photos.length > 0 ? getPhotoUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER;
   const distanceLabel = formatDistance(ad.distanceKm);
 
   const handleClick = () => {

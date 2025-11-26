@@ -674,6 +674,8 @@ export default function FeedPage() {
             showSwipeHints={showSwipeHints}
             isFirst={currentIndex === 0}
             isLast={currentIndex === items.length - 1 && !hasMore}
+            isActive={true}
+            nextImageUrl={items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
           />
         )}
 

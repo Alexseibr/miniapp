@@ -3,9 +3,7 @@ import { Swiper, SwiperSlide } from 'swiper/react';
 import 'swiper/css';
 import 'swiper/css/navigation';
 import 'swiper/css/pagination';
-
-const NO_PHOTO_PLACEHOLDER =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='20' font-family='Inter, sans-serif'>Нет фото</text></svg>";
+import { NO_PHOTO_PLACEHOLDER, getPhotoUrl } from '@/constants/placeholders';
 
 interface AdGalleryProps {
   images?: string[];
@@ -13,7 +11,9 @@ interface AdGalleryProps {
 }
 
 export function AdGallery({ images = [], alt = 'Фото объявления' }: AdGalleryProps) {
-  const sanitizedImages = images.filter((url: string) => typeof url === 'string' && url.trim());
+  const sanitizedImages = images
+    .filter((url: string) => typeof url === 'string' && url.trim())
+    .map(url => getPhotoUrl(url));
   const galleryImages = sanitizedImages.length ? sanitizedImages : [NO_PHOTO_PLACEHOLDER];
 
   if (galleryImages.length === 1) {

@@ -119,7 +119,8 @@ export interface AdsResponse {
 export interface FeedItem {
   _id: string;
   title: string;
-  images: string[];
+  images?: string[];
+  photos?: string[];
   city: string;
   district: string;
   geo: {
