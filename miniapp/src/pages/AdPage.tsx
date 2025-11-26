@@ -30,6 +30,7 @@ export default function AdPage() {
   const [similarAds, setSimilarAds] = useState<AdPreview[]>([]);
   const [loadingSimilar, setLoadingSimilar] = useState(false);
   const [showPhone, setShowPhone] = useState(false);
+  const [showPhoneActionSheet, setShowPhoneActionSheet] = useState(false);
   const { coords } = useGeo(false);
 
   const viewTrackedRef = useRef(false);
@@ -121,13 +122,39 @@ export default function AdPage() {
   const handleShowPhone = useCallback(() => {
     if (!showPhone && ad) {
       trackContactReveal(ad._id);
-    }
-    if (showPhone && ad?.contactPhone) {
-      handleCallPhone();
-    } else {
       setShowPhone(true);
+    } else if (showPhone && ad?.contactPhone) {
+      setShowPhoneActionSheet(true);
     }
-  }, [showPhone, ad, handleCallPhone]);
+  }, [showPhone, ad]);
+
+  const handlePhoneActionCall = useCallback(() => {
+    if (ad?.contactPhone) {
+      trackContact(ad._id);
+      const normalizedPhone = ad.contactPhone.replace(/[\s\-\(\)]/g, '');
+      window.location.href = `tel:${normalizedPhone}`;
+    }
+    setShowPhoneActionSheet(false);
+  }, [ad?.contactPhone, ad?._id]);
+
+  const handlePhoneActionTelegram = useCallback(() => {
+    if (ad?.contactPhone) {
+      trackContact(ad._id);
+      const normalizedPhone = ad.contactPhone.replace(/[\s\-\(\)]/g, '').replace('+', '');
+      const tgUrl = `tg://resolve?phone=${normalizedPhone}`;
+      const fallbackUrl = `https://t.me/+${normalizedPhone}`;
+      
+      try {
+        window.location.href = tgUrl;
+        setTimeout(() => {
+          window.open(fallbackUrl, '_blank');
+        }, 500);
+      } catch {
+        window.open(fallbackUrl, '_blank');
+      }
+    }
+    setShowPhoneActionSheet(false);
+  }, [ad?.contactPhone, ad?._id]);
 
   if (loading) {
     return <EmptyState title="Загружаем объявление" />;
@@ -683,7 +710,7 @@ export default function AdPage() {
           </button>
           {ad.contactPhone && (
             <button
-              onClick={handleCallPhone}
+              onClick={() => setShowPhoneActionSheet(true)}
               style={{
                 padding: '14px 20px',
                 background: '#10B981',
@@ -705,6 +732,121 @@ export default function AdPage() {
           )}
         </div>
       </div>
+
+      {/* Phone Action Sheet */}
+      {showPhoneActionSheet && (
+        <div
+          onClick={() => setShowPhoneActionSheet(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 9998,
+            display: 'flex',
+            alignItems: 'flex-end',
+            justifyContent: 'center',
+          }}
+          data-testid="phone-action-sheet-overlay"
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 500,
+              background: '#fff',
+              borderRadius: '20px 20px 0 0',
+              padding: '20px 16px',
+              paddingBottom: 'max(20px, env(safe-area-inset-bottom))',
+              animation: 'slideUp 0.3s ease-out',
+            }}
+          >
+            <div style={{
+              width: 36,
+              height: 4,
+              background: '#E5E7EB',
+              borderRadius: 2,
+              margin: '0 auto 20px',
+            }} />
+            
+            <h3 style={{
+              fontSize: 18,
+              fontWeight: 600,
+              color: '#111827',
+              textAlign: 'center',
+              marginBottom: 20,
+            }}>
+              Как связаться с продавцом?
+            </h3>
+            
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <button
+                onClick={handlePhoneActionCall}
+                style={{
+                  width: '100%',
+                  padding: '16px 20px',
+                  background: '#10B981',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                }}
+                data-testid="button-action-call"
+              >
+                <Phone size={20} />
+                Позвонить
+              </button>
+              
+              <button
+                onClick={handlePhoneActionTelegram}
+                style={{
+                  width: '100%',
+                  padding: '16px 20px',
+                  background: '#0088cc',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontSize: 16,
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 10,
+                }}
+                data-testid="button-action-telegram"
+              >
+                <SiTelegram size={20} />
+                Написать в Telegram
+              </button>
+              
+              <button
+                onClick={() => setShowPhoneActionSheet(false)}
+                style={{
+                  width: '100%',
+                  padding: '16px 20px',
+                  background: '#F3F4F6',
+                  color: '#6B7280',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontSize: 16,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  marginTop: 4,
+                }}
+                data-testid="button-action-cancel"
+              >
+                Отмена
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Fullscreen gallery modal */}
       {fullscreenGallery && ad.photos && (
