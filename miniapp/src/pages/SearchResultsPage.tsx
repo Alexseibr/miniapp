@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useUserStore } from '@/store/useUserStore';
+import useGeoStore from '@/store/useGeoStore';
 import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 interface Ad {
@@ -44,15 +45,18 @@ export default function SearchResultsPage() {
   const query = searchParams.get('q') || '';
   
   const user = useUserStore((state) => state.user);
-  // Дефолтная локация - Минск, Беларусь
-  const userLat = user?.location?.lat || 53.9;
-  const userLng = user?.location?.lng || 27.5667;
+  const geoCoords = useGeoStore((state) => state.coords);
+  const geoRadius = useGeoStore((state) => state.radiusKm);
+  
+  // Приоритет: 1) geoStore coords, 2) user.location, 3) дефолт Минск
+  const userLat = geoCoords?.lat || user?.location?.lat || 53.9;
+  const userLng = geoCoords?.lng || user?.location?.lng || 27.5667;
   
   const [searchText, setSearchText] = useState(query);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
-  const [selectedRadius, setSelectedRadius] = useState(100); // Дефолтный радиус 100 км
+  const [selectedRadius, setSelectedRadius] = useState(geoRadius || 100); // Используем радиус из geoStore
   const [sortBy, setSortBy] = useState('newest');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');

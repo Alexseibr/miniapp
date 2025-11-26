@@ -5,6 +5,7 @@ import BottomTabs from '@/components/BottomTabs';
 import PhoneAuthRequest from '@/components/PhoneAuthRequest';
 import PageLoader from '@/components/PageLoader';
 import { useUserStore } from '@/store/useUserStore';
+import useGeoStore from '@/store/useGeoStore';
 import { getTelegramWebApp } from '@/utils/telegram';
 import { queryClient } from '@/lib/queryClient';
 import { prefetchCriticalData } from '@/utils/prefetch';
@@ -53,12 +54,13 @@ export default function App() {
   const skipPhoneRequest = useUserStore((state) => state.skipPhoneRequest);
   const userStatus = useUserStore((state) => state.status);
   const user = useUserStore((state) => state.user);
+  const refreshLocationOnAppStart = useGeoStore((state) => state.refreshLocationOnAppStart);
   const [isInitialized, setIsInitialized] = useState(false);
   
   useRoutePrefetch();
 
   useEffect(() => {
-    const initApp = () => {
+    const initApp = async () => {
       try {
         console.log('🚀 Initializing KETMAR Market MiniApp...');
         
@@ -87,6 +89,12 @@ export default function App() {
         // Prefetch критичных данных в фоне
         prefetchCriticalData().catch(console.error);
         
+        // Автоматический запрос геолокации при каждом входе
+        console.log('📍 Запрашиваем актуальную геолокацию...');
+        refreshLocationOnAppStart().catch((err) => {
+          console.warn('📍 Не удалось получить геолокацию:', err);
+        });
+        
         // Инициализация Web Vitals monitoring
         if (typeof window !== 'undefined') {
           initWebVitals();
@@ -102,7 +110,7 @@ export default function App() {
     };
 
     initApp();
-  }, [initialize]);
+  }, [initialize, refreshLocationOnAppStart]);
   
   // Обработка deep link из бота
   function handleDeepLink(startParam: string) {
