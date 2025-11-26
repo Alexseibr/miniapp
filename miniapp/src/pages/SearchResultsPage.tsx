@@ -307,7 +307,7 @@ export default function SearchResultsPage() {
             <MapPin size={16} color={hasLocation ? '#3B82F6' : '#F59E0B'} />
             {hasLocation ? (
               <span style={{ fontSize: 13, color: '#1D4ED8' }} data-testid="text-location-info">
-                📍 {cityName || `${userLat.toFixed(2)}, ${userLng.toFixed(2)}`} • {selectedRadius} км
+                📍 {cityName || `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`} • {selectedRadius} км
               </span>
             ) : (
               <span style={{ fontSize: 13, color: '#D97706' }}>
