@@ -559,7 +559,7 @@ export default function FeedPage() {
           display: 'flex',
           flexDirection: 'column',
           height: '100vh',
-          background: '#000',
+          background: '#FFFFFF',
         }}
       >
         <header
@@ -568,13 +568,7 @@ export default function FeedPage() {
             alignItems: 'center',
             justifyContent: 'space-between',
             padding: '12px 16px',
-            background: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(10px)',
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            zIndex: 20,
+            borderBottom: '1px solid #F0F2F5',
           }}
         >
           <h1
@@ -582,7 +576,7 @@ export default function FeedPage() {
               margin: 0,
               fontSize: 20,
               fontWeight: 700,
-              color: '#FFFFFF',
+              color: '#1F2937',
               letterSpacing: '-0.5px',
             }}
           >
@@ -596,14 +590,14 @@ export default function FeedPage() {
               height: 40,
               borderRadius: '50%',
               border: 'none',
-              background: 'rgba(255,255,255,0.15)',
+              background: '#F5F6F8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
             }}
           >
-            <Bell size={20} color="#FFFFFF" />
+            <Bell size={20} color="#6B7280" />
           </button>
         </header>
 
@@ -625,8 +619,7 @@ export default function FeedPage() {
             style={{
               marginTop: 16,
               fontSize: 16,
-              color: '#FFFFFF',
-              opacity: 0.7,
+              color: '#6B7280',
             }}
           >
             Загружаем ленту...
@@ -755,7 +748,7 @@ export default function FeedPage() {
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        background: '#000',
+        background: '#FFFFFF',
         overflow: 'hidden',
         touchAction: 'pan-y',
       }}
@@ -763,16 +756,15 @@ export default function FeedPage() {
       {/* Header */}
       <header
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 16px',
-          background: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)',
+          background: '#FFFFFF',
+          borderBottom: '1px solid #F0F2F5',
           zIndex: 20,
+          flexShrink: 0,
         }}
       >
         <h1
@@ -780,9 +772,8 @@ export default function FeedPage() {
             margin: 0,
             fontSize: 20,
             fontWeight: 700,
-            color: '#FFFFFF',
+            color: '#1F2937',
             letterSpacing: '-0.5px',
-            textShadow: '0 2px 4px rgba(0,0,0,0.3)',
           }}
         >
           KETMAR
@@ -795,15 +786,14 @@ export default function FeedPage() {
             height: 40,
             borderRadius: '50%',
             border: 'none',
-            background: 'rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(10px)',
+            background: '#F5F6F8',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
           }}
         >
-          <Bell size={20} color="#FFFFFF" />
+          <Bell size={20} color="#6B7280" />
         </button>
       </header>
 
@@ -855,8 +845,8 @@ export default function FeedPage() {
             display: 'flex',
             gap: 6,
             padding: '8px 12px',
-            background: 'rgba(0,0,0,0.4)',
-            backdropFilter: 'blur(10px)',
+            background: 'rgba(255,255,255,0.95)',
+            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
             borderRadius: 16,
             zIndex: 15,
           }}
@@ -872,7 +862,7 @@ export default function FeedPage() {
                   width: isActive ? 24 : 8,
                   height: 8,
                   borderRadius: 4,
-                  background: isActive ? '#3A7BFF' : 'rgba(255,255,255,0.4)',
+                  background: isActive ? '#3A7BFF' : '#E5E7EB',
                   transition: 'all 0.3s ease',
                 }}
               />
@@ -890,75 +880,75 @@ export default function FeedPage() {
             style={{
               position: 'absolute',
               inset: 0,
-              background: 'rgba(0,0,0,0.7)',
+              background: 'rgba(0,0,0,0.75)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
               zIndex: 30,
-              gap: 24,
+              gap: 20,
             }}
           >
             <motion.div
-              animate={{ y: [-10, 10, -10] }}
+              animate={{ y: [-8, 8, -8] }}
               transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 8,
+                gap: 6,
               }}
             >
-              <ChevronUp size={40} color="#fff" />
-              <span style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+              <ChevronUp size={36} color="#fff" />
+              <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
                 Свайп вверх
               </span>
             </motion.div>
             
             <div
               style={{
-                width: 60,
-                height: 100,
-                border: '2px solid rgba(255,255,255,0.5)',
-                borderRadius: 30,
+                width: 56,
+                height: 90,
+                border: '2px solid rgba(255,255,255,0.4)',
+                borderRadius: 28,
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
               }}
             >
               <motion.div
-                animate={{ y: [-20, 20, -20] }}
+                animate={{ y: [-18, 18, -18] }}
                 transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
                 style={{
-                  width: 8,
-                  height: 24,
+                  width: 6,
+                  height: 20,
                   background: '#fff',
-                  borderRadius: 4,
+                  borderRadius: 3,
                 }}
               />
             </div>
             
             <motion.div
-              animate={{ y: [10, -10, 10] }}
+              animate={{ y: [8, -8, 8] }}
               transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: 8,
+                gap: 6,
               }}
             >
-              <span style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+              <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
                 Свайп вниз
               </span>
-              <ChevronDown size={40} color="#fff" />
+              <ChevronDown size={36} color="#fff" />
             </motion.div>
             
             <p
               style={{
-                fontSize: 14,
-                color: 'rgba(255,255,255,0.7)',
-                marginTop: 16,
+                fontSize: 13,
+                color: 'rgba(255,255,255,0.6)',
+                marginTop: 12,
               }}
             >
               Нажмите чтобы продолжить

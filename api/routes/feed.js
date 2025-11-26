@@ -68,6 +68,7 @@ router.get('/', async (req, res) => {
         $project: {
           _id: 1,
           title: 1,
+          description: 1,
           photos: 1,
           city: 1,
           geoLabel: 1,
@@ -101,6 +102,7 @@ router.get('/', async (req, res) => {
     const items = results.map((ad) => ({
       _id: ad._id,
       title: ad.title,
+      description: ad.description || '',
       images: ad.photos || [],
       city: ad.city || '',
       district: ad.geoLabel || ad.district || '',

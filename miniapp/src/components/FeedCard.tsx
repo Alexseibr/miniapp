@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Heart, MapPin, Package } from 'lucide-react';
 import { FeedItem } from '@/types';
 import { getPhotoUrl } from '@/constants/placeholders';
-import PhotoCarousel from './PhotoCarousel';
 
 interface FeedCardProps {
   item: FeedItem;
@@ -28,7 +27,6 @@ export default function FeedCard({
   const preloadRef = useRef<HTMLImageElement | null>(null);
 
   const images = item.images?.length ? item.images : item.photos || [];
-  const hasMultipleImages = images.length > 1;
   const rawMainImage = images[0];
   const mainImage = rawMainImage ? getPhotoUrl(rawMainImage) : '';
   const hasImage = !!rawMainImage && !imageError;
@@ -74,6 +72,9 @@ export default function FeedCard({
   }, []);
 
   const formatDistance = (meters: number): string => {
+    if (meters < 1000) {
+      return `${Math.round(meters)} м`;
+    }
     const km = meters / 1000;
     return `${km.toFixed(1).replace('.', ',')} км`;
   };
@@ -86,6 +87,12 @@ export default function FeedCard({
     ? `${item.city} (${item.district})`
     : item.city || 'Беларусь';
 
+  const description = item.description
+    ? item.description.length > 80
+      ? item.description.substring(0, 80) + '...'
+      : item.description
+    : '';
+
   return (
     <div
       onClick={handleCardClick}
@@ -94,49 +101,82 @@ export default function FeedCard({
         position: 'relative',
         width: '100%',
         height: '100%',
-        background: '#000',
+        background: '#FFFFFF',
         cursor: 'pointer',
         overflow: 'hidden',
         touchAction: 'pan-y',
+        display: 'flex',
+        flexDirection: 'column',
       }}
     >
-      {/* Loading spinner */}
-      {!imageLoaded && (
-        <div
+      {/* Title at top */}
+      <div
+        style={{
+          padding: '16px 16px 12px',
+          background: '#FFFFFF',
+          flexShrink: 0,
+        }}
+      >
+        <h2
           style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            zIndex: 1,
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+            color: '#1F2937',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
           }}
+          data-testid="text-title"
         >
+          {item.title}
+        </h2>
+      </div>
+
+      {/* Photo container */}
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          position: 'relative',
+          background: '#F5F6F8',
+          overflow: 'hidden',
+        }}
+      >
+        {/* Loading skeleton - only show when we have an image to load */}
+        {hasImage && !imageLoaded && (
           <div
             style={{
-              width: 48,
-              height: 48,
-              border: '3px solid rgba(58, 123, 255, 0.3)',
-              borderTopColor: '#3A7BFF',
-              borderRadius: '50%',
-              animation: 'spin 1s linear infinite',
+              position: 'absolute',
+              inset: 0,
+              background: 'linear-gradient(90deg, #F0F0F0 25%, #E8E8E8 50%, #F0F0F0 75%)',
+              backgroundSize: '200% 100%',
+              animation: 'shimmer 1.5s infinite',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
             }}
-          />
-        </div>
-      )}
+          >
+            <div
+              style={{
+                width: 64,
+                height: 64,
+                borderRadius: 16,
+                background: 'rgba(0,0,0,0.05)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Package size={32} color="#C0C0C0" strokeWidth={1.5} />
+            </div>
+          </div>
+        )}
 
-      {/* Photo content */}
-      {hasImage ? (
-        hasMultipleImages ? (
-          <PhotoCarousel
-            images={images.map(img => getPhotoUrl(img))}
-            title={item.title}
-            onImageLoad={handleImageLoad}
-            onImageError={handleImageError}
-            isActive={isActive}
-          />
-        ) : (
+        {/* Main photo */}
+        {hasImage ? (
           <img
             src={mainImage}
             alt={item.title}
@@ -154,124 +194,155 @@ export default function FeedCard({
               transition: 'opacity 0.3s ease',
             }}
           />
-        )
-      ) : (
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: 'linear-gradient(135deg, #F5F6F8 0%, #E5E7EB 100%)',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 16,
-          }}
-        >
+        ) : (
           <div
             style={{
-              width: 100,
-              height: 80,
-              borderRadius: 12,
-              background: '#E5E7EB',
+              position: 'absolute',
+              inset: 0,
+              background: '#F5F6F8',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+            }}
+          >
+            <div
+              style={{
+                width: 80,
+                height: 80,
+                borderRadius: 16,
+                background: '#E5E7EB',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <Package size={40} color="#9CA3AF" strokeWidth={1.5} />
+            </div>
+            <span
+              style={{
+                fontSize: 15,
+                color: '#9CA3AF',
+                fontWeight: 500,
+              }}
+            >
+              Нет фото
+            </span>
+          </div>
+        )}
+
+        {/* Photo count indicator if multiple */}
+        {images.length > 1 && (
+          <div
+            style={{
+              position: 'absolute',
+              top: 12,
+              right: 12,
+              padding: '6px 10px',
+              background: 'rgba(0,0,0,0.6)',
+              borderRadius: 8,
+              fontSize: 12,
+              fontWeight: 600,
+              color: '#FFFFFF',
+            }}
+          >
+            1/{images.length}
+          </div>
+        )}
+      </div>
+
+      {/* Bottom section: Price + Like, Description, Location */}
+      <div
+        style={{
+          padding: '16px',
+          background: '#FFFFFF',
+          flexShrink: 0,
+          paddingBottom: 'calc(16px + env(safe-area-inset-bottom) + 70px)',
+        }}
+      >
+        {/* Price row with like */}
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            marginBottom: 10,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: '#3A7BFF',
+              letterSpacing: '-0.5px',
+            }}
+            data-testid="text-price"
+          >
+            {formatPrice(item.price, item.currency)}
+          </span>
+          
+          <button
+            onClick={handleLike}
+            data-testid="button-like"
+            style={{
+              width: 44,
+              height: 44,
+              borderRadius: '50%',
+              border: 'none',
+              background: isLiked
+                ? 'linear-gradient(135deg, #FF6B6B, #EE5A5A)'
+                : '#F5F6F8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              transform: isLiked ? 'scale(1.1)' : 'scale(1)',
+              boxShadow: isLiked ? '0 4px 16px rgba(255, 107, 107, 0.35)' : 'none',
             }}
           >
-            <Package size={40} color="#9CA3AF" strokeWidth={1.5} />
-          </div>
-          <span
-            style={{
-              fontSize: 16,
-              color: '#9CA3AF',
-              fontWeight: 500,
-            }}
-          >
-            Нет фото
-          </span>
+            <Heart
+              size={22}
+              fill={isLiked ? '#fff' : 'none'}
+              color={isLiked ? '#fff' : '#9CA3AF'}
+              strokeWidth={isLiked ? 0 : 2}
+            />
+          </button>
         </div>
-      )}
 
-      {/* Gradient overlays */}
-      <div
-        style={{
-          position: 'absolute',
-          inset: 0,
-          background: hasImage 
-            ? 'linear-gradient(to bottom, rgba(0,0,0,0.5) 0%, transparent 25%, transparent 65%, rgba(0,0,0,0.85) 100%)'
-            : 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)',
-          pointerEvents: 'none',
-          zIndex: 2,
-        }}
-      />
+        {/* Description */}
+        {description && (
+          <p
+            style={{
+              margin: '0 0 10px',
+              fontSize: 14,
+              lineHeight: 1.4,
+              color: '#6B7280',
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+            data-testid="text-description"
+          >
+            {description}
+          </p>
+        )}
 
-      {/* Title at top center */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 70,
-          left: 16,
-          right: 16,
-          zIndex: 10,
-          textAlign: 'center',
-        }}
-      >
-        <h2
-          style={{
-            margin: 0,
-            fontSize: 24,
-            fontWeight: 700,
-            color: '#fff',
-            lineHeight: 1.3,
-            textShadow: '0 2px 12px rgba(0,0,0,0.5)',
-            display: '-webkit-box',
-            WebkitLineClamp: 2,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}
-          data-testid="text-title"
-        >
-          {item.title}
-        </h2>
-      </div>
-
-      {/* Bottom bar: location left, price+like right */}
-      <div
-        style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          padding: '20px 16px calc(env(safe-area-inset-bottom) + 80px)',
-          zIndex: 10,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-end',
-          gap: 12,
-        }}
-      >
-        {/* Location left */}
+        {/* Location + Distance */}
         <div
           style={{
             display: 'flex',
             alignItems: 'center',
             gap: 6,
-            padding: '10px 14px',
-            background: 'rgba(0,0,0,0.5)',
-            backdropFilter: 'blur(10px)',
-            borderRadius: 12,
-            maxWidth: '55%',
           }}
         >
           <MapPin size={16} color="#3A7BFF" />
           <span
             style={{
-              fontSize: 13,
-              color: 'rgba(255,255,255,0.8)',
-              whiteSpace: 'nowrap',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
+              fontSize: 14,
+              color: '#6B7280',
             }}
             data-testid="text-location"
           >
@@ -279,13 +350,12 @@ export default function FeedCard({
           </span>
           {item.distanceMeters > 0 && (
             <>
-              <span style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>·</span>
+              <span style={{ fontSize: 14, color: '#D1D5DB' }}>·</span>
               <span
                 style={{
-                  fontSize: 13,
+                  fontSize: 14,
                   fontWeight: 600,
-                  color: '#fff',
-                  whiteSpace: 'nowrap',
+                  color: '#3A7BFF',
                 }}
                 data-testid="text-distance"
               >
@@ -294,69 +364,12 @@ export default function FeedCard({
             </>
           )}
         </div>
-
-        {/* Price + Like right */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-        >
-          <div
-            style={{
-              padding: '10px 16px',
-              background: 'rgba(58, 123, 255, 0.95)',
-              borderRadius: 12,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: '#fff',
-                letterSpacing: '-0.5px',
-              }}
-              data-testid="text-price"
-            >
-              {formatPrice(item.price, item.currency)}
-            </span>
-          </div>
-          
-          <button
-            onClick={handleLike}
-            data-testid="button-like"
-            style={{
-              width: 48,
-              height: 48,
-              borderRadius: '50%',
-              border: 'none',
-              background: isLiked
-                ? 'linear-gradient(135deg, #FF6B6B, #EE5A5A)'
-                : 'rgba(0,0,0,0.5)',
-              backdropFilter: 'blur(10px)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-              transition: 'all 0.2s ease',
-              transform: isLiked ? 'scale(1.1)' : 'scale(1)',
-              boxShadow: isLiked ? '0 4px 20px rgba(255, 107, 107, 0.4)' : 'none',
-            }}
-          >
-            <Heart
-              size={24}
-              fill={isLiked ? '#fff' : 'none'}
-              color="#fff"
-              strokeWidth={isLiked ? 0 : 2}
-            />
-          </button>
-        </div>
       </div>
 
       <style>{`
-        @keyframes spin {
-          to { transform: rotate(360deg); }
+        @keyframes shimmer {
+          0% { background-position: 200% 0; }
+          100% { background-position: -200% 0; }
         }
       `}</style>
     </div>
