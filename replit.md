@@ -30,7 +30,9 @@ Preferred communication style: Simple, everyday language.
 - **Denormalized Order Data**: Ensures historical data integrity.
 - **Secure Media Access**: All photo access is routed through a server-side proxy.
 - **Radius-First Architecture**: Global radius state for all ad listings.
-- **Debounced Fetching**: 300ms debounce on radius changes with AbortController for API call optimization.
+- **Debounced Fetching**: 200ms debounce on radius changes with AbortController for API call optimization.
+- **Fast Market Scoring System**: Smart ad ranking combining distance (40%), freshness (30%), and engagement (30%) with category boosts for farmer market (+10%) and personal items (+5%). Uses log-scaled engagement normalization and AdStats tracking.
+- **Farmer Tips Service**: AI-powered demand recommendations for farmers using bulk aggregation of search patterns, spike detection, and regional supply analysis. Optimized with O(1) bulk queries.
 - **Single-Select Category Filtering**: Consistent with backend capabilities.
 - **Deferred Publishing**: Allows scheduling ads for future publication with status management and a cron worker.
 - **Price Comparison System**: Provides market analytics with category-specific comparison logic, including caching and dedicated services.
