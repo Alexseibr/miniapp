@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, MapPin } from 'lucide-react';
+import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
 import { useGeo } from '@/utils/geo';
 import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
@@ -291,51 +291,6 @@ export default function SearchResultsPage() {
 
       {/* Results Section */}
       <div style={{ flex: 1, padding: '12px 16px', paddingBottom: 100 }}>
-        {/* Location Indicator */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          marginBottom: 12,
-          padding: '8px 12px',
-          background: hasLocation ? '#EFF6FF' : '#FEF3C7',
-          borderRadius: 10,
-          border: hasLocation ? '1px solid #BFDBFE' : '1px solid #FDE68A',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <MapPin size={16} color={hasLocation ? '#3B82F6' : '#F59E0B'} />
-            {hasLocation ? (
-              <span style={{ fontSize: 13, color: '#1D4ED8' }} data-testid="text-location-info">
-                📍 {cityName || `${userLat.toFixed(6)}, ${userLng.toFixed(6)}`} • {selectedRadius} км
-              </span>
-            ) : (
-              <span style={{ fontSize: 13, color: '#D97706' }}>
-                {geoStatus === 'loading' ? '⏳ Определяем...' : '📍 Геолокация не определена'}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={() => {
-              console.log('🔄 Запрос геолокации по клику...');
-              requestLocation();
-            }}
-            disabled={geoStatus === 'loading'}
-            style={{
-              background: '#3B82F6',
-              border: 'none',
-              borderRadius: 6,
-              padding: '4px 10px',
-              fontSize: 12,
-              color: '#FFFFFF',
-              cursor: geoStatus === 'loading' ? 'not-allowed' : 'pointer',
-              opacity: geoStatus === 'loading' ? 0.6 : 1,
-            }}
-            data-testid="button-refresh-location"
-          >
-            {geoStatus === 'loading' ? '...' : '🔄'}
-          </button>
-        </div>
 
         {/* Results Count + Sort */}
         <div style={{
