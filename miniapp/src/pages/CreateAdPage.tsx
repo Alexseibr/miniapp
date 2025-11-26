@@ -5,7 +5,7 @@ import { fetchCategories } from '@/api/categories';
 import { createAd, CreateAdPayload } from '@/api/ads';
 import { resolveGeoLocation, getPresetLocations, PresetLocation } from '@/api/geo';
 import { CategoryNode } from '@/types';
-import { ArrowLeft, MapPin, Loader2, Camera, X, Check, RefreshCw, Edit3 } from 'lucide-react';
+import { ArrowLeft, MapPin, Loader2, Camera, X, Check, RefreshCw, Edit3, Info } from 'lucide-react';
 import ImageUploader from '@/components/ImageUploader';
 import PriceHint from '@/components/PriceHint';
 import { SchedulePublishBlock } from '@/components/schedule/SchedulePublishBlock';
@@ -121,7 +121,10 @@ export default function CreateAdPage() {
 
   const canGoNext = () => {
     if (currentStep === 1) return !!draft.location;
-    if (currentStep === 2) return true;
+    if (currentStep === 2) {
+      const isAnyUploading = draft.photos.some(p => p.uploadStatus === 'uploading');
+      return !isAnyUploading;
+    }
     if (currentStep === 3) return !!draft.info.title && !!draft.info.categoryId && !!draft.info.price && parseFloat(draft.info.price) > 0;
     if (currentStep === 4) {
       const hasContact = draft.contacts.contactPhone || draft.contacts.contactUsername || draft.contacts.contactInstagram;
@@ -1053,6 +1056,11 @@ function Step2Photos({
 
       <div style={{ marginTop: 16, padding: 12, background: '#EBF3FF', borderRadius: 8, fontSize: 14, color: '#1E40AF' }}>
         Качественные фотографии помогают быстрее продать товар
+      </div>
+
+      <div style={{ marginTop: 12, padding: 10, background: '#F3F4F6', borderRadius: 8, fontSize: 13, color: '#6B7280', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+        <span>Объявления без фотографий не показываются в ленте, но будут доступны в поиске и категориях.</span>
       </div>
 
       {showActionSheet && (
