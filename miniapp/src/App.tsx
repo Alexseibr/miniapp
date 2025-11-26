@@ -89,18 +89,14 @@ export default function App() {
         // Prefetch критичных данных в фоне
         prefetchCriticalData().catch(console.error);
         
-        // Очистка старых координат из localStorage (одноразово)
+        // Полная очистка старого кэша геолокации (версия 2)
         const geoStoreKey = 'ketmar-geo-store';
+        const geoResetKey = 'ketmar-geo-reset-v3';
         try {
-          const stored = localStorage.getItem(geoStoreKey);
-          if (stored) {
-            const parsed = JSON.parse(stored);
-            if (parsed.state?.coords) {
-              console.log('🗑️ Удаляем старые координаты из кэша:', parsed.state.coords);
-              delete parsed.state.coords;
-              delete parsed.state.cityName;
-              localStorage.setItem(geoStoreKey, JSON.stringify(parsed));
-            }
+          if (!localStorage.getItem(geoResetKey)) {
+            console.log('🗑️ Очищаем весь кэш геолокации...');
+            localStorage.removeItem(geoStoreKey);
+            localStorage.setItem(geoResetKey, 'done');
           }
         } catch (e) {
           console.warn('Ошибка очистки localStorage:', e);

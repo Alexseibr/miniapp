@@ -106,13 +106,22 @@ async function requestBrowserLocation(): Promise<{ lat: number; lng: number } | 
   });
 }
 
+// Принудительная очистка старого кэша перед инициализацией store
+const GEO_RESET_KEY = 'ketmar-geo-reset-v4';
+const GEO_STORE_KEY = 'ketmar-geo-store';
+if (typeof window !== 'undefined' && !localStorage.getItem(GEO_RESET_KEY)) {
+  console.log('🗑️ [GeoStore] Полная очистка кэша геолокации');
+  localStorage.removeItem(GEO_STORE_KEY);
+  localStorage.setItem(GEO_RESET_KEY, 'done');
+}
+
 const useGeoStore = create<GeoState>()(
   persist(
     (set, get) => ({
       coords: null,
       status: 'idle',
       error: undefined,
-      radiusKm: 100,
+      radiusKm: 30,
       cityName: null,
       hasCompletedOnboarding: false,
       smartRadiusEnabled: false,
@@ -155,7 +164,7 @@ const useGeoStore = create<GeoState>()(
       },
 
       setRadius(value) {
-        const clampedValue = Math.max(0.1, Math.min(100, value));
+        const clampedValue = Math.max(5, Math.min(100, value));
         set({ radiusKm: clampedValue });
       },
 
