@@ -41,22 +41,33 @@ export function useGeo(syncWithBackend = true) {
 export function formatDistance(distanceKm?: number): string {
   if (distanceKm == null || isNaN(distanceKm)) return '';
 
+  if (distanceKm < 0.1) {
+    return `📍 < 100 м`;
+  }
+
   if (distanceKm < 1) {
-    const meters = Math.round(distanceKm * 1000);
-    return `📍 ${meters} м от вас`;
+    const meters = Math.round(distanceKm * 100) * 10;
+    return `📍 ${meters} м`;
   }
 
   const value = Number(distanceKm.toFixed(1));
-  return `📍 ${value} км от вас`;
+  return `📍 ${value} км`;
 }
 
 export function formatCityDistance(city?: string | null, distanceKm?: number) {
   const cityPart = city || '';
-  const distancePart = distanceKm != null
-    ? (distanceKm < 1
-        ? `📍 ${Math.round(distanceKm * 1000)} м от вас`
-        : `📍 ${distanceKm.toFixed(1)} км от вас`)
-    : '';
+  let distancePart = '';
+  
+  if (distanceKm != null) {
+    if (distanceKm < 0.1) {
+      distancePart = '📍 < 100 м';
+    } else if (distanceKm < 1) {
+      const meters = Math.round(distanceKm * 100) * 10;
+      distancePart = `📍 ${meters} м`;
+    } else {
+      distancePart = `📍 ${distanceKm.toFixed(1)} км`;
+    }
+  }
   
   return [cityPart, distancePart].filter(Boolean).join(' • ');
 }
