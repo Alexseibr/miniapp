@@ -159,6 +159,11 @@ class CategorySuggestService {
       const actualParent = parentCat || mainCat;
       const actualChild = subCat && subCat.slug !== mainCat?.slug ? subCat : null;
 
+      const isHidden = (actualParent?.visible === false) || (actualChild?.visible === false);
+      if (isHidden) {
+        return null;
+      }
+
       return {
         categoryId: actualParent?._id?.toString() || null,
         categoryName: actualParent?.name || s.categorySlug || 'Неизвестно',
@@ -178,10 +183,16 @@ class CategorySuggestService {
       bestMatch = enrichSuggestion(result.bestMatch);
     }
 
-    const alternatives = result.suggestions.slice(1).map(s => enrichSuggestion({
-      ...s,
-      confidence: s.score / result.suggestions.reduce((a, b) => a + b.score, 0)
-    }));
+    const alternatives = result.suggestions.slice(1)
+      .map(s => enrichSuggestion({
+        ...s,
+        confidence: s.score / result.suggestions.reduce((a, b) => a + b.score, 0)
+      }))
+      .filter(Boolean);
+
+    if (!bestMatch && alternatives.length > 0) {
+      bestMatch = alternatives.shift();
+    }
 
     return {
       bestMatch,

@@ -48,34 +48,66 @@ function buildTree(categories) {
     isLeaf: node.isLeaf,
     description: node.description,
     parentSlug: node.parentSlug,
+    visible: node.visible !== false,
+    slowCategory: node.slowCategory || false,
     subcategories: node.subcategories.map(stripInternal),
   });
 
   return roots.map(stripInternal);
 }
 
+function filterVisibleCategories(tree) {
+  return tree
+    .filter(node => node.visible !== false)
+    .map(node => ({
+      ...node,
+      subcategories: filterVisibleCategories(node.subcategories || [])
+    }));
+}
+
+let cachedVisibleTree = null;
+let visibleCacheTimestamp = 0;
+
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const now = Date.now();
+    const showAll = req.query.all === 'true';
     
-    // Используем кеш, если он свежий
-    if (cachedTree && (now - cacheTimestamp) < CACHE_DURATION) {
-      res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
-      res.set('X-Cache', 'HIT');
-      return res.json(cachedTree);
+    if (showAll) {
+      if (cachedTree && (now - cacheTimestamp) < CACHE_DURATION) {
+        res.set('Cache-Control', 'public, max-age=300');
+        res.set('X-Cache', 'HIT');
+        return res.json(cachedTree);
+      }
+      
+      const categories = await Category.find().sort({ sortOrder: 1, slug: 1 });
+      const tree = buildTree(categories);
+      
+      cachedTree = tree;
+      cacheTimestamp = now;
+      
+      res.set('Cache-Control', 'public, max-age=300');
+      res.set('X-Cache', 'MISS');
+      return res.json(tree);
     }
     
-    // Загружаем из БД и обновляем кеш
-    const categories = await Category.find().sort({ sortOrder: 1, slug: 1 });
+    if (cachedVisibleTree && (now - visibleCacheTimestamp) < CACHE_DURATION) {
+      res.set('Cache-Control', 'public, max-age=300');
+      res.set('X-Cache', 'HIT');
+      return res.json(cachedVisibleTree);
+    }
+    
+    const categories = await Category.find({ visible: { $ne: false } }).sort({ sortOrder: 1, slug: 1 });
     const tree = buildTree(categories);
+    const visibleTree = filterVisibleCategories(tree);
     
-    cachedTree = tree;
-    cacheTimestamp = now;
+    cachedVisibleTree = visibleTree;
+    visibleCacheTimestamp = now;
     
-    res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
+    res.set('Cache-Control', 'public, max-age=300');
     res.set('X-Cache', 'MISS');
-    res.json(tree);
+    res.json(visibleTree);
   })
 );
 

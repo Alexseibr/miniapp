@@ -14,14 +14,23 @@ import { CategoryNode, AdPreview } from '@/types';
 import { CATEGORY_ICONS } from '@/constants/categoryIcons';
 import OptimizedImage from '@/components/OptimizedImage';
 
-const POPULAR_CATEGORY_SLUGS = [
+const QUICK_CATEGORY_SLUGS = [
+  'lichnye-veshchi',
   'farmer-market',
-  'realty',
-  'auto',
-  'services',
-  'construction',
-  'electronics',
+  'selhoztekhnika',
+  'uslugi',
+  'arenda',
+  'elektronika',
 ];
+
+const QUICK_CATEGORY_LABELS: Record<string, string> = {
+  'lichnye-veshchi': 'Личные вещи',
+  'farmer-market': 'Фермерский рынок',
+  'selhoztekhnika': 'Сельхоз техника',
+  'uslugi': 'Услуги',
+  'arenda': 'Аренда',
+  'elektronika': 'Электроника',
+};
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -75,9 +84,9 @@ export default function HomePage() {
     navigate(`/ads/${ad._id}`);
   };
 
-  const popularCategories = categories.filter((cat) =>
-    POPULAR_CATEGORY_SLUGS.includes(cat.slug)
-  ).slice(0, 6);
+  const quickCategories = QUICK_CATEGORY_SLUGS
+    .map(slug => categories.find(cat => cat.slug === slug))
+    .filter((cat): cat is CategoryNode => cat !== undefined);
 
   const getCategoryIcon = (category: CategoryNode) => {
     let iconSrc = category.icon3d || CATEGORY_ICONS[category.slug] || null;
@@ -291,7 +300,7 @@ export default function HomePage() {
 
         <section style={{ marginBottom: 20 }}>
           <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 14px', color: '#111827' }}>
-            Популярные категории
+            Быстрые категории
           </h2>
 
           {categoriesLoading ? (
@@ -306,7 +315,7 @@ export default function HomePage() {
                 gap: 10,
               }}
             >
-              {popularCategories.map((category) => {
+              {quickCategories.map((category) => {
                 const iconSrc = getCategoryIcon(category);
                 return (
                   <button

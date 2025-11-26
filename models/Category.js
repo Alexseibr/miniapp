@@ -126,6 +126,16 @@ const categorySchema = new mongoose.Schema(
       type: [String],
       default: [],
     },
+    visible: {
+      type: Boolean,
+      default: true,
+      index: true,
+    },
+    slowCategory: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
   },
   {
     timestamps: true,
