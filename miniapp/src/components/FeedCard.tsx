@@ -27,7 +27,7 @@ export default function FeedCard({
   const preloadRef = useRef<HTMLImageElement | null>(null);
 
   const images = item.images?.length ? item.images : item.photos || [];
-  const rawMainImage = images[0];
+  const rawMainImage = item.previewUrl || images[0];
   const mainImage = rawMainImage ? getPhotoUrl(rawMainImage) : '';
   const hasImage = !!rawMainImage && !imageError;
 
@@ -98,7 +98,7 @@ export default function FeedCard({
       style={{
         width: '100%',
         height: '100%',
-        padding: '8px 12px 16px',
+        padding: '12px 16px 24px',
         boxSizing: 'border-box',
       }}
     >
@@ -245,33 +245,14 @@ export default function FeedCard({
             </div>
           )}
 
-          {/* Photo count indicator if multiple */}
-          {images.length > 1 && (
-            <div
-              style={{
-                position: 'absolute',
-                top: 12,
-                right: 12,
-                padding: '6px 10px',
-                background: 'rgba(0,0,0,0.6)',
-                borderRadius: 8,
-                fontSize: 12,
-                fontWeight: 600,
-                color: '#FFFFFF',
-              }}
-            >
-              1/{images.length}
-            </div>
-          )}
         </div>
 
         {/* Bottom section: Price + Like, Description, Location */}
         <div
           style={{
-            padding: '16px',
+            padding: '12px 16px',
             background: '#FFFFFF',
             flexShrink: 0,
-            paddingBottom: 'calc(16px + env(safe-area-inset-bottom) + 70px)',
             borderBottomLeftRadius: 16,
             borderBottomRightRadius: 16,
           }}

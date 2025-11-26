@@ -122,8 +122,10 @@ export interface FeedItem {
   description?: string;
   images?: string[];
   photos?: string[];
+  previewUrl?: string;
   city: string;
   district: string;
+  geoLabel?: string;
   geo: {
     type: string;
     coordinates: [number, number];

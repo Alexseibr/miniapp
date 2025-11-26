@@ -151,6 +151,11 @@ const adSchema = new mongoose.Schema(
       type: String,
       trim: true,
     }],
+    previewUrl: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     attributes: {
       type: Map,
       of: String,

@@ -94,6 +94,7 @@ export default function FeedPage() {
 
   const filterWithPhotos = (items: FeedItem[]): FeedItem[] => {
     return items.filter(item => 
+      item.previewUrl ||
       (item.images && item.images.length > 0) || 
       (item.photos && item.photos.length > 0)
     );
@@ -857,7 +858,7 @@ export default function FeedPage() {
                 onLike={handleLike}
                 onViewOpen={handleViewOpen}
                 isActive={true}
-                nextImageUrl={items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
+                nextImageUrl={items[currentIndex + 1]?.previewUrl || items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
                 isLiked={favoriteIds.has(currentItem._id)}
               />
             </motion.div>
