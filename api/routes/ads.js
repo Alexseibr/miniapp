@@ -2074,6 +2074,32 @@ router.post('/:id/track-contact', async (req, res) => {
   }
 });
 
+router.post('/:id/contact-reveal', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'contact')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    const ad = await Ad.findByIdAndUpdate(
+      id,
+      { $inc: { contactRevealCount: 1 } },
+      { new: true, select: 'contactRevealCount' }
+    );
+    
+    if (!ad) {
+      return res.status(404).json({ error: 'Ad not found' });
+    }
+    
+    res.json({ success: true, contactRevealCount: ad.contactRevealCount });
+  } catch (error) {
+    console.error('[contact-reveal]', error.message);
+    res.status(500).json({ error: 'Failed to track contact reveal' });
+  }
+});
+
 router.post('/:id/extend', async (req, res) => {
   try {
     const { id } = req.params;

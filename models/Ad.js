@@ -324,6 +324,10 @@ const adSchema = new mongoose.Schema(
       type: Number,
       default: 0,
     },
+    contactRevealCount: {
+      type: Number,
+      default: 0,
+    },
     firstShownAt: {
       type: Date,
       default: null,

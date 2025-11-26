@@ -169,3 +169,13 @@ export async function trackContact(adId: string): Promise<void> {
     console.warn('[trackContact]', error);
   }
 }
+
+export async function trackContactReveal(adId: string): Promise<{ success: boolean; contactRevealCount?: number }> {
+  try {
+    const response = await http.post(`/api/ads/${adId}/contact-reveal`);
+    return response.data;
+  } catch (error) {
+    console.warn('[trackContactReveal]', error);
+    return { success: false };
+  }
+}

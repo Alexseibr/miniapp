@@ -1300,6 +1300,7 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
   const [suggestion, setSuggestion] = useState<CategorySuggestion | null>(null);
   const [suggestionDismissed, setSuggestionDismissed] = useState(false);
   const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [generatingDescription, setGeneratingDescription] = useState(false);
 
   useEffect(() => {
     if (suggestionDismissed || info.categoryId) {
@@ -1382,6 +1383,42 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
   const dismissSuggestion = () => {
     setSuggestion(null);
     setSuggestionDismissed(true);
+  };
+
+  const handleGenerateDescription = async () => {
+    if (!info.title || info.title.length < 3) return;
+    
+    setGeneratingDescription(true);
+    try {
+      const response = await fetch('/api/ai/suggest-description', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: info.title,
+          categoryId: info.categoryId || undefined,
+          subcategoryId: info.subcategoryId || undefined,
+        }),
+      });
+      
+      const data = await response.json();
+      
+      if (data.success && data.data?.description) {
+        onSetInfo({ description: data.data.description });
+      } else {
+        const fallbackDescriptions: Record<string, string> = {
+          'farm': `${info.title}\n\nСвежий продукт, выращенный с заботой. Отличное качество, натуральный вкус. Возможна доставка или самовывоз.`,
+          'electronics': `${info.title}\n\nВ отличном состоянии. Полностью рабочий, без дефектов. Продаю в связи с переездом.`,
+          'default': `${info.title}\n\nХорошее состояние, готов к использованию. Все вопросы по телефону.`,
+        };
+        const categoryKey = info.categoryId && ['farm', 'electronics'].includes(info.categoryId) ? info.categoryId : 'default';
+        onSetInfo({ description: fallbackDescriptions[categoryKey] });
+      }
+    } catch (err) {
+      console.error('Description generation error:', err);
+      onSetInfo({ description: `${info.title}\n\nОтличное состояние. Продаю по выгодной цене. Звоните, отвечу на все вопросы!` });
+    } finally {
+      setGeneratingDescription(false);
+    }
   };
 
   return (
@@ -1565,7 +1602,40 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
       </div>
 
       <div style={{ marginBottom: 20 }}>
-        <label style={{ display: 'block', fontSize: 15, fontWeight: 500, marginBottom: 8, color: '#111827' }}>Описание (по желанию)</label>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+          <label style={{ fontSize: 15, fontWeight: 500, color: '#111827' }}>Описание (по желанию)</label>
+          <button
+            type="button"
+            onClick={handleGenerateDescription}
+            disabled={generatingDescription || !info.title || info.title.length < 3}
+            style={{
+              padding: '6px 12px',
+              background: generatingDescription ? '#E5E7EB' : '#EBF3FF',
+              border: `1px solid ${generatingDescription ? '#D1D5DB' : '#3B73FC'}`,
+              borderRadius: 8,
+              fontSize: 13,
+              fontWeight: 500,
+              color: generatingDescription ? '#6B7280' : '#3B73FC',
+              cursor: (generatingDescription || !info.title || info.title.length < 3) ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+            data-testid="button-generate-description"
+          >
+            {generatingDescription ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Генерирую...
+              </>
+            ) : (
+              <>
+                <Edit3 size={14} />
+                Помочь с описанием
+              </>
+            )}
+          </button>
+        </div>
         <textarea
           value={info.description}
           onChange={(e) => onSetInfo({ description: e.target.value })}

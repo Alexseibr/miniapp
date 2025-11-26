@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, MessageCircle, ArrowLeft, Phone, Share2, Eye, Calendar, X, ExternalLink, Heart } from 'lucide-react';
 import { SiInstagram, SiTelegram } from 'react-icons/si';
-import { getAd, getSimilarAds, trackView, trackContact } from '@/api/ads';
+import { getAd, getSimilarAds, trackView, trackContact, trackContactReveal } from '@/api/ads';
 import EmptyState from '@/widgets/EmptyState';
 import { Ad, AdPreview } from '@/types';
 import FavoriteButton from '@/components/FavoriteButton';
@@ -119,7 +119,7 @@ export default function AdPage() {
 
   const handleShowPhone = useCallback(() => {
     if (!showPhone && ad) {
-      trackContact(ad._id);
+      trackContactReveal(ad._id);
     }
     if (showPhone && ad?.contactPhone) {
       handleCallPhone();
