@@ -24,7 +24,14 @@ router.get('/my', async (req, res, next) => {
       .populate('adId')
       .lean();
 
-    res.json(favorites);
+    // Преобразуем формат: adId (populated) → ad
+    const items = favorites.map((fav) => ({
+      ...fav,
+      adId: fav.adId?._id || fav.adId,
+      ad: fav.adId && typeof fav.adId === 'object' ? fav.adId : null,
+    }));
+
+    res.json({ items, count: items.length });
   } catch (err) {
     next(err);
   }
