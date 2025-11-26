@@ -72,7 +72,7 @@ class SmartSearchService {
     }
 
     if (coords) {
-      matchStage.location = {
+      matchStage['location.geo'] = {
         $geoWithin: {
           $centerSphere: [[coords.lng, coords.lat], radius / EARTH_RADIUS_KM],
         },
