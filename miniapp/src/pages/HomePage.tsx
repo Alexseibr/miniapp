@@ -88,8 +88,9 @@ export default function HomePage() {
           
           if (response.ok) {
             const data = await response.json();
-            if (data && Array.isArray(data) && data.length > 0) {
-              foundAds = data;
+            const items = data?.items || (Array.isArray(data) ? data : []);
+            if (items.length > 0) {
+              foundAds = items;
               usedRadius = radius;
               if (foundAds.length >= MIN_ADS_COUNT) {
                 break;
@@ -156,15 +157,18 @@ export default function HomePage() {
   return (
     <div style={{ 
       background: '#FFFFFF', 
-      minHeight: '100vh',
+      minHeight: '100%',
+      display: 'flex',
+      flexDirection: 'column',
     }}>
-      {/* Sticky Header + Search */}
+      {/* Sticky Header + Search - stays fixed at top */}
       <div style={{
         position: 'sticky',
         top: 0,
         background: '#FFFFFF',
         zIndex: 50,
         paddingTop: 'env(safe-area-inset-top)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.05)',
       }}>
         {/* Header */}
         <div style={{
@@ -241,8 +245,11 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Scrollable Content */}
-      <div style={{ paddingBottom: 100 }}>
+      {/* Scrollable Content - uses body scroll, flex fills remaining space */}
+      <div style={{ 
+        flex: 1,
+        paddingBottom: 100,
+      }}>
         {/* Quick Categories */}
         <section style={{ padding: '8px 16px 24px' }}>
           <h2 style={{ 
