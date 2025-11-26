@@ -57,14 +57,14 @@ export function getRedisConnection() {
 }
 
 /**
- * Queue Names
+ * Queue Names (no colons - BullMQ restriction)
  */
 export const QUEUES = {
-  NOTIFICATIONS: 'ketmar:notifications',
-  ANALYTICS: 'ketmar:analytics',
-  AI_TASKS: 'ketmar:ai-tasks',
-  LIFECYCLE: 'ketmar:lifecycle',
-  SEARCH_ALERTS: 'ketmar:search-alerts',
+  NOTIFICATIONS: 'ketmar-notifications',
+  ANALYTICS: 'ketmar-analytics',
+  AI_TASKS: 'ketmar-ai-tasks',
+  LIFECYCLE: 'ketmar-lifecycle',
+  SEARCH_ALERTS: 'ketmar-search-alerts',
 };
 
 /**
