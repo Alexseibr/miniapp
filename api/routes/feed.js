@@ -33,6 +33,7 @@ router.get('/', async (req, res) => {
     let matchStage = {
       status: 'active',
       moderationStatus: 'approved',
+      'photos.0': { $exists: true },
     };
 
     if (cursor) {

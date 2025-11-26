@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bell, MapPin, Loader2 } from 'lucide-react';
+import { Bell, MapPin, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import FeedCard from '@/components/FeedCard';
 import { useGeo } from '@/utils/geo';
 import { FeedItem, FeedEvent } from '@/types';
@@ -9,6 +10,7 @@ import http from '@/api/http';
 const FEED_RADIUS_KM = 20;
 const FEED_LIMIT = 20;
 const SWIPE_THRESHOLD = 50;
+const AUTO_REFRESH_INTERVAL = 45000; // 45 seconds
 
 export default function FeedPage() {
   const navigate = useNavigate();
@@ -19,7 +21,10 @@ export default function FeedPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
-  const [showSwipeHints, setShowSwipeHints] = useState(true);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const [slideDirection, setSlideDirection] = useState<'up' | 'down' | null>(null);
+  const [newBuffer, setNewBuffer] = useState<FeedItem[]>([]);
+  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
   
   const currentStartTime = useRef<number | null>(null);
   const pendingEvents = useRef<FeedEvent[]>([]);
@@ -27,10 +32,42 @@ export default function FeedPage() {
   const touchStartY = useRef<number>(0);
   const touchDeltaY = useRef<number>(0);
   const isTransitioning = useRef<boolean>(false);
+  const hasShownHint = useRef(false);
+  const lastFetchTime = useRef<number>(Date.now());
+
+  // Check if hint was shown before
+  useEffect(() => {
+    const hintShown = localStorage.getItem('ketmar_feed_hint_shown');
+    if (!hintShown) {
+      setShowSwipeHint(true);
+      hasShownHint.current = false;
+    } else {
+      hasShownHint.current = true;
+    }
+  }, []);
+
+  // Auto-hide hint after 3 seconds
+  useEffect(() => {
+    if (showSwipeHint) {
+      const timer = setTimeout(() => {
+        setShowSwipeHint(false);
+        localStorage.setItem('ketmar_feed_hint_shown', 'true');
+        hasShownHint.current = true;
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSwipeHint]);
+
+  const dismissHint = useCallback(() => {
+    if (showSwipeHint) {
+      setShowSwipeHint(false);
+      localStorage.setItem('ketmar_feed_hint_shown', 'true');
+      hasShownHint.current = true;
+    }
+  }, [showSwipeHint]);
 
   const sendEvents = useCallback(async (events: FeedEvent[]) => {
     if (events.length === 0) return;
-    
     try {
       await http.post('/api/feed/events', { events });
     } catch (error) {
@@ -47,17 +84,25 @@ export default function FeedPage() {
 
   const trackEvent = useCallback((event: FeedEvent) => {
     pendingEvents.current.push(event);
-    
     if (pendingEvents.current.length >= 5) {
       flushPendingEvents();
     }
   }, [flushPendingEvents]);
 
-  const loadFeed = useCallback(async (cursor?: string) => {
+  const filterWithPhotos = (items: FeedItem[]): FeedItem[] => {
+    return items.filter(item => 
+      (item.images && item.images.length > 0) || 
+      (item.photos && item.photos.length > 0)
+    );
+  };
+
+  const loadFeed = useCallback(async (cursor?: string, isRefresh?: boolean) => {
     if (!coords) return;
     
     try {
-      setIsLoading(true);
+      if (!cursor && !isRefresh) {
+        setIsLoading(true);
+      }
       
       const params = new URLSearchParams({
         lat: coords.lat.toString(),
@@ -77,53 +122,72 @@ export default function FeedPage() {
         hasMore: boolean;
       };
       
-      if (cursor) {
-        setItems(prev => [...prev, ...data.items]);
+      // Filter out items without photos
+      const filteredItems = filterWithPhotos(data.items);
+      lastFetchTime.current = Date.now();
+      
+      if (isRefresh) {
+        // For refresh, add new items to buffer
+        const existingIds = new Set(items.map(i => i._id));
+        const newItems = filteredItems.filter(item => !existingIds.has(item._id));
+        if (newItems.length > 0) {
+          setNewBuffer(prev => [...prev, ...newItems]);
+        }
+      } else if (cursor) {
+        setItems(prev => [...prev, ...filteredItems]);
       } else {
-        setItems(data.items);
+        setItems(filteredItems);
         setCurrentIndex(0);
         
-        if (data.items.length > 0) {
+        if (filteredItems.length > 0) {
           currentStartTime.current = Date.now();
           trackEvent({
-            adId: data.items[0]._id,
+            adId: filteredItems[0]._id,
             eventType: 'impression',
             positionIndex: 0,
             radiusKm: FEED_RADIUS_KM,
-            meta: { categoryId: data.items[0].categoryId },
+            meta: { categoryId: filteredItems[0].categoryId },
           });
         }
       }
       
-      setNextCursor(data.nextCursor);
-      setHasMore(data.hasMore);
+      if (!isRefresh) {
+        setNextCursor(data.nextCursor);
+        setHasMore(data.hasMore);
+      }
     } catch (error) {
       console.error('Failed to load feed:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [coords, trackEvent]);
+  }, [coords, items, trackEvent]);
 
+  // Initial load
   useEffect(() => {
     if (coords) {
       loadFeed();
     }
-  }, [coords, loadFeed]);
+  }, [coords]);
 
+  // Load more when approaching end
   useEffect(() => {
     if (hasMore && nextCursor && currentIndex >= items.length - 3) {
       loadFeed(nextCursor);
     }
-  }, [currentIndex, items.length, hasMore, nextCursor, loadFeed]);
+  }, [currentIndex, items.length, hasMore, nextCursor]);
 
+  // Periodic refresh for new items
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setShowSwipeHints(false);
-    }, 5000);
+    if (!coords || items.length === 0) return;
     
-    return () => clearTimeout(timer);
-  }, []);
+    const interval = setInterval(() => {
+      loadFeed(undefined, true);
+    }, AUTO_REFRESH_INTERVAL);
+    
+    return () => clearInterval(interval);
+  }, [coords, items.length]);
 
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       flushPendingEvents();
@@ -131,14 +195,19 @@ export default function FeedPage() {
   }, [flushPendingEvents]);
 
   const goToNext = useCallback(() => {
-    if (currentIndex >= items.length - 1 || isTransitioning.current) return;
+    if (isTransitioning.current) return;
+    dismissHint();
     
     isTransitioning.current = true;
+    setSlideDirection('up');
     
-    if (currentStartTime.current) {
+    const currItem = items[currentIndex];
+    
+    // Track dwell time for current item
+    if (currentStartTime.current && currItem) {
       const dwellTimeMs = Date.now() - currentStartTime.current;
       trackEvent({
-        adId: items[currentIndex]._id,
+        adId: currItem._id,
         eventType: 'impression',
         dwellTimeMs,
         positionIndex: currentIndex,
@@ -146,41 +215,99 @@ export default function FeedPage() {
       });
     }
     
-    trackEvent({
-      adId: items[currentIndex]._id,
-      eventType: 'scroll_next',
-      positionIndex: currentIndex,
-      radiusKm: FEED_RADIUS_KM,
-    });
-    
-    setCurrentIndex(prev => prev + 1);
-    currentStartTime.current = Date.now();
-    
-    const nextItem = items[currentIndex + 1];
-    if (nextItem) {
+    // Track scroll event
+    if (currItem) {
       trackEvent({
-        adId: nextItem._id,
-        eventType: 'impression',
-        positionIndex: currentIndex + 1,
+        adId: currItem._id,
+        eventType: 'scroll_next',
+        positionIndex: currentIndex,
         radiusKm: FEED_RADIUS_KM,
-        meta: { categoryId: nextItem.categoryId },
       });
+    }
+    
+    // Determine what to do based on position
+    const isAtEnd = currentIndex >= items.length - 1;
+    
+    if (isAtEnd) {
+      // First, inject any buffered items
+      if (newBuffer.length > 0) {
+        const bufferedItems = [...newBuffer];
+        const firstBuffered = bufferedItems[0];
+        setNewBuffer([]);
+        
+        // Update items and index atomically using functional updates
+        setItems(prev => [...prev, ...bufferedItems]);
+        setCurrentIndex(prev => prev + 1);
+        currentStartTime.current = Date.now();
+        
+        // Track impression for first buffered item
+        trackEvent({
+          adId: firstBuffered._id,
+          eventType: 'impression',
+          positionIndex: currentIndex + 1,
+          radiusKm: FEED_RADIUS_KM,
+          meta: { categoryId: firstBuffered.categoryId },
+        });
+      } else if (!hasMore && items.length > 1) {
+        // No more items to load and no buffer - wrap to start with shuffle
+        const shuffled = [...items].sort(() => Math.random() - 0.5);
+        const firstItem = shuffled[0];
+        
+        // Update items and reset index
+        setItems(shuffled);
+        setCurrentIndex(0);
+        currentStartTime.current = Date.now();
+        
+        // Track impression for first shuffled item
+        trackEvent({
+          adId: firstItem._id,
+          eventType: 'impression',
+          positionIndex: 0,
+          radiusKm: FEED_RADIUS_KM,
+          meta: { categoryId: firstItem.categoryId },
+        });
+      }
+      // If hasMore is true, we're waiting for more items to load
+    } else {
+      // Normal case - just move to next
+      const nextIndex = currentIndex + 1;
+      const nextItem = items[nextIndex];
+      
+      setCurrentIndex(nextIndex);
+      currentStartTime.current = Date.now();
+      
+      if (nextItem) {
+        trackEvent({
+          adId: nextItem._id,
+          eventType: 'impression',
+          positionIndex: nextIndex,
+          radiusKm: FEED_RADIUS_KM,
+          meta: { categoryId: nextItem.categoryId },
+        });
+      }
     }
     
     setTimeout(() => {
       isTransitioning.current = false;
-    }, 300);
-  }, [currentIndex, items, trackEvent]);
+      setSlideDirection(null);
+    }, 350);
+  }, [currentIndex, items, hasMore, newBuffer, trackEvent, dismissHint]);
 
   const goToPrev = useCallback(() => {
-    if (currentIndex <= 0 || isTransitioning.current) return;
+    if (isTransitioning.current) return;
+    if (items.length === 0) return;
+    dismissHint();
     
     isTransitioning.current = true;
+    setSlideDirection('down');
     
-    if (currentStartTime.current) {
+    const currItem = items[currentIndex];
+    
+    // Track dwell time for current item
+    if (currentStartTime.current && currItem) {
       const dwellTimeMs = Date.now() - currentStartTime.current;
       trackEvent({
-        adId: items[currentIndex]._id,
+        adId: currItem._id,
         eventType: 'impression',
         dwellTimeMs,
         positionIndex: currentIndex,
@@ -188,22 +315,29 @@ export default function FeedPage() {
       });
     }
     
-    trackEvent({
-      adId: items[currentIndex]._id,
-      eventType: 'scroll_prev',
-      positionIndex: currentIndex,
-      radiusKm: FEED_RADIUS_KM,
-    });
+    // Track scroll event
+    if (currItem) {
+      trackEvent({
+        adId: currItem._id,
+        eventType: 'scroll_prev',
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+      });
+    }
     
-    setCurrentIndex(prev => prev - 1);
+    // Calculate prev index with wrap-around
+    const prevIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
+    const prevItem = items[prevIndex];
+    
+    setCurrentIndex(prevIndex);
     currentStartTime.current = Date.now();
     
-    const prevItem = items[currentIndex - 1];
+    // Track impression for prev item
     if (prevItem) {
       trackEvent({
         adId: prevItem._id,
         eventType: 'impression',
-        positionIndex: currentIndex - 1,
+        positionIndex: prevIndex,
         radiusKm: FEED_RADIUS_KM,
         meta: { categoryId: prevItem.categoryId },
       });
@@ -211,8 +345,9 @@ export default function FeedPage() {
     
     setTimeout(() => {
       isTransitioning.current = false;
-    }, 300);
-  }, [currentIndex, items, trackEvent]);
+      setSlideDirection(null);
+    }, 350);
+  }, [currentIndex, items, trackEvent, dismissHint]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -234,33 +369,31 @@ export default function FeedPage() {
     touchDeltaY.current = 0;
   }, [goToNext, goToPrev]);
 
-  const handleLike = useCallback(() => {
-    const item = items[currentIndex];
+  const handleLike = useCallback((adId: string) => {
+    // Prevent duplicate likes for the same ad in this session
+    if (likedIds.has(adId)) {
+      return;
+    }
+    
+    const item = items.find(i => i._id === adId);
     if (item) {
+      // Mark as liked in session - create new Set properly
+      setLikedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.add(adId);
+        return newSet;
+      });
+      
       trackEvent({
         adId: item._id,
         eventType: 'like',
-        positionIndex: currentIndex,
+        positionIndex: items.indexOf(item),
         radiusKm: FEED_RADIUS_KM,
         meta: { categoryId: item.categoryId },
       });
       flushPendingEvents();
     }
-  }, [currentIndex, items, trackEvent, flushPendingEvents]);
-
-  const handleDislike = useCallback(() => {
-    const item = items[currentIndex];
-    if (item) {
-      trackEvent({
-        adId: item._id,
-        eventType: 'dislike',
-        positionIndex: currentIndex,
-        radiusKm: FEED_RADIUS_KM,
-        meta: { categoryId: item.categoryId },
-      });
-    }
-    goToNext();
-  }, [currentIndex, items, trackEvent, goToNext]);
+  }, [items, likedIds, trackEvent, flushPendingEvents]);
 
   const handleViewOpen = useCallback(() => {
     const item = items[currentIndex];
@@ -278,6 +411,22 @@ export default function FeedPage() {
 
   const needsLocation = !coords && geoStatus !== 'loading';
   const currentItem = items[currentIndex];
+
+  // Animation variants for slide transitions
+  const slideVariants = {
+    enter: (direction: 'up' | 'down' | null) => ({
+      y: direction === 'up' ? '100%' : direction === 'down' ? '-100%' : 0,
+      opacity: direction ? 0.5 : 1,
+    }),
+    center: {
+      y: 0,
+      opacity: 1,
+    },
+    exit: (direction: 'up' | 'down' | null) => ({
+      y: direction === 'up' ? '-100%' : direction === 'down' ? '100%' : 0,
+      opacity: direction ? 0.5 : 1,
+    }),
+  };
 
   if (needsLocation) {
     return (
@@ -588,7 +737,7 @@ export default function FeedPage() {
               lineHeight: 1.5,
             }}
           >
-            В радиусе {FEED_RADIUS_KM} км пока нет объявлений
+            В радиусе {FEED_RADIUS_KM} км пока нет объявлений с фото
           </p>
         </div>
       </div>
@@ -611,6 +760,7 @@ export default function FeedPage() {
         touchAction: 'pan-y',
       }}
     >
+      {/* Header */}
       <header
         style={{
           position: 'absolute',
@@ -657,6 +807,7 @@ export default function FeedPage() {
         </button>
       </header>
 
+      {/* Main content with animated card transitions */}
       <main
         style={{
           flex: 1,
@@ -664,21 +815,37 @@ export default function FeedPage() {
           overflow: 'hidden',
         }}
       >
-        {currentItem && (
-          <FeedCard
-            key={currentItem._id}
-            item={currentItem}
-            onLike={handleLike}
-            onDislike={handleDislike}
-            onViewOpen={handleViewOpen}
-            showSwipeHints={showSwipeHints}
-            isFirst={currentIndex === 0}
-            isLast={currentIndex === items.length - 1 && !hasMore}
-            isActive={true}
-            nextImageUrl={items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
-          />
-        )}
+        <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
+          {currentItem && (
+            <motion.div
+              key={currentItem._id}
+              custom={slideDirection}
+              variants={slideVariants}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{
+                y: { type: 'spring', stiffness: 300, damping: 30 },
+                opacity: { duration: 0.2 },
+              }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+              }}
+            >
+              <FeedCard
+                item={currentItem}
+                onLike={handleLike}
+                onViewOpen={handleViewOpen}
+                isActive={true}
+                nextImageUrl={items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
+                isLiked={likedIds.has(currentItem._id)}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
 
+        {/* Position indicator */}
         <div
           style={{
             position: 'absolute',
@@ -691,6 +858,7 @@ export default function FeedPage() {
             background: 'rgba(0,0,0,0.4)',
             backdropFilter: 'blur(10px)',
             borderRadius: 16,
+            zIndex: 15,
           }}
         >
           {items.slice(Math.max(0, currentIndex - 2), currentIndex + 3).map((item, idx) => {
@@ -711,7 +879,99 @@ export default function FeedPage() {
             );
           })}
         </div>
+
+        {/* Swipe hint overlay */}
+        {showSwipeHint && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={dismissHint}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: 'rgba(0,0,0,0.7)',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 30,
+              gap: 24,
+            }}
+          >
+            <motion.div
+              animate={{ y: [-10, 10, -10] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <ChevronUp size={40} color="#fff" />
+              <span style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+                Свайп вверх
+              </span>
+            </motion.div>
+            
+            <div
+              style={{
+                width: 60,
+                height: 100,
+                border: '2px solid rgba(255,255,255,0.5)',
+                borderRadius: 30,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              <motion.div
+                animate={{ y: [-20, 20, -20] }}
+                transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+                style={{
+                  width: 8,
+                  height: 24,
+                  background: '#fff',
+                  borderRadius: 4,
+                }}
+              />
+            </div>
+            
+            <motion.div
+              animate={{ y: [10, -10, 10] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+              }}
+            >
+              <span style={{ fontSize: 16, color: '#fff', fontWeight: 500 }}>
+                Свайп вниз
+              </span>
+              <ChevronDown size={40} color="#fff" />
+            </motion.div>
+            
+            <p
+              style={{
+                fontSize: 14,
+                color: 'rgba(255,255,255,0.7)',
+                marginTop: 16,
+              }}
+            >
+              Нажмите чтобы продолжить
+            </p>
+          </motion.div>
+        )}
       </main>
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }
