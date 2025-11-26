@@ -9,9 +9,6 @@ import { ArrowLeft, MapPin, Loader2, Camera, X, Check, RefreshCw, Edit3 } from '
 import ImageUploader from '@/components/ImageUploader';
 import PriceHint from '@/components/PriceHint';
 import { SchedulePublishBlock } from '@/components/schedule/SchedulePublishBlock';
-import { MapContainer, TileLayer, Marker, Circle, useMap } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
 
 const BRAND_BLUE = '#2B5CFF';
 const BRAND_BLUE_LIGHT = 'rgba(43, 92, 255, 0.12)';
@@ -29,37 +26,6 @@ interface AdPhoto {
 }
 
 const MAX_PHOTOS = 4;
-
-const createBrandPinIcon = () => {
-  const svgIcon = `
-    <svg width="36" height="44" viewBox="0 0 36 44" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <defs>
-        <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#000" flood-opacity="0.25"/>
-        </filter>
-      </defs>
-      <path d="M18 2C10.268 2 4 8.268 4 16c0 10 14 24 14 24s14-14 14-24c0-7.732-6.268-14-14-14z" 
-            fill="${BRAND_BLUE}" filter="url(#shadow)"/>
-      <circle cx="18" cy="16" r="6" fill="white"/>
-    </svg>
-  `;
-  
-  return L.divIcon({
-    html: svgIcon,
-    className: 'brand-pin-icon',
-    iconSize: [36, 44],
-    iconAnchor: [18, 44],
-    popupAnchor: [0, -44],
-  });
-};
-
-function MapCenterUpdater({ center }: { center: [number, number] }) {
-  const map = useMap();
-  useEffect(() => {
-    map.setView(center, 14);
-  }, [center, map]);
-  return null;
-}
 
 interface LocationData {
   lat: number;
@@ -353,6 +319,9 @@ function Step1Location({
   const [error, setError] = useState('');
   const [presets, setPresets] = useState<PresetLocation[]>([]);
   const [showPresets, setShowPresets] = useState(false);
+  const [manualCity, setManualCity] = useState('');
+  const [manualDistrict, setManualDistrict] = useState('');
+  const [showManualInput, setShowManualInput] = useState(false);
 
   useEffect(() => {
     getPresetLocations().then((res) => setPresets(res.items)).catch(console.error);
@@ -361,17 +330,49 @@ function Step1Location({
   const handleAutoDetect = async () => {
     setError('');
     setLoading(true);
+    
+    if (!navigator.geolocation) {
+      setError('Геолокация не поддерживается вашим браузером');
+      setShowPresets(true);
+      setLoading(false);
+      return;
+    }
+    
     try {
       const pos = await new Promise<GeolocationPosition>((resolve, reject) => {
-        navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, timeout: 10000 });
+        navigator.geolocation.getCurrentPosition(
+          resolve, 
+          (err) => {
+            console.error('Geolocation error:', err.code, err.message);
+            reject(err);
+          }, 
+          { enableHighAccuracy: false, timeout: 5000, maximumAge: 60000 }
+        );
       });
 
       const { latitude, longitude } = pos.coords;
-      const result = await resolveGeoLocation(latitude, longitude);
-      onSetLocation({ lat: result.lat, lng: result.lng, geoLabel: result.label });
+      
+      try {
+        const result = await resolveGeoLocation(latitude, longitude);
+        onSetLocation({ lat: result.lat, lng: result.lng, geoLabel: result.label });
+      } catch (geoErr: any) {
+        console.error('Reverse geocoding error:', geoErr);
+        const fallbackLabel = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`;
+        onSetLocation({ lat: latitude, lng: longitude, geoLabel: fallbackLabel });
+        setError('Не удалось определить адрес. Пожалуйста, выберите город из списка.');
+        setShowPresets(true);
+      }
     } catch (err: any) {
       console.error('Geo error:', err);
-      setError('Не удалось определить местоположение');
+      let errorMessage = 'Не удалось определить местоположение. ';
+      if (err.code === 1) {
+        errorMessage += 'Доступ к геолокации запрещён.';
+      } else if (err.code === 2) {
+        errorMessage += 'Позиция недоступна.';
+      } else if (err.code === 3) {
+        errorMessage += 'Превышено время ожидания.';
+      }
+      setError(errorMessage);
       setShowPresets(true);
     } finally {
       setLoading(false);
@@ -381,13 +382,40 @@ function Step1Location({
   const handleSelectPreset = (preset: PresetLocation) => {
     onSetLocation({ lat: preset.lat, lng: preset.lng, geoLabel: preset.label });
     setShowPresets(false);
+    setShowManualInput(false);
+    setError('');
   };
 
   const handleChooseOther = () => {
     setShowPresets(true);
   };
 
-  const brandPinIcon = createBrandPinIcon();
+  const handleManualSubmit = () => {
+    const cityTrimmed = manualCity.trim();
+    if (!cityTrimmed) {
+      setError('Укажите город');
+      return;
+    }
+    
+    const preset = presets.find(p => 
+      p.city.toLowerCase() === cityTrimmed.toLowerCase() ||
+      p.label.toLowerCase().includes(cityTrimmed.toLowerCase())
+    );
+    
+    if (!preset) {
+      setError('Город не найден в списке. Пожалуйста, выберите город из предложенных вариантов.');
+      return;
+    }
+    
+    const labelParts = [cityTrimmed];
+    if (manualDistrict.trim()) {
+      labelParts.push(manualDistrict.trim());
+    }
+    
+    onSetLocation({ lat: preset.lat, lng: preset.lng, geoLabel: labelParts.join(', ') });
+    setShowManualInput(false);
+    setError('');
+  };
 
   return (
     <div style={{ padding: 16 }}>
@@ -395,34 +423,54 @@ function Step1Location({
         Где вы продаёте?
       </h2>
       <p style={{ fontSize: 15, color: '#6B7280', textAlign: 'center', margin: '0 0 20px' }}>
-        Мы определим район, где вы находитесь
+        Укажите город и район для вашего объявления
       </p>
 
-      {!location && !showPresets && (
-        <button
-          onClick={handleAutoDetect}
-          disabled={loading}
-          style={{
-            width: '100%',
-            padding: '18px',
-            background: loading ? '#9CA3AF' : BRAND_BLUE,
-            color: '#fff',
-            border: 'none',
-            borderRadius: 12,
-            fontSize: 17,
-            fontWeight: 600,
-            cursor: loading ? 'not-allowed' : 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: 12,
-            minHeight: 56,
-          }}
-          data-testid="button-auto-detect"
-        >
-          {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <MapPin size={22} />}
-          {loading ? 'Определяем...' : 'Определить автоматически'}
-        </button>
+      {!location && !showPresets && !showManualInput && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button
+            onClick={handleAutoDetect}
+            disabled={loading}
+            style={{
+              width: '100%',
+              padding: '18px',
+              background: loading ? '#9CA3AF' : BRAND_BLUE,
+              color: '#fff',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 17,
+              fontWeight: 600,
+              cursor: loading ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 12,
+              minHeight: 56,
+            }}
+            data-testid="button-auto-detect"
+          >
+            {loading ? <Loader2 className="w-6 h-6 animate-spin" /> : <MapPin size={22} />}
+            {loading ? 'Определяем...' : 'Определить автоматически'}
+          </button>
+          
+          <button
+            onClick={() => setShowPresets(true)}
+            style={{
+              width: '100%',
+              padding: '14px',
+              background: '#fff',
+              color: BRAND_BLUE,
+              border: `1px solid ${BRAND_BLUE}`,
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 500,
+              cursor: 'pointer',
+            }}
+            data-testid="button-select-city"
+          >
+            Выбрать город из списка
+          </button>
+        </div>
       )}
 
       {location && (
@@ -431,49 +479,29 @@ function Step1Location({
             background: '#EBF3FF', 
             border: `2px solid ${BRAND_BLUE}`, 
             borderRadius: 12, 
-            padding: 16, 
+            padding: 20, 
             textAlign: 'center',
             marginBottom: 16,
           }}>
+            <div style={{ 
+              width: 56, 
+              height: 56, 
+              background: BRAND_BLUE, 
+              borderRadius: '50%', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              margin: '0 auto 12px',
+            }}>
+              <Check size={28} color="#fff" />
+            </div>
             <div style={{ fontSize: 14, color: '#4B5563', marginBottom: 4 }}>Ваше местоположение:</div>
             <div style={{ fontSize: 20, fontWeight: 600, color: BRAND_BLUE }}>{location.geoLabel}</div>
-          </div>
-
-          <div style={{ 
-            borderRadius: 12, 
-            overflow: 'hidden', 
-            height: 200,
-            border: '1px solid #E5E7EB',
-          }}>
-            <MapContainer
-              center={[location.lat, location.lng]}
-              zoom={14}
-              style={{ height: '100%', width: '100%' }}
-              zoomControl={false}
-              attributionControl={false}
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              />
-              <MapCenterUpdater center={[location.lat, location.lng]} />
-              <Circle
-                center={[location.lat, location.lng]}
-                radius={400}
-                pathOptions={{
-                  fillColor: BRAND_BLUE_LIGHT,
-                  fillOpacity: 0.4,
-                  color: BRAND_BLUE_BORDER,
-                  weight: 2,
-                }}
-              />
-              <Marker position={[location.lat, location.lng]} icon={brandPinIcon} />
-            </MapContainer>
           </div>
 
           <button
             onClick={handleChooseOther}
             style={{
-              marginTop: 12,
               width: '100%',
               background: 'transparent',
               border: `1px solid ${BRAND_BLUE}`,
@@ -497,12 +525,93 @@ function Step1Location({
       )}
 
       {error && (
-        <div style={{ marginTop: 16, background: '#FEE2E2', border: '1px solid #FCA5A5', padding: 12, borderRadius: 8, fontSize: 14, color: '#991B1B' }}>
+        <div style={{ marginTop: 16, marginBottom: 16, background: '#FEF3C7', border: '1px solid #F59E0B', padding: 12, borderRadius: 8, fontSize: 14, color: '#92400E' }}>
           {error}
         </div>
       )}
 
-      {showPresets && presets.length > 0 && (
+      {showManualInput && (
+        <div style={{ marginTop: 16 }}>
+          <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#111827' }}>
+            Введите город и район вручную:
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={{ display: 'block', fontSize: 14, color: '#374151', marginBottom: 6, fontWeight: 500 }}>
+                Город *
+              </label>
+              <input
+                type="text"
+                value={manualCity}
+                onChange={(e) => setManualCity(e.target.value)}
+                placeholder="Например: Брест"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: 10,
+                  fontSize: 16,
+                  outline: 'none',
+                }}
+                data-testid="input-manual-city"
+              />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: 14, color: '#374151', marginBottom: 6, fontWeight: 500 }}>
+                Район (необязательно)
+              </label>
+              <input
+                type="text"
+                value={manualDistrict}
+                onChange={(e) => setManualDistrict(e.target.value)}
+                placeholder="Например: Московский район"
+                style={{
+                  width: '100%',
+                  padding: '14px 16px',
+                  border: '1px solid #D1D5DB',
+                  borderRadius: 10,
+                  fontSize: 16,
+                  outline: 'none',
+                }}
+                data-testid="input-manual-district"
+              />
+            </div>
+            <button
+              onClick={handleManualSubmit}
+              style={{
+                width: '100%',
+                padding: '14px',
+                background: BRAND_BLUE,
+                color: '#fff',
+                border: 'none',
+                borderRadius: 10,
+                fontSize: 16,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+              data-testid="button-manual-submit"
+            >
+              Подтвердить
+            </button>
+            <button
+              onClick={() => { setShowManualInput(false); setShowPresets(true); }}
+              style={{
+                width: '100%',
+                padding: '12px',
+                background: 'transparent',
+                color: '#6B7280',
+                border: 'none',
+                fontSize: 15,
+                cursor: 'pointer',
+              }}
+            >
+              Назад к списку городов
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showPresets && !showManualInput && presets.length > 0 && (
         <div style={{ marginTop: location ? 0 : 24 }}>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 12, color: '#111827' }}>
             {location ? 'Или выберите город:' : 'Выберите город:'}
@@ -533,12 +642,37 @@ function Step1Location({
               </button>
             ))}
           </div>
+          
+          <button
+            onClick={() => setShowManualInput(true)}
+            style={{
+              marginTop: 16,
+              width: '100%',
+              padding: '12px 16px',
+              background: '#F3F4F6',
+              border: '1px solid #E5E7EB',
+              borderRadius: 8,
+              fontSize: 15,
+              fontWeight: 500,
+              color: '#374151',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 8,
+            }}
+            data-testid="button-manual-input"
+          >
+            <Edit3 size={18} />
+            Ввести город вручную
+          </button>
+          
           {!location && (
             <button
               onClick={handleAutoDetect}
               disabled={loading}
               style={{
-                marginTop: 16,
+                marginTop: 12,
                 width: '100%',
                 background: 'transparent',
                 border: `1px solid ${BRAND_BLUE}`,
@@ -560,13 +694,6 @@ function Step1Location({
           )}
         </div>
       )}
-
-      <style>{`
-        .brand-pin-icon {
-          background: transparent !important;
-          border: none !important;
-        }
-      `}</style>
     </div>
   );
 }
@@ -1462,7 +1589,7 @@ function Step4Contacts({
   onSetPublishAt,
 }: {
   contacts: ContactsData;
-  user: { phone?: string; username?: string } | null;
+  user: { phone?: string | null; username?: string | null } | null;
   onSetContacts: (contacts: Partial<ContactsData>) => void;
   publishAt: Date | null;
   onSetPublishAt: (date: Date | null) => void;
@@ -1472,9 +1599,9 @@ function Step4Contacts({
 
   useEffect(() => {
     if (hasPhone && !contacts.contactPhone) {
-      onSetContacts({ contactType: 'telegram_phone', contactPhone: user?.phone });
+      onSetContacts({ contactType: 'telegram_phone', contactPhone: user?.phone || '' });
     } else if (hasUsername && !contacts.contactUsername) {
-      onSetContacts({ contactType: 'telegram_username', contactUsername: user?.username });
+      onSetContacts({ contactType: 'telegram_username', contactUsername: user?.username || '' });
     }
   }, [hasPhone, hasUsername]);
 
@@ -1490,7 +1617,7 @@ function Step4Contacts({
       {hasPhone && (
         <button
           type="button"
-          onClick={() => onSetContacts({ contactType: 'telegram_phone', contactPhone: user?.phone })}
+          onClick={() => onSetContacts({ contactType: 'telegram_phone', contactPhone: user?.phone || '' })}
           style={{
             width: '100%',
             padding: '16px',
@@ -1512,7 +1639,7 @@ function Step4Contacts({
       {hasUsername && (
         <button
           type="button"
-          onClick={() => onSetContacts({ contactType: 'telegram_username', contactUsername: user?.username })}
+          onClick={() => onSetContacts({ contactType: 'telegram_username', contactUsername: user?.username || '' })}
           style={{
             width: '100%',
             padding: '16px',
