@@ -22,12 +22,13 @@ export default function BottomTabs() {
     <nav
       data-testid="bottom-tabs"
       style={{
-        position: 'sticky',
+        position: 'fixed',
+        left: 0,
+        right: 0,
         bottom: 0,
         background: '#FFFFFF',
         padding: '8px 0 calc(env(safe-area-inset-bottom) + 8px)',
         borderTop: '1px solid #E5E7EB',
-        marginTop: 'auto',
         zIndex: 100,
       }}
     >

@@ -100,17 +100,22 @@ html, body {
   flex-direction: column;
 }
 
-/* App shell - uses body scroll, not internal container */
+/* App shell - fixed header/footer, scrollable content */
 .app-shell {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
-  min-height: 100dvh;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
 }
 
 .app-shell > main {
   flex: 1;
-  /* Let body handle scroll, not main container */
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: calc(var(--bottom-nav-height) + var(--safe-area-bottom));
 }
 
 /* === SCROLLBAR === */

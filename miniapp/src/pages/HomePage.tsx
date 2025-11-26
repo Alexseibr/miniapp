@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, Search, Bell, MapPin, Map } from 'lucide-react';
+import { Loader2, Search, Bell, MapPin, Map, Navigation } from 'lucide-react';
 import GeoOnboarding from '@/components/GeoOnboarding';
 import LocationSettingsModal from '@/components/LocationSettingsModal';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
@@ -245,10 +245,9 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Scrollable Content - uses body scroll, flex fills remaining space */}
+      {/* Scrollable Content */}
       <div style={{ 
         flex: 1,
-        paddingBottom: 100,
       }}>
         {/* Quick Categories */}
         <section style={{ padding: '8px 16px 24px' }}>
@@ -594,9 +593,35 @@ function NearbyAdCard({
           display: '-webkit-box',
           WebkitLineClamp: 2,
           WebkitBoxOrient: 'vertical',
+          marginBottom: 6,
         }}>
           {ad.title}
         </div>
+        
+        {(ad.geoLabel || ad.city) && (
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 4,
+            fontSize: 11,
+            color: '#9CA3AF',
+          }}>
+            <Navigation size={12} color="#9CA3AF" />
+            <span style={{
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+            }}>
+              {ad.geoLabel || ad.city}
+              {ad.distanceKm !== undefined && ad.distanceKm > 0 && (
+                <span> · {ad.distanceKm < 1 
+                  ? `${Math.round(ad.distanceKm * 1000)}м` 
+                  : `${ad.distanceKm.toFixed(1)}км`
+                }</span>
+              )}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
