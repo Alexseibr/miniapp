@@ -141,15 +141,19 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
   async refreshFavorites() {
     const telegramId = get().user?.telegramId;
+    console.log('[Store] refreshFavorites called, telegramId:', telegramId);
     if (!telegramId) {
+      console.log('[Store] No telegramId, setting empty favorites');
       set({ favorites: [] });
       return;
     }
     try {
       const response = await fetchFavorites(telegramId);
+      console.log('[Store] fetchFavorites response:', JSON.stringify(response, null, 2));
       set({ favorites: response.items || [] });
+      console.log('[Store] favorites set, count:', (response.items || []).length);
     } catch (error) {
-      console.error('favorites fetch error', error);
+      console.error('[Store] favorites fetch error', error);
     }
   },
   async toggleFavorite(adId, isFavorite) {

@@ -13,7 +13,30 @@ interface FavoriteCardProps {
 
 function FavoriteCard({ favorite, index, onRemove }: FavoriteCardProps) {
   const ad = favorite.ad;
-  if (!ad) return null;
+  
+  // Если нет данных объявления, показываем placeholder
+  if (!ad) {
+    return (
+      <div
+        style={{
+          background: '#F5F6F8',
+          borderRadius: 16,
+          aspectRatio: '1',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexDirection: 'column',
+          gap: 8,
+          padding: 16,
+        }}
+      >
+        <Heart size={24} color="#9CA3AF" />
+        <p style={{ color: '#9CA3AF', fontSize: 12, textAlign: 'center' }}>
+          Объявление недоступно
+        </p>
+      </div>
+    );
+  }
 
   const animationDelay = `${index * 50}ms`;
 
@@ -91,8 +114,11 @@ export default function FavoritesPage() {
   useEffect(() => {
     const loadFavorites = async () => {
       setIsLoading(true);
-      await refreshFavorites();
-      setIsLoading(false);
+      try {
+        await refreshFavorites();
+      } finally {
+        setIsLoading(false);
+      }
     };
     loadFavorites();
   }, [refreshFavorites]);
