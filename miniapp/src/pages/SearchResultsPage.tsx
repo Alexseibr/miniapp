@@ -84,7 +84,7 @@ export default function SearchResultsPage() {
           params.set('categoryId', 'farmer-market');
         }
         
-        const response = await fetch(`/api/search/search?${params.toString()}`);
+        const response = await fetch(`/api/search?${params.toString()}`);
         const data = await response.json();
         
         let items = data.items || data || [];

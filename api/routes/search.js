@@ -102,6 +102,8 @@ function sortItems(items, sortKey, hasGeoContext) {
 
 router.get('/search', async (req, res) => {
   try {
+    console.log('[Search] Request:', req.query);
+    
     const {
       q,
       categoryId,
