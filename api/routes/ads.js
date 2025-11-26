@@ -887,6 +887,131 @@ router.get('/nearby-stats', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/ads/category-facets
+ * 
+ * Получение количества объявлений по подкатегориям для заданной категории.
+ * Возвращает фасеты с подсчётом объявлений в каждой подкатегории.
+ * 
+ * @route GET /api/ads/category-facets
+ * @param {string} categorySlug - Slug родительской категории (обязательно)
+ * @param {number} [lat] - Широта точки поиска (опционально, для geo-фильтрации)
+ * @param {number} [lng] - Долгота точки поиска (опционально, для geo-фильтрации)
+ * @param {number} [radiusKm=20] - Радиус поиска в километрах
+ * 
+ * @returns {Object[]} Массив фасетов { subcategoryId, subcategorySlug, title, adsCount }
+ */
+router.get('/category-facets', async (req, res, next) => {
+  try {
+    const { categorySlug, lat, lng, radiusKm = 20 } = req.query;
+
+    if (!categorySlug) {
+      return res.status(400).json({ error: 'categorySlug обязателен' });
+    }
+
+    // Проверяем скрытые категории
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    if (hiddenSlugs.includes(categorySlug)) {
+      return res.json([]);
+    }
+
+    // Находим категорию и её подкатегории
+    const category = await Category.findOne({ slug: categorySlug }).lean();
+    if (!category) {
+      return res.json([]);
+    }
+
+    // Получаем все подкатегории этой категории (исключая скрытые)
+    const subcategories = await Category.find({ 
+      parentId: category._id,
+      slug: { $nin: hiddenSlugs },
+    }).lean();
+
+    if (subcategories.length === 0) {
+      return res.json([]);
+    }
+
+    const subcategorySlugs = subcategories.map(s => s.slug);
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const radiusNumber = Number(radiusKm);
+    const hasGeo = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 
+      ? Math.min(radiusNumber, 100) 
+      : 20;
+
+    const baseFilter = {
+      status: 'active',
+      moderationStatus: 'approved',
+      subcategoryId: { $in: subcategorySlugs },
+    };
+
+    let pipeline = [];
+
+    if (hasGeo) {
+      pipeline = [
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+            distanceField: 'distanceMeters',
+            maxDistance: finalRadiusKm * 1000,
+            spherical: true,
+            query: baseFilter,
+            key: 'location.geo',
+          },
+        },
+        {
+          $group: {
+            _id: '$subcategoryId',
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { count: -1 },
+        },
+      ];
+    } else {
+      pipeline = [
+        { $match: baseFilter },
+        {
+          $group: {
+            _id: '$subcategoryId',
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { count: -1 },
+        },
+      ];
+    }
+
+    const results = await Ad.aggregate(pipeline);
+
+    // Маппинг результатов с названиями подкатегорий
+    // Используем slug как единый идентификатор для консистентности с API фильтрации
+    const countMap = new Map(results.map(item => [item._id, item.count]));
+    
+    // Формируем фасеты для всех подкатегорий (включая те, что без объявлений)
+    const facets = subcategories.map(subcat => ({
+      subcategoryId: subcat.slug,  // Используем slug как ID для совместимости с API
+      subcategorySlug: subcat.slug,
+      title: subcat.name,
+      adsCount: countMap.get(subcat.slug) || 0,
+    }));
+
+    // Сортируем: сначала с объявлениями, потом по алфавиту
+    facets.sort((a, b) => {
+      if (a.adsCount !== b.adsCount) return b.adsCount - a.adsCount;
+      return a.title.localeCompare(b.title, 'ru');
+    });
+
+    return res.json(facets);
+  } catch (error) {
+    next(error);
+  }
+});
+
 // GET /api/ads/live-spots — geo search for live locations
 router.get('/live-spots', async (req, res) => {
   try {

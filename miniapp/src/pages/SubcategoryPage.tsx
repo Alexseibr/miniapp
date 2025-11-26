@@ -1,11 +1,12 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, SlidersHorizontal, ArrowUpDown, Heart, MapPin, Loader2 } from 'lucide-react';
+import { ArrowLeft, SlidersHorizontal, ArrowUpDown, Heart, MapPin, Loader2, X, Check } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
-import CategoryGrid from '@/components/CategoryGrid';
 import { useCategoriesStore } from '@/hooks/useCategoriesStore';
 import { useGeo } from '@/utils/geo';
-import { AdPreview } from '@/types';
+import { AdPreview, CategoryNode } from '@/types';
+import FavoriteButton from '@/components/FavoriteButton';
+import { useUserStore } from '@/store/useUserStore';
 
 const RADIUS_PRESETS = [
   { value: 0.3, label: '300м' },
@@ -13,17 +14,38 @@ const RADIUS_PRESETS = [
   { value: 3, label: '3км' },
   { value: 5, label: '5км' },
   { value: 10, label: '10км' },
+  { value: 20, label: '20км' },
 ];
 
-type SortOption = 'distance' | 'price_asc' | 'price_desc' | 'date';
+const DEFAULT_RADIUS = 3;
+
+type SortOption = 'distance' | 'price_asc' | 'price_desc' | 'date_new' | 'date_old';
+
+const SORT_OPTIONS = [
+  { value: 'distance', label: 'По расстоянию' },
+  { value: 'date_new', label: 'По дате: сначала новые' },
+  { value: 'date_old', label: 'По дате: сначала старые' },
+  { value: 'price_asc', label: 'По цене: от дешёвых' },
+  { value: 'price_desc', label: 'По цене: от дорогих' },
+];
+
+interface SubcategoryFacet {
+  subcategoryId: string;
+  subcategorySlug: string;
+  title: string;
+  adsCount: number;
+}
 
 export default function SubcategoryPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { categories, loading, loadCategories, getCategoryBySlug } = useCategoriesStore();
-  const [selectedRadius, setSelectedRadius] = useState(10);
+  const [selectedRadius, setSelectedRadius] = useState(DEFAULT_RADIUS);
   const [sortBy, setSortBy] = useState<SortOption>('distance');
   const [showSort, setShowSort] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
+  const [tempSelectedSubcategory, setTempSelectedSubcategory] = useState<string | null>(null);
   
   const { coords, setRadius } = useGeo(false);
 
@@ -34,16 +56,47 @@ export default function SubcategoryPage() {
   const category = useMemo(() => getCategoryBySlug(slug || ''), [slug, categories, getCategoryBySlug]);
   const subcategories = useMemo(() => category?.subcategories || [], [category]);
 
-  const { data: adsData, isLoading: adsLoading } = useQuery<any>({
-    queryKey: ['/api/ads/search', { 
-      categorySlug: slug,
+  // Fetch ads with all parameters
+  const { data: adsData, isLoading: adsLoading, refetch } = useQuery<any>({
+    queryKey: ['/api/ads/nearby', { 
+      categoryId: slug,
+      subcategoryId: selectedSubcategory,
       radiusKm: selectedRadius,
       lat: coords?.lat,
       lng: coords?.lng,
+      sort: sortBy === 'price_asc' ? 'cheapest' : 
+            sortBy === 'price_desc' ? 'expensive' : 
+            sortBy === 'date_new' ? 'newest' :
+            sortBy === 'date_old' ? 'oldest' :
+            sortBy,
       limit: 50 
     }],
     enabled: !!slug && !!category,
   });
+
+  // Get subcategory facets (counts)
+  const { data: facetsData } = useQuery<SubcategoryFacet[]>({
+    queryKey: ['/api/ads/category-facets', {
+      categorySlug: slug,
+      radiusKm: selectedRadius,
+      lat: coords?.lat,
+      lng: coords?.lng,
+    }],
+    enabled: !!slug && !!category && subcategories.length > 0,
+  });
+
+  const subcategoryFacets = useMemo(() => {
+    if (!facetsData) {
+      // Fallback: create facets from subcategories without counts
+      return subcategories.map(sub => ({
+        subcategoryId: sub._id || sub.slug,
+        subcategorySlug: sub.slug,
+        title: sub.name,
+        adsCount: 0,
+      }));
+    }
+    return facetsData;
+  }, [facetsData, subcategories]);
 
   const ads: AdPreview[] = useMemo(() => {
     const items = Array.isArray(adsData)
@@ -60,9 +113,13 @@ export default function SubcategoryPage() {
         return sorted.sort((a, b) => a.price - b.price);
       case 'price_desc':
         return sorted.sort((a, b) => b.price - a.price);
-      case 'date':
+      case 'date_new':
         return sorted.sort((a, b) => 
           new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        );
+      case 'date_old':
+        return sorted.sort((a, b) => 
+          new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
         );
       case 'distance':
       default:
@@ -77,6 +134,27 @@ export default function SubcategoryPage() {
   const handleRadiusChange = (value: number) => {
     setSelectedRadius(value);
     setRadius(value);
+  };
+
+  const handleOpenFilters = () => {
+    setTempSelectedSubcategory(selectedSubcategory);
+    setShowFilters(true);
+  };
+
+  const handleApplyFilters = () => {
+    setSelectedSubcategory(tempSelectedSubcategory);
+    setShowFilters(false);
+  };
+
+  const handleResetFilters = () => {
+    setTempSelectedSubcategory(null);
+    setSelectedSubcategory(null);
+    setShowFilters(false);
+  };
+
+  const handleSelectSort = (value: SortOption) => {
+    setSortBy(value);
+    setShowSort(false);
   };
 
   if (loading) {
@@ -126,61 +204,12 @@ export default function SubcategoryPage() {
     );
   }
 
-  // If category has subcategories, show them
-  if (subcategories.length > 0) {
-    return (
-      <div style={{
-        minHeight: '100vh',
-        background: '#FFFFFF',
-        paddingBottom: 100,
-      }}>
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          padding: '12px 16px',
-          borderBottom: '1px solid #F0F2F5',
-        }}>
-          <button
-            onClick={handleBack}
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: '50%',
-              background: '#F5F6F8',
-              border: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              cursor: 'pointer',
-            }}
-            data-testid="button-back"
-          >
-            <ArrowLeft size={20} color="#1F2937" />
-          </button>
-          <h1 style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: '#1F2937',
-            margin: 0,
-          }}>
-            {category.name}
-          </h1>
-        </div>
-        
-        <div style={{ padding: 16 }}>
-          <CategoryGrid categories={subcategories} />
-        </div>
-      </div>
-    );
-  }
-
-  // Show ads for leaf category
+  // Always show ads list (no intermediate subcategory screen)
   return (
     <div style={{
       minHeight: '100vh',
       background: '#FFFFFF',
-      paddingBottom: 120,
+      paddingBottom: 140,
     }}>
       {/* Header */}
       <div style={{
@@ -188,32 +217,33 @@ export default function SubcategoryPage() {
         top: 0,
         background: '#FFFFFF',
         zIndex: 20,
-        borderBottom: '1px solid #F0F2F5',
       }}>
-        {/* Title Row */}
+        {/* Title Row - centered title with back arrow */}
         <div style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 12,
-          padding: '12px 16px',
+          padding: '16px 16px 12px',
+          position: 'relative',
         }}>
           <button
             onClick={handleBack}
             style={{
               width: 40,
               height: 40,
-              borderRadius: '50%',
-              background: '#F5F6F8',
+              background: 'transparent',
               border: 'none',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               cursor: 'pointer',
-              flexShrink: 0,
+              padding: 0,
+              position: 'absolute',
+              left: 16,
+              zIndex: 1,
             }}
             data-testid="button-back"
           >
-            <ArrowLeft size={20} color="#1F2937" />
+            <ArrowLeft size={24} color="#1F2937" />
           </button>
           
           <h1 style={{
@@ -221,7 +251,10 @@ export default function SubcategoryPage() {
             fontWeight: 600,
             color: '#1F2937',
             margin: 0,
-            flex: 1,
+            width: '100%',
+            textAlign: 'center',
+            paddingLeft: 40,
+            paddingRight: 40,
           }}>
             {category.name}
           </h1>
@@ -231,9 +264,10 @@ export default function SubcategoryPage() {
         <div style={{
           display: 'flex',
           gap: 8,
-          padding: '8px 16px 12px',
+          padding: '0 16px 16px',
           overflowX: 'auto',
           scrollbarWidth: 'none',
+          msOverflowStyle: 'none',
         }}>
           {RADIUS_PRESETS.map((preset) => (
             <button
@@ -242,10 +276,10 @@ export default function SubcategoryPage() {
               style={{
                 flexShrink: 0,
                 padding: '10px 18px',
-                background: selectedRadius === preset.value ? '#3A7BFF' : '#FFFFFF',
-                border: selectedRadius === preset.value ? 'none' : '1px solid #E5E7EB',
+                background: selectedRadius === preset.value ? '#3A7BFF' : 'transparent',
+                border: 'none',
                 borderRadius: 20,
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 500,
                 color: selectedRadius === preset.value ? '#FFFFFF' : '#6B7280',
                 cursor: 'pointer',
@@ -260,7 +294,7 @@ export default function SubcategoryPage() {
       </div>
 
       {/* Content */}
-      <div style={{ padding: 16 }}>
+      <div style={{ padding: '0 16px' }}>
         {adsLoading ? (
           <div style={{ 
             display: 'flex', 
@@ -295,14 +329,14 @@ export default function SubcategoryPage() {
               color: '#6B7280',
               margin: '0 0 8px',
             }}>
-              Нет объявлений в этом радиусе
+              В выбранном радиусе пока нет объявлений
             </p>
             <p style={{
               fontSize: 14,
               color: '#9CA3AF',
               margin: 0,
             }}>
-              Попробуйте увеличить радиус поиска
+              Попробуйте увеличить радиус или изменить фильтры
             </p>
           </div>
         ) : (
@@ -322,53 +356,62 @@ export default function SubcategoryPage() {
       <div style={{
         position: 'fixed',
         bottom: 80,
-        left: 16,
-        right: 16,
+        left: 0,
+        right: 0,
         display: 'flex',
+        justifyContent: 'center',
         gap: 12,
-        padding: '12px 0',
+        padding: '12px 16px',
         zIndex: 20,
       }}>
         <button
+          onClick={handleOpenFilters}
           style={{
-            flex: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            padding: '14px 20px',
+            padding: '14px 28px',
             background: '#FFFFFF',
             border: '1px solid #E5E7EB',
-            borderRadius: 14,
+            borderRadius: 28,
             fontSize: 15,
             fontWeight: 500,
             color: '#1F2937',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
           }}
           data-testid="button-filters"
         >
           <SlidersHorizontal size={18} />
           Фильтры
+          {selectedSubcategory && (
+            <span style={{
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: '#3A7BFF',
+              marginLeft: 4,
+            }} />
+          )}
         </button>
         
         <button
-          onClick={() => setShowSort(!showSort)}
+          onClick={() => setShowSort(true)}
           style={{
-            flex: 1,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             gap: 8,
-            padding: '14px 20px',
+            padding: '14px 28px',
             background: '#FFFFFF',
             border: '1px solid #E5E7EB',
-            borderRadius: 14,
+            borderRadius: 28,
             fontSize: 15,
             fontWeight: 500,
             color: '#1F2937',
             cursor: 'pointer',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.08)',
+            boxShadow: '0 2px 12px rgba(0, 0, 0, 0.08)',
           }}
           data-testid="button-sort"
         >
@@ -377,13 +420,13 @@ export default function SubcategoryPage() {
         </button>
       </div>
 
-      {/* Sort Dropdown */}
+      {/* Sort Bottom Sheet */}
       {showSort && (
         <div 
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0, 0, 0, 0.3)',
+            background: 'rgba(0, 0, 0, 0.4)',
             zIndex: 50,
           }}
           onClick={() => setShowSort(false)}
@@ -397,9 +440,20 @@ export default function SubcategoryPage() {
               background: '#FFFFFF',
               borderRadius: '20px 20px 0 0',
               padding: '20px 16px 40px',
+              maxHeight: '60vh',
+              overflow: 'auto',
             }}
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Handle bar */}
+            <div style={{
+              width: 40,
+              height: 4,
+              background: '#E5E7EB',
+              borderRadius: 2,
+              margin: '0 auto 16px',
+            }} />
+            
             <h3 style={{ 
               fontSize: 18, 
               fontWeight: 600, 
@@ -409,35 +463,229 @@ export default function SubcategoryPage() {
               Сортировка
             </h3>
             
-            {[
-              { value: 'distance', label: 'По расстоянию' },
-              { value: 'date', label: 'По дате' },
-              { value: 'price_asc', label: 'Сначала дешевые' },
-              { value: 'price_desc', label: 'Сначала дорогие' },
-            ].map((option) => (
+            {SORT_OPTIONS.map((option) => (
               <button
                 key={option.value}
-                onClick={() => {
-                  setSortBy(option.value as SortOption);
-                  setShowSort(false);
-                }}
+                onClick={() => handleSelectSort(option.value as SortOption)}
                 style={{
                   width: '100%',
-                  padding: '14px 16px',
+                  padding: '16px',
                   background: sortBy === option.value ? '#EBF3FF' : 'transparent',
                   border: 'none',
                   borderRadius: 12,
-                  fontSize: 15,
+                  fontSize: 16,
                   fontWeight: sortBy === option.value ? 600 : 400,
                   color: sortBy === option.value ? '#3A7BFF' : '#1F2937',
                   cursor: 'pointer',
                   textAlign: 'left',
                   marginBottom: 4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
                 }}
+                data-testid={`sort-${option.value}`}
               >
                 {option.label}
+                {sortBy === option.value && (
+                  <Check size={20} color="#3A7BFF" />
+                )}
               </button>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Filters Bottom Sheet */}
+      {showFilters && (
+        <div 
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(0, 0, 0, 0.4)',
+            zIndex: 50,
+          }}
+          onClick={() => setShowFilters(false)}
+        >
+          <div 
+            style={{
+              position: 'absolute',
+              bottom: 0,
+              left: 0,
+              right: 0,
+              background: '#FFFFFF',
+              borderRadius: '20px 20px 0 0',
+              padding: '20px 16px 40px',
+              maxHeight: '70vh',
+              display: 'flex',
+              flexDirection: 'column',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Handle bar */}
+            <div style={{
+              width: 40,
+              height: 4,
+              background: '#E5E7EB',
+              borderRadius: 2,
+              margin: '0 auto 16px',
+            }} />
+            
+            {/* Header */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: 20,
+            }}>
+              <h3 style={{ 
+                fontSize: 18, 
+                fontWeight: 600, 
+                margin: 0,
+                color: '#1F2937',
+              }}>
+                Фильтры
+              </h3>
+              <button
+                onClick={() => setShowFilters(false)}
+                style={{
+                  width: 32,
+                  height: 32,
+                  background: '#F5F6F8',
+                  border: 'none',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                }}
+              >
+                <X size={18} color="#6B7280" />
+              </button>
+            </div>
+
+            {/* Subcategories list */}
+            {subcategories.length > 0 && (
+              <>
+                <p style={{
+                  fontSize: 14,
+                  color: '#6B7280',
+                  margin: '0 0 12px',
+                }}>
+                  Подкатегории
+                </p>
+                <div style={{
+                  flex: 1,
+                  overflow: 'auto',
+                  marginBottom: 16,
+                }}>
+                  {subcategoryFacets.map((facet) => {
+                    const isSelected = tempSelectedSubcategory === facet.subcategorySlug;
+                    return (
+                      <button
+                        key={facet.subcategorySlug}
+                        onClick={() => setTempSelectedSubcategory(
+                          isSelected ? null : facet.subcategorySlug
+                        )}
+                        style={{
+                          width: '100%',
+                          padding: '14px 16px',
+                          background: isSelected ? '#EBF3FF' : 'transparent',
+                          border: 'none',
+                          borderRadius: 12,
+                          fontSize: 15,
+                          fontWeight: isSelected ? 600 : 400,
+                          color: isSelected ? '#3A7BFF' : '#1F2937',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          marginBottom: 4,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                        }}
+                        data-testid={`filter-${facet.subcategorySlug}`}
+                      >
+                        <span>{facet.title}</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {facet.adsCount > 0 && (
+                            <span style={{
+                              minWidth: 24,
+                              height: 24,
+                              background: isSelected ? '#3A7BFF' : '#F0F2F5',
+                              color: isSelected ? '#FFFFFF' : '#6B7280',
+                              borderRadius: 12,
+                              fontSize: 13,
+                              fontWeight: 600,
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              padding: '0 8px',
+                            }}>
+                              {facet.adsCount}
+                            </span>
+                          )}
+                          {isSelected && (
+                            <Check size={20} color="#3A7BFF" />
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </>
+            )}
+
+            {subcategories.length === 0 && (
+              <div style={{
+                textAlign: 'center',
+                padding: 32,
+                color: '#9CA3AF',
+              }}>
+                В этой категории нет подкатегорий
+              </div>
+            )}
+
+            {/* Action buttons */}
+            <div style={{
+              display: 'flex',
+              gap: 12,
+              paddingTop: 16,
+              borderTop: '1px solid #F0F2F5',
+            }}>
+              <button
+                onClick={handleResetFilters}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#F5F6F8',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: '#6B7280',
+                  cursor: 'pointer',
+                }}
+                data-testid="button-reset-filters"
+              >
+                Сбросить
+              </button>
+              <button
+                onClick={handleApplyFilters}
+                style={{
+                  flex: 1,
+                  padding: '14px',
+                  background: '#3A7BFF',
+                  border: 'none',
+                  borderRadius: 14,
+                  fontSize: 15,
+                  fontWeight: 600,
+                  color: '#FFFFFF',
+                  cursor: 'pointer',
+                }}
+                data-testid="button-apply-filters"
+              >
+                Применить
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -447,6 +695,7 @@ export default function SubcategoryPage() {
 
 function CategoryAdCard({ ad }: { ad: AdPreview }) {
   const navigate = useNavigate();
+  const user = useUserStore(state => state.user);
   
   const formatPrice = (price: number) => {
     if (price === 0) return 'Даром';
@@ -510,7 +759,7 @@ function CategoryAdCard({ ad }: { ad: AdPreview }) {
             color: '#9CA3AF',
             fontSize: 40,
           }}>
-            📦
+            <MapPin size={48} color="#D1D5DB" />
           </div>
         )}
         
@@ -540,24 +789,42 @@ function CategoryAdCard({ ad }: { ad: AdPreview }) {
           }}
           onClick={(e) => e.stopPropagation()}
         >
-          <div style={{
-            width: 36,
-            height: 36,
-            background: '#FFFFFF',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-          }}>
-            <Heart size={20} color="#9CA3AF" />
-          </div>
+          {user ? (
+            <div style={{
+              width: 36,
+              height: 36,
+              background: '#FFFFFF',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            }}>
+              <FavoriteButton 
+                adId={ad._id} 
+                size={20}
+              />
+            </div>
+          ) : (
+            <div style={{
+              width: 36,
+              height: 36,
+              background: '#FFFFFF',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            }}>
+              <Heart size={20} color="#9CA3AF" />
+            </div>
+          )}
         </div>
       </div>
       
       <div style={{ padding: 16 }}>
         <div style={{
-          fontSize: 22,
+          fontSize: 24,
           fontWeight: 700,
           color: '#1F2937',
           marginBottom: 6,
