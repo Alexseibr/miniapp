@@ -25,17 +25,28 @@ export default function BottomTabs() {
       style={{
         position: 'sticky',
         bottom: 0,
-        background: 'linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.95))',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
+        background: 'rgba(10, 15, 26, 0.95)',
+        backdropFilter: 'blur(30px) saturate(180%)',
+        WebkitBackdropFilter: 'blur(30px) saturate(180%)',
         padding: '8px 12px calc(env(safe-area-inset-bottom) + 8px)',
-        boxShadow: '0 -2px 20px rgba(15, 23, 42, 0.08), 0 -1px 0 rgba(15, 23, 42, 0.05)',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
+        borderTop: '1px solid rgba(59, 130, 246, 0.15)',
+        boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.4), 0 0 30px rgba(59, 130, 246, 0.05)',
         marginTop: 'auto',
-        zIndex: 20,
+        zIndex: 100,
       }}
     >
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent)',
+          opacity: 0.6,
+        }}
+      />
+      
       <div
         style={{
           display: 'flex',
@@ -91,8 +102,9 @@ export default function BottomTabs() {
                     style={{
                       position: 'absolute',
                       inset: -8,
-                      background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.12))',
+                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(124, 58, 237, 0.15))',
                       borderRadius: 12,
+                      border: '1px solid rgba(59, 130, 246, 0.3)',
                       zIndex: -1,
                     }}
                     transition={{
@@ -107,10 +119,11 @@ export default function BottomTabs() {
                   size={22}
                   strokeWidth={isActive ? 2.5 : 2}
                   style={{
-                    color: isActive
-                      ? '#2563eb'
-                      : '#64748b',
+                    color: isActive ? '#3B82F6' : '#64748B',
                     transition: 'all 0.3s ease',
+                    filter: isActive 
+                      ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.6))' 
+                      : 'none',
                   }}
                 />
               </motion.div>
@@ -127,12 +140,15 @@ export default function BottomTabs() {
                 style={{
                   fontSize: '0.7rem',
                   fontWeight: isActive ? 700 : 600,
-                  color: isActive ? '#2563eb' : '#64748b',
+                  color: isActive ? '#3B82F6' : '#64748B',
                   transition: 'all 0.3s ease',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   maxWidth: '100%',
+                  textShadow: isActive 
+                    ? '0 0 10px rgba(59, 130, 246, 0.5)' 
+                    : 'none',
                 }}
               >
                 {tab.label}
@@ -146,8 +162,9 @@ export default function BottomTabs() {
                     bottom: 0,
                     width: 24,
                     height: 3,
-                    background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
+                    background: 'linear-gradient(90deg, #3B82F6, #7C3AED)',
                     borderRadius: '999px 999px 0 0',
+                    boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)',
                   }}
                   transition={{
                     type: 'spring',

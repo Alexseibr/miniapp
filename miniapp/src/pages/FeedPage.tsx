@@ -113,18 +113,45 @@ export default function FeedPage() {
     : totalAds;
 
   return (
-    <div style={{ paddingBottom: '80px', background: '#F8FAFC', minHeight: '100vh' }}>
+    <div style={{ 
+      paddingBottom: 90, 
+      background: '#000000', 
+      minHeight: '100vh',
+      position: 'relative',
+    }}>
+      {/* Background gradients */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        background: `
+          radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.06), transparent 50%),
+          radial-gradient(circle at 80% 80%, rgba(124, 58, 237, 0.05), transparent 50%)
+        `,
+        pointerEvents: 'none',
+        zIndex: 0,
+      }} />
+
       {/* Header */}
       <div
         style={{
           position: 'sticky',
           top: 0,
-          background: '#ffffff',
+          background: 'rgba(10, 15, 26, 0.95)',
+          backdropFilter: 'blur(20px)',
           zIndex: 10,
-          borderBottom: '1px solid #E5E7EB',
-          padding: '12px 16px',
+          borderBottom: '1px solid rgba(59, 130, 246, 0.15)',
+          padding: '14px 16px',
         }}
       >
+        <div style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: '1px',
+          background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent)',
+        }} />
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             onClick={() => navigate('/')}
@@ -134,17 +161,25 @@ export default function FeedPage() {
               justifyContent: 'center',
               width: 44,
               height: 44,
-              background: '#3B73FC',
+              background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
               color: '#ffffff',
               border: 'none',
               borderRadius: 12,
               cursor: 'pointer',
+              boxShadow: '0 0 15px rgba(59, 130, 246, 0.4)',
             }}
             data-testid="button-home"
           >
             <Home size={22} />
           </button>
-          <h1 style={{ flex: 1, margin: 0, fontSize: 20, fontWeight: 600, color: '#111827' }}>
+          <h1 style={{ 
+            flex: 1, 
+            margin: 0, 
+            fontSize: 18, 
+            fontWeight: 700, 
+            color: '#F8FAFC',
+            textShadow: '0 0 20px rgba(59, 130, 246, 0.3)',
+          }}>
             {searchQuery 
               ? `Поиск: "${searchQuery}"` 
               : scope === 'country' 
@@ -160,14 +195,20 @@ export default function FeedPage() {
                 display: 'inline-flex',
                 alignItems: 'center',
                 gap: 8,
-                background: '#EBF3FF',
-                border: '1px solid #BFDBFE',
-                padding: '8px 12px',
-                borderRadius: 10,
+                background: 'rgba(59, 130, 246, 0.15)',
+                border: '1px solid rgba(59, 130, 246, 0.3)',
+                padding: '8px 14px',
+                borderRadius: 12,
+                backdropFilter: 'blur(10px)',
               }}
             >
-              <Search size={16} color="#3B73FC" />
-              <span style={{ fontSize: 15, fontWeight: 500, color: '#3B73FC' }}>
+              <Search size={16} color="#3B82F6" />
+              <span style={{ 
+                fontSize: 14, 
+                fontWeight: 600, 
+                color: '#3B82F6',
+                textShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
+              }}>
                 {searchQuery}
               </span>
               <button
@@ -177,11 +218,11 @@ export default function FeedPage() {
                   setSearchParams(newParams);
                 }}
                 style={{
-                  width: 24,
-                  height: 24,
+                  width: 22,
+                  height: 22,
                   borderRadius: '50%',
                   border: 'none',
-                  background: '#3B73FC',
+                  background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
                   color: '#fff',
                   display: 'flex',
                   alignItems: 'center',
@@ -191,7 +232,7 @@ export default function FeedPage() {
                 }}
                 data-testid="button-clear-search"
               >
-                <X size={14} />
+                <X size={12} />
               </button>
             </div>
           </div>
@@ -200,21 +241,50 @@ export default function FeedPage() {
 
       {/* Geo Request */}
       {needsLocation ? (
-        <div style={{ padding: 20 }}>
+        <div style={{ padding: 20, position: 'relative', zIndex: 1 }}>
           <div
             style={{
-              background: '#ffffff',
-              borderRadius: 16,
+              background: 'rgba(10, 15, 26, 0.8)',
+              borderRadius: 20,
               padding: 32,
               textAlign: 'center',
-              border: '1px solid #E5E7EB',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              backdropFilter: 'blur(10px)',
             }}
           >
-            <MapPin size={56} color="#3B73FC" style={{ margin: '0 auto 20px' }} />
-            <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 12px', color: '#111827' }}>
-              Определите ваше местоположение
+            <div style={{
+              width: 80,
+              height: 80,
+              margin: '0 auto 24px',
+              background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(124, 58, 237, 0.2))',
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 0 30px rgba(59, 130, 246, 0.3)',
+              border: '1px solid rgba(59, 130, 246, 0.3)',
+            }}>
+              <MapPin 
+                size={36} 
+                color="#3B82F6" 
+                style={{ filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))' }}
+              />
+            </div>
+            <h2 style={{ 
+              fontSize: 22, 
+              fontWeight: 700, 
+              margin: '0 0 12px', 
+              color: '#F8FAFC',
+              textShadow: '0 0 20px rgba(59, 130, 246, 0.3)',
+            }}>
+              Определите местоположение
             </h2>
-            <p style={{ fontSize: 18, color: '#6B7280', margin: '0 0 24px', lineHeight: 1.5 }}>
+            <p style={{ 
+              fontSize: 15, 
+              color: '#94A3B8', 
+              margin: '0 0 24px', 
+              lineHeight: 1.5 
+            }}>
               Чтобы показать объявления рядом с вами
             </p>
             <button
@@ -222,16 +292,17 @@ export default function FeedPage() {
               disabled={geoStatus === 'loading'}
               style={{
                 width: '100%',
-                padding: '18px',
-                background: '#3B73FC',
+                padding: '16px',
+                background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
                 color: '#ffffff',
                 border: 'none',
                 borderRadius: 14,
-                fontSize: 20,
+                fontSize: 16,
                 fontWeight: 600,
                 cursor: geoStatus === 'loading' ? 'not-allowed' : 'pointer',
-                opacity: geoStatus === 'loading' ? 0.7 : 1,
-                minHeight: 56,
+                opacity: geoStatus === 'loading' ? 0.6 : 1,
+                minHeight: 52,
+                boxShadow: '0 0 25px rgba(59, 130, 246, 0.4)',
               }}
               data-testid="button-request-location"
             >
@@ -240,15 +311,17 @@ export default function FeedPage() {
           </div>
         </div>
       ) : (
-        <>
+        <div style={{ position: 'relative', zIndex: 1 }}>
           {/* Scope Toggle */}
           <div style={{ padding: '16px 16px 8px' }}>
             <div
               style={{
                 display: 'flex',
-                background: '#F3F4F6',
-                borderRadius: 12,
+                background: 'rgba(10, 15, 26, 0.8)',
+                border: '1px solid rgba(59, 130, 246, 0.15)',
+                borderRadius: 14,
                 padding: 4,
+                backdropFilter: 'blur(10px)',
               }}
             >
               <button
@@ -256,19 +329,23 @@ export default function FeedPage() {
                 style={{
                   flex: 1,
                   padding: '12px 16px',
-                  background: scope === 'local' ? '#FFFFFF' : 'transparent',
-                  border: 'none',
+                  background: scope === 'local' 
+                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(124, 58, 237, 0.2))' 
+                    : 'transparent',
+                  border: scope === 'local' 
+                    ? '1px solid rgba(59, 130, 246, 0.4)' 
+                    : '1px solid transparent',
                   borderRadius: 10,
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: 600,
-                  color: scope === 'local' ? '#3B73FC' : '#6B7280',
+                  color: scope === 'local' ? '#3B82F6' : '#64748B',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  boxShadow: scope === 'local' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.2s',
+                  boxShadow: scope === 'local' ? '0 0 15px rgba(59, 130, 246, 0.2)' : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
                 data-testid="button-scope-local"
               >
@@ -280,19 +357,23 @@ export default function FeedPage() {
                 style={{
                   flex: 1,
                   padding: '12px 16px',
-                  background: scope === 'country' ? '#FFFFFF' : 'transparent',
-                  border: 'none',
+                  background: scope === 'country' 
+                    ? 'linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(124, 58, 237, 0.2))' 
+                    : 'transparent',
+                  border: scope === 'country' 
+                    ? '1px solid rgba(59, 130, 246, 0.4)' 
+                    : '1px solid transparent',
                   borderRadius: 10,
-                  fontSize: 15,
+                  fontSize: 14,
                   fontWeight: 600,
-                  color: scope === 'country' ? '#3B73FC' : '#6B7280',
+                  color: scope === 'country' ? '#3B82F6' : '#64748B',
                   cursor: 'pointer',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: 8,
-                  boxShadow: scope === 'country' ? '0 2px 8px rgba(0,0,0,0.08)' : 'none',
-                  transition: 'all 0.2s',
+                  boxShadow: scope === 'country' ? '0 0 15px rgba(59, 130, 246, 0.2)' : 'none',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
                 }}
                 data-testid="button-scope-country"
               >
@@ -317,39 +398,49 @@ export default function FeedPage() {
               style={{
                 width: '100%',
                 padding: '14px 20px',
-                background: selectedCategoryId ? '#EBF3FF' : '#FFFFFF',
-                border: selectedCategoryId ? '2px solid #3B73FC' : '1px solid #E5E7EB',
+                background: selectedCategoryId 
+                  ? 'rgba(59, 130, 246, 0.15)' 
+                  : 'rgba(10, 15, 26, 0.8)',
+                border: selectedCategoryId 
+                  ? '1px solid rgba(59, 130, 246, 0.4)' 
+                  : '1px solid rgba(59, 130, 246, 0.15)',
                 borderRadius: 14,
-                fontSize: 17,
+                fontSize: 15,
                 fontWeight: 600,
-                color: selectedCategoryId ? '#3B73FC' : '#374151',
+                color: selectedCategoryId ? '#3B82F6' : '#94A3B8',
                 cursor: categoriesLoading ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 12,
                 minHeight: 52,
+                backdropFilter: 'blur(10px)',
+                transition: 'all 0.3s',
               }}
               data-testid="button-open-categories"
             >
-              <SlidersHorizontal size={22} />
+              <SlidersHorizontal size={20} />
               <span style={{ flex: 1, textAlign: 'left' }}>
                 {selectedCategory ? selectedCategory.name : 'Все категории'}
               </span>
               {selectedCategoryCount > 0 && (
                 <span
                   style={{
-                    background: selectedCategoryId ? '#3B73FC' : '#E5E7EB',
-                    color: selectedCategoryId ? '#fff' : '#374151',
-                    padding: '4px 10px',
+                    background: selectedCategoryId 
+                      ? 'linear-gradient(135deg, #3B82F6, #7C3AED)' 
+                      : 'rgba(100, 116, 139, 0.3)',
+                    color: '#fff',
+                    padding: '4px 12px',
                     borderRadius: 20,
-                    fontSize: 14,
-                    fontWeight: 500,
+                    fontSize: 12,
+                    fontWeight: 700,
+                    fontFamily: "'JetBrains Mono', monospace",
+                    boxShadow: selectedCategoryId ? '0 0 10px rgba(59, 130, 246, 0.3)' : 'none',
                   }}
                 >
                   {selectedCategoryCount}
                 </span>
               )}
-              <ChevronDown size={20} color="#9CA3AF" />
+              <ChevronDown size={18} color="#64748B" />
             </button>
           </div>
 
@@ -360,31 +451,42 @@ export default function FeedPage() {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 8,
-                  background: '#EBF3FF',
-                  border: '1px solid #BFDBFE',
-                  padding: '8px 12px',
-                  borderRadius: 10,
+                  gap: 10,
+                  background: 'rgba(59, 130, 246, 0.15)',
+                  border: '1px solid rgba(59, 130, 246, 0.3)',
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  backdropFilter: 'blur(10px)',
                 }}
               >
                 {selectedCategory.icon3d && (
                   <img
                     src={selectedCategory.icon3d}
                     alt=""
-                    style={{ width: 24, height: 24, objectFit: 'contain' }}
+                    style={{ 
+                      width: 24, 
+                      height: 24, 
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0 0 5px rgba(59, 130, 246, 0.3))',
+                    }}
                   />
                 )}
-                <span style={{ fontSize: 15, fontWeight: 500, color: '#3B73FC' }}>
+                <span style={{ 
+                  fontSize: 14, 
+                  fontWeight: 600, 
+                  color: '#3B82F6',
+                  textShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
+                }}>
                   {selectedCategory.name}
                 </span>
                 <button
                   onClick={handleClearCategory}
                   style={{
-                    width: 24,
-                    height: 24,
+                    width: 22,
+                    height: 22,
                     borderRadius: '50%',
                     border: 'none',
-                    background: '#3B73FC',
+                    background: 'linear-gradient(135deg, #3B82F6, #7C3AED)',
                     color: '#fff',
                     display: 'flex',
                     alignItems: 'center',
@@ -394,7 +496,7 @@ export default function FeedPage() {
                   }}
                   data-testid="button-clear-category"
                 >
-                  <X size={14} />
+                  <X size={12} />
                 </button>
               </div>
             </div>
@@ -433,7 +535,7 @@ export default function FeedPage() {
             radiusKm={radiusKm}
             totalAds={totalAds}
           />
-        </>
+        </div>
       )}
     </div>
   );

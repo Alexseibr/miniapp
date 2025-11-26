@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Truck, MapPin } from 'lucide-react';
+import { Heart, Truck, MapPin, Package } from 'lucide-react';
 import FavoriteButton from './FavoriteButton';
 import { PriceBadgeChip } from './pricing';
 import { AdPreview, PriceBadgeData } from '@/types';
@@ -22,7 +22,7 @@ interface AdCardProps {
 }
 
 const NO_PHOTO_PLACEHOLDER =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='20' font-family='Inter, sans-serif'>Нет фото</text></svg>";
+  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%230A0F1A'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2364748b' font-size='16' font-family='Inter, sans-serif'>Нет фото</text></svg>";
 
 export default function AdCard({ ad, onSelect, showActions = true, priceBrief }: AdCardProps) {
   const navigate = useNavigate();
@@ -92,10 +92,11 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
     event.stopPropagation();
   };
 
+  const isFree = ad.price === 0;
+
   return (
     <article
       ref={cardRef}
-      className="ad-card-compact"
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
@@ -106,8 +107,26 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
           handleCardClick();
         }
       }}
+      style={{
+        background: 'rgba(10, 15, 26, 0.8)',
+        border: '1px solid rgba(59, 130, 246, 0.15)',
+        borderRadius: 16,
+        overflow: 'hidden',
+        cursor: 'pointer',
+        transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+        backdropFilter: 'blur(10px)',
+      }}
     >
-      <div className="ad-card-image" onClick={(e) => e.stopPropagation()}>
+      {/* Image Container */}
+      <div 
+        style={{
+          position: 'relative',
+          aspectRatio: '4/3',
+          background: '#0A0F1A',
+          overflow: 'hidden',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
         <Swiper
           modules={[Pagination]}
           pagination={{ 
@@ -127,27 +146,69 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
             const isPlaceholder = photo.startsWith('data:');
             return (
               <SwiperSlide key={index}>
-                <img
-                  src={photo}
-                  srcSet={!isPlaceholder ? generateSrcSet(photo) : undefined}
-                  sizes={!isPlaceholder ? generateAdCardSizes() : undefined}
-                  alt={`${ad.title} - фото ${index + 1}`}
-                  loading="lazy"
-                  decoding="async"
-                  data-testid={`ad-image-${ad._id}-${index}`}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                  onClick={handleCardClick}
-                />
+                {!isPlaceholder ? (
+                  <img
+                    src={photo}
+                    srcSet={generateSrcSet(photo)}
+                    sizes={generateAdCardSizes()}
+                    alt={`${ad.title} - фото ${index + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    data-testid={`ad-image-${ad._id}-${index}`}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover',
+                    }}
+                    onClick={handleCardClick}
+                  />
+                ) : (
+                  <div 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#0A0F1A',
+                    }}
+                    onClick={handleCardClick}
+                  >
+                    <Package size={32} color="#64748B" />
+                  </div>
+                )}
               </SwiperSlide>
             );
           })}
         </Swiper>
-        <div className="ad-card-favorite">
+        
+        {/* Favorite Button */}
+        <div style={{
+          position: 'absolute',
+          top: 8,
+          right: 8,
+          zIndex: 10,
+        }}>
           <FavoriteButton adId={ad._id} />
         </div>
+        
+        {/* Photo Counter */}
         {photos.length > 1 && (
           <div 
-            className="ad-card-photo-counter"
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              left: 8,
+              background: 'rgba(10, 15, 26, 0.85)',
+              backdropFilter: 'blur(8px)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+              padding: '4px 10px',
+              borderRadius: 10,
+              fontSize: 11,
+              fontWeight: 600,
+              color: '#94A3B8',
+              fontFamily: 'var(--font-mono)',
+            }}
             data-testid={`photo-counter-${ad._id}`}
           >
             {currentPhotoIndex + 1}/{photos.length}
@@ -155,15 +216,30 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
         )}
       </div>
 
-      <div className="ad-card-content">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '4px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+      {/* Content */}
+      <div style={{ padding: 12 }}>
+        {/* Price Row */}
+        <div style={{ 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'flex-start', 
+          marginBottom: 6,
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
             <p
               data-testid={`ad-price-${ad._id}`}
-              className="ad-card-price"
-              style={{ margin: 0 }}
+              style={{ 
+                margin: 0,
+                fontSize: 16,
+                fontWeight: 700,
+                color: isFree ? '#10B981' : '#3B82F6',
+                fontFamily: 'var(--font-mono)',
+                textShadow: isFree 
+                  ? '0 0 10px rgba(16, 185, 129, 0.4)' 
+                  : '0 0 10px rgba(59, 130, 246, 0.4)',
+              }}
             >
-              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+              {isFree ? 'ДАРОМ' : `${ad.price.toLocaleString('ru-RU')} ${ad.currency || 'BYN'}`}
             </p>
             {(priceBrief || ad.priceBadge) && (
               <PriceBadgeChip 
@@ -176,13 +252,15 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
             <span
               data-testid={`ad-date-${ad._id}`}
               style={{
-                fontSize: '0.625rem',
-                color: 'var(--color-secondary)',
-                backgroundColor: 'var(--bg-tertiary)',
-                padding: '2px 6px',
-                borderRadius: '4px',
+                fontSize: 10,
                 fontWeight: 500,
-                whiteSpace: 'nowrap'
+                color: '#64748B',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                border: '1px solid rgba(59, 130, 246, 0.15)',
+                padding: '3px 8px',
+                borderRadius: 8,
+                whiteSpace: 'nowrap',
+                fontFamily: 'var(--font-mono)',
               }}
             >
               {formatRelativeTime(new Date(ad.createdAt))}
@@ -190,33 +268,52 @@ export default function AdCard({ ad, onSelect, showActions = true, priceBrief }:
           )}
         </div>
 
+        {/* Title */}
         <h3
           data-testid={`ad-title-${ad._id}`}
-          className="ad-card-title"
+          style={{
+            margin: '0 0 6px',
+            fontSize: 14,
+            fontWeight: 600,
+            color: '#F8FAFC',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            lineHeight: 1.4,
+          }}
         >
           {ad.title}
         </h3>
 
+        {/* Location */}
         {(ad.city || ad.distanceKm != null) && (
           <div 
             style={{ 
               display: 'flex', 
               alignItems: 'center', 
-              gap: '4px',
-              marginTop: '4px'
+              gap: 5,
             }}
           >
             <MapPin 
               size={12} 
               style={{ 
-                color: ad.distanceKm != null ? '#10b981' : 'var(--color-secondary)', 
-                flexShrink: 0 
+                color: ad.distanceKm != null ? '#10B981' : '#64748B', 
+                flexShrink: 0,
+                filter: ad.distanceKm != null ? 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.4))' : 'none',
               }} 
             />
             <p
               data-testid={`ad-location-${ad._id}`}
-              className="ad-card-location"
-              style={{ margin: 0 }}
+              style={{ 
+                margin: 0,
+                fontSize: 12,
+                color: '#64748B',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
             >
               {formatCityDistance(ad.city, ad.distanceKm)}
             </p>
