@@ -77,7 +77,7 @@ export default function ProfilePage() {
     { icon: ShoppingBag, label: 'Мои объявления', path: '/my-ads', color: '#3A7BFF' },
     { icon: Heart, label: 'Избранное', path: '/favorites', color: '#EC4899' },
     { icon: MessageCircle, label: 'Сообщения', path: '/chats', color: '#22C55E' },
-    { icon: Store, label: 'Мой магазин', path: '/seller/dashboard', color: '#7C3AED' },
+    { icon: Store, label: 'Мой магазин', path: '/seller/cabinet', color: '#7C3AED' },
     { icon: Tractor, label: 'Фермерский кабинет', path: '/farmer/cabinet', color: '#F59E0B' },
     { icon: Star, label: 'AI Ассистент', path: '/twin', color: '#06B6D4' },
   ];
