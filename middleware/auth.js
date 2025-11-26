@@ -48,3 +48,35 @@ export function requireAdmin(req, res, next) {
 
   return next();
 }
+
+export const authMiddleware = auth;
+
+export async function optionalAuth(req, res, next) {
+  try {
+    const authHeader = req.headers.authorization;
+
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      req.currentUser = null;
+      return next();
+    }
+
+    const token = authHeader.slice(7);
+    let payload;
+
+    try {
+      payload = jwt.verify(token, process.env.JWT_SECRET);
+    } catch (error) {
+      req.currentUser = null;
+      return next();
+    }
+
+    const userId = payload?.id || payload?.userId || payload?._id;
+    const user = userId ? await User.findById(userId) : null;
+
+    req.currentUser = user || null;
+    return next();
+  } catch (error) {
+    req.currentUser = null;
+    return next();
+  }
+}

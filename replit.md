@@ -60,6 +60,15 @@ Preferred communication style: Simple, everyday language.
   - Account merging logic based on verified phone numbers (same phone = same user across platforms)
   - AuthProviders array tracking linked auth methods per user
   - PlatformProvider React context for platform abstraction in MiniApp
+- **Seller Stores System**: Dedicated storefronts for sellers with:
+  - SellerProfile model for store customization (name, slug, avatar, banner, description, contact info)
+  - SellerSubscription model for tracking store subscribers with notification preferences
+  - SellerReview model for buyer feedback with rating system (1-5 stars) and seller replies
+  - SellerStoreNotificationService for push notifications to subscribers on new products
+  - Public storefront page (SellerStorePage) with products listing, reviews, and contact info
+  - Seller dashboard (SellerDashboardPage) with analytics, subscriber stats, and AI tips
+  - API endpoints: /api/seller-profile, /api/seller-subscriptions, /api/seller-reviews
+  - Deep link support: store_<slug> for direct access via Telegram
 
 ## External Dependencies
 

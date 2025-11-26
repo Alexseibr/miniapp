@@ -34,6 +34,9 @@ import trendsRoutes from './routes/trends.js';
 import aiRoutes from './routes/ai.js';
 import recommendationsRoutes from './routes/recommendations.js';
 import geoIntelligenceRoutes from './routes/geoIntelligence.js';
+import sellerProfileRoutes from './routes/seller-profile.js';
+import sellerSubscriptionsRoutes from './routes/seller-subscriptions.js';
+import sellerReviewsRoutes from './routes/seller-reviews.js';
 
 const app = express();
 
@@ -117,5 +120,8 @@ app.use('/api/trends', trendsRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/recommendations', recommendationsRoutes);
 app.use('/api/geo-intelligence', geoIntelligenceRoutes);
+app.use('/api/seller-profile', sellerProfileRoutes);
+app.use('/api/seller/subscribe', sellerSubscriptionsRoutes);
+app.use('/api/seller', sellerReviewsRoutes);
 
 export default app;

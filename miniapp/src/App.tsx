@@ -34,6 +34,8 @@ const FarmerCabinetPage = lazy(() => import('@/pages/FarmerCabinetPage'));
 const AllCategoriesPage = lazy(() => import('@/pages/AllCategoriesPage'));
 const GeoMapPage = lazy(() => import('@/pages/GeoMapPage'));
 const GeoFeedScreen = lazy(() => import('@/pages/GeoFeedScreen'));
+const SellerStorePage = lazy(() => import('@/pages/SellerStorePage'));
+const SellerDashboardPage = lazy(() => import('@/pages/SellerDashboardPage'));
 
 export default function App() {
   const location = useLocation();
@@ -95,7 +97,7 @@ export default function App() {
   
   // Обработка deep link из бота
   function handleDeepLink(startParam: string) {
-    // Формат: season_short_term_rental, category_realty_rent_daily и т.д.
+    // Формат: season_short_term_rental, category_realty_rent_daily, store_<slug> и т.д.
     if (startParam.startsWith('season_')) {
       const seasonCode = startParam.replace('season_', '');
       // Перенаправляем на FeedPage с фильтром по сезону
@@ -104,6 +106,10 @@ export default function App() {
       const categoryId = startParam.replace('category_', '');
       // Перенаправляем на FeedPage с фильтром по категории
       window.location.href = `/feed?categoryId=${encodeURIComponent(categoryId)}`;
+    } else if (startParam.startsWith('store_')) {
+      const storeSlug = startParam.replace('store_', '');
+      // Перенаправляем на страницу магазина продавца
+      window.location.href = `/store/${encodeURIComponent(storeSlug)}`;
     }
   }
 
@@ -169,6 +175,8 @@ export default function App() {
                 <Route path="/all-categories" element={<AllCategoriesPage />} />
                 <Route path="/map" element={<GeoMapPage />} />
                 <Route path="/geo-feed" element={<GeoFeedScreen />} />
+                <Route path="/store/:id" element={<SellerStorePage />} />
+                <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
