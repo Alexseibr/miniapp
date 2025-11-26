@@ -6,6 +6,8 @@ import FeedCard from '@/components/FeedCard';
 import { useGeo } from '@/utils/geo';
 import { FeedItem, FeedEvent } from '@/types';
 import http from '@/api/http';
+import { toggleFavorite } from '@/api/favorites';
+import { useUserStore } from '@/store/useUserStore';
 
 const FEED_RADIUS_KM = 20;
 const FEED_LIMIT = 20;
@@ -15,6 +17,7 @@ const AUTO_REFRESH_INTERVAL = 45000; // 45 seconds
 export default function FeedPage() {
   const navigate = useNavigate();
   const { coords, status: geoStatus, requestLocation } = useGeo();
+  const user = useUserStore((state) => state.user);
   
   const [items, setItems] = useState<FeedItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -24,7 +27,7 @@ export default function FeedPage() {
   const [showSwipeHint, setShowSwipeHint] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'up' | 'down' | null>(null);
   const [newBuffer, setNewBuffer] = useState<FeedItem[]>([]);
-  const [likedIds, setLikedIds] = useState<Set<string>>(new Set());
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   
   const currentStartTime = useRef<number | null>(null);
   const pendingEvents = useRef<FeedEvent[]>([]);
@@ -369,21 +372,28 @@ export default function FeedPage() {
     touchDeltaY.current = 0;
   }, [goToNext, goToPrev]);
 
-  const handleLike = useCallback((adId: string) => {
-    // Prevent duplicate likes for the same ad in this session
-    if (likedIds.has(adId)) {
-      return;
-    }
+  const handleLike = useCallback(async (adId: string) => {
+    if (!user?.telegramId) return;
     
     const item = items.find(i => i._id === adId);
-    if (item) {
-      // Mark as liked in session - create new Set properly
-      setLikedIds(prev => {
-        const newSet = new Set(prev);
+    if (!item) return;
+    
+    const isCurrentlyFavorite = favoriteIds.has(adId);
+    const newFavoriteState = !isCurrentlyFavorite;
+    
+    // Optimistic update
+    setFavoriteIds(prev => {
+      const newSet = new Set(prev);
+      if (newFavoriteState) {
         newSet.add(adId);
-        return newSet;
-      });
-      
+      } else {
+        newSet.delete(adId);
+      }
+      return newSet;
+    });
+    
+    // Track event (only track on adding to favorites)
+    if (newFavoriteState) {
       trackEvent({
         adId: item._id,
         eventType: 'like',
@@ -393,7 +403,24 @@ export default function FeedPage() {
       });
       flushPendingEvents();
     }
-  }, [items, likedIds, trackEvent, flushPendingEvents]);
+    
+    // Call API
+    try {
+      await toggleFavorite(user.telegramId, adId, newFavoriteState);
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      // Rollback on error
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev);
+        if (isCurrentlyFavorite) {
+          newSet.add(adId);
+        } else {
+          newSet.delete(adId);
+        }
+        return newSet;
+      });
+    }
+  }, [items, favoriteIds, user?.telegramId, trackEvent, flushPendingEvents]);
 
   const handleViewOpen = useCallback(() => {
     const item = items[currentIndex];
@@ -748,22 +775,24 @@ export default function FeedPage() {
         display: 'flex',
         flexDirection: 'column',
         height: '100vh',
-        background: '#FFFFFF',
+        background: '#F5F6F8',
         overflow: 'hidden',
-        touchAction: 'pan-y',
+        touchAction: 'none',
+        overscrollBehavior: 'none',
       }}
     >
-      {/* Header */}
+      {/* Header - fixed at top */}
       <header
         style={{
-          position: 'relative',
+          position: 'sticky',
+          top: 0,
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           padding: '12px 16px',
           background: '#FFFFFF',
-          borderBottom: '1px solid #F0F2F5',
-          zIndex: 20,
+          borderBottom: '1px solid #E5E7EB',
+          zIndex: 50,
           flexShrink: 0,
         }}
       >
@@ -829,46 +858,11 @@ export default function FeedPage() {
                 onViewOpen={handleViewOpen}
                 isActive={true}
                 nextImageUrl={items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
-                isLiked={likedIds.has(currentItem._id)}
+                isLiked={favoriteIds.has(currentItem._id)}
               />
             </motion.div>
           )}
         </AnimatePresence>
-
-        {/* Position indicator */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 'calc(env(safe-area-inset-bottom) + 90px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            display: 'flex',
-            gap: 6,
-            padding: '8px 12px',
-            background: 'rgba(255,255,255,0.95)',
-            boxShadow: '0 2px 12px rgba(0,0,0,0.1)',
-            borderRadius: 16,
-            zIndex: 15,
-          }}
-        >
-          {items.slice(Math.max(0, currentIndex - 2), currentIndex + 3).map((item, idx) => {
-            const actualIndex = Math.max(0, currentIndex - 2) + idx;
-            const isActive = actualIndex === currentIndex;
-            
-            return (
-              <div
-                key={item._id}
-                style={{
-                  width: isActive ? 24 : 8,
-                  height: 8,
-                  borderRadius: 4,
-                  background: isActive ? '#3A7BFF' : '#E5E7EB',
-                  transition: 'all 0.3s ease',
-                }}
-              />
-            );
-          })}
-        </div>
 
         {/* Swipe hint overlay */}
         {showSwipeHint && (
