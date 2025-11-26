@@ -1597,6 +1597,22 @@ router.post('/', validateCreateAd, async (req, res, next) => {
           console.error('[DigitalTwin] Error processing new ad:', error);
         }
       });
+
+      setImmediate(async () => {
+        try {
+          const sendNotification = async (telegramId, message, type) => {
+            if (bot && telegramId) {
+              await bot.telegram.sendMessage(telegramId, message, { parse_mode: 'HTML' });
+            }
+          };
+          const notified = await SearchAlertService.notifyMatchingUsers(ad, sendNotification);
+          if (notified.length > 0) {
+            console.log(`[SearchAlert] Notified ${notified.length} users about new ad: ${ad.title}`);
+          }
+        } catch (error) {
+          console.error('[SearchAlert] Error notifying users:', error);
+        }
+      });
     }
 
     res.status(201).json(ad);
