@@ -614,9 +614,11 @@ function NearbyAdCard({
             }}>
               {ad.geoLabel || ad.city}
               {ad.distanceKm !== undefined && ad.distanceKm > 0 && (
-                <span> · {ad.distanceKm < 1 
-                  ? `${Math.round(ad.distanceKm * 1000)}м` 
-                  : `${ad.distanceKm.toFixed(1)}км`
+                <span> · {ad.distanceKm < 0.1 
+                  ? '< 100 м' 
+                  : ad.distanceKm < 1 
+                    ? `${Math.round(ad.distanceKm * 100) * 10} м`
+                    : `${ad.distanceKm.toFixed(1)} км`
                 }</span>
               )}
             </span>

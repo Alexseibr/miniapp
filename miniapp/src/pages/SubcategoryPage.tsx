@@ -705,8 +705,9 @@ function CategoryAdCard({ ad }: { ad: AdPreview }) {
 
   const formatDistance = (km?: number) => {
     if (!km) return '';
-    if (km < 1) return `${Math.round(km * 1000)} м от вас`;
-    return `${km.toFixed(1)} км от вас`;
+    if (km < 0.1) return '< 100 м';
+    if (km < 1) return `${Math.round(km * 100) * 10} м`;
+    return `${km.toFixed(1)} км`;
   };
 
   const photoUrl = ad.photos?.[0] 

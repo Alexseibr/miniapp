@@ -495,7 +495,7 @@ export default function GeoFeedScreen() {
                           </span>
                           {ad.distanceKm !== undefined && (
                             <span className="text-xs text-gray-500">
-                              {ad.distanceKm < 1 ? `${Math.round(ad.distanceKm * 1000)}м` : `${ad.distanceKm.toFixed(1)}км`}
+                              {ad.distanceKm < 0.1 ? '< 100 м' : ad.distanceKm < 1 ? `${Math.round(ad.distanceKm * 100) * 10} м` : `${ad.distanceKm.toFixed(1)} км`}
                             </span>
                           )}
                         </div>

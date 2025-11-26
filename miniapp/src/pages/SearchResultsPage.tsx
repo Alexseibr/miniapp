@@ -55,7 +55,7 @@ export default function SearchResultsPage() {
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
   const [selectedRadius, setSelectedRadius] = useState(radiusKm || 100);
-  const [sortBy, setSortBy] = useState('newest');
+  const [sortBy, setSortBy] = useState('distance');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
   
@@ -147,7 +147,8 @@ export default function SearchResultsPage() {
 
   const formatDistance = (km?: number) => {
     if (km === undefined || km === null) return '';
-    if (km < 1) return `${Math.round(km * 1000)} м`;
+    if (km < 0.1) return '< 100 м';
+    if (km < 1) return `${Math.round(km * 100) * 10} м`;
     return `${km.toFixed(1)} км`;
   };
 

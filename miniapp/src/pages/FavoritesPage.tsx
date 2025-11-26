@@ -71,9 +71,11 @@ function FavoriteCard({ favorite, index, onRemove, removing, onClick }: Favorite
   const priceDropPercent = ad.priceChangePercent && ad.priceChangePercent < 0 ? Math.abs(ad.priceChangePercent) : null;
   
   const distanceText = ad.distanceKm != null 
-    ? ad.distanceKm < 1 
-      ? `${Math.round(ad.distanceKm * 1000)} м от вас` 
-      : `${ad.distanceKm.toFixed(1)} км от вас`
+    ? ad.distanceKm < 0.1 
+      ? '< 100 м' 
+      : ad.distanceKm < 1 
+        ? `${Math.round(ad.distanceKm * 100) * 10} м`
+        : `${ad.distanceKm.toFixed(1)} км`
     : null;
 
   const photoUrl = ad.photos?.[0] 
@@ -310,9 +312,11 @@ function FavoriteCard({ favorite, index, onRemove, removing, onClick }: Favorite
 function RecommendationCard({ ad, onClick }: { ad: SimilarAd; onClick: () => void }) {
   const price = `${ad.price.toLocaleString('ru-RU')} руб.`;
   const distanceText = ad.distanceKm != null 
-    ? ad.distanceKm < 1 
-      ? `${Math.round(ad.distanceKm * 1000)} м` 
-      : `${ad.distanceKm.toFixed(1)} км`
+    ? ad.distanceKm < 0.1 
+      ? '< 100 м' 
+      : ad.distanceKm < 1 
+        ? `${Math.round(ad.distanceKm * 100) * 10} м`
+        : `${ad.distanceKm.toFixed(1)} км`
     : null;
 
   const photoUrl = ad.photos?.[0] 

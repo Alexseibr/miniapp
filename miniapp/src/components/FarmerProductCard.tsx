@@ -47,10 +47,8 @@ const CATEGORY_ICONS: Record<string, string> = {
 
 function formatDistance(distanceKm?: number): string {
   if (distanceKm == null || isNaN(distanceKm)) return '';
-  const meters = distanceKm * 1000;
-  if (meters < 1000) {
-    return `${Math.round(meters)} м`;
-  }
+  if (distanceKm < 0.1) return '< 100 м';
+  if (distanceKm < 1) return `${Math.round(distanceKm * 100) * 10} м`;
   return `${distanceKm.toFixed(1)} км`;
 }
 

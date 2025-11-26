@@ -118,7 +118,8 @@ export default function CategoryResultsPage() {
 
   const formatDistance = (km?: number) => {
     if (km === undefined || km === null) return '';
-    if (km < 1) return `${Math.round(km * 1000)} м`;
+    if (km < 0.1) return '< 100 м';
+    if (km < 1) return `${Math.round(km * 100) * 10} м`;
     return `${km.toFixed(1)} км`;
   };
 
