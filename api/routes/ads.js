@@ -706,12 +706,13 @@ router.get('/nearby', async (req, res, next) => {
     const finalLimit =
       Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
 
-    // Базовый фильтр: только активные и одобренные объявления с координатами
+    // Базовый фильтр: только активные и одобренные объявления с координатами и фото
     const baseFilter = {
       status: 'active',
       moderationStatus: 'approved',
       'location.lat': { $ne: null },
       'location.lng': { $ne: null },
+      'photos.0': { $exists: true },
     };
 
     // Получаем скрытые категории для фильтрации
