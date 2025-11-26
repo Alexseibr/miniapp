@@ -27,6 +27,27 @@ class SellerAnalyticsEngine {
     this.cache.set(key, { data, timestamp: Date.now() });
   }
 
+  async getStatsBetweenDates(sellerId, startDate, endDate) {
+    const stats = await AnalyticsEvent.aggregate([
+      {
+        $match: {
+          sellerId: new mongoose.Types.ObjectId(sellerId),
+          createdAt: { $gte: startDate, $lt: endDate },
+        },
+      },
+      {
+        $group: {
+          _id: '$type',
+          count: { $sum: 1 },
+        },
+      },
+    ]);
+    return stats.reduce((acc, stat) => {
+      acc[stat._id] = stat.count;
+      return acc;
+    }, {});
+  }
+
   async getOverview(sellerId, days = 7) {
     const cacheKey = this.getCacheKey('overview', sellerId, { days });
     const cached = this.getFromCache(cacheKey);
@@ -34,17 +55,22 @@ class SellerAnalyticsEngine {
 
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
+    
+    const previousStartDate = new Date(startDate);
+    previousStartDate.setDate(previousStartDate.getDate() - days);
 
-    const [stats, topProducts, profile, adsCount] = await Promise.all([
+    const profile = await SellerProfile.findOne({ userId: sellerId });
+    const telegramId = profile?.telegramId;
+
+    const [stats, topProducts, adsCount] = await Promise.all([
       AnalyticsEvent.getSellerStats(sellerId, days),
       AnalyticsEvent.getTopProducts(sellerId, 5, days),
-      SellerProfile.findOne({ userId: sellerId }),
-      Ad.countDocuments({ sellerTelegramId: { $exists: true }, status: 'active' }),
+      telegramId 
+        ? Ad.countDocuments({ sellerTelegramId: telegramId, status: 'active' })
+        : Promise.resolve(0),
     ]);
 
-    const previousStart = new Date(startDate);
-    previousStart.setDate(previousStart.getDate() - days);
-    const previousStats = await AnalyticsEvent.getSellerStats(sellerId, days * 2);
+    const previousStats = await this.getStatsBetweenDates(sellerId, previousStartDate, startDate);
 
     const calculateChange = (current, previous) => {
       if (!previous || previous === 0) return current > 0 ? 100 : 0;
@@ -62,11 +88,11 @@ class SellerAnalyticsEngine {
         total: (stats.view || 0) + (stats.store_view || 0),
         product: stats.view || 0,
         store: stats.store_view || 0,
-        change: calculateChange(stats.view || 0, (previousStats.view || 0) / 2),
+        change: calculateChange(stats.view || 0, previousStats.view || 0),
       },
       contacts: {
         total: stats.contact || 0,
-        change: calculateChange(stats.contact || 0, (previousStats.contact || 0) / 2),
+        change: calculateChange(stats.contact || 0, previousStats.contact || 0),
       },
       favorites: {
         added: stats.favorite || 0,
@@ -175,8 +201,16 @@ class SellerAnalyticsEngine {
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);
 
+    const profile = await SellerProfile.findOne({ userId: sellerId });
+    const telegramId = profile?.telegramId;
+    
+    if (!telegramId) {
+      this.setCache(cacheKey, []);
+      return [];
+    }
+
     const sellerAds = await Ad.find({ 
-      sellerTelegramId: { $exists: true },
+      sellerTelegramId: telegramId,
       status: 'active',
     }).select('categoryId price');
 
@@ -294,8 +328,15 @@ class SellerAnalyticsEngine {
   }
 
   async getPricePosition(sellerId) {
+    const profile = await SellerProfile.findOne({ userId: sellerId });
+    const telegramId = profile?.telegramId;
+    
+    if (!telegramId) {
+      return [];
+    }
+
     const sellerAds = await Ad.find({
-      sellerTelegramId: { $exists: true },
+      sellerTelegramId: telegramId,
       status: 'active',
     }).select('title price categoryId photos');
 
@@ -536,12 +577,17 @@ class SellerAnalyticsEngine {
   async getWarnings(sellerId) {
     const warnings = [];
 
+    const profile = await SellerProfile.findOne({ userId: sellerId });
+    const telegramId = profile?.telegramId;
+
     const [adsWithoutPhotos, overview] = await Promise.all([
-      Ad.countDocuments({
-        sellerTelegramId: { $exists: true },
-        status: 'active',
-        $or: [{ photos: { $size: 0 } }, { photos: { $exists: false } }],
-      }),
+      telegramId 
+        ? Ad.countDocuments({
+            sellerTelegramId: telegramId,
+            status: 'active',
+            $or: [{ photos: { $size: 0 } }, { photos: { $exists: false } }],
+          })
+        : Promise.resolve(0),
       this.getOverview(sellerId, 7),
     ]);
 
