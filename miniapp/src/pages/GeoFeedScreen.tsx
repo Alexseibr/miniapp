@@ -460,19 +460,27 @@ export default function GeoFeedScreen() {
                       onClick={() => handleAdClick(ad._id)}
                       data-testid={`card-ad-${ad._id}`}
                     >
-                      <div className="flex-shrink-0">
+                      <div className="flex-shrink-0 relative">
                         {ad.photos?.[0] ? (
                           <img 
                             src={ad.photos[0]} 
                             alt={ad.title}
                             className="w-20 h-20 rounded-xl object-cover bg-gray-200"
                             loading="lazy"
+                            onError={(e) => {
+                              const target = e.target as HTMLImageElement;
+                              target.style.display = 'none';
+                              const fallback = target.nextElementSibling as HTMLElement;
+                              if (fallback) fallback.style.display = 'flex';
+                            }}
                           />
-                        ) : (
-                          <div className="w-20 h-20 rounded-xl bg-gray-100 flex items-center justify-center">
-                            <Package className="w-8 h-8 text-gray-400" />
-                          </div>
-                        )}
+                        ) : null}
+                        <div 
+                          className="w-20 h-20 rounded-xl bg-gray-100 items-center justify-center"
+                          style={{ display: ad.photos?.[0] ? 'none' : 'flex' }}
+                        >
+                          <Package className="w-8 h-8 text-gray-400" />
+                        </div>
                       </div>
                       <div className="flex-1 min-w-0 py-0.5">
                         <h4 className="font-medium text-sm text-gray-900 line-clamp-2">{ad.title}</h4>

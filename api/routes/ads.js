@@ -801,6 +801,44 @@ router.get('/nearby', async (req, res, next) => {
       // Уже отсортированы в scoreAndSortAds
     }
 
+    // Fallback: если нет объявлений в радиусе, показываем последние по стране
+    if (scoredItems.length === 0) {
+      const countryFilter = {
+        status: 'active',
+        moderationStatus: 'approved',
+        'photos.0': { $exists: true },
+      };
+      
+      if (categoryId) countryFilter.categoryId = categoryId;
+      if (subcategoryId) countryFilter.subcategoryId = subcategoryId;
+      
+      if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+        countryFilter.$and = [
+          { categoryId: { $nin: hiddenSlugs } },
+          { subcategoryId: { $nin: hiddenSlugs } },
+        ];
+      }
+      
+      const countryAds = await Ad.find(countryFilter)
+        .sort({ createdAt: -1 })
+        .limit(finalLimit);
+      
+      const fallbackItems = countryAds.map(ad => {
+        const plain = typeof ad.toObject === 'function'
+          ? ad.toObject({ getters: true, virtuals: false })
+          : { ...ad };
+        plain.distanceKm = null;
+        plain.isFallback = true;
+        return plain;
+      });
+      
+      return res.json({ 
+        items: fallbackItems, 
+        fallback: true,
+        message: 'Показаны объявления по всей стране'
+      });
+    }
+
     return res.json({ items: scoredItems.slice(0, finalLimit) });
   } catch (error) {
     next(error);
