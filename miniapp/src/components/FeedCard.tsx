@@ -24,11 +24,14 @@ export default function FeedCard({
   const navigate = useNavigate();
   const [imageLoaded, setImageLoaded] = useState(false);
   const [imageError, setImageError] = useState(false);
+  const [useFallback, setUseFallback] = useState(false);
   const preloadRef = useRef<HTMLImageElement | null>(null);
 
   const images = item.images?.length ? item.images : item.photos || [];
   const rawMainImage = item.previewUrl || images[0];
-  const mainImage = rawMainImage ? getFeedImageUrl(rawMainImage) : '';
+  const optimizedUrl = rawMainImage ? getFeedImageUrl(rawMainImage) : '';
+  const fallbackUrl = rawMainImage || '';
+  const mainImage = useFallback ? fallbackUrl : optimizedUrl;
   const hasImage = !!rawMainImage && !imageError;
 
   useEffect(() => {
@@ -47,6 +50,7 @@ export default function FeedCard({
   useEffect(() => {
     setImageLoaded(false);
     setImageError(false);
+    setUseFallback(false);
   }, [item._id]);
 
   const handleLike = useCallback((e: React.MouseEvent) => {
@@ -67,9 +71,14 @@ export default function FeedCard({
   }, []);
 
   const handleImageError = useCallback(() => {
-    setImageError(true);
-    setImageLoaded(true);
-  }, []);
+    if (!useFallback && rawMainImage) {
+      setUseFallback(true);
+      setImageLoaded(false);
+    } else {
+      setImageError(true);
+      setImageLoaded(true);
+    }
+  }, [useFallback, rawMainImage]);
 
   const formatDistance = (meters: number): string => {
     if (meters < 1000) {

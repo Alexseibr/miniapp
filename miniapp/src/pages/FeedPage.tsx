@@ -313,7 +313,7 @@ export default function FeedPage() {
     
     // Call API
     try {
-      await toggleFavorite(user.telegramId, adId, newFavoriteState);
+      await toggleFavorite(adId);
     } catch (error) {
       console.error('Failed to toggle favorite:', error);
       // Rollback on error
