@@ -827,43 +827,128 @@ export default function FeedPage() {
         </button>
       </header>
 
-      {/* Main content with animated card transitions */}
+      {/* Main content with carousel layout */}
       <main
         style={{
           flex: 1,
           position: 'relative',
           overflow: 'hidden',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: '8px 0',
         }}
       >
-        <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
-          {currentItem && (
-            <motion.div
-              key={currentItem._id}
-              custom={slideDirection}
-              variants={slideVariants}
-              initial="enter"
-              animate="center"
-              exit="exit"
-              transition={{
-                y: { type: 'spring', stiffness: 300, damping: 30 },
-                opacity: { duration: 0.2 },
-              }}
+        {/* Previous card preview (peeking from top) */}
+        {items[currentIndex - 1] && (
+          <div
+            style={{
+              height: 44,
+              marginLeft: 16,
+              marginRight: 16,
+              marginBottom: -8,
+              background: '#FFFFFF',
+              borderRadius: '16px 16px 0 0',
+              boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
+              border: '1px solid #E5E7EB',
+              borderBottom: 'none',
+              display: 'flex',
+              alignItems: 'flex-end',
+              padding: '0 16px 8px',
+              position: 'relative',
+              zIndex: 1,
+              opacity: 0.85,
+            }}
+          >
+            <span
               style={{
-                position: 'absolute',
-                inset: 0,
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#6B7280',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
               }}
             >
-              <FeedCard
-                item={currentItem}
-                onLike={handleLike}
-                onViewOpen={handleViewOpen}
-                isActive={true}
-                nextImageUrl={items[currentIndex + 1]?.previewUrl || items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
-                isLiked={favoriteIds.has(currentItem._id)}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+              ↑ {items[currentIndex - 1]?.title}
+            </span>
+          </div>
+        )}
+        {/* Spacer when no previous card */}
+        {!items[currentIndex - 1] && <div style={{ height: 36 }} />}
+
+        {/* Main card area */}
+        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
+          <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
+            {currentItem && (
+              <motion.div
+                key={currentItem._id}
+                custom={slideDirection}
+                variants={slideVariants}
+                initial="enter"
+                animate="center"
+                exit="exit"
+                transition={{
+                  y: { type: 'spring', stiffness: 300, damping: 30 },
+                  opacity: { duration: 0.2 },
+                }}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: 10,
+                }}
+              >
+                <FeedCard
+                  item={currentItem}
+                  onLike={handleLike}
+                  onViewOpen={handleViewOpen}
+                  isActive={true}
+                  nextImageUrl={items[currentIndex + 1]?.previewUrl || items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
+                  isLiked={favoriteIds.has(currentItem._id)}
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* Next card preview (peeking from bottom) */}
+        {items[currentIndex + 1] && (
+          <div
+            style={{
+              height: 52,
+              marginLeft: 16,
+              marginRight: 16,
+              marginTop: -8,
+              background: '#FFFFFF',
+              borderRadius: '0 0 16px 16px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+              border: '1px solid #E5E7EB',
+              borderTop: 'none',
+              display: 'flex',
+              alignItems: 'flex-start',
+              padding: '8px 16px 0',
+              position: 'relative',
+              zIndex: 1,
+              opacity: 0.85,
+            }}
+          >
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 600,
+                color: '#6B7280',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                flex: 1,
+              }}
+            >
+              ↓ {items[currentIndex + 1]?.title}
+            </span>
+          </div>
+        )}
+        {/* Spacer when no next card */}
+        {!items[currentIndex + 1] && <div style={{ height: 44 }} />}
 
         {/* Swipe hint overlay */}
         {showSwipeHint && (
