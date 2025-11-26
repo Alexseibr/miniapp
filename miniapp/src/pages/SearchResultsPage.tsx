@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown } from 'lucide-react';
-import { useUserStore } from '@/store/useUserStore';
-import useGeoStore from '@/store/useGeoStore';
+import { ArrowLeft, Search, X, SlidersHorizontal, ChevronDown, MapPin } from 'lucide-react';
+import { useGeo } from '@/utils/geo';
 import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
 
 interface Ad {
@@ -44,19 +43,18 @@ export default function SearchResultsPage() {
   const [searchParams] = useSearchParams();
   const query = searchParams.get('q') || '';
   
-  const user = useUserStore((state) => state.user);
-  const geoCoords = useGeoStore((state) => state.coords);
-  const geoRadius = useGeoStore((state) => state.radiusKm);
+  const { coords, radiusKm, status: geoStatus, requestLocation, cityName } = useGeo();
   
-  // Приоритет: 1) geoStore coords, 2) user.location, 3) дефолт Минск
-  const userLat = geoCoords?.lat || user?.location?.lat || 53.9;
-  const userLng = geoCoords?.lng || user?.location?.lng || 27.5667;
+  // Используем координаты из useGeo или дефолт Минск
+  const userLat = coords?.lat || 53.9;
+  const userLng = coords?.lng || 27.5667;
+  const hasLocation = !!coords;
   
   const [searchText, setSearchText] = useState(query);
   const [ads, setAds] = useState<Ad[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalCount, setTotalCount] = useState(0);
-  const [selectedRadius, setSelectedRadius] = useState(geoRadius || 100); // Используем радиус из geoStore
+  const [selectedRadius, setSelectedRadius] = useState(radiusKm || 100);
   const [sortBy, setSortBy] = useState('newest');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
@@ -77,6 +75,10 @@ export default function SearchResultsPage() {
     const fetchResults = async () => {
       setLoading(true);
       try {
+        console.log('🔍 Поиск:', query);
+        console.log('📍 Координаты:', { lat: userLat, lng: userLng, hasLocation, cityName });
+        console.log('📏 Радиус:', selectedRadius, 'км');
+        
         const params = new URLSearchParams({
           q: query,
           lat: String(userLat),
@@ -90,6 +92,7 @@ export default function SearchResultsPage() {
           params.set('categoryId', 'farmer-market');
         }
         
+        console.log('🌐 API запрос:', `/api/search?${params.toString()}`);
         const response = await fetch(`/api/search?${params.toString()}`);
         const data = await response.json();
         
@@ -290,6 +293,41 @@ export default function SearchResultsPage() {
 
       {/* Results Section */}
       <div style={{ flex: 1, padding: '12px 16px', paddingBottom: 100 }}>
+        {/* Location Indicator */}
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 8,
+          marginBottom: 12,
+          padding: '8px 12px',
+          background: hasLocation ? '#EFF6FF' : '#FEF3C7',
+          borderRadius: 10,
+          border: hasLocation ? '1px solid #BFDBFE' : '1px solid #FDE68A',
+        }}>
+          <MapPin size={16} color={hasLocation ? '#3B82F6' : '#F59E0B'} />
+          {hasLocation ? (
+            <span style={{ fontSize: 13, color: '#1D4ED8' }} data-testid="text-location-info">
+              📍 {cityName || `${userLat.toFixed(2)}, ${userLng.toFixed(2)}`} • {selectedRadius} км
+            </span>
+          ) : (
+            <button
+              onClick={() => requestLocation()}
+              style={{
+                background: 'transparent',
+                border: 'none',
+                fontSize: 13,
+                color: '#D97706',
+                cursor: 'pointer',
+                padding: 0,
+                textDecoration: 'underline',
+              }}
+              data-testid="button-request-location"
+            >
+              Определить местоположение для точного поиска
+            </button>
+          )}
+        </div>
+
         {/* Results Count + Sort */}
         <div style={{
           display: 'flex',
