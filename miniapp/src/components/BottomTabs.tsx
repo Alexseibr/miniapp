@@ -6,8 +6,8 @@ const tabs = [
   { path: '/', label: 'Главная', Icon: Home },
   { path: '/feed', label: 'Лента', Icon: Compass },
   { path: '/my-ads', label: 'Мои', Icon: ShoppingBag },
-  { path: '/favorites', label: 'Избра...', Icon: Heart },
-  { path: '/profile', label: 'Проф...', Icon: User },
+  { path: '/favorites', label: 'Избранное', Icon: Heart },
+  { path: '/profile', label: 'Профиль', Icon: User },
 ];
 
 export default function BottomTabs() {
@@ -34,7 +34,6 @@ export default function BottomTabs() {
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-around',
           alignItems: 'center',
           maxWidth: 500,
           margin: '0 auto',
@@ -48,14 +47,15 @@ export default function BottomTabs() {
             <NavLink
               key={tab.path}
               to={tab.path}
-              data-testid={`tab-${tab.label.toLowerCase().replace('...', '')}`}
+              data-testid={`tab-${tab.path === '/' ? 'home' : tab.path.slice(1)}`}
               style={{
+                flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 4,
-                padding: '8px 12px',
+                padding: '8px 4px',
                 textDecoration: 'none',
                 position: 'relative',
               }}
@@ -90,6 +90,10 @@ export default function BottomTabs() {
                   color: isActive ? '#3A7BFF' : '#9CA3AF',
                   transition: 'all 0.2s ease',
                   whiteSpace: 'nowrap',
+                  overflow: 'hidden',
+                  textOverflow: 'ellipsis',
+                  maxWidth: '100%',
+                  textAlign: 'center',
                 }}
               >
                 {tab.label}

@@ -97,7 +97,7 @@ export default function HomePage() {
       minHeight: '100vh',
     }}>
       {/* Welcome Card */}
-      <div style={{ padding: '16px 16px 20px' }}>
+      <div style={{ padding: '16px 16px 12px' }}>
         <div style={{
           background: '#F5F6F8',
           borderRadius: 20,
@@ -130,6 +130,34 @@ export default function HomePage() {
             Привет, {userName}!
           </h1>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div style={{ padding: '0 16px 20px' }}>
+        <button
+          onClick={handleSearchClick}
+          style={{
+            width: '100%',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 12,
+            padding: '14px 16px',
+            background: '#F5F6F8',
+            border: 'none',
+            borderRadius: 16,
+            cursor: 'pointer',
+            textAlign: 'left',
+          }}
+          data-testid="button-search"
+        >
+          <Search size={20} color="#9CA3AF" />
+          <span style={{ 
+            fontSize: 16, 
+            color: '#9CA3AF',
+          }}>
+            Найти товары, продукты, услуги...
+          </span>
+        </button>
       </div>
 
       {/* Categories Grid */}
