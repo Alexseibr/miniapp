@@ -216,7 +216,7 @@ async function validateCreateAd(req, res, next) {
       seasonCode,
       lifetimeDays,
       validUntil: adjustedValidUntil,
-      moderationStatus: publishAt ? 'scheduled' : 'pending',
+      moderationStatus: publishAt ? 'scheduled' : 'approved',
       status: publishAt ? 'scheduled' : 'active',
       publishAt,
       deliveryOptions: Array.isArray(payload.deliveryOptions)
