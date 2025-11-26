@@ -126,6 +126,26 @@ export default function App() {
       const adId = startParam.replace('pricing_', '');
       // Перенаправляем на динамическое ценообразование для объявления
       window.location.href = `/dynamic-pricing/${encodeURIComponent(adId)}`;
+    } else if (startParam.startsWith('ad_')) {
+      const adId = startParam.replace('ad_', '');
+      // Перенаправляем на страницу объявления
+      window.location.href = `/ads/${encodeURIComponent(adId)}`;
+    } else if (startParam === 'favorites') {
+      // Перенаправляем на избранное
+      window.location.href = `/favorites`;
+    } else if (startParam === 'seller-twin') {
+      // Перенаправляем на Digital Twin продавца
+      window.location.href = `/seller-twin`;
+    } else if (startParam === 'dynamic-price') {
+      // Перенаправляем на аналитику цен
+      window.location.href = `/dynamic-pricing`;
+    } else if (startParam === 'farmer_demand') {
+      // Перенаправляем на спрос фермера
+      window.location.href = `/farmer/demand`;
+    } else if (startParam.startsWith('create_farmer_')) {
+      const productKey = startParam.replace('create_farmer_', '');
+      // Перенаправляем на создание фермерского объявления
+      window.location.href = `/create?category=farmer-market&product=${encodeURIComponent(productKey)}`;
     }
   }
 
