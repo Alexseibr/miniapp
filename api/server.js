@@ -41,6 +41,7 @@ import sellerAnalyticsRoutes from './routes/seller-analytics.js';
 import twinRoutes from './routes/twin.js';
 import dynamicPriceRoutes from './routes/dynamicPrice.js';
 import sellerTwinRoutes from './routes/sellerTwin.js';
+import queuesRoutes from './routes/queues.js';
 
 const app = express();
 
@@ -131,5 +132,6 @@ app.use('/api/seller-analytics', sellerAnalyticsRoutes);
 app.use('/api/twin', twinRoutes);
 app.use('/api/dynamic-price', dynamicPriceRoutes);
 app.use('/api/seller-twin', sellerTwinRoutes);
+app.use('/api/queues', queuesRoutes);
 
 export default app;

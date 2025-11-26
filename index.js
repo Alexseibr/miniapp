@@ -20,6 +20,7 @@ import { startAdLifecycleWorker, setNotificationCallback } from './workers/adLif
 import { startDemandWorker, setDemandNotificationCallback } from './workers/demandWorker.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
 import PriceWatcher from './workers/PriceWatcher.js';
+import { initializeQueues, shutdownQueues, isQueueEnabled } from './services/queue/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -356,6 +357,28 @@ async function start() {
     startDemandWorker();
     PriceWatcher.start();
     
+    // 6. Initialize distributed queue system (Redis + BullMQ)
+    if (isQueueEnabled()) {
+      console.log('\n📬 Инициализация системы очередей...');
+      const queueResult = await initializeQueues({
+        telegramBot: bot,
+        notificationCallback: sendTelegramNotification,
+        aiServices: {
+        },
+        enableWorkers: true,
+      });
+      
+      if (queueResult.initialized) {
+        console.log(`✅ Система очередей запущена (${queueResult.workersStarted} воркеров)`);
+      } else if (queueResult.fallback) {
+        console.log('ℹ️  Система очередей работает в fallback режиме');
+      } else {
+        console.warn('⚠️  Не удалось инициализировать систему очередей');
+      }
+    } else {
+      console.log('ℹ️  REDIS_URL не настроен - система очередей отключена');
+    }
+    
     // Регистрируем error handlers в самом конце, после всех middleware
     app.use(logErrors);
     app.use(notFoundHandler);
@@ -376,6 +399,13 @@ async function start() {
       if (favoritesInterval) {
         clearInterval(favoritesInterval);
         favoritesInterval = null;
+      }
+
+      // Shutdown queue system
+      if (isQueueEnabled()) {
+        console.log('📬 Остановка системы очередей...');
+        await shutdownQueues();
+        console.log('✅ Система очередей остановлена');
       }
 
       bot.stop(signal);
