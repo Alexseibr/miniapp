@@ -40,7 +40,7 @@ export default function SearchPage() {
     setSearchHistory(newHistory);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
     
-    navigate(`/feed?q=${encodeURIComponent(searchText.trim())}`);
+    navigate(`/search/results?q=${encodeURIComponent(searchText.trim())}`);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

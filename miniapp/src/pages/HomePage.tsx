@@ -127,7 +127,7 @@ export default function HomePage() {
   };
 
   const handleCategoryClick = (slug: string) => {
-    navigate(`/feed?category=${encodeURIComponent(slug)}`);
+    navigate(`/category/${encodeURIComponent(slug)}`);
   };
 
   const handleMapClick = () => {

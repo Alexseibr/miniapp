@@ -43,6 +43,8 @@ const DynamicPricingPage = lazy(() => import('@/pages/DynamicPricingPage'));
 const SellerTwinPage = lazy(() => import('@/pages/SellerTwinPage'));
 const ForYouFeedPage = lazy(() => import('@/pages/ForYouFeedPage'));
 const SearchPage = lazy(() => import('@/pages/SearchPage'));
+const SearchResultsPage = lazy(() => import('@/pages/SearchResultsPage'));
+const CategoryResultsPage = lazy(() => import('@/pages/CategoryResultsPage'));
 
 export default function App() {
   const location = useLocation();
@@ -170,7 +172,9 @@ export default function App() {
               <Routes>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/search" element={<SearchPage />} />
-                <Route path="/category/:slug" element={<SubcategoryPage />} />
+                <Route path="/search/results" element={<SearchResultsPage />} />
+                <Route path="/category/:slug" element={<CategoryResultsPage />} />
+                <Route path="/subcategory/:slug" element={<SubcategoryPage />} />
                 <Route path="/feed" element={<FeedPage />} />
                 <Route path="/create" element={<CreateAdPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
