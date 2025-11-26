@@ -475,14 +475,30 @@ function Step1Location({
 
       {location && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ 
-            background: '#EBF3FF', 
-            border: `2px solid ${BRAND_BLUE}`, 
-            borderRadius: 12, 
-            padding: 20, 
-            textAlign: 'center',
-            marginBottom: 16,
-          }}>
+          <button
+            onClick={onComplete}
+            style={{ 
+              width: '100%',
+              background: '#EBF3FF', 
+              border: `2px solid ${BRAND_BLUE}`, 
+              borderRadius: 12, 
+              padding: 20, 
+              textAlign: 'center',
+              marginBottom: 16,
+              cursor: 'pointer',
+              transition: 'transform 0.15s ease, box-shadow 0.15s ease',
+            }}
+            onMouseDown={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(0.98)';
+            }}
+            onMouseUp={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+            }}
+            data-testid="button-confirm-location"
+          >
             <div style={{ 
               width: 56, 
               height: 56, 
@@ -497,7 +513,19 @@ function Step1Location({
             </div>
             <div style={{ fontSize: 14, color: '#4B5563', marginBottom: 4 }}>Ваше местоположение:</div>
             <div style={{ fontSize: 20, fontWeight: 600, color: BRAND_BLUE }}>{location.geoLabel}</div>
-          </div>
+            <div style={{ 
+              marginTop: 12, 
+              padding: '10px 16px', 
+              background: BRAND_BLUE, 
+              color: '#fff', 
+              borderRadius: 8, 
+              fontSize: 15, 
+              fontWeight: 600,
+              display: 'inline-block',
+            }}>
+              Подтвердить и продолжить →
+            </div>
+          </button>
 
           <button
             onClick={handleChooseOther}
