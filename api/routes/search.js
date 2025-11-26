@@ -6,6 +6,7 @@ import { haversineDistanceKm } from '../../utils/haversine.js';
 import HotSearchService from '../../services/HotSearchService.js';
 import SearchAlertService from '../../services/SearchAlertService.js';
 import DemandNotificationService from '../../services/DemandNotificationService.js';
+import FastMarketScoringService from '../../services/FastMarketScoringService.js';
 
 const router = Router();
 const DEFAULT_LIMIT = 100;
@@ -88,6 +89,8 @@ function sortItems(items, sortKey, hasGeoContext) {
       return sorted;
     case 'popular':
       return sorted.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+    case 'smart':
+      return sorted.sort((a, b) => (b.fastMarketScore ?? 0) - (a.fastMarketScore ?? 0));
     case 'newest':
     default:
       return sorted.sort(
@@ -204,6 +207,22 @@ router.get('/search', async (req, res) => {
     }
 
     const totalMatches = filtered.length;
+    
+    // Добавляем smart scoring если сортировка smart или geo контекст
+    if ((sort === 'smart' || sort === 'newest') && hasGeo) {
+      const adIds = filtered.map(ad => ad._id);
+      const statsMap = await FastMarketScoringService.getStatsForAds(adIds);
+      
+      filtered.forEach((ad) => {
+        const stats = statsMap.get(ad._id.toString());
+        const scoreResult = FastMarketScoringService.calculateFastMarketScore(ad, {
+          distanceKm: ad.distanceKm,
+          stats,
+        });
+        ad.fastMarketScore = scoreResult.fastMarketScore;
+      });
+    }
+    
     const sortedItems = sortItems(filtered, sort, hasGeo);
     const limitedItems = sortedItems.slice(0, limitNumber);
 

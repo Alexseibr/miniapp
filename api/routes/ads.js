@@ -15,6 +15,7 @@ import BrandDetectionService from '../../services/BrandDetectionService.js';
 import AdLifecycleService from '../../services/AdLifecycleService.js';
 import SearchAlertService from '../../services/SearchAlertService.js';
 import DigitalTwinNotificationService from '../../services/DigitalTwinNotificationService.js';
+import FastMarketScoringService from '../../services/FastMarketScoringService.js';
 
 const router = Router();
 
@@ -779,22 +780,28 @@ router.get('/nearby', async (req, res, next) => {
       itemsWithinRadius.push(plain);
     }
 
+    // Добавляем fastMarketScore ко всем объявлениям
+    const userLocation = { lat: latNumber, lng: lngNumber };
+    const scoredItems = await FastMarketScoringService.scoreAndSortAds(
+      itemsWithinRadius.map(item => ({ ...item, _id: item._id.toString() })),
+      userLocation
+    );
+
     // Сортировка результатов
     if (sort === 'cheapest') {
-      // От дешёвых к дорогим
-      itemsWithinRadius.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+      scoredItems.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
     } else if (sort === 'expensive') {
-      // От дорогих к дешёвым
-      itemsWithinRadius.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
-    } else if (sort === 'popular') {
-      // По количеству просмотров
-      itemsWithinRadius.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+      scoredItems.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+    } else if (sort === 'distance') {
+      scoredItems.sort((a, b) => a.distanceKm - b.distanceKm);
+    } else if (sort === 'newest') {
+      scoredItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
     } else {
-      // По умолчанию: по расстоянию (ближайшие первыми)
-      itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+      // По умолчанию: по fastMarketScore (умная сортировка)
+      // Уже отсортированы в scoreAndSortAds
     }
 
-    return res.json({ items: itemsWithinRadius.slice(0, finalLimit) });
+    return res.json({ items: scoredItems.slice(0, finalLimit) });
   } catch (error) {
     next(error);
   }
