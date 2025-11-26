@@ -225,7 +225,7 @@ class SearchAlertService {
         );
         
         if (sendNotification) {
-          const adLink = `https://t.me/KetmarM_bot/app?startapp=ad_${ad._id}`;
+          const adLink = `https://t.me/KetmarM_bot?startapp=ad_${ad._id}`;
           
           await sendNotification(
             alert.telegramId,
