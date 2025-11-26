@@ -77,7 +77,7 @@ export default function AdPage() {
 
   const handleShare = useCallback(() => {
     const adUrl = `${window.location.origin}/ads/${id}`;
-    const shareText = ad ? `${ad.title} - ${ad.price} ${ad.currency || 'BYN'}` : 'Объявление на KETMAR';
+    const shareText = ad ? `${ad.title} - ${ad.price} руб.` : 'Объявление на KETMAR';
     
     if (window.Telegram?.WebApp?.openTelegramLink) {
       const telegramShareUrl = `https://t.me/share/url?url=${encodeURIComponent(adUrl)}&text=${encodeURIComponent(shareText)}`;
@@ -304,7 +304,7 @@ export default function AdPage() {
               marginBottom: 6,
               letterSpacing: '-0.5px',
             }}>
-              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+              {ad.price.toLocaleString('ru-RU')} руб.
             </div>
             {(ad.city || ad.distanceKm != null) && (
               <div style={{ 
@@ -607,7 +607,7 @@ export default function AdPage() {
                           color: '#111827',
                           marginBottom: 4
                         }}>
-                          {similarAd.price.toLocaleString('ru-RU')} {similarAd.currency || 'BYN'}
+                          {similarAd.price.toLocaleString('ru-RU')} руб.
                         </div>
                         <div style={{
                           fontSize: 13,

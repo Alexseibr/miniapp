@@ -109,7 +109,7 @@ export default function AdCardSmall({ ad, onSelect }: AdCardSmallProps) {
             }}
             data-testid={`ad-price-small-${ad._id}`}
           >
-            {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+            {ad.price.toLocaleString('ru-RU')} руб.
           </p>
           {ad.priceBadge && <PriceBadgeChip badge={ad.priceBadge} size="small" />}
         </div>

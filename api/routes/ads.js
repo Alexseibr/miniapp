@@ -1933,7 +1933,7 @@ router.post('/bulk', async (req, res) => {
           title: item.title.trim(),
           description: item.description?.trim() || '',
           price: item.price,
-          currency: 'BYN',
+          currency: 'RUB',
           unitType: item.unit || 'piece',
           quantity: item.quantity || 1,
           categoryId: item.categoryId || 'farmer-market',

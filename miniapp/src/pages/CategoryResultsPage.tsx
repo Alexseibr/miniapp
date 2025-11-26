@@ -123,7 +123,7 @@ export default function CategoryResultsPage() {
 
   const formatPrice = (price?: number) => {
     if (price === undefined || price === null) return 'Цена не указана';
-    return `₽${price.toLocaleString('ru-RU')}`;
+    return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
   const isNew = (createdAt?: string) => {

@@ -79,8 +79,8 @@ export default function FeedCard({
     return `${km.toFixed(1).replace('.', ',')} км`;
   };
 
-  const formatPrice = (price: number, currency: string): string => {
-    return `${price.toLocaleString('ru-RU')} ${currency}`;
+  const formatPrice = (price: number): string => {
+    return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
   const location = item.district
@@ -275,7 +275,7 @@ export default function FeedCard({
               }}
               data-testid="text-price"
             >
-              {formatPrice(item.price, item.currency)}
+              {formatPrice(item.price)}
             </span>
             
             <button

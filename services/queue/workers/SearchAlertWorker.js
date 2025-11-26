@@ -128,7 +128,7 @@ class SearchAlertWorker extends BaseWorker {
 
     const message = `🔔 <b>Найден товар по вашему запросу!</b>\n\n` +
       `📦 ${ad.title}\n` +
-      `💰 ${ad.price ? ad.price.toLocaleString() + ' BYN' : 'Цена не указана'}\n` +
+      `💰 ${ad.price ? ad.price.toLocaleString() + ' руб.' : 'Цена не указана'}\n` +
       `📍 ${ad.location?.city || 'Местоположение не указано'}\n\n` +
       `Вы искали: "${alert.query || alert.keywords?.join(', ')}"`;
 

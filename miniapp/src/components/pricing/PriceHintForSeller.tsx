@@ -55,7 +55,7 @@ export default function PriceHintForSeller({
         border: '#BBF7D0',
         icon: TrendingDown,
         iconColor: '#16A34A',
-        mainText: `Средняя цена на похожие объявления: ${avgPrice.toLocaleString('ru-RU')} BYN${windowDays ? ` (за последние ${windowDays} дней)` : ''}.`,
+        mainText: `Средняя цена на похожие объявления: ${avgPrice.toLocaleString('ru-RU')} руб.${windowDays ? ` (за последние ${windowDays} дней)` : ''}.`,
         hintText: `Ваша цена ниже средней на ${formatPercent(diffPercent!)}%. Это может помочь продать быстрее.`,
       };
     }
@@ -66,7 +66,7 @@ export default function PriceHintForSeller({
         border: '#E5E7EB',
         icon: Minus,
         iconColor: '#6B7280',
-        mainText: `Средняя цена на похожие объявления: ${avgPrice.toLocaleString('ru-RU')} BYN.`,
+        mainText: `Средняя цена на похожие объявления: ${avgPrice.toLocaleString('ru-RU')} руб.`,
         hintText: 'Ваша цена примерно соответствует рынку.',
       };
     }
@@ -77,7 +77,7 @@ export default function PriceHintForSeller({
         border: '#FDE68A',
         icon: TrendingUp,
         iconColor: '#D97706',
-        mainText: `Средняя цена на похожие объявления: ${avgPrice.toLocaleString('ru-RU')} BYN.`,
+        mainText: `Средняя цена на похожие объявления: ${avgPrice.toLocaleString('ru-RU')} руб.`,
         hintText: `Ваша цена выше средней на ${formatPercent(diffPercent!)}%. Можно снизить, чтобы привлечь больше интереса.`,
       };
     }

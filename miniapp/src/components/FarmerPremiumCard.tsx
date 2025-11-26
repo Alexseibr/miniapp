@@ -199,7 +199,7 @@ export default function FarmerPremiumCard({ ad, onClick }: FarmerPremiumCardProp
             color: isPremium || boostLevel > 0 ? '#8B5CF6' : '#059669',
             marginBottom: 8,
           }}>
-            {ad.price} BYN
+            {ad.price} руб.
             {ad.unitType && (
               <span style={{ fontSize: 12, fontWeight: 500, color: '#6B7280' }}>
                 /{UNIT_LABELS[ad.unitType] || ad.unitType}

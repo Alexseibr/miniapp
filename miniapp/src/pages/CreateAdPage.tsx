@@ -183,7 +183,7 @@ export default function CreateAdPage() {
       categoryId: draft.info.categoryId,
       subcategoryId: finalSubcategoryId,
       price: parseFloat(draft.info.price),
-      currency: 'BYN',
+      currency: 'RUB',
       photos: uploadedPhotoUrls.length > 0 ? uploadedPhotoUrls : undefined,
       sellerTelegramId: user.telegramId,
       geoLabel: draft.location.geoLabel,
@@ -1340,7 +1340,7 @@ function Step5Confirm({
         <Row label="Название" value={draft.info.title} />
         <Row label="Категория" value={selectedCategory?.name || draft.info.categoryId} />
         {selectedSubcategory && <Row label="Подкатегория" value={selectedSubcategory.name} />}
-        <Row label="Цена" value={`${parseFloat(draft.info.price).toLocaleString('ru-RU')} BYN`} />
+        <Row label="Цена" value={`${parseFloat(draft.info.price).toLocaleString('ru-RU')} руб.`} />
         {draft.info.description && (
           <div style={{ marginTop: 8 }}>
             <span style={{ fontSize: 14, color: '#6B7280', display: 'block', marginBottom: 4 }}>Описание</span>
@@ -1688,7 +1688,7 @@ function Step3Info({ info, categories, onSetInfo, city, noPhotos, onGoToPhotos }
             style={{ flex: 1, padding: '14px', border: '1px solid #E5E7EB', borderRadius: 8, fontSize: 16, fontFamily: 'inherit' }}
             data-testid="input-price"
           />
-          <span style={{ fontSize: 16, fontWeight: 500, color: '#6B7280' }}>BYN</span>
+          <span style={{ fontSize: 16, fontWeight: 500, color: '#6B7280' }}>руб.</span>
         </div>
         
         {info.categoryId && priceNumber > 0 && (

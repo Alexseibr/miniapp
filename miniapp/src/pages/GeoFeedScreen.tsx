@@ -46,8 +46,8 @@ const getSellerTypeLabel = (type: SellerType) => {
   }
 };
 
-const formatPrice = (price: number, currency?: string) => {
-  return `${price.toLocaleString()} ${currency || 'BYN'}`;
+const formatPrice = (price: number) => {
+  return `${price.toLocaleString()} руб.`;
 };
 
 const LazyMap = lazy(() => import('../components/GeoMap'));
@@ -477,7 +477,7 @@ export default function GeoFeedScreen() {
                       <div className="flex-1 min-w-0 py-0.5">
                         <h4 className="font-medium text-sm text-gray-900 line-clamp-2">{ad.title}</h4>
                         <p className="text-lg font-bold text-blue-600 mt-1">
-                          {formatPrice(ad.price, ad.currency)}
+                          {formatPrice(ad.price)}
                         </p>
                         <div className="flex items-center gap-2 mt-1.5">
                           <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${typeColor}`}>

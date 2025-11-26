@@ -271,7 +271,7 @@ export default function ConversationsPage() {
                       {conversation.ad.title}
                       {conversation.ad.price && (
                         <span style={{ fontWeight: 600, marginLeft: '8px' }}>
-                          {conversation.ad.price.toLocaleString('ru-RU')} ₽
+                          {conversation.ad.price.toLocaleString('ru-RU')} руб.
                         </span>
                       )}
                     </div>

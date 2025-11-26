@@ -35,7 +35,7 @@ const farmerSubscriptionSchema = new mongoose.Schema(
     },
     pricing: {
       monthlyPrice: { type: Number, default: 0 },
-      currency: { type: String, default: 'BYN' },
+      currency: { type: String, default: 'RUB' },
     },
     billing: {
       startDate: { type: Date, default: Date.now },

@@ -233,9 +233,9 @@ class FarmerCategoryService {
     return this.unitConversions[unit]?.label || unit;
   }
 
-  formatPriceWithUnit(price, unit, currency = 'BYN') {
+  formatPriceWithUnit(price, unit) {
     const label = this.getUnitLabel(unit);
-    return `${price} ${currency}/${label}`;
+    return `${price} руб./${label}`;
   }
 
   suggestBagPriceBreakdown(price, weightKg) {
@@ -244,7 +244,7 @@ class FarmerCategoryService {
     const pricePerKg = price / weightKg;
     return {
       pricePerKg: Math.round(pricePerKg * 100) / 100,
-      suggestion: `Цена за кг: ${pricePerKg.toFixed(2)} BYN`,
+      suggestion: `Цена за кг: ${pricePerKg.toFixed(2)} руб.`,
     };
   }
 

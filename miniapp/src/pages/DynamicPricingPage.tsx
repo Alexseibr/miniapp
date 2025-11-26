@@ -236,7 +236,7 @@ export default function DynamicPricingPage() {
               >
                 {ads.map(ad => (
                   <option key={ad._id} value={ad._id}>
-                    {ad.title} — {ad.price?.toLocaleString()} ₽
+                    {ad.title} — {ad.price?.toLocaleString()} руб.
                   </option>
                 ))}
               </select>
@@ -278,21 +278,21 @@ export default function DynamicPricingPage() {
                   <div className="flex items-center gap-4 mb-4">
                     <div className="flex-1">
                       <p className="text-xs opacity-70">Текущая цена</p>
-                      <p className="text-xl font-bold">{recommendation.currentPrice.toLocaleString()} ₽</p>
+                      <p className="text-xl font-bold">{recommendation.currentPrice.toLocaleString()} руб.</p>
                     </div>
                     <div className={`flex items-center ${getActionColor(recommendation.action)}`}>
                       {getActionIcon(recommendation.action)}
                     </div>
                     <div className="flex-1 text-right">
                       <p className="text-xs opacity-70">Рекомендуемая</p>
-                      <p className="text-2xl font-bold">{recommendation.recommendedPrice.toLocaleString()} ₽</p>
+                      <p className="text-2xl font-bold">{recommendation.recommendedPrice.toLocaleString()} руб.</p>
                     </div>
                   </div>
 
                   {recommendation.action !== 'keep' && (
                     <div className="flex items-center justify-center gap-2 text-sm mb-4">
                       <span className={recommendation.priceChange > 0 ? 'text-green-200' : 'text-orange-200'}>
-                        {recommendation.priceChange > 0 ? '+' : ''}{recommendation.priceChange.toLocaleString()} ₽
+                        {recommendation.priceChange > 0 ? '+' : ''}{recommendation.priceChange.toLocaleString()} руб.
                       </span>
                       <span className="opacity-70">
                         ({recommendation.percentChange > 0 ? '+' : ''}{recommendation.percentChange.toFixed(1)}%)

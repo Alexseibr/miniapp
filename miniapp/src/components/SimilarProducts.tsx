@@ -61,8 +61,8 @@ export default function SimilarProducts({
     return null;
   }
 
-  const formatPrice = (price: number, currency?: string) => {
-    return `${price.toLocaleString('ru-RU')} ${currency || 'BYN'}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
   const getPhotoUrl = (photos?: string[]) => {
@@ -245,7 +245,7 @@ export default function SimilarProducts({
                       margin: 0
                     }}
                   >
-                    {formatPrice(ad.price, ad.currency)}
+                    {formatPrice(ad.price)}
                   </p>
                 </div>
               </motion.div>

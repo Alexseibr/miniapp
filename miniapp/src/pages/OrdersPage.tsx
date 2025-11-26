@@ -115,7 +115,7 @@ export default function OrdersPage() {
                   )}
                 </div>
                 <div style={{ textAlign: 'right' }}>
-                  <p style={{ margin: 0, color: '#111827', fontWeight: 700 }}>{total.toFixed(2)} BYN</p>
+                  <p style={{ margin: 0, color: '#111827', fontWeight: 700 }}>{total.toFixed(2)} руб.</p>
                   <p style={{ margin: 0, color: '#475467', fontSize: '0.9rem' }}>
                     {order.items.length} поз.
                   </p>
@@ -135,7 +135,7 @@ export default function OrdersPage() {
                     )}
                     {typeof item.price === 'number' && (
                       <span style={{ marginLeft: 6, color: '#111827', fontWeight: 600 }}>
-                        {(item.price * (item.quantity || 1)).toFixed(2)} BYN
+                        {(item.price * (item.quantity || 1)).toFixed(2)} руб.
                       </span>
                     )}
                   </li>

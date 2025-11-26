@@ -341,7 +341,7 @@ class FarmerNotificationService {
         type: 'high_price',
         priority: 1,
         title: 'Цена выше рынка',
-        message: `"${item.ad.title}" на ${item.diffPercent}% дороже рынка. Рекомендуем ${item.suggestedPrice} BYN`,
+        message: `"${item.ad.title}" на ${item.diffPercent}% дороже рынка. Рекомендуем ${item.suggestedPrice} руб.`,
         action: 'edit',
         actionLabel: 'Изменить цену',
         data: { adId: item.ad._id, suggestedPrice: item.suggestedPrice },

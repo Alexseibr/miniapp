@@ -493,10 +493,9 @@ function NearbyAdCard({
   isFresh: boolean;
   onClick: () => void;
 }) {
-  const formatPrice = (price: number, currency?: string) => {
+  const formatPrice = (price: number) => {
     if (price === 0) return 'Даром';
-    const symbol = currency === 'BYN' ? 'Br' : '₽';
-    return `${symbol}${price.toLocaleString('ru-RU')}`;
+    return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
   const photoUrl = ad.photos?.[0] || '/placeholder-ad.jpg';
@@ -581,7 +580,7 @@ function NearbyAdCard({
           color: '#1F2937',
           marginBottom: 4,
         }}>
-          {formatPrice(ad.price, ad.currency)}
+          {formatPrice(ad.price)}
         </div>
         
         <div style={{

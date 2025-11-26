@@ -699,7 +699,7 @@ function CategoryAdCard({ ad }: { ad: AdPreview }) {
   
   const formatPrice = (price: number) => {
     if (price === 0) return 'Даром';
-    return `₽${price.toLocaleString('ru-RU')}`;
+    return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
   const formatDistance = (km?: number) => {

@@ -89,8 +89,8 @@ export function GeoFeedSheet({ isOpen, onOpenChange, categoryId, onAdClick }: Ge
     };
   }, [isOpen, fetchFeed]);
   
-  const formatPrice = (price: number, currency?: string) => {
-    return `${price.toLocaleString()} ${currency || 'BYN'}`;
+  const formatPrice = (price: number) => {
+    return `${price.toLocaleString()} руб.`;
   };
   
   if (!isOpen) return null;
@@ -192,7 +192,7 @@ export function GeoFeedSheet({ isOpen, onOpenChange, categoryId, onAdClick }: Ge
                 <div className="flex-1 min-w-0">
                   <h4 className="font-medium text-sm line-clamp-2">{ad.title}</h4>
                   <p className="text-lg font-bold text-blue-600 mt-1">
-                    {formatPrice(ad.price, ad.currency)}
+                    {formatPrice(ad.price)}
                   </p>
                   {ad.distanceKm && (
                     <div className="flex items-center gap-1 text-xs text-gray-500 mt-1">

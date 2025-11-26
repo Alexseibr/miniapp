@@ -200,7 +200,7 @@ async function validateCreateAd(req, res, next) {
       categoryId,
       subcategoryId,
       price,
-      currency: normalizeString(payload.currency) || 'BYN',
+      currency: normalizeString(payload.currency) || 'RUB',
       photos,
       attributes,
       sellerTelegramId,

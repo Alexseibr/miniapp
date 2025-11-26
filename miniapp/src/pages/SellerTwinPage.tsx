@@ -627,7 +627,7 @@ export default function SellerTwinPage() {
                     {pred.optimalPrice && (
                       <div className="flex items-center justify-between text-sm bg-green-50 dark:bg-green-950/20 p-2 rounded-lg mb-2">
                         <span className="text-muted-foreground">Рекомендуемая цена</span>
-                        <span className="font-bold text-green-600">{pred.optimalPrice} BYN</span>
+                        <span className="font-bold text-green-600">{pred.optimalPrice} руб.</span>
                       </div>
                     )}
 

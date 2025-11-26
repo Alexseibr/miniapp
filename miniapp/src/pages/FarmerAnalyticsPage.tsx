@@ -104,7 +104,7 @@ export default function FarmerAnalyticsPage() {
   };
 
   const formatPrice = (price: number) => {
-    return `${price.toFixed(2)} BYN`;
+    return `${price.toFixed(2)} руб.`;
   };
 
   const formatPercent = (value: number) => {

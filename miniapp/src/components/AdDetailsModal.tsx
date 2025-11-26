@@ -54,7 +54,7 @@ export default function AdDetailsModal({ adId, onClose }: Props) {
             ) : null}
 
             <p style={{ fontSize: '1.6rem', fontWeight: 700, margin: '12px 0' }}>
-              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+              {ad.price.toLocaleString('ru-RU')} руб.
             </p>
 
             {ad.attributes && Object.keys(ad.attributes).length > 0 && (

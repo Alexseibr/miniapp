@@ -23,7 +23,7 @@ const orderItemSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: 'BYN',
+      default: 'RUB',
     },
     sellerTelegramId: {
       type: Number,

@@ -502,7 +502,7 @@ class DigitalTwinService {
           await this.sendNotification(twin, {
             type: 'price_drop',
             title: `Цена снизилась на ${Math.round(priceDrop)}%`,
-            message: `${adAfter.title}: было ${adBefore.price} ₽, стало ${adAfter.price} ₽`,
+            message: `${adAfter.title}: было ${adBefore.price} руб., стало ${adAfter.price} руб.`,
             adId: adAfter._id,
           });
         }

@@ -379,10 +379,10 @@ class SellerAnalyticsEngine {
         recommendation = 'Лучшая цена в категории!';
       } else if (diff > 20) {
         status = 'overpriced';
-        recommendation = `Цена выше рынка на ${diff}%. Рекомендуемая: ${Math.round(market.avgPrice)} ₽`;
+        recommendation = `Цена выше рынка на ${diff}%. Рекомендуемая: ${Math.round(market.avgPrice)} руб.`;
       } else if (diff < -20) {
         status = 'underpriced';
-        recommendation = `Цена ниже рынка на ${Math.abs(diff)}%. Можно поднять до ${Math.round(market.avgPrice)} ₽`;
+        recommendation = `Цена ниже рынка на ${Math.abs(diff)}%. Можно поднять до ${Math.round(market.avgPrice)} руб.`;
       }
 
       return {
@@ -518,7 +518,7 @@ class SellerAnalyticsEngine {
         priority: 'medium',
         icon: '💰',
         title: 'Можно заработать больше',
-        message: `${underpricedItems.length} товаров ниже рыночной цены. Потенциальный доход: +${potentialRevenue} ₽`,
+        message: `${underpricedItems.length} товаров ниже рыночной цены. Потенциальный доход: +${potentialRevenue} руб.`,
         action: { type: 'navigate', target: '/seller/analytics/prices' },
       });
     }

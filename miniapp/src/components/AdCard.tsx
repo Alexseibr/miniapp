@@ -239,7 +239,7 @@ export default function AdCard({ ad, onSelect }: AdCardProps) {
             color: '#1F2937',
           }}
         >
-          {isFree ? 'Даром' : `${ad.price.toLocaleString('ru-RU')} BYN`}
+          {isFree ? 'Даром' : `${ad.price.toLocaleString('ru-RU')} руб.`}
         </p>
 
         {/* Title */}

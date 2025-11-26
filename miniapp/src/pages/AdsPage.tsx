@@ -189,7 +189,7 @@ export default function AdsPage() {
                   <div className="ad-card__header" style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                     <h3 className="card__title" style={{ marginRight: 12 }}>{ad.title}</h3>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span className="badge">{ad.price.toLocaleString('ru-RU')} ₽</span>
+                      <span className="badge">{ad.price.toLocaleString('ru-RU')} руб.</span>
                       <button
                         type="button"
                         onClick={(event) => {
@@ -235,7 +235,7 @@ export default function AdsPage() {
                 Закрыть
               </button>
             </div>
-            <p className="muted">Цена: {selected.price.toLocaleString('ru-RU')} ₽</p>
+            <p className="muted">Цена: {selected.price.toLocaleString('ru-RU')} руб.</p>
             {selected.description && <p className="ad-card__description">{selected.description}</p>}
             <div className="card card--sub" style={{ marginTop: 12 }}>
               <p className="eyebrow">Дополнительные поля</p>

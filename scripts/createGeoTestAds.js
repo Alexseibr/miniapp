@@ -174,7 +174,7 @@ async function createGeoTestAds() {
         categoryId: category.slug,
         subcategoryId: category.slug,
         price: adData.price,
-        currency: 'BYN',
+        currency: 'RUB',
         sellerTelegramId: TEST_SELLER_ID,
         city: CENTER_POINT.city,
         cityCode: 'brest',
@@ -199,7 +199,7 @@ async function createGeoTestAds() {
         ? `${Math.round(adData.distance * 1000)}м` 
         : `${adData.distance.toFixed(1)}км`;
       
-      console.log(`✓ [${distanceText}] ${ad.title} - ${ad.price} BYN`);
+      console.log(`✓ [${distanceText}] ${ad.title} - ${ad.price} руб.`);
       summary.push({
         id: result._id,
         distance: distanceText,

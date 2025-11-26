@@ -312,7 +312,7 @@ export default function ForYouFeedPage() {
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
               <div className="absolute bottom-0 left-0 right-0 p-3">
-                <p className="text-white font-bold text-lg">{ad.price} BYN</p>
+                <p className="text-white font-bold text-lg">{ad.price} руб.</p>
                 <p className="text-white/80 text-xs truncate">{ad.title}</p>
               </div>
             </motion.div>
@@ -419,7 +419,7 @@ export default function ForYouFeedPage() {
                   <h2 className="text-white text-xl font-bold mb-2">{currentAd.title}</h2>
                   
                   <div className="flex items-center gap-3 mb-3">
-                    <span className="text-white text-2xl font-bold">{currentAd.price} BYN</span>
+                    <span className="text-white text-2xl font-bold">{currentAd.price} руб.</span>
                     {currentScore && currentScore.reasons.length > 0 && (
                       <Badge className="bg-violet-500/80 text-white border-0">
                         {currentScore.reasons[0]}

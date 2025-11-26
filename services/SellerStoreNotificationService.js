@@ -20,7 +20,7 @@ class SellerStoreNotificationService {
 
       const message = `🆕 У продавца «${profile.name}» появился новый товар:\n\n` +
         `📦 ${ad.title}\n` +
-        `💰 ${ad.price} ${ad.currency || 'BYN'}` +
+        `💰 ${ad.price} руб.` +
         (ad.unitType ? ` / ${this.formatUnit(ad.unitType)}` : '');
 
       const keyboard = {
@@ -91,7 +91,7 @@ class SellerStoreNotificationService {
       
       const message = `📉 Снижение цены у «${profile.name}»!\n\n` +
         `📦 ${ad.title}\n` +
-        `💰 <s>${oldPrice}</s> → <b>${newPrice} ${ad.currency || 'BYN'}</b>\n` +
+        `💰 <s>${oldPrice}</s> → <b>${newPrice} руб.</b>\n` +
         `🔥 Скидка ${discount}%`;
 
       const keyboard = {

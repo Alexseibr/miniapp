@@ -203,7 +203,7 @@ class SearchAlertService {
             alert.telegramId,
             `🔔 Появилось новое объявление!\n\n` +
             `"${ad.title}"\n` +
-            `💰 ${ad.price} ${ad.currency || 'BYN'}\n` +
+            `💰 ${ad.price} руб.\n` +
             `${ad.city ? `📍 ${ad.city}` : ''}\n\n` +
             `Вы искали: "${alert.query}"`,
             'new_ad_match'

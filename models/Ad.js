@@ -94,7 +94,7 @@ const adSchema = new mongoose.Schema(
     },
     currency: {
       type: String,
-      default: 'BYN',
+      default: 'RUB',
       trim: true,
     },
     unitType: {

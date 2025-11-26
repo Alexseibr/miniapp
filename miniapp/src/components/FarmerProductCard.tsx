@@ -91,9 +91,9 @@ function formatPriceHint(price: number, unitType?: string): string | null {
   
   switch (unitType) {
     case 'kg':
-      return `${(price / 10).toFixed(2)} BYN за 100 г`;
+      return `${(price / 10).toFixed(2)} руб. за 100 г`;
     case 'liter':
-      return `${(price / 10).toFixed(2)} BYN за 100 мл`;
+      return `${(price / 10).toFixed(2)} руб. за 100 мл`;
     default:
       return null;
   }
@@ -113,7 +113,7 @@ export default function FarmerProductCard({ ad, compact = false }: FarmerProduct
   const navigate = useNavigate();
   
   const unitLabel = ad.unitType ? UNIT_LABELS[ad.unitType] || ad.unitType : '';
-  const priceLabel = `${ad.price.toLocaleString('ru-RU')} ${ad.currency || 'BYN'}${unitLabel ? ` / ${unitLabel}` : ''}`;
+  const priceLabel = `${ad.price.toLocaleString('ru-RU')} руб.${unitLabel ? ` / ${unitLabel}` : ''}`;
   const priceHint = formatPriceHint(ad.price, ad.unitType);
   const freshness = formatFreshness(ad.freshAt, ad.harvestDate, ad.productionDate);
   const distance = formatDistance(ad.distanceKm);

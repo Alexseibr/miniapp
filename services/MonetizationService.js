@@ -8,7 +8,7 @@ class MonetizationService {
       name: 'Базовый',
       nameEn: 'Free',
       price: 0,
-      currency: 'BYN',
+      currency: 'RUB',
       features: [
         '1 товар в витрине',
         'Базовые карточки',
@@ -25,7 +25,7 @@ class MonetizationService {
       name: 'PRO',
       nameEn: 'Pro',
       price: 0.99,
-      currency: 'BYN',
+      currency: 'RUB',
       features: [
         '5 товаров в витрине',
         'Авто-поднятие каждые 48ч',
@@ -43,7 +43,7 @@ class MonetizationService {
       name: 'MAX',
       nameEn: 'Max',
       price: 2.49,
-      currency: 'BYN',
+      currency: 'RUB',
       features: [
         '20 товаров в витрине',
         'Авто-поднятие каждые 24ч',
@@ -75,7 +75,7 @@ class MonetizationService {
         tier: 'free',
         status: 'active',
         features: FarmerSubscription.getTierFeatures('free'),
-        pricing: { monthlyPrice: 0, currency: 'BYN' },
+        pricing: { monthlyPrice: 0, currency: 'RUB' },
       });
     }
 

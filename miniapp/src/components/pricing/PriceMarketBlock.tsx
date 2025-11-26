@@ -74,11 +74,11 @@ export default function PriceMarketBlock({
           Текущая цена
         </div>
         <div style={{ fontSize: 26, fontWeight: 700, color: '#111827' }}>
-          {price.toLocaleString('ru-RU')} BYN
+          {price.toLocaleString('ru-RU')} руб.
         </div>
         {pricePerSqm && pricePerSqm > 0 && (
           <div style={{ fontSize: 17, color: '#6B7280', marginTop: 6 }}>
-            Это {pricePerSqm.toLocaleString('ru-RU')} BYN/м²
+            Это {pricePerSqm.toLocaleString('ru-RU')} руб./м²
           </div>
         )}
       </div>
@@ -94,7 +94,7 @@ export default function PriceMarketBlock({
             Средняя цена по похожим объявлениям
           </div>
           <div style={{ fontSize: 24, fontWeight: 600, color: '#374151' }}>
-            {avgPrice.toLocaleString('ru-RU')} BYN
+            {avgPrice.toLocaleString('ru-RU')} руб.
           </div>
           {windowDays && (
             <div style={{ fontSize: 17, color: '#9CA3AF', marginTop: 8 }}>

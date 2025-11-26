@@ -147,13 +147,13 @@ export default function PriceHint({ categoryId, subcategoryId, price, city }: Pr
         <div>
           <div style={{ fontSize: 15, color: '#6B7280', marginBottom: 6 }}>Средняя цена</div>
           <div style={{ fontSize: 20, fontWeight: 600, color: '#111827' }} data-testid="price-hint-avg">
-            {avgPrice?.toLocaleString('ru-RU')} BYN
+            {avgPrice?.toLocaleString('ru-RU')} руб.
           </div>
         </div>
         <div>
           <div style={{ fontSize: 15, color: '#6B7280', marginBottom: 6 }}>Диапазон</div>
           <div style={{ fontSize: 17, fontWeight: 500, color: '#374151' }} data-testid="price-hint-range">
-            {minPrice?.toLocaleString('ru-RU')} – {maxPrice?.toLocaleString('ru-RU')} BYN
+            {minPrice?.toLocaleString('ru-RU')} – {maxPrice?.toLocaleString('ru-RU')} руб.
           </div>
         </div>
       </div>
@@ -167,7 +167,7 @@ export default function PriceHint({ categoryId, subcategoryId, price, city }: Pr
         }}>
           <div style={{ fontSize: 15, color: '#6B7280', marginBottom: 6 }}>Рекомендуемая цена</div>
           <div style={{ fontSize: 18, fontWeight: 600, color: '#3B73FC' }} data-testid="price-hint-recommended">
-            {labels.recommendedPriceRange.from.toLocaleString('ru-RU')} – {labels.recommendedPriceRange.to.toLocaleString('ru-RU')} BYN
+            {labels.recommendedPriceRange.from.toLocaleString('ru-RU')} – {labels.recommendedPriceRange.to.toLocaleString('ru-RU')} руб.
           </div>
         </div>
       )}

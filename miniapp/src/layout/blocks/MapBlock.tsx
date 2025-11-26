@@ -161,7 +161,7 @@ export default function MapBlock(props: MapBlockProps) {
                       color: 'var(--color-accent-highlight)',
                     }}
                   >
-                    {ad.price} BYN
+                    {ad.price} руб.
                   </p>
                 </div>
               </div>

@@ -107,7 +107,7 @@ function formatAdDetails(ad) {
   return (
     `**${ad.title}**\n\n` +
     `${ad.description || 'Без описания'}\n\n` +
-    `💰 Цена: **${ad.price} ${ad.currency || 'BYN'}**\n` +
+    `💰 Цена: **${ad.price} руб.**\n` +
     `📂 Категория: ${ad.categoryId} — ${ad.subcategoryId}\n` +
     `👤 Продавец ID: ${ad.sellerTelegramId}` +
     seasonBadge +
@@ -140,7 +140,7 @@ async function finalizeAdCreation(ctx) {
     categoryId: sell.data.categoryId,
     subcategoryId: sell.data.subcategoryId,
     price: sell.data.price,
-    currency: "BYN",
+    currency: "RUB",
     attributes: {},
     photos: [],
     sellerTelegramId: ctx.from.id,
@@ -164,7 +164,7 @@ async function finalizeAdCreation(ctx) {
     await ctx.reply(
       "✅ Объявление создано!\n\n" +
       `Заголовок: ${ad.title}\n` +
-      `Цена: ${ad.price} ${ad.currency || "BYN"}${locationInfo}\n\n` +
+      `Цена: ${ad.price} руб.${locationInfo}\n\n` +
       "Посмотреть свои объявления: /my_ads",
       {
         reply_markup: {
@@ -266,7 +266,7 @@ function buildMarketAdsMessage(ads, marketData) {
   const startIndex = marketData.page * MARKET_PAGE_SIZE + 1;
   const blocks = ads.map((ad, index) => {
     const shortId = ad._id ? String(ad._id).slice(-6) : '—';
-    const price = `${ad.price} ${ad.currency || 'BYN'}`;
+    const price = `${ad.price} руб.`;
     const description = truncateText(ad.description || 'Без описания', 160);
 
     return (
@@ -369,12 +369,11 @@ function formatSellerAdCard(ad = {}) {
     expired: '⌛️',
   }[ad.status] || '📌';
 
-  const currency = ad.currency || 'BYN';
   const photosCount = Array.isArray(ad.photos) ? ad.photos.length : 0;
 
   return (
     `${statusEmoji} *${escapeMarkdown(ad.title || 'Без названия')}*\n` +
-    `💰 ${ad.price} ${currency}\n` +
+    `💰 ${ad.price} руб.\n` +
     `📂 ${escapeMarkdown(ad.categoryId || '—')} / ${escapeMarkdown(ad.subcategoryId || '—')}\n` +
     `🆔 \`${ad._id}\`\n` +
     `📸 Фото: ${photosCount}\n` +
@@ -681,7 +680,7 @@ function formatFavoritesList(items = []) {
       return;
     }
 
-    const price = ad.price != null ? `${ad.price} ${ad.currency || 'BYN'}` : '—';
+    const price = ad.price != null ? `${ad.price} руб.` : '—';
     const status = ad.status || item.lastKnownStatus || '—';
     const id = ad._id || item.adId || '—';
 
@@ -1048,13 +1047,13 @@ bot.action(/order_(.+)/, async (ctx) => {
         id: ad._id,
         title: ad.title,
         price: ad.price,
-        currency: ad.currency || 'BYN',
+        currency: 'RUB',
         seasonCode: ad.seasonCode || null,
       },
     };
 
     await ctx.reply(
-      `🛒 Вы выбрали *${ad.title}* за ${ad.price} ${ad.currency || 'BYN'}.\n\n` +
+      `🛒 Вы выбрали *${ad.title}* за ${ad.price} руб.\n\n` +
         'Введите количество (1–50). Для отмены используйте /cancel.',
       { parse_mode: 'Markdown' }
     );
@@ -1205,7 +1204,7 @@ bot.command('rental', async (ctx) => {
       const city = escapeMarkdown(ad.location?.city || 'Не указано');
       const contact = escapeMarkdown(ad.sellerContact || 'См. детали');
       const price = escapeMarkdown(String(ad.price || 0));
-      const currency = escapeMarkdown(ad.currency || 'BYN');
+      const currency = 'руб.';
       
       const message = 
         `**${title}**\n\n` +
@@ -1402,9 +1401,8 @@ async function handleMyOrdersCommand(ctx) {
     for (const order of orders) {
       const itemsList = order.items
         .map((item) => {
-          const currency = item.currency || 'BYN';
           const total = item.price * item.quantity;
-          return `  • ${item.title} × ${item.quantity} = ${total} ${currency}`;
+          return `  • ${item.title} × ${item.quantity} = ${total} руб.`;
         })
         .join('\n');
 
@@ -1412,7 +1410,7 @@ async function handleMyOrdersCommand(ctx) {
         (sum, item) => sum + item.price * item.quantity,
         0
       );
-      const totalCurrency = order.items[0]?.currency || 'BYN';
+      const totalCurrency = 'руб.';
       const orderIdShort = (order._id?.toString() || '').slice(-6) || '000000';
 
       const message =
@@ -1448,7 +1446,7 @@ bot.command('new_test_ad', async (ctx) => {
       categoryId: 'farm',
       subcategoryId: 'berries',
       price: 299,
-      currency: 'BYN',
+      currency: 'RUB',
       sellerTelegramId: user.id,
       photos: [],
       deliveryOptions: ['pickup', 'delivery'],
@@ -1591,7 +1589,7 @@ bot.action(/myads_price:(.+)/, async (ctx) => {
 
     await ctx.answerCbQuery('Введи новую цену');
     await ctx.reply(
-      `💰 Введи новую цену для объявления \`${adId}\` (в BYN).\n` +
+      `💰 Введи новую цену для объявления \`${adId}\` (в руб.).\n` +
         'Используй точку для копеек. Отмена — /cancel',
       { parse_mode: 'Markdown' }
     );
@@ -2073,7 +2071,7 @@ bot.on("text", async (ctx) => {
 
         const order = await response.json();
         const item = order.items[0];
-        const currency = item?.currency || "BYN";
+        const currency = 'руб.';
 
         ctx.session.orderFlow = null;
 
@@ -2134,7 +2132,7 @@ bot.command('moderation', async (ctx) => {
     for (const ad of ads) {
       const text = 
         `📌 *${escapeMarkdown(ad.title)}*\n` +
-        `💰 Цена: ${ad.price} ${ad.currency || 'BYN'}\n` +
+        `💰 Цена: ${ad.price} руб.\n` +
         `👤 Продавец: ${ad.sellerTelegramId}\n` +
         `🆔 ID: \`${ad._id}\`\n` +
         `📅 Создано: ${new Date(ad.createdAt).toLocaleDateString('ru-RU')}`;
@@ -2231,7 +2229,7 @@ bot.action(/mod_view:(.+)/, async (ctx) => {
     const text =
       `*${escapeMarkdown(ad.title)}*\n\n` +
       `${escapeMarkdown(ad.description || 'Без описания')}\n\n` +
-      `💰 Цена: ${ad.price} ${ad.currency || 'BYN'}\n` +
+      `💰 Цена: ${ad.price} руб.\n` +
       `📂 Категория: ${ad.categoryId?.name || ad.categoryId}\n` +
       `👤 Продавец: ${ad.sellerTelegramId}\n` +
       `📅 Создано: ${new Date(ad.createdAt).toLocaleDateString('ru-RU')}` +

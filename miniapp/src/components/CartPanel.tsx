@@ -64,7 +64,7 @@ export default function CartPanel() {
                 <div>
                   <p style={{ margin: 0 }}>{item.title}</p>
                   <small style={{ color: '#475467' }}>
-                    {item.price.toLocaleString('ru-RU')} BYN · количество:
+                    {item.price.toLocaleString('ru-RU')} руб. · количество:
                     <input
                       type="number"
                       min={1}
@@ -86,7 +86,7 @@ export default function CartPanel() {
             onChange={(event) => setComment(event.target.value)}
             style={{ width: '100%', marginTop: 12, borderRadius: 12, border: '1px solid #d0d5dd', padding: 12 }}
           />
-          <p style={{ margin: '12px 0 8px', fontWeight: 600 }}>Сумма: {total().toFixed(2)} BYN</p>
+          <p style={{ margin: '12px 0 8px', fontWeight: 600 }}>Сумма: {total().toFixed(2)} руб.</p>
           <button type="button" className="primary" onClick={handleSubmit} disabled={pending}>
             {pending ? 'Отправляем…' : 'Отправить продавцам'}
           </button>

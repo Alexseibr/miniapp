@@ -205,7 +205,7 @@ class AiEngine {
       return `Свежие ${title.toLowerCase()}. Прямо от производителя.`;
     }
     
-    return `${conditionText}. ${title}. ${price ? `Цена: ${price} BYN.` : 'Цена договорная.'}`;
+    return `${conditionText}. ${title}. ${price ? `Цена: ${price} руб.` : 'Цена договорная.'}`;
   }
 
   generateFullDescription(title, categoryInfo, condition, brand, specs, price) {

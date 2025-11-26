@@ -331,7 +331,7 @@ interface MyAdListCardProps {
 function MyAdListCard({ ad, onClick }: MyAdListCardProps) {
   const formatPrice = (price: number) => {
     if (price === 0) return 'Даром';
-    return `₽${price.toLocaleString('ru-RU')}`;
+    return `${price.toLocaleString('ru-RU')} руб.`;
   };
 
   const photoUrl = ad.photos?.[0] 

@@ -210,7 +210,7 @@ async function createTestAds() {
           categoryId: category.slug,
           subcategoryId: category.slug,
           price: adData.price,
-          currency: 'BYN',
+          currency: 'RUB',
           sellerTelegramId: TEST_SELLER_ID,
           city: city.name,
           cityCode: city.code,

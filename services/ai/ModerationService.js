@@ -95,14 +95,14 @@ class ModerationService {
     if (price < ranges.min * ranges.suspiciousLow) {
       return {
         suspicious: true,
-        reason: `Подозрительно низкая цена для категории (${price} BYN)`
+        reason: `Подозрительно низкая цена для категории (${price} руб.)`
       };
     }
     
     if (price > ranges.max * 2) {
       return {
         suspicious: true,
-        reason: `Необычно высокая цена для категории (${price} BYN)`
+        reason: `Необычно высокая цена для категории (${price} руб.)`
       };
     }
     

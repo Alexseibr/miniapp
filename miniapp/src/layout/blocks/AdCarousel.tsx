@@ -202,7 +202,7 @@ export default function AdCarousel(props: AdCarouselProps) {
                 color: 'var(--color-primary)',
               }}
             >
-              {ad.price ? `${ad.price} BYN` : 'Цена не указана'}
+              {ad.price ? `${ad.price} руб.` : 'Цена не указана'}
             </div>
             {ad.city && (
               <div

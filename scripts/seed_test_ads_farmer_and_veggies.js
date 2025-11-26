@@ -493,7 +493,7 @@ async function seedTestAds() {
         categoryId: 'farmer-market',
         subcategoryId: adData.subcategory,
         price: adData.price,
-        currency: 'BYN',
+        currency: 'RUB',
         unitType: adData.unitType || null,
         sellerTelegramId: TEST_SELLER_ID,
         city: adData.city,

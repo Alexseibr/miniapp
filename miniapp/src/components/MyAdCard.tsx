@@ -58,7 +58,7 @@ export default function MyAdCard({ ad, index, getStatusBadge }: MyAdCardProps) {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
         <div>
           <div style={{ fontSize: 18, fontWeight: 700 }}>
-            {ad.price?.toLocaleString('ru-RU') || '0'} {ad.currency || 'BYN'}
+            {ad.price?.toLocaleString('ru-RU') || '0'} руб.
           </div>
           {ad.createdAt && (
             <div style={{ fontSize: 12, color: '#9ca3af', marginTop: 4 }}>

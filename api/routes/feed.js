@@ -111,7 +111,7 @@ router.get('/', async (req, res) => {
       subcategoryId: ad.subcategoryId,
       createdAt: ad.createdAt,
       price: ad.price,
-      currency: ad.currency || 'BYN',
+      currency: ad.currency || 'RUB',
       distanceMeters: Math.round(ad.distanceMeters || 0),
       sellerName: ad.sellerName,
       sellerUsername: ad.sellerUsername,
