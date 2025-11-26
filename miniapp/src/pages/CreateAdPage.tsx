@@ -289,7 +289,6 @@ export default function CreateAdPage() {
           key={photoStepResetKey}
           photos={draft.photos}
           onAddPhoto={(photo) => dispatch({ type: 'ADD_PHOTO', payload: photo })}
-          onGoNext={() => setCurrentStep(3)}
           onRemovePhoto={(id) => dispatch({ type: 'REMOVE_PHOTO', payload: id })}
           onUpdatePhoto={(id, updates) => dispatch({ type: 'UPDATE_PHOTO', payload: { id, updates } })}
         />
@@ -794,13 +793,11 @@ function Step2Photos({
   onAddPhoto, 
   onRemovePhoto, 
   onUpdatePhoto,
-  onGoNext,
 }: { 
   photos: AdPhoto[]; 
   onAddPhoto: (photo: AdPhoto) => void; 
   onRemovePhoto: (id: string) => void; 
   onUpdatePhoto: (id: string, updates: Partial<AdPhoto>) => void;
-  onGoNext: () => void;
 }) {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [error, setError] = useState('');
@@ -930,8 +927,6 @@ function Step2Photos({
 
   const isAnyUploading = photos.some(p => p.uploadStatus === 'uploading');
   const hasErrors = photos.some(p => p.uploadStatus === 'error');
-  const canContinue = !isAnyUploading;
-  const hasPhotos = photos.length > 0;
 
   return (
     <div style={{ 
@@ -1131,31 +1126,6 @@ function Step2Photos({
         <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>Объявления без фотографий не показываются в ленте, но будут доступны в поиске и категориях.</span>
       </div>
-
-      {/* Spacer */}
-      <div style={{ flex: 1, minHeight: 16 }} />
-
-      {/* Continue Button */}
-      <button
-        onClick={onGoNext}
-        disabled={!canContinue}
-        data-testid="button-continue-photos"
-        style={{
-          width: '100%',
-          padding: '16px 24px',
-          background: canContinue ? BRAND_BLUE : '#E5E7EB',
-          color: canContinue ? '#fff' : '#9CA3AF',
-          border: 'none',
-          borderRadius: 12,
-          fontSize: 16,
-          fontWeight: 600,
-          cursor: canContinue ? 'pointer' : 'not-allowed',
-          marginTop: 16,
-          marginBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)',
-        }}
-      >
-        {hasPhotos ? 'Продолжить' : 'Продолжить без фотографий'}
-      </button>
 
       {showActionSheet && (
         <>
