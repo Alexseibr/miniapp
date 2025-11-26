@@ -80,10 +80,10 @@ export default function SearchResultsPage() {
         });
         
         if (activeFilter === 'farmer') {
-          params.set('categoryId', 'farmer_market');
+          params.set('categoryId', 'farmer-market');
         }
         
-        const response = await fetch(`/api/search/search?${params}`);
+        const response = await fetch(`/api/search/search?${params.toString()}`);
         const data = await response.json();
         
         let items = data.items || data || [];
@@ -220,7 +220,7 @@ export default function SearchResultsPage() {
                   color: '#1F2937',
                   outline: 'none',
                 }}
-                data-testid="input-search"
+                data-testid="input-search-results"
               />
               {searchText && (
                 <button
@@ -290,10 +290,13 @@ export default function SearchResultsPage() {
           justifyContent: 'space-between',
           marginBottom: 16,
         }}>
-          <span style={{
-            fontSize: 14,
-            color: '#6B7280',
-          }}>
+          <span 
+            style={{
+              fontSize: 14,
+              color: '#6B7280',
+            }}
+            data-testid="text-results-count"
+          >
             Найдено {totalCount} результатов
           </span>
           
@@ -348,12 +351,15 @@ export default function SearchResultsPage() {
               fontSize: 48,
               marginBottom: 16,
             }}>🔍</div>
-            <h3 style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: '#1F2937',
-              marginBottom: 8,
-            }}>
+            <h3 
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#1F2937',
+                marginBottom: 8,
+              }}
+              data-testid="text-empty-state"
+            >
               Ничего не найдено
             </h3>
             <p style={{

@@ -12,6 +12,7 @@ interface UseNearbyAdsParams {
   scope?: 'local' | 'country';
   enabled?: boolean;
   limit?: number;
+  sort?: string;
 }
 
 interface UseNearbyAdsResult {
@@ -35,6 +36,7 @@ export function useNearbyAds({
   scope = 'local',
   enabled = true,
   limit = 50,
+  sort,
 }: UseNearbyAdsParams): UseNearbyAdsResult {
   const [ads, setAds] = useState<AdPreview[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,11 +68,12 @@ export function useNearbyAds({
     setError(null);
 
     try {
+      const defaultSort = scope === 'country' ? 'newest' : 'distance';
       const response = await listNearbyAds({
         lat: coords?.lat,
         lng: coords?.lng,
         radiusKm: scope === 'country' ? undefined : radiusKm,
-        sort: scope === 'country' ? 'newest' : 'distance',
+        sort: sort || defaultSort,
         categoryId: categoryId || undefined,
         subcategoryId: subcategoryId || undefined,
         q: query || undefined,
@@ -94,7 +97,7 @@ export function useNearbyAds({
         setLoading(false);
       }
     }
-  }, [coords, radiusKm, categoryId, subcategoryId, query, brands, scope, enabled]);
+  }, [coords, radiusKm, categoryId, subcategoryId, query, brands, scope, enabled, limit, sort]);
 
   useEffect(() => {
     if (debounceTimerRef.current) {

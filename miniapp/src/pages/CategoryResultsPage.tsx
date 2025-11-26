@@ -1,21 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, SlidersHorizontal, ChevronDown, X } from 'lucide-react';
-import { useUserStore } from '@/store/useUserStore';
+import { ArrowLeft, SlidersHorizontal, ChevronDown } from 'lucide-react';
+import { useGeo } from '@/utils/geo';
+import { useNearbyAds } from '@/hooks/useNearbyAds';
 import { fetchCategories } from '@/api/categories';
 import { CategoryNode } from '@/types';
-
-interface Ad {
-  _id: string;
-  title: string;
-  description?: string;
-  price?: number;
-  photos?: string[];
-  distanceKm?: number;
-  createdAt: string;
-  categoryId?: string;
-  subcategoryId?: string;
-}
 
 const RADIUS_OPTIONS = [
   { value: 0.3, label: '300м' },
@@ -50,20 +39,20 @@ export default function CategoryResultsPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   
-  const user = useUserStore((state) => state.user);
-  const userLat = user?.location?.lat || 55.7558;
-  const userLng = user?.location?.lng || 37.6173;
+  const { coords, radiusKm, setRadius } = useGeo();
   
   const [category, setCategory] = useState<CategoryNode | null>(null);
   const [subcategories, setSubcategories] = useState<CategoryNode[]>([]);
-  const [ads, setAds] = useState<Ad[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [totalCount, setTotalCount] = useState(0);
+  const [selectedRadius, setSelectedRadius] = useState(radiusKm || 5);
+  const [sortBy, setSortByState] = useState('newest');
   
-  const [selectedRadius, setSelectedRadius] = useState(5);
-  const [sortBy, setSortBy] = useState('newest');
+  const setSortBy = (newSort: string) => {
+    if (newSort === 'distance' && !coords) {
+      return;
+    }
+    setSortByState(newSort);
+  };
   const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
-  
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [showFilterSheet, setShowFilterSheet] = useState(false);
 
@@ -81,42 +70,42 @@ export default function CategoryResultsPage() {
   }, [slug]);
 
   useEffect(() => {
-    if (!slug) return;
+    if (radiusKm && radiusKm !== selectedRadius) {
+      setSelectedRadius(radiusKm);
+    }
+  }, [radiusKm]);
+
+  const prevCoordsRef = useRef(coords);
+  
+  useEffect(() => {
+    const hasLocation = !!coords;
     
-    const fetchAds = async () => {
-      setLoading(true);
-      try {
-        const params = new URLSearchParams({
-          lat: String(userLat),
-          lng: String(userLng),
-          maxDistanceKm: String(selectedRadius),
-          sort: sortBy,
-          limit: '50',
-        });
-        
-        if (selectedSubcategory) {
-          params.set('subcategoryId', selectedSubcategory);
-        } else {
-          params.set('categoryId', slug);
-        }
-        
-        const response = await fetch(`/api/search/search?${params}`);
-        const data = await response.json();
-        
-        const items = data.items || data || [];
-        setAds(items);
-        setTotalCount(items.length);
-      } catch (error) {
-        console.error('Category ads error:', error);
-        setAds([]);
-        setTotalCount(0);
-      } finally {
-        setLoading(false);
-      }
-    };
+    if (!hasLocation && sortBy === 'distance') {
+      setSortByState('newest');
+    }
     
-    fetchAds();
-  }, [slug, userLat, userLng, selectedRadius, sortBy, selectedSubcategory]);
+    prevCoordsRef.current = coords;
+  }, [coords, sortBy]);
+
+  const hasRealLocation = !!coords;
+  const effectiveScope = hasRealLocation ? 'local' : 'country';
+  const effectiveSort = (!hasRealLocation && sortBy === 'distance') ? 'newest' : sortBy;
+  
+  const availableSortOptions = hasRealLocation 
+    ? SORT_OPTIONS 
+    : SORT_OPTIONS.filter(o => o.value !== 'distance');
+  
+  const { ads, loading } = useNearbyAds({
+    coords: coords,
+    radiusKm: selectedRadius,
+    categoryId: selectedSubcategory || slug,
+    enabled: !!slug,
+    limit: 50,
+    sort: effectiveSort,
+    scope: effectiveScope,
+  });
+
+  const totalCount = ads.length;
 
   const handleBack = () => {
     navigate(-1);
@@ -137,7 +126,8 @@ export default function CategoryResultsPage() {
     return `₽${price.toLocaleString('ru-RU')}`;
   };
 
-  const isNew = (createdAt: string) => {
+  const isNew = (createdAt?: string) => {
+    if (!createdAt) return false;
     const created = new Date(createdAt);
     const now = new Date();
     const hoursDiff = (now.getTime() - created.getTime()) / (1000 * 60 * 60);
@@ -145,7 +135,7 @@ export default function CategoryResultsPage() {
   };
 
   const getSelectedSortLabel = () => {
-    return SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Сортировка';
+    return availableSortOptions.find(o => o.value === sortBy)?.label || SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Сортировка';
   };
 
   return (
@@ -189,13 +179,16 @@ export default function CategoryResultsPage() {
             <ArrowLeft size={22} color="#1F2937" />
           </button>
           
-          <h1 style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: '#1F2937',
-            margin: 0,
-            flex: 1,
-          }}>
+          <h1 
+            style={{
+              fontSize: 18,
+              fontWeight: 600,
+              color: '#1F2937',
+              margin: 0,
+              flex: 1,
+            }}
+            data-testid="text-category-title"
+          >
             {category?.name || 'Категория'}
           </h1>
         </div>
@@ -212,7 +205,10 @@ export default function CategoryResultsPage() {
           {RADIUS_OPTIONS.map((option) => (
             <button
               key={option.value}
-              onClick={() => setSelectedRadius(option.value)}
+              onClick={() => {
+                setSelectedRadius(option.value);
+                setRadius(option.value);
+              }}
               style={{
                 padding: '8px 16px',
                 borderRadius: 20,
@@ -300,11 +296,14 @@ export default function CategoryResultsPage() {
       {/* Results Section */}
       <div style={{ flex: 1, padding: '12px 16px', paddingBottom: 100 }}>
         {/* Results Count */}
-        <div style={{
-          fontSize: 14,
-          color: '#6B7280',
-          marginBottom: 16,
-        }}>
+        <div 
+          style={{
+            fontSize: 14,
+            color: '#6B7280',
+            marginBottom: 16,
+          }}
+          data-testid="text-category-results-count"
+        >
           Найдено {totalCount} объявлений
         </div>
 
@@ -337,12 +336,15 @@ export default function CategoryResultsPage() {
               fontSize: 48,
               marginBottom: 16,
             }}>📦</div>
-            <h3 style={{
-              fontSize: 18,
-              fontWeight: 600,
-              color: '#1F2937',
-              marginBottom: 8,
-            }}>
+            <h3 
+              style={{
+                fontSize: 18,
+                fontWeight: 600,
+                color: '#1F2937',
+                marginBottom: 8,
+              }}
+              data-testid="text-empty-category"
+            >
               Нет объявлений
             </h3>
             <p style={{
@@ -641,7 +643,7 @@ export default function CategoryResultsPage() {
               Сортировка
             </h3>
             
-            {SORT_OPTIONS.map((option) => (
+            {availableSortOptions.map((option) => (
               <button
                 key={option.value}
                 onClick={() => {
