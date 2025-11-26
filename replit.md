@@ -9,6 +9,8 @@ Preferred communication style: Simple, everyday language.
 ## System Architecture
 
 ### UI/UX Decisions
+- **MiniApp Layout**: Uses fixed layout with `height: 100vh` app-shell, scrollable main content area, sticky header within scroll container, and fixed bottom tabs with safe area padding.
+- **Ad Cards**: Display price, title, and location info (geoLabel or city fallback) with distance in km/m format when geolocation available.
 - **Category Icons**: Utilizes 3D WebP icons with lazy loading and async decoding.
 - **Admin Panel**: Features a tabbed interface with robust filtering and management tools.
 - **MiniApp**: Designed for mobile-first use with a "radius-first" navigation pattern, elderly-friendly sizing, and geo-centric ad discovery. Accessibility features include large fonts, 48px+ touch targets, and high contrast.
