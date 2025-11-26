@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, MapPin, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import FeedCard from '@/components/FeedCard';
 import { useGeo } from '@/utils/geo';
 import { FeedItem, FeedEvent } from '@/types';
@@ -11,7 +11,6 @@ import { useUserStore } from '@/store/useUserStore';
 
 const FEED_RADIUS_KM = 20;
 const FEED_LIMIT = 20;
-const SWIPE_THRESHOLD = 50;
 const AUTO_REFRESH_INTERVAL = 45000; // 45 seconds
 
 export default function FeedPage() {
@@ -25,18 +24,16 @@ export default function FeedPage() {
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(true);
   const [showSwipeHint, setShowSwipeHint] = useState(false);
-  const [slideDirection, setSlideDirection] = useState<'up' | 'down' | null>(null);
   const [newBuffer, setNewBuffer] = useState<FeedItem[]>([]);
   const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
   
   const currentStartTime = useRef<number | null>(null);
   const pendingEvents = useRef<FeedEvent[]>([]);
   const containerRef = useRef<HTMLDivElement>(null);
-  const touchStartY = useRef<number>(0);
-  const touchDeltaY = useRef<number>(0);
-  const isTransitioning = useRef<boolean>(false);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   const hasShownHint = useRef(false);
   const lastFetchTime = useRef<number>(Date.now());
+  const lastScrollIndex = useRef<number>(0);
 
   // Check if hint was shown before
   useEffect(() => {
@@ -198,180 +195,59 @@ export default function FeedPage() {
     };
   }, [flushPendingEvents]);
 
-  const goToNext = useCallback(() => {
-    if (isTransitioning.current) return;
-    dismissHint();
+  // Handle scroll to detect current card and track events
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current) return;
     
-    isTransitioning.current = true;
-    setSlideDirection('up');
+    const container = scrollContainerRef.current;
+    const cardHeight = container.scrollHeight / items.length;
+    const scrollTop = container.scrollTop;
+    const newIndex = Math.round(scrollTop / cardHeight);
     
-    const currItem = items[currentIndex];
-    
-    // Track dwell time for current item
-    if (currentStartTime.current && currItem) {
-      const dwellTimeMs = Date.now() - currentStartTime.current;
-      trackEvent({
-        adId: currItem._id,
-        eventType: 'impression',
-        dwellTimeMs,
-        positionIndex: currentIndex,
-        radiusKm: FEED_RADIUS_KM,
-      });
-    }
-    
-    // Track scroll event
-    if (currItem) {
-      trackEvent({
-        adId: currItem._id,
-        eventType: 'scroll_next',
-        positionIndex: currentIndex,
-        radiusKm: FEED_RADIUS_KM,
-      });
-    }
-    
-    // Determine what to do based on position
-    const isAtEnd = currentIndex >= items.length - 1;
-    
-    if (isAtEnd) {
-      // First, inject any buffered items
-      if (newBuffer.length > 0) {
-        const bufferedItems = [...newBuffer];
-        const firstBuffered = bufferedItems[0];
-        setNewBuffer([]);
-        
-        // Update items and index atomically using functional updates
-        setItems(prev => [...prev, ...bufferedItems]);
-        setCurrentIndex(prev => prev + 1);
-        currentStartTime.current = Date.now();
-        
-        // Track impression for first buffered item
+    if (newIndex !== lastScrollIndex.current && newIndex >= 0 && newIndex < items.length) {
+      const prevIndex = lastScrollIndex.current;
+      const prevItem = items[prevIndex];
+      const newItem = items[newIndex];
+      
+      // Track dwell time for previous item
+      if (currentStartTime.current && prevItem) {
+        const dwellTimeMs = Date.now() - currentStartTime.current;
         trackEvent({
-          adId: firstBuffered._id,
+          adId: prevItem._id,
           eventType: 'impression',
-          positionIndex: currentIndex + 1,
+          dwellTimeMs,
+          positionIndex: prevIndex,
           radiusKm: FEED_RADIUS_KM,
-          meta: { categoryId: firstBuffered.categoryId },
-        });
-      } else if (!hasMore && items.length > 1) {
-        // No more items to load and no buffer - wrap to start with shuffle
-        const shuffled = [...items].sort(() => Math.random() - 0.5);
-        const firstItem = shuffled[0];
-        
-        // Update items and reset index
-        setItems(shuffled);
-        setCurrentIndex(0);
-        currentStartTime.current = Date.now();
-        
-        // Track impression for first shuffled item
-        trackEvent({
-          adId: firstItem._id,
-          eventType: 'impression',
-          positionIndex: 0,
-          radiusKm: FEED_RADIUS_KM,
-          meta: { categoryId: firstItem.categoryId },
         });
       }
-      // If hasMore is true, we're waiting for more items to load
-    } else {
-      // Normal case - just move to next
-      const nextIndex = currentIndex + 1;
-      const nextItem = items[nextIndex];
       
-      setCurrentIndex(nextIndex);
+      // Track scroll direction
+      if (prevItem) {
+        trackEvent({
+          adId: prevItem._id,
+          eventType: newIndex > prevIndex ? 'scroll_next' : 'scroll_prev',
+          positionIndex: prevIndex,
+          radiusKm: FEED_RADIUS_KM,
+        });
+      }
+      
+      // Track impression for new item
+      if (newItem) {
+        trackEvent({
+          adId: newItem._id,
+          eventType: 'impression',
+          positionIndex: newIndex,
+          radiusKm: FEED_RADIUS_KM,
+          meta: { categoryId: newItem.categoryId },
+        });
+      }
+      
+      lastScrollIndex.current = newIndex;
       currentStartTime.current = Date.now();
-      
-      if (nextItem) {
-        trackEvent({
-          adId: nextItem._id,
-          eventType: 'impression',
-          positionIndex: nextIndex,
-          radiusKm: FEED_RADIUS_KM,
-          meta: { categoryId: nextItem.categoryId },
-        });
-      }
+      setCurrentIndex(newIndex);
+      dismissHint();
     }
-    
-    setTimeout(() => {
-      isTransitioning.current = false;
-      setSlideDirection(null);
-    }, 350);
-  }, [currentIndex, items, hasMore, newBuffer, trackEvent, dismissHint]);
-
-  const goToPrev = useCallback(() => {
-    if (isTransitioning.current) return;
-    if (items.length === 0) return;
-    dismissHint();
-    
-    isTransitioning.current = true;
-    setSlideDirection('down');
-    
-    const currItem = items[currentIndex];
-    
-    // Track dwell time for current item
-    if (currentStartTime.current && currItem) {
-      const dwellTimeMs = Date.now() - currentStartTime.current;
-      trackEvent({
-        adId: currItem._id,
-        eventType: 'impression',
-        dwellTimeMs,
-        positionIndex: currentIndex,
-        radiusKm: FEED_RADIUS_KM,
-      });
-    }
-    
-    // Track scroll event
-    if (currItem) {
-      trackEvent({
-        adId: currItem._id,
-        eventType: 'scroll_prev',
-        positionIndex: currentIndex,
-        radiusKm: FEED_RADIUS_KM,
-      });
-    }
-    
-    // Calculate prev index with wrap-around
-    const prevIndex = currentIndex <= 0 ? items.length - 1 : currentIndex - 1;
-    const prevItem = items[prevIndex];
-    
-    setCurrentIndex(prevIndex);
-    currentStartTime.current = Date.now();
-    
-    // Track impression for prev item
-    if (prevItem) {
-      trackEvent({
-        adId: prevItem._id,
-        eventType: 'impression',
-        positionIndex: prevIndex,
-        radiusKm: FEED_RADIUS_KM,
-        meta: { categoryId: prevItem.categoryId },
-      });
-    }
-    
-    setTimeout(() => {
-      isTransitioning.current = false;
-      setSlideDirection(null);
-    }, 350);
-  }, [currentIndex, items, trackEvent, dismissHint]);
-
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    touchStartY.current = e.touches[0].clientY;
-    touchDeltaY.current = 0;
-  }, []);
-
-  const handleTouchMove = useCallback((e: React.TouchEvent) => {
-    touchDeltaY.current = e.touches[0].clientY - touchStartY.current;
-  }, []);
-
-  const handleTouchEnd = useCallback(() => {
-    if (Math.abs(touchDeltaY.current) > SWIPE_THRESHOLD) {
-      if (touchDeltaY.current < 0) {
-        goToNext();
-      } else {
-        goToPrev();
-      }
-    }
-    touchDeltaY.current = 0;
-  }, [goToNext, goToPrev]);
+  }, [items, trackEvent, dismissHint]);
 
   const handleLike = useCallback(async (adId: string) => {
     if (!user?.telegramId) return;
@@ -438,23 +314,6 @@ export default function FeedPage() {
   }, [currentIndex, items, trackEvent, flushPendingEvents]);
 
   const needsLocation = !coords && geoStatus !== 'loading';
-  const currentItem = items[currentIndex];
-
-  // Animation variants for slide transitions
-  const slideVariants = {
-    enter: (direction: 'up' | 'down' | null) => ({
-      y: direction === 'up' ? '100%' : direction === 'down' ? '-100%' : 0,
-      opacity: direction ? 0.5 : 1,
-    }),
-    center: {
-      y: 0,
-      opacity: 1,
-    },
-    exit: (direction: 'up' | 'down' | null) => ({
-      y: direction === 'up' ? '-100%' : direction === 'down' ? '100%' : 0,
-      opacity: direction ? 0.5 : 1,
-    }),
-  };
 
   if (needsLocation) {
     return (
@@ -768,9 +627,6 @@ export default function FeedPage() {
   return (
     <div
       ref={containerRef}
-      onTouchStart={handleTouchStart}
-      onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
       data-testid="feed-container"
       style={{
         display: 'flex',
@@ -778,8 +634,6 @@ export default function FeedPage() {
         height: '100vh',
         background: '#F5F6F8',
         overflow: 'hidden',
-        touchAction: 'none',
-        overscrollBehavior: 'none',
       }}
     >
       {/* Header - fixed at top */}
@@ -827,215 +681,131 @@ export default function FeedPage() {
         </button>
       </header>
 
-      {/* Main content with carousel layout */}
+      {/* Main content - Instagram-style scroll */}
       <main
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
         style={{
           flex: 1,
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: '8px 0',
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          scrollSnapType: 'y mandatory',
+          WebkitOverflowScrolling: 'touch',
+          scrollBehavior: 'smooth',
         }}
       >
-        {/* Previous card preview (peeking from top) */}
-        {items[currentIndex - 1] && (
+        {items.map((item, index) => (
           <div
+            key={item._id}
+            data-index={index}
             style={{
-              height: 44,
-              marginLeft: 16,
-              marginRight: 16,
-              marginBottom: -8,
-              background: '#FFFFFF',
-              borderRadius: '16px 16px 0 0',
-              boxShadow: '0 -2px 8px rgba(0,0,0,0.04)',
-              border: '1px solid #E5E7EB',
-              borderBottom: 'none',
-              display: 'flex',
-              alignItems: 'flex-end',
-              padding: '0 16px 8px',
-              position: 'relative',
-              zIndex: 1,
-              opacity: 0.85,
+              height: 'calc(100vh - 65px - env(safe-area-inset-bottom) - 60px)',
+              scrollSnapAlign: 'start',
+              scrollSnapStop: 'always',
+              padding: '8px 16px 16px',
+              boxSizing: 'border-box',
             }}
           >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#6B7280',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flex: 1,
-              }}
-            >
-              ↑ {items[currentIndex - 1]?.title}
-            </span>
+            <FeedCard
+              item={item}
+              onLike={handleLike}
+              onViewOpen={handleViewOpen}
+              isActive={index === currentIndex}
+              nextImageUrl={items[index + 1]?.previewUrl || items[index + 1]?.images?.[0] || items[index + 1]?.photos?.[0]}
+              isLiked={favoriteIds.has(item._id)}
+            />
           </div>
-        )}
-        {/* Spacer when no previous card */}
-        {!items[currentIndex - 1] && <div style={{ height: 36 }} />}
+        ))}
+      </main>
 
-        {/* Main card area */}
-        <div style={{ flex: 1, position: 'relative', minHeight: 0 }}>
-          <AnimatePresence initial={false} mode="wait" custom={slideDirection}>
-            {currentItem && (
-              <motion.div
-                key={currentItem._id}
-                custom={slideDirection}
-                variants={slideVariants}
-                initial="enter"
-                animate="center"
-                exit="exit"
-                transition={{
-                  y: { type: 'spring', stiffness: 300, damping: 30 },
-                  opacity: { duration: 0.2 },
-                }}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  zIndex: 10,
-                }}
-              >
-                <FeedCard
-                  item={currentItem}
-                  onLike={handleLike}
-                  onViewOpen={handleViewOpen}
-                  isActive={true}
-                  nextImageUrl={items[currentIndex + 1]?.previewUrl || items[currentIndex + 1]?.images?.[0] || items[currentIndex + 1]?.photos?.[0]}
-                  isLiked={favoriteIds.has(currentItem._id)}
-                />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-
-        {/* Next card preview (peeking from bottom) */}
-        {items[currentIndex + 1] && (
-          <div
-            style={{
-              height: 52,
-              marginLeft: 16,
-              marginRight: 16,
-              marginTop: -8,
-              background: '#FFFFFF',
-              borderRadius: '0 0 16px 16px',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-              border: '1px solid #E5E7EB',
-              borderTop: 'none',
-              display: 'flex',
-              alignItems: 'flex-start',
-              padding: '8px 16px 0',
-              position: 'relative',
-              zIndex: 1,
-              opacity: 0.85,
-            }}
-          >
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 600,
-                color: '#6B7280',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                flex: 1,
-              }}
-            >
-              ↓ {items[currentIndex + 1]?.title}
-            </span>
-          </div>
-        )}
-        {/* Spacer when no next card */}
-        {!items[currentIndex + 1] && <div style={{ height: 44 }} />}
-
-        {/* Swipe hint overlay */}
-        {showSwipeHint && (
+      {/* Swipe hint overlay */}
+      {showSwipeHint && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={dismissHint}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            gap: 20,
+          }}
+        >
           <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={dismissHint}
+            animate={{ y: [-8, 8, -8] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
             style={{
-              position: 'absolute',
-              inset: 0,
-              background: 'rgba(0,0,0,0.75)',
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <ChevronUp size={36} color="#fff" />
+            <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
+              Свайп вверх
+            </span>
+          </motion.div>
+          
+          <div
+            style={{
+              width: 56,
+              height: 90,
+              border: '2px solid rgba(255,255,255,0.4)',
+              borderRadius: 28,
+              display: 'flex',
+              alignItems: 'center',
               justifyContent: 'center',
-              zIndex: 30,
-              gap: 20,
             }}
           >
             <motion.div
-              animate={{ y: [-8, 8, -8] }}
+              animate={{ y: [-18, 18, -18] }}
               transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
               style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
+                width: 6,
+                height: 20,
+                background: '#fff',
+                borderRadius: 3,
               }}
-            >
-              <ChevronUp size={36} color="#fff" />
-              <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
-                Свайп вверх
-              </span>
-            </motion.div>
-            
-            <div
-              style={{
-                width: 56,
-                height: 90,
-                border: '2px solid rgba(255,255,255,0.4)',
-                borderRadius: 28,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <motion.div
-                animate={{ y: [-18, 18, -18] }}
-                transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-                style={{
-                  width: 6,
-                  height: 20,
-                  background: '#fff',
-                  borderRadius: 3,
-                }}
-              />
-            </div>
-            
-            <motion.div
-              animate={{ y: [8, -8, 8] }}
-              transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
-                Свайп вниз
-              </span>
-              <ChevronDown size={36} color="#fff" />
-            </motion.div>
-            
-            <p
-              style={{
-                fontSize: 13,
-                color: 'rgba(255,255,255,0.6)',
-                marginTop: 12,
-              }}
-            >
-              Нажмите чтобы продолжить
-            </p>
+            />
+          </div>
+          
+          <motion.div
+            animate={{ y: [8, -8, 8] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
+              Свайп вниз
+            </span>
+            <ChevronDown size={36} color="#fff" />
           </motion.div>
-        )}
-      </main>
+          
+          <p
+            style={{
+              fontSize: 13,
+              color: 'rgba(255,255,255,0.6)',
+              marginTop: 12,
+            }}
+          >
+            Нажмите чтобы продолжить
+          </p>
+        </motion.div>
+      )}
 
       <style>{`
         @keyframes spin {
