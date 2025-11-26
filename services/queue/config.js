@@ -37,12 +37,21 @@ export function getRedisConnection() {
     redisConnection = new IORedis(connectionUrl, {
       maxRetriesPerRequest: null,
       enableReadyCheck: false,
+      connectTimeout: 30000,
+      commandTimeout: 10000,
+      lazyConnect: true,
       retryStrategy: (times) => {
-        if (times > 3) {
-          console.error('[Queue] Redis connection failed after 3 retries');
+        if (times > 5) {
+          console.error('[Queue] Redis connection failed after 5 retries - switching to fallback mode');
           return null;
         }
-        return Math.min(times * 200, 2000);
+        const delay = Math.min(times * 500, 5000);
+        console.log(`[Queue] Redis retry ${times}/5 in ${delay}ms`);
+        return delay;
+      },
+      reconnectOnError: (err) => {
+        const targetErrors = ['READONLY', 'ETIMEDOUT', 'ECONNRESET'];
+        return targetErrors.some(e => err.message.includes(e));
       },
     });
 
