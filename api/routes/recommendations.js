@@ -1,65 +1,98 @@
 import express from 'express';
 import aiGateway from '../../services/ai/AiGateway.js';
+import RecommendationEngine from '../../services/RecommendationEngine.js';
 
 const router = express.Router();
 
+function getTelegramId(req) {
+  return req.headers['x-telegram-id'] || req.query.telegramId || req.user?.telegramId;
+}
+
 router.get('/feed', async (req, res) => {
   try {
-    const { 
-      telegramId,
-      lat, 
-      lng, 
-      radiusKm = 10, 
-      limit = 20 
-    } = req.query;
-    
-    const result = await aiGateway.getPersonalFeed({
-      telegramId: telegramId ? Number(telegramId) : undefined,
-      lat: lat ? parseFloat(lat) : undefined,
-      lng: lng ? parseFloat(lng) : undefined,
+    const telegramId = getTelegramId(req);
+    const { lat, lng, radiusKm = 10, cursor = 0, limit = 20 } = req.query;
+
+    const result = await RecommendationEngine.getForYouFeed({
+      telegramId: telegramId ? Number(telegramId) : null,
+      lat: lat ? parseFloat(lat) : null,
+      lng: lng ? parseFloat(lng) : null,
       radiusKm: parseFloat(radiusKm),
-      limit: parseInt(limit)
+      cursor: parseInt(cursor),
+      limit: parseInt(limit),
     });
-    
+
     return res.json(result);
   } catch (error) {
     console.error('[Recommendations] feed error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Ошибка получения персональной ленты'
+      error: 'Ошибка получения персональной ленты',
+      items: [],
+    });
+  }
+});
+
+router.get('/similar/:adId', async (req, res) => {
+  try {
+    const { adId } = req.params;
+    const { limit = 10 } = req.query;
+
+    const result = await RecommendationEngine.getSimilarItems(adId, {
+      limit: parseInt(limit),
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error('[Recommendations] similar error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Ошибка получения похожих товаров',
+      items: [],
     });
   }
 });
 
 router.get('/trending-nearby', async (req, res) => {
   try {
-    const { 
-      lat, 
-      lng, 
-      radiusKm = 5, 
-      limit = 10 
-    } = req.query;
-    
-    if (!lat || !lng) {
-      return res.status(400).json({
-        success: false,
-        error: 'Необходимо указать lat и lng'
-      });
-    }
-    
-    const result = await aiGateway.getTrendingNearby({
-      lat: parseFloat(lat),
-      lng: parseFloat(lng),
+    const { lat, lng, radiusKm = 5, limit = 10 } = req.query;
+
+    const result = await RecommendationEngine.getTrendingNearby({
+      lat: lat ? parseFloat(lat) : null,
+      lng: lng ? parseFloat(lng) : null,
       radiusKm: parseFloat(radiusKm),
-      limit: parseInt(limit)
+      limit: parseInt(limit),
     });
-    
+
     return res.json(result);
   } catch (error) {
     console.error('[Recommendations] trending-nearby error:', error);
     return res.status(500).json({
       success: false,
-      error: 'Ошибка получения трендов'
+      error: 'Ошибка получения трендов',
+      items: [],
+    });
+  }
+});
+
+router.get('/trending', async (req, res) => {
+  try {
+    const { lat, lng, radiusKm = 5, limit = 10 } = req.query;
+
+    const result = await RecommendationEngine.getTrendingNearby({
+      lat: lat ? parseFloat(lat) : null,
+      lng: lng ? parseFloat(lng) : null,
+      radiusKm: parseFloat(radiusKm),
+      limit: parseInt(limit),
+    });
+
+    return res.json(result);
+  } catch (error) {
+    console.error('[Recommendations] trending error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Ошибка получения трендов',
+      items: [],
     });
   }
 });

@@ -40,6 +40,8 @@ const SellerAnalyticsPage = lazy(() => import('@/pages/SellerAnalyticsPage'));
 const TwinPage = lazy(() => import('@/pages/TwinPage'));
 const TwinChatPage = lazy(() => import('@/pages/TwinChatPage'));
 const DynamicPricingPage = lazy(() => import('@/pages/DynamicPricingPage'));
+const SellerTwinPage = lazy(() => import('@/pages/SellerTwinPage'));
+const ForYouFeedPage = lazy(() => import('@/pages/ForYouFeedPage'));
 
 export default function App() {
   const location = useLocation();
@@ -193,6 +195,8 @@ export default function App() {
                 <Route path="/twin/chat" element={<TwinChatPage />} />
                 <Route path="/dynamic-pricing" element={<DynamicPricingPage />} />
                 <Route path="/dynamic-pricing/:adId" element={<DynamicPricingPage />} />
+                <Route path="/seller-twin" element={<SellerTwinPage />} />
+                <Route path="/for-you" element={<ForYouFeedPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

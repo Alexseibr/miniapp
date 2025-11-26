@@ -109,6 +109,32 @@ Preferred communication style: Simple, everyday language.
   - MiniApp page: DynamicPricingPage with factor visualization and one-click price apply
   - Seller Dashboard integration with AI Pricing card
   - Deep link support: pricing_<adId> for direct access via Telegram
+- **MEGA-PROMPT 15.0 Seller's Digital Twin**: AI-powered business assistant for sellers with:
+  - SellerTwin model for tracking inventory, issues, recommendations, predictions, and performance metrics
+  - SellerTwinEngine service providing:
+    - Listing quality analysis (photos, description, title, category, price scoring)
+    - Demand prediction with per-ad forecasts and chance of sale estimation
+    - Competitive analysis with market position tracking
+    - Product suggestions based on seasonal insights and missed opportunities
+    - Optimal publish timing recommendations
+    - Market change monitoring with price alerts
+  - Integration with DynamicPriceEngine, HotspotEngine, and SeasonalInsightService
+  - API endpoints: /api/seller-twin/overview, /recommendations, /issues, /predictions, /opportunities, /seasonal, /settings, /market-alerts
+  - MiniApp page: SellerTwinPage with multi-tab dashboard (Overview, Recommendations, Issues, Predictions, Settings)
+  - Deep link support: seller-twin for direct access via Telegram
+- **MEGA-PROMPT 17.0 AI Recommendations**: TikTok-style personalized product feed with:
+  - RecommendationEngine service using multi-factor scoring:
+    - Similarity scoring (category match, keyword overlap, price range)
+    - Geo-proximity scoring (distance-based weighting)
+    - Trending score (recency, view counts, seasonal relevance)
+    - Quality score (photos, description length, title quality)
+    - Seller affinity (subscribed seller preference)
+  - User context extraction from UserTwin and AnalyticsEvent data
+  - Candidate retrieval from nearby, category-matched, seasonal, and recent ads
+  - AI-generated insights for feed personalization
+  - API endpoints: /api/recommendations/feed, /similar/:adId, /trending-nearby, /trending, /track
+  - MiniApp page: ForYouFeedPage with TikTok-like vertical swipe interface and grid view toggle
+  - Deep link support: for-you-feed for direct access via Telegram
 
 ## External Dependencies
 
