@@ -37,6 +37,8 @@ const GeoFeedScreen = lazy(() => import('@/pages/GeoFeedScreen'));
 const SellerStorePage = lazy(() => import('@/pages/SellerStorePage'));
 const SellerDashboardPage = lazy(() => import('@/pages/SellerDashboardPage'));
 const SellerAnalyticsPage = lazy(() => import('@/pages/SellerAnalyticsPage'));
+const TwinPage = lazy(() => import('@/pages/TwinPage'));
+const TwinChatPage = lazy(() => import('@/pages/TwinChatPage'));
 
 export default function App() {
   const location = useLocation();
@@ -179,6 +181,8 @@ export default function App() {
                 <Route path="/store/:id" element={<SellerStorePage />} />
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
+                <Route path="/twin" element={<TwinPage />} />
+                <Route path="/twin/chat" element={<TwinChatPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
