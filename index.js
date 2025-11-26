@@ -19,6 +19,7 @@ import { startHotSearchWorker } from './workers/hotSearchWorker.js';
 import { startAdLifecycleWorker, setNotificationCallback } from './workers/adLifecycleWorker.js';
 import { startDemandWorker, setDemandNotificationCallback } from './workers/demandWorker.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
+import PriceWatcher from './workers/PriceWatcher.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -353,6 +354,7 @@ async function start() {
     setDemandNotificationCallback(sendTelegramNotification);
     startAdLifecycleWorker();
     startDemandWorker();
+    PriceWatcher.start();
     
     // Регистрируем error handlers в самом конце, после всех middleware
     app.use(logErrors);

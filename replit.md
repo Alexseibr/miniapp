@@ -91,6 +91,24 @@ Preferred communication style: Simple, everyday language.
   - API endpoints: /api/twin/me, /api/twin/chat, /api/twin/watch-items, /api/twin/preferences, /api/twin/activity
   - MiniApp pages: TwinPage (assistant dashboard), TwinChatPage (AI chat interface)
   - Deep link support: twin for direct access via Telegram
+- **MEGA-PROMPT 13.0 AI Dynamic Pricing**: Uber-style surge pricing optimization for sellers with:
+  - DynamicPriceEngine service analyzing 5 key factors:
+    - Demand (local search/view activity, regional interest)
+    - Competition (competitor prices, market position)
+    - Seasonality (seasonal trends, product relevance)
+    - Timing (day of week, time of day patterns)
+    - Buyer Activity (conversion rates, engagement levels)
+  - Price recommendations: raise/lower/keep with confidence scores
+  - Market position detection: below_market, fair_price, above_market
+  - Potential buyer estimation based on geo-analytics
+  - PriceWatcher worker with scheduled tasks:
+    - Market monitoring every 10 minutes
+    - Daily seller alerts at 9:00, 14:00, 19:00
+  - Integration with PriceAnalyticsService, HotspotEngine, SeasonalInsightService
+  - API endpoints: /api/dynamic-price/analyze/:adId, /api/dynamic-price/apply/:adId, /api/dynamic-price/my-ads
+  - MiniApp page: DynamicPricingPage with factor visualization and one-click price apply
+  - Seller Dashboard integration with AI Pricing card
+  - Deep link support: pricing_<adId> for direct access via Telegram
 
 ## External Dependencies
 

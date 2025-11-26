@@ -39,6 +39,7 @@ const SellerDashboardPage = lazy(() => import('@/pages/SellerDashboardPage'));
 const SellerAnalyticsPage = lazy(() => import('@/pages/SellerAnalyticsPage'));
 const TwinPage = lazy(() => import('@/pages/TwinPage'));
 const TwinChatPage = lazy(() => import('@/pages/TwinChatPage'));
+const DynamicPricingPage = lazy(() => import('@/pages/DynamicPricingPage'));
 
 export default function App() {
   const location = useLocation();
@@ -113,6 +114,13 @@ export default function App() {
       const storeSlug = startParam.replace('store_', '');
       // Перенаправляем на страницу магазина продавца
       window.location.href = `/store/${encodeURIComponent(storeSlug)}`;
+    } else if (startParam === 'twin') {
+      // Перенаправляем на Digital Twin (AI ассистент)
+      window.location.href = `/twin`;
+    } else if (startParam.startsWith('pricing_')) {
+      const adId = startParam.replace('pricing_', '');
+      // Перенаправляем на динамическое ценообразование для объявления
+      window.location.href = `/dynamic-pricing/${encodeURIComponent(adId)}`;
     }
   }
 
@@ -183,6 +191,8 @@ export default function App() {
                 <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
                 <Route path="/twin" element={<TwinPage />} />
                 <Route path="/twin/chat" element={<TwinChatPage />} />
+                <Route path="/dynamic-pricing" element={<DynamicPricingPage />} />
+                <Route path="/dynamic-pricing/:adId" element={<DynamicPricingPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

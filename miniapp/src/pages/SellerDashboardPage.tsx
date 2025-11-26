@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { 
   Store, Eye, Users, Package, Phone, TrendingUp, 
   Plus, Settings, Star, BarChart3, MessageCircle,
-  ChevronRight, Sparkles, Lightbulb, Edit
+  ChevronRight, Sparkles, Lightbulb, Edit, DollarSign, Zap
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -349,6 +349,30 @@ export default function SellerDashboardPage() {
             </CardContent>
           </Card>
         )}
+
+        <Card 
+          className="hover-elevate cursor-pointer bg-gradient-to-r from-purple-500/10 to-blue-500/10 border-purple-200" 
+          onClick={() => navigate('/dynamic-pricing')}
+          data-testid="card-dynamic-pricing"
+        >
+          <CardContent className="p-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-purple-500 to-blue-500 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <div className="font-medium flex items-center gap-2">
+                  AI Ценообразование
+                  <Badge variant="secondary" className="text-xs">NEW</Badge>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Оптимизируйте цены для быстрой продажи
+                </div>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-muted-foreground" />
+          </CardContent>
+        </Card>
 
         <Card className="hover-elevate cursor-pointer" onClick={() => navigate('/my-ads')}>
           <CardContent className="p-4 flex items-center justify-between">

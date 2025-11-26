@@ -39,6 +39,7 @@ import sellerSubscriptionsRoutes from './routes/seller-subscriptions.js';
 import sellerReviewsRoutes from './routes/seller-reviews.js';
 import sellerAnalyticsRoutes from './routes/seller-analytics.js';
 import twinRoutes from './routes/twin.js';
+import dynamicPriceRoutes from './routes/dynamicPrice.js';
 
 const app = express();
 
@@ -127,5 +128,6 @@ app.use('/api/seller/subscribe', sellerSubscriptionsRoutes);
 app.use('/api/seller', sellerReviewsRoutes);
 app.use('/api/seller-analytics', sellerAnalyticsRoutes);
 app.use('/api/twin', twinRoutes);
+app.use('/api/dynamic-price', dynamicPriceRoutes);
 
 export default app;
