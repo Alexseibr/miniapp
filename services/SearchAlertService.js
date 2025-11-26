@@ -176,7 +176,7 @@ class SearchAlertService {
           alert.location.coordinates[1], alert.location.coordinates[0]
         );
         
-        const maxRadius = alert.radiusKm || 50;
+        const maxRadius = alert.radiusKm || 30;
         const inRange = distance <= maxRadius;
         
         console.log('[SearchAlert] Distance check:', {
@@ -225,13 +225,16 @@ class SearchAlertService {
         );
         
         if (sendNotification) {
+          const adLink = `https://t.me/KetmarM_bot/app?startapp=ad_${ad._id}`;
+          
           await sendNotification(
             alert.telegramId,
-            `🔔 Появилось новое объявление!\n\n` +
-            `"${ad.title}"\n` +
-            `💰 ${ad.price} руб.\n` +
+            `🔔 <b>Появилось новое объявление!</b>\n\n` +
+            `📦 "${ad.title}"\n` +
+            `💰 ${ad.price || 0} руб.\n` +
             `${ad.city ? `📍 ${ad.city}` : ''}\n\n` +
-            `Вы искали: "${alert.query}"`,
+            `Вы искали: "${alert.query}"\n\n` +
+            `👉 <a href="${adLink}">Открыть объявление</a>`,
             'new_ad_match'
           );
         }
