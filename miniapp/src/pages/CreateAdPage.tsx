@@ -242,6 +242,7 @@ export default function CreateAdPage() {
           key={photoStepResetKey}
           photos={draft.photos}
           onAddPhoto={(photo) => dispatch({ type: 'ADD_PHOTO', payload: photo })}
+          onGoNext={() => setCurrentStep(3)}
           onRemovePhoto={(id) => dispatch({ type: 'REMOVE_PHOTO', payload: id })}
           onUpdatePhoto={(id, updates) => dispatch({ type: 'UPDATE_PHOTO', payload: { id, updates } })}
         />
@@ -734,11 +735,13 @@ function Step2Photos({
   onAddPhoto, 
   onRemovePhoto, 
   onUpdatePhoto,
+  onGoNext,
 }: { 
   photos: AdPhoto[]; 
   onAddPhoto: (photo: AdPhoto) => void; 
   onRemovePhoto: (id: string) => void; 
   onUpdatePhoto: (id: string, updates: Partial<AdPhoto>) => void;
+  onGoNext: () => void;
 }) {
   const [showActionSheet, setShowActionSheet] = useState(false);
   const [error, setError] = useState('');
@@ -868,17 +871,24 @@ function Step2Photos({
 
   const isAnyUploading = photos.some(p => p.uploadStatus === 'uploading');
   const hasErrors = photos.some(p => p.uploadStatus === 'error');
+  const canContinue = !isAnyUploading;
+  const hasPhotos = photos.length > 0;
 
   return (
-    <div style={{ padding: 16 }}>
-      <h2 style={{ fontSize: 24, fontWeight: 600, margin: '0 0 8px', color: '#111827' }}>
+    <div style={{ 
+      padding: 16, 
+      display: 'flex', 
+      flexDirection: 'column', 
+      minHeight: 'calc(100vh - 120px)',
+    }}>
+      <h2 style={{ fontSize: 22, fontWeight: 600, margin: '0 0 4px', color: '#111827' }}>
         Фото товара
       </h2>
-      <p style={{ fontSize: 15, color: '#6B7280', marginBottom: 20 }}>
+      <p style={{ fontSize: 14, color: '#6B7280', marginBottom: 12 }}>
         До 4 фотографий (необязательно)
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
         {[0, 1, 2, 3].map((idx) => {
           const photo = photos[idx];
           const isEmptySlot = !photo;
@@ -889,9 +899,9 @@ function Step2Photos({
               key={idx} 
               style={{ 
                 position: 'relative', 
-                aspectRatio: '1', 
+                height: 120,
                 background: isEmptySlot ? '#F3F4F6' : 'transparent', 
-                borderRadius: 12, 
+                borderRadius: 10, 
                 overflow: 'hidden', 
                 border: isEmptySlot ? '2px dashed #D1D5DB' : '1px solid #E5E7EB',
               }}
@@ -1054,14 +1064,39 @@ function Step2Photos({
         </div>
       )}
 
-      <div style={{ marginTop: 16, padding: 12, background: '#EBF3FF', borderRadius: 8, fontSize: 14, color: '#1E40AF' }}>
+      <div style={{ marginTop: 12, padding: 10, background: '#EBF3FF', borderRadius: 8, fontSize: 13, color: '#1E40AF' }}>
         Качественные фотографии помогают быстрее продать товар
       </div>
 
-      <div style={{ marginTop: 12, padding: 10, background: '#F3F4F6', borderRadius: 8, fontSize: 13, color: '#6B7280', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-        <Info size={16} style={{ flexShrink: 0, marginTop: 1 }} />
+      <div style={{ marginTop: 10, padding: 10, background: '#F3F4F6', borderRadius: 8, fontSize: 12, color: '#6B7280', display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+        <Info size={14} style={{ flexShrink: 0, marginTop: 1 }} />
         <span>Объявления без фотографий не показываются в ленте, но будут доступны в поиске и категориях.</span>
       </div>
+
+      {/* Spacer */}
+      <div style={{ flex: 1, minHeight: 16 }} />
+
+      {/* Continue Button */}
+      <button
+        onClick={onGoNext}
+        disabled={!canContinue}
+        data-testid="button-continue-photos"
+        style={{
+          width: '100%',
+          padding: '16px 24px',
+          background: canContinue ? BRAND_BLUE : '#E5E7EB',
+          color: canContinue ? '#fff' : '#9CA3AF',
+          border: 'none',
+          borderRadius: 12,
+          fontSize: 16,
+          fontWeight: 600,
+          cursor: canContinue ? 'pointer' : 'not-allowed',
+          marginTop: 16,
+          marginBottom: 'calc(env(safe-area-inset-bottom, 0px) + 60px)',
+        }}
+      >
+        {hasPhotos ? 'Продолжить' : 'Продолжить без фотографий'}
+      </button>
 
       {showActionSheet && (
         <>
