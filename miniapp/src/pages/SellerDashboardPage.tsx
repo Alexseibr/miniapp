@@ -209,18 +209,28 @@ export default function SellerDashboardPage() {
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="font-semibold">Статистика</h2>
-          <div className="flex gap-1">
-            {[7, 30].map(d => (
-              <Button
-                key={d}
-                size="sm"
-                variant={period === d ? 'default' : 'outline'}
-                onClick={() => setPeriod(d)}
-                data-testid={`button-period-${d}`}
-              >
-                {d} дней
-              </Button>
-            ))}
+          <div className="flex items-center gap-2">
+            <div className="flex gap-1">
+              {[7, 30].map(d => (
+                <Button
+                  key={d}
+                  size="sm"
+                  variant={period === d ? 'default' : 'outline'}
+                  onClick={() => setPeriod(d)}
+                  data-testid={`button-period-${d}`}
+                >
+                  {d} дней
+                </Button>
+              ))}
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => navigate('/seller/analytics')}
+              data-testid="button-mega-analytics"
+            >
+              <BarChart3 className="w-4 h-4" />
+            </Button>
           </div>
         </div>
 

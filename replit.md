@@ -69,6 +69,17 @@ Preferred communication style: Simple, everyday language.
   - Seller dashboard (SellerDashboardPage) with analytics, subscriber stats, and AI tips
   - API endpoints: /api/seller-profile, /api/seller-subscriptions, /api/seller-reviews
   - Deep link support: store_<slug> for direct access via Telegram
+- **MEGA-ANALYTICS 10.0**: Professional marketplace-level seller analytics (Avito Pro, Yandex Market style) with:
+  - AnalyticsEvent model for tracking all seller-related events (views, contacts, favorites, messages, etc.)
+  - SellerAnalyticsEngine service with caching, aggregations, and AI-powered suggestions
+  - Overview dashboard: views timeline, contacts, favorites, subscribers, top products
+  - Price position analysis: comparison with market prices, overpriced/underpriced detection
+  - Category performance: conversion rates, price positioning, recommendations per category
+  - Geo-analytics: demand hotspots, buyer location heatmaps
+  - AI suggestions: prioritized tips for improving sales, inventory, pricing
+  - Warnings system: alerts for photos, declining views, etc.
+  - API endpoints: /api/seller-analytics/overview, /views, /contacts, /price-position, /category-performance, /hotspots, /suggestions, /warnings, /track
+  - MiniApp page: SellerAnalyticsPage with 5-tab interface (Overview, Prices, Categories, Geo, Tips)
 
 ## External Dependencies
 

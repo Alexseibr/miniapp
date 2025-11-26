@@ -36,6 +36,7 @@ const GeoMapPage = lazy(() => import('@/pages/GeoMapPage'));
 const GeoFeedScreen = lazy(() => import('@/pages/GeoFeedScreen'));
 const SellerStorePage = lazy(() => import('@/pages/SellerStorePage'));
 const SellerDashboardPage = lazy(() => import('@/pages/SellerDashboardPage'));
+const SellerAnalyticsPage = lazy(() => import('@/pages/SellerAnalyticsPage'));
 
 export default function App() {
   const location = useLocation();
@@ -177,6 +178,7 @@ export default function App() {
                 <Route path="/geo-feed" element={<GeoFeedScreen />} />
                 <Route path="/store/:id" element={<SellerStorePage />} />
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
+                <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

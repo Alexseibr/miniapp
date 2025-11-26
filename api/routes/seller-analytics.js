@@ -1,11 +1,11 @@
 import express from 'express';
 import SellerAnalyticsEngine from '../../services/SellerAnalyticsEngine.js';
 import AnalyticsEvent from '../../models/AnalyticsEvent.js';
-import { requireAuth, optionalAuth } from '../../middleware/auth.js';
+import { authMiddleware, optionalAuth } from '../../middleware/auth.js';
 
 const router = express.Router();
 
-router.get('/overview', requireAuth, async (req, res) => {
+router.get('/overview', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const period = parseInt(req.query.period) || 7;
@@ -22,7 +22,7 @@ router.get('/overview', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/views', requireAuth, async (req, res) => {
+router.get('/views', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const days = parseInt(req.query.days) || 30;
@@ -39,7 +39,7 @@ router.get('/views', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/contacts', requireAuth, async (req, res) => {
+router.get('/contacts', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const days = parseInt(req.query.days) || 30;
@@ -56,7 +56,7 @@ router.get('/contacts', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/category-performance', requireAuth, async (req, res) => {
+router.get('/category-performance', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const days = parseInt(req.query.days) || 30;
@@ -73,7 +73,7 @@ router.get('/category-performance', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/price-position', requireAuth, async (req, res) => {
+router.get('/price-position', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
 
@@ -89,7 +89,7 @@ router.get('/price-position', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/demand-heatmap', requireAuth, async (req, res) => {
+router.get('/demand-heatmap', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const radiusKm = parseFloat(req.query.radiusKm) || 20;
@@ -106,7 +106,7 @@ router.get('/demand-heatmap', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/hotspots', requireAuth, async (req, res) => {
+router.get('/hotspots', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const days = parseInt(req.query.days) || 30;
@@ -123,7 +123,7 @@ router.get('/hotspots', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/subscribers', requireAuth, async (req, res) => {
+router.get('/subscribers', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const days = parseInt(req.query.days) || 30;
@@ -140,7 +140,7 @@ router.get('/subscribers', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/suggestions', requireAuth, async (req, res) => {
+router.get('/suggestions', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
     const userLocation = req.query.lat && req.query.lng 
@@ -159,7 +159,7 @@ router.get('/suggestions', requireAuth, async (req, res) => {
   }
 });
 
-router.get('/warnings', requireAuth, async (req, res) => {
+router.get('/warnings', authMiddleware, async (req, res) => {
   try {
     const sellerId = req.query.sellerId || req.user._id;
 
@@ -207,7 +207,7 @@ router.post('/track', optionalAuth, async (req, res) => {
   }
 });
 
-router.get('/admin/all-sellers', requireAuth, async (req, res) => {
+router.get('/admin/all-sellers', authMiddleware, async (req, res) => {
   try {
     if (req.user.role !== 'admin' && req.user.role !== 'super_admin') {
       return res.status(403).json({ error: 'Admin access required' });
