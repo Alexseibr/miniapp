@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Heart, Loader2, Bell } from 'lucide-react';
+import { Heart, Loader2, Bell, Trash2 } from 'lucide-react';
 import AdCard from '@/components/AdCard';
-import EmptyState from '@/widgets/EmptyState';
 import AuthScreen from '@/components/AuthScreen';
 import { useUserStore } from '@/store/useUserStore';
 import { FavoriteItem } from '@/types';
@@ -39,28 +38,22 @@ function FavoriteCard({ favorite, index, onRemove }: FavoriteCardProps) {
             width: 36,
             height: 36,
             borderRadius: '50%',
-            background: 'rgba(10, 15, 26, 0.9)',
-            border: '1px solid rgba(236, 72, 153, 0.5)',
+            background: '#FFFFFF',
+            border: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            boxShadow: '0 0 15px rgba(236, 72, 153, 0.3)',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
             zIndex: 10,
-            backdropFilter: 'blur(8px)',
           }}
           aria-label="Удалить из избранного"
           data-testid={`button-remove-favorite-${ad._id}`}
         >
-          <Heart 
-            size={18} 
-            fill="#EC4899" 
-            color="#EC4899" 
-            style={{ filter: 'drop-shadow(0 0 5px rgba(236, 72, 153, 0.5))' }}
-          />
+          <Heart size={18} fill="#EC4899" color="#EC4899" />
         </button>
 
-        {(favorite.notifyOnPriceChange || favorite.notifyOnStatusChange) && (
+        {(favorite as any).notifyOnPriceChange && (
           <div
             style={{
               position: 'absolute',
@@ -68,16 +61,13 @@ function FavoriteCard({ favorite, index, onRemove }: FavoriteCardProps) {
               right: 8,
               padding: '6px 10px',
               borderRadius: 12,
-              background: 'rgba(59, 130, 246, 0.9)',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(59, 130, 246, 0.5)',
+              background: '#3A7BFF',
               color: 'white',
               fontSize: 11,
               fontWeight: 600,
               display: 'flex',
               alignItems: 'center',
               gap: 4,
-              boxShadow: '0 0 10px rgba(59, 130, 246, 0.3)',
             }}
             title="Уведомления включены"
           >
@@ -131,17 +121,14 @@ export default function FavoritesPage() {
         minHeight: '100vh',
         flexDirection: 'column',
         gap: 16,
-        background: '#000000',
+        background: '#FFFFFF',
       }}>
         <Loader2 
           size={36} 
-          style={{ 
-            color: '#3B82F6',
-            animation: 'spin 1s linear infinite',
-            filter: 'drop-shadow(0 0 10px rgba(59, 130, 246, 0.5))',
-          }} 
+          color="#3A7BFF"
+          style={{ animation: 'spin 1s linear infinite' }} 
         />
-        <p style={{ color: '#64748B', fontSize: 15 }}>Загрузка избранного...</p>
+        <p style={{ color: '#6B7280', fontSize: 15 }}>Загрузка избранного...</p>
       </div>
     );
   }
@@ -150,7 +137,7 @@ export default function FavoritesPage() {
     return (
       <div style={{ 
         minHeight: '100vh', 
-        background: '#000000',
+        background: '#FFFFFF',
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'center',
@@ -159,41 +146,32 @@ export default function FavoritesPage() {
         <div style={{
           textAlign: 'center',
           padding: 32,
-          background: 'rgba(10, 15, 26, 0.6)',
-          borderRadius: 20,
-          border: '1px solid rgba(59, 130, 246, 0.15)',
-          backdropFilter: 'blur(10px)',
           maxWidth: 320,
         }}>
           <div style={{
-            width: 72,
-            height: 72,
+            width: 80,
+            height: 80,
             margin: '0 auto 20px',
-            background: 'rgba(236, 72, 153, 0.15)',
+            background: '#FEE2E2',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            border: '1px solid rgba(236, 72, 153, 0.3)',
           }}>
-            <Heart 
-              size={32} 
-              color="#EC4899" 
-              style={{ filter: 'drop-shadow(0 0 8px rgba(236, 72, 153, 0.5))' }}
-            />
+            <Heart size={36} color="#EC4899" />
           </div>
           <h2 style={{ 
             margin: '0 0 8px', 
-            fontSize: 18, 
+            fontSize: 20, 
             fontWeight: 700, 
-            color: '#F8FAFC' 
+            color: '#1F2937' 
           }}>
             Избранных пока нет
           </h2>
           <p style={{ 
             margin: 0, 
-            fontSize: 14, 
-            color: '#64748B',
+            fontSize: 15, 
+            color: '#6B7280',
             lineHeight: 1.5,
           }}>
             Нажмите на сердечко в карточке, чтобы сохранить объявление
@@ -206,81 +184,43 @@ export default function FavoritesPage() {
   return (
     <div style={{ 
       minHeight: '100vh',
-      background: '#000000',
+      background: '#FFFFFF',
       paddingBottom: 100,
     }}>
-      {/* Background */}
-      <div style={{
-        position: 'fixed',
-        inset: 0,
-        background: `
-          radial-gradient(circle at 20% 20%, rgba(236, 72, 153, 0.06), transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(59, 130, 246, 0.05), transparent 50%)
-        `,
-        pointerEvents: 'none',
-        zIndex: 0,
-      }} />
-
       {/* Header */}
       <div style={{
         position: 'sticky',
         top: 0,
         zIndex: 10,
-        background: 'rgba(10, 15, 26, 0.9)',
-        backdropFilter: 'blur(20px)',
+        background: '#FFFFFF',
         padding: '16px 20px',
-        borderBottom: '1px solid rgba(59, 130, 246, 0.15)',
+        borderBottom: '1px solid #F0F2F5',
       }}>
-        <div style={{
-          position: 'absolute',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(236, 72, 153, 0.5), transparent)',
-        }} />
-        
         <div style={{ 
           display: 'flex', 
           alignItems: 'center', 
           justifyContent: 'space-between',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{
-              width: 4,
-              height: 24,
-              background: 'linear-gradient(135deg, #EC4899, #3B82F6)',
-              borderRadius: 4,
-              boxShadow: '0 0 10px rgba(236, 72, 153, 0.4)',
-            }} />
-            <h1 style={{ 
-              fontSize: 22, 
-              fontWeight: 700, 
-              color: '#F8FAFC',
-              margin: 0,
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}>
-              <Heart 
-                size={22} 
-                color="#EC4899" 
-                fill="#EC4899" 
-                style={{ filter: 'drop-shadow(0 0 5px rgba(236, 72, 153, 0.5))' }}
-              />
-              Избранное
-            </h1>
-          </div>
+          <h1 style={{ 
+            fontSize: 22, 
+            fontWeight: 700, 
+            color: '#1F2937',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 10,
+          }}>
+            <Heart size={22} color="#EC4899" fill="#EC4899" />
+            Избранное
+          </h1>
           
           <span style={{
             padding: '6px 14px',
-            background: 'rgba(236, 72, 153, 0.15)',
-            border: '1px solid rgba(236, 72, 153, 0.3)',
+            background: '#FEE2E2',
             borderRadius: 20,
-            fontSize: 13,
-            fontWeight: 700,
+            fontSize: 14,
+            fontWeight: 600,
             color: '#EC4899',
-            fontFamily: "'JetBrains Mono', monospace",
           }}>
             {favorites.length}
           </span>
@@ -288,8 +228,15 @@ export default function FavoritesPage() {
       </div>
 
       {/* Grid */}
-      <div style={{ padding: '16px', position: 'relative', zIndex: 1 }}>
-        <div className="ads-grid" data-testid="favorites-grid">
+      <div style={{ padding: '16px' }}>
+        <div 
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(2, 1fr)',
+            gap: 12,
+          }}
+          data-testid="favorites-grid"
+        >
           {favorites.map((favorite, index) => (
             <FavoriteCard
               key={favorite.adId}

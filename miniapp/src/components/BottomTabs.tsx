@@ -1,23 +1,72 @@
-import { NavLink, useLocation } from 'react-router-dom';
-import { Home, MapPin, ShoppingBag, Heart, User } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Heart, Plus, List, User } from 'lucide-react';
 import { getTelegramWebApp } from '@/utils/telegram';
 
-const tabs = [
+const leftTabs = [
   { path: '/', label: 'Главная', Icon: Home },
-  { path: '/geo-feed', label: 'Карта', Icon: MapPin },
-  { path: '/my-ads', label: 'Мои', Icon: ShoppingBag },
   { path: '/favorites', label: 'Избранное', Icon: Heart },
+];
+
+const rightTabs = [
+  { path: '/my-ads', label: 'Мои', Icon: List },
   { path: '/profile', label: 'Профиль', Icon: User },
 ];
 
 export default function BottomTabs() {
   const location = useLocation();
+  const navigate = useNavigate();
   const isTelegramWebApp = !!getTelegramWebApp();
 
   if (!isTelegramWebApp) {
     return null;
   }
+
+  const handleCreateClick = () => {
+    navigate('/create');
+  };
+
+  const renderTab = (tab: { path: string; label: string; Icon: any }) => {
+    const isActive = location.pathname === tab.path;
+    
+    return (
+      <NavLink
+        key={tab.path}
+        to={tab.path}
+        data-testid={`tab-${tab.label.toLowerCase()}`}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 4,
+          padding: '8px 0',
+          textDecoration: 'none',
+          flex: 1,
+          minWidth: 0,
+        }}
+      >
+        <tab.Icon
+          size={24}
+          strokeWidth={isActive ? 2.5 : 2}
+          style={{
+            color: isActive ? '#3A7BFF' : '#9CA3AF',
+            transition: 'all 0.2s ease',
+          }}
+        />
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: isActive ? 600 : 500,
+            color: isActive ? '#3A7BFF' : '#9CA3AF',
+            transition: 'all 0.2s ease',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {tab.label}
+        </span>
+      </NavLink>
+    );
+  };
 
   return (
     <nav
@@ -25,157 +74,71 @@ export default function BottomTabs() {
       style={{
         position: 'sticky',
         bottom: 0,
-        background: 'rgba(10, 15, 26, 0.95)',
-        backdropFilter: 'blur(30px) saturate(180%)',
-        WebkitBackdropFilter: 'blur(30px) saturate(180%)',
-        padding: '8px 12px calc(env(safe-area-inset-bottom) + 8px)',
-        borderTop: '1px solid rgba(59, 130, 246, 0.15)',
-        boxShadow: '0 -4px 20px rgba(0, 0, 0, 0.4), 0 0 30px rgba(59, 130, 246, 0.05)',
+        background: '#FFFFFF',
+        padding: '8px 16px calc(env(safe-area-inset-bottom) + 8px)',
+        borderTop: '1px solid #E5E7EB',
         marginTop: 'auto',
         zIndex: 100,
       }}
     >
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          height: '1px',
-          background: 'linear-gradient(90deg, transparent, rgba(59, 130, 246, 0.5), transparent)',
-          opacity: 0.6,
-        }}
-      />
-      
-      <div
-        style={{
           display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'center',
-          gap: 4,
+          justifyContent: 'space-between',
+          alignItems: 'flex-end',
+          maxWidth: 500,
+          margin: '0 auto',
         }}
       >
-        {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
-          
-          return (
-            <NavLink
-              key={tab.path}
-              to={tab.path}
-              data-testid={`tab-${tab.label.toLowerCase()}`}
-              style={{
-                position: 'relative',
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: 4,
-                padding: '8px 16px',
-                textDecoration: 'none',
-                borderRadius: 14,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                flex: 1,
-                minWidth: 0,
-              }}
-            >
-              <motion.div
-                initial={false}
-                animate={{
-                  scale: isActive ? 1 : 1,
-                  y: isActive ? -2 : 0,
-                }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 400,
-                  damping: 25,
-                }}
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTab"
-                    style={{
-                      position: 'absolute',
-                      inset: -8,
-                      background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(124, 58, 237, 0.15))',
-                      borderRadius: 12,
-                      border: '1px solid rgba(59, 130, 246, 0.3)',
-                      zIndex: -1,
-                    }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 400,
-                      damping: 30,
-                    }}
-                  />
-                )}
-                
-                <tab.Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.5 : 2}
-                  style={{
-                    color: isActive ? '#3B82F6' : '#64748B',
-                    transition: 'all 0.3s ease',
-                    filter: isActive 
-                      ? 'drop-shadow(0 0 8px rgba(59, 130, 246, 0.6))' 
-                      : 'none',
-                  }}
-                />
-              </motion.div>
+        {/* Left tabs */}
+        {leftTabs.map(renderTab)}
+        
+        {/* Center Create Button */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'flex-end',
+            gap: 4,
+            flex: 1,
+            position: 'relative',
+          }}
+        >
+          <button
+            onClick={handleCreateClick}
+            data-testid="tab-create"
+            style={{
+              width: 56,
+              height: 56,
+              borderRadius: '50%',
+              background: '#3A7BFF',
+              border: 'none',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              boxShadow: '0 4px 15px rgba(58, 123, 255, 0.4)',
+              transition: 'all 0.2s ease',
+              marginTop: -20,
+            }}
+          >
+            <Plus size={28} strokeWidth={2.5} color="white" />
+          </button>
+          <span
+            style={{
+              fontSize: 11,
+              fontWeight: 500,
+              color: '#3A7BFF',
+              marginTop: 2,
+            }}
+          >
+            Создать
+          </span>
+        </div>
 
-              <motion.span
-                initial={false}
-                animate={{
-                  opacity: isActive ? 1 : 0.7,
-                  scale: isActive ? 1 : 0.95,
-                }}
-                transition={{
-                  duration: 0.2,
-                }}
-                style={{
-                  fontSize: '0.7rem',
-                  fontWeight: isActive ? 700 : 600,
-                  color: isActive ? '#3B82F6' : '#64748B',
-                  transition: 'all 0.3s ease',
-                  whiteSpace: 'nowrap',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  maxWidth: '100%',
-                  textShadow: isActive 
-                    ? '0 0 10px rgba(59, 130, 246, 0.5)' 
-                    : 'none',
-                }}
-              >
-                {tab.label}
-              </motion.span>
-
-              {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    width: 24,
-                    height: 3,
-                    background: 'linear-gradient(90deg, #3B82F6, #7C3AED)',
-                    borderRadius: '999px 999px 0 0',
-                    boxShadow: '0 0 10px rgba(59, 130, 246, 0.5)',
-                  }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 400,
-                    damping: 30,
-                  }}
-                />
-              )}
-            </NavLink>
-          );
-        })}
+        {/* Right tabs */}
+        {rightTabs.map(renderTab)}
       </div>
     </nav>
   );

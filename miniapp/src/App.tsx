@@ -42,6 +42,7 @@ const TwinChatPage = lazy(() => import('@/pages/TwinChatPage'));
 const DynamicPricingPage = lazy(() => import('@/pages/DynamicPricingPage'));
 const SellerTwinPage = lazy(() => import('@/pages/SellerTwinPage'));
 const ForYouFeedPage = lazy(() => import('@/pages/ForYouFeedPage'));
+const SearchPage = lazy(() => import('@/pages/SearchPage'));
 
 export default function App() {
   const location = useLocation();
@@ -168,8 +169,10 @@ export default function App() {
             <Suspense fallback={<PageLoader />}>
               <Routes>
                 <Route path="/" element={<HomePage />} />
+                <Route path="/search" element={<SearchPage />} />
                 <Route path="/category/:slug" element={<SubcategoryPage />} />
                 <Route path="/feed" element={<FeedPage />} />
+                <Route path="/create" element={<CreateAdPage />} />
                 <Route path="/favorites" element={<FavoritesPage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/orders" element={<OrdersPage />} />
