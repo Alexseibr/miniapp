@@ -64,6 +64,10 @@ const FARMER_PRODUCTS = [
     price: 2.5,
     subcategory: 'farmer-potato',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1518977676601-b53f82ber71c9?w=800&q=80',
+      'https://images.unsplash.com/photo-1590165482129-1b8b27698780?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Домашняя малина, 1 кг',
@@ -71,6 +75,10 @@ const FARMER_PRODUCTS = [
     price: 15,
     subcategory: 'farmer-berries',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1577069861033-55d04cec4ef5?w=800&q=80',
+      'https://images.unsplash.com/photo-1586074299757-dc655f18518c?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Свежий мёд разнотравье 2025',
@@ -78,6 +86,10 @@ const FARMER_PRODUCTS = [
     price: 25,
     subcategory: 'farmer-honey',
     unitType: 'jar',
+    photos: [
+      'https://images.unsplash.com/photo-1587049352846-4a222e784d38?w=800&q=80',
+      'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Яйца деревенские, домашние куры',
@@ -85,6 +97,10 @@ const FARMER_PRODUCTS = [
     price: 5,
     subcategory: 'farmer-dairy',
     unitType: 'pack',
+    photos: [
+      'https://images.unsplash.com/photo-1569288052389-dac9b01c9c05?w=800&q=80',
+      'https://images.unsplash.com/photo-1582722872445-44dc5f7e3c8f?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Огурцы свежие, грунтовые',
@@ -92,6 +108,10 @@ const FARMER_PRODUCTS = [
     price: 4,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1449300079323-02e209d9d3a6?w=800&q=80',
+      'https://images.unsplash.com/photo-1604977042946-1eecc30f269e?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Помидоры розовые, сладкие',
@@ -99,6 +119,10 @@ const FARMER_PRODUCTS = [
     price: 7,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1546470427-0d4db154ceb8?w=800&q=80',
+      'https://images.unsplash.com/photo-1561136594-7f68413baa99?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Капуста белокочанная, ранняя',
@@ -106,6 +130,10 @@ const FARMER_PRODUCTS = [
     price: 2,
     subcategory: 'farmer-vegetables',
     unitType: 'piece',
+    photos: [
+      'https://images.unsplash.com/photo-1594282486552-05b4d80fbb9f?w=800&q=80',
+      'https://images.unsplash.com/photo-1625865604460-e998ac8ec3d4?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Укроп, петрушка - свежая зелень',
@@ -113,6 +141,10 @@ const FARMER_PRODUCTS = [
     price: 1.5,
     subcategory: 'farmer-greens',
     unitType: 'bunch',
+    photos: [
+      'https://images.unsplash.com/photo-1466637574441-749b8f19452f?w=800&q=80',
+      'https://images.unsplash.com/photo-1592485099637-a25e66b16be9?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Домашнее молоко, козье',
@@ -120,6 +152,10 @@ const FARMER_PRODUCTS = [
     price: 8,
     subcategory: 'farmer-dairy',
     unitType: 'liter',
+    photos: [
+      'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=800&q=80',
+      'https://images.unsplash.com/photo-1550583724-b2692b85b150?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Клубника свежая, Виктория',
@@ -127,6 +163,10 @@ const FARMER_PRODUCTS = [
     price: 12,
     subcategory: 'farmer-berries',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=800&q=80',
+      'https://images.unsplash.com/photo-1543528176-61b239494933?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Морковь молодая, сладкая',
@@ -134,6 +174,10 @@ const FARMER_PRODUCTS = [
     price: 3,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1598170845058-32b9d6a5da37?w=800&q=80',
+      'https://images.unsplash.com/photo-1447175008436-054170c2e979?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Творог домашний, жирный',
@@ -141,6 +185,10 @@ const FARMER_PRODUCTS = [
     price: 12,
     subcategory: 'farmer-dairy',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=800&q=80',
+      'https://images.unsplash.com/photo-1559561853-08451507cbe7?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Чеснок озимый, сухой',
@@ -148,6 +196,10 @@ const FARMER_PRODUCTS = [
     price: 15,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1540148426945-6cf22a6b2383?w=800&q=80',
+      'https://images.unsplash.com/photo-1615478503562-ec2d8aa0e24e?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Смородина чёрная, свежая',
@@ -155,6 +207,10 @@ const FARMER_PRODUCTS = [
     price: 10,
     subcategory: 'farmer-berries',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1563746098251-d35aef196e83?w=800&q=80',
+      'https://images.unsplash.com/photo-1595412607744-e0c3ae38ad99?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Рассада томатов, разные сорта',
@@ -162,6 +218,10 @@ const FARMER_PRODUCTS = [
     price: 8,
     subcategory: 'farmer-plants',
     unitType: 'pack',
+    photos: [
+      'https://images.unsplash.com/photo-1416879595882-3373a0480b5b?w=800&q=80',
+      'https://images.unsplash.com/photo-1592419044706-39796d40f98c?w=800&q=80',
+    ],
   },
 ];
 
@@ -172,6 +232,10 @@ const VEGETABLES_FRUITS = [
     price: 3,
     subcategory: 'farmer-fruits',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1560806887-1e4cd0b6cbd6?w=800&q=80',
+      'https://images.unsplash.com/photo-1619546813926-a78fa6372cd2?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Груши Конференция, сочные',
@@ -179,6 +243,10 @@ const VEGETABLES_FRUITS = [
     price: 5,
     subcategory: 'farmer-fruits',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1514756331096-242fdeb70d4a?w=800&q=80',
+      'https://images.unsplash.com/photo-1615484477778-ca3b77940c25?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Слива венгерка, на варенье',
@@ -186,6 +254,10 @@ const VEGETABLES_FRUITS = [
     price: 4,
     subcategory: 'farmer-fruits',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1601493700631-2b16ec4b4716?w=800&q=80',
+      'https://images.unsplash.com/photo-1596363505729-4190a9506133?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Кабачки молодые, цукини',
@@ -193,6 +265,10 @@ const VEGETABLES_FRUITS = [
     price: 2.5,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1563252722-6434563a985c?w=800&q=80',
+      'https://images.unsplash.com/photo-1596127228159-7fc4a7d7bf91?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Тыква мускатная, сладкая',
@@ -200,6 +276,10 @@ const VEGETABLES_FRUITS = [
     price: 3,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1570586437263-ab629fccc818?w=800&q=80',
+      'https://images.unsplash.com/photo-1509622905150-fa66d3906e09?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Лук репчатый, золотистый',
@@ -207,6 +287,10 @@ const VEGETABLES_FRUITS = [
     price: 2,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1508747703725-719f0f6c450d?w=800&q=80',
+      'https://images.unsplash.com/photo-1618512496248-a07fe83aa8cb?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Свёкла столовая, бордо',
@@ -214,6 +298,10 @@ const VEGETABLES_FRUITS = [
     price: 2.5,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1593105544559-ecb03bf76f82?w=800&q=80',
+      'https://images.unsplash.com/photo-1627738668643-1c166aecdffc?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Перец болгарский, красный',
@@ -221,6 +309,10 @@ const VEGETABLES_FRUITS = [
     price: 8,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1563565375-f3fdfdbefa83?w=800&q=80',
+      'https://images.unsplash.com/photo-1601648764658-cf37e8c89b70?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Вишня крупная, на варенье',
@@ -228,6 +320,10 @@ const VEGETABLES_FRUITS = [
     price: 8,
     subcategory: 'farmer-fruits',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1528821128474-27f963b062bf?w=800&q=80',
+      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Черника лесная, свежая',
@@ -235,6 +331,10 @@ const VEGETABLES_FRUITS = [
     price: 20,
     subcategory: 'farmer-berries',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1498557850523-fd3d118b962e?w=800&q=80',
+      'https://images.unsplash.com/photo-1457296898342-cdd24585d095?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Баклажаны фиолетовые, грунтовые',
@@ -242,6 +342,10 @@ const VEGETABLES_FRUITS = [
     price: 6,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1615484477408-66fdc7e7a67a?w=800&q=80',
+      'https://images.unsplash.com/photo-1605197161470-5f3fc99e7f8c?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Редис красный, хрустящий',
@@ -249,6 +353,10 @@ const VEGETABLES_FRUITS = [
     price: 2,
     subcategory: 'farmer-vegetables',
     unitType: 'bunch',
+    photos: [
+      'https://images.unsplash.com/photo-1584270354949-c26b0d5b4a0c?w=800&q=80',
+      'https://images.unsplash.com/photo-1594282486756-576b55ff0df1?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Брокколи свежая, головки',
@@ -256,6 +364,10 @@ const VEGETABLES_FRUITS = [
     price: 7,
     subcategory: 'farmer-vegetables',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1459411552884-841db9b3cc2a?w=800&q=80',
+      'https://images.unsplash.com/photo-1628773822503-930a7eaecf80?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Крыжовник спелый, зелёный',
@@ -263,6 +375,10 @@ const VEGETABLES_FRUITS = [
     price: 6,
     subcategory: 'farmer-berries',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1593400521784-30f8f6c2d01a?w=800&q=80',
+      'https://images.unsplash.com/photo-1596096299770-e1b13df770f8?w=800&q=80',
+    ],
   },
   {
     title: '[ТЕСТ] Абрикосы спелые, сладкие',
@@ -270,6 +386,10 @@ const VEGETABLES_FRUITS = [
     price: 10,
     subcategory: 'farmer-fruits',
     unitType: 'kg',
+    photos: [
+      'https://images.unsplash.com/photo-1559181567-c3190ca9959b?w=800&q=80',
+      'https://images.unsplash.com/photo-1592681814168-6df0fa93161b?w=800&q=80',
+    ],
   },
 ];
 
@@ -390,7 +510,7 @@ async function seedTestAds() {
         status: 'active',
         moderationStatus: 'approved',
         isFarmerAd: true,
-        photos: [],
+        photos: adData.photos || [],
         createdAt: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
       };
 
