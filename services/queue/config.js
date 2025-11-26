@@ -7,7 +7,7 @@
 
 import IORedis from 'ioredis';
 
-const REDIS_URL = process.env.REDIS_URL || process.env.UPSTASH_REDIS_URL;
+const REDIS_URL = null;
 
 let redisConnection = null;
 

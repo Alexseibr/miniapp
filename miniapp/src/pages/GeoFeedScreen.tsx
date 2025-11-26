@@ -163,30 +163,26 @@ export default function GeoFeedScreen() {
       
       const data = await response.json();
       
-      if (data.success) {
-        const ads = data.data?.ads || data.data || [];
-        setFeed(ads);
-        
-        const newClusters: ClusterData[] = ads.map((ad: Ad, index: number) => ({
-          geoHash: `ad-${ad._id}-${index}`,
-          lat: centerLat + (Math.random() - 0.5) * 0.01,
-          lng: centerLng + (Math.random() - 0.5) * 0.01,
-          count: 1,
-          isCluster: false,
-          adId: ad._id,
-          sampleAd: { id: ad._id, title: ad.title, price: ad.price }
-        }));
-        setClusters(newClusters);
-        
-        if (smartRadiusEnabled && ads.length === 0 && radius < 20) {
-          const nextRadius = RADIUS_OPTIONS.find(r => r.value > radius)?.value || 20;
-          setSmartRadiusMessage(`Увеличили радиус до ${nextRadius < 1 ? `${nextRadius * 1000}м` : `${nextRadius}км`}`);
-          setRadius(nextRadius);
-        } else {
-          calculateSmartRadius(ads.length);
-        }
+      const ads = data.items || data.data?.ads || data.data || [];
+      setFeed(ads);
+      
+      const newClusters: ClusterData[] = ads.map((ad: Ad, index: number) => ({
+        geoHash: `ad-${ad._id}-${index}`,
+        lat: centerLat + (Math.random() - 0.5) * 0.01,
+        lng: centerLng + (Math.random() - 0.5) * 0.01,
+        count: 1,
+        isCluster: false,
+        adId: ad._id,
+        sampleAd: { id: ad._id, title: ad.title, price: ad.price }
+      }));
+      setClusters(newClusters);
+      
+      if (smartRadiusEnabled && ads.length === 0 && radius < 20) {
+        const nextRadius = RADIUS_OPTIONS.find(r => r.value > radius)?.value || 20;
+        setSmartRadiusMessage(`Увеличили радиус до ${nextRadius < 1 ? `${nextRadius * 1000}м` : `${nextRadius}км`}`);
+        setRadius(nextRadius);
       } else {
-        throw new Error(data.error || 'Ошибка загрузки');
+        calculateSmartRadius(ads.length);
       }
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') {
@@ -307,16 +303,10 @@ export default function GeoFeedScreen() {
     return `${price.toLocaleString()} ${currency || 'BYN'}`;
   };
 
-  const sheetHeightClass = {
-    collapsed: 'h-24',
-    half: 'h-[45vh]',
-    full: 'h-[80vh]'
-  }[sheetHeight];
-
-  const mapHeightClass = {
-    collapsed: 'flex-1',
-    half: 'h-[40vh]',
-    full: 'h-[15vh]'
+  const sheetHeightStyle = {
+    collapsed: '96px',
+    half: '45vh',
+    full: '80vh'
   }[sheetHeight];
 
   return (
@@ -404,7 +394,7 @@ export default function GeoFeedScreen() {
       </div>
 
       {/* Map Container */}
-      <div className={`relative ${mapHeightClass} transition-all duration-300 min-h-0`}>
+      <div className="relative flex-1 min-h-[150px] transition-all duration-300">
         {(lat && lng) ? (
           <MapContainer
             center={defaultCenter}
@@ -494,7 +484,8 @@ export default function GeoFeedScreen() {
       {/* Bottom Sheet */}
       <div 
         ref={sheetRef}
-        className={`flex-shrink-0 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)] ${sheetHeightClass} flex flex-col transition-all duration-300 z-10`}
+        className="flex-shrink-0 bg-white rounded-t-3xl shadow-[0_-4px_20px_rgba(0,0,0,0.08)] flex flex-col transition-all duration-300 z-10"
+        style={{ height: sheetHeightStyle }}
       >
         {/* Sheet Handle */}
         <div 
