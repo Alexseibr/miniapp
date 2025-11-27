@@ -219,6 +219,12 @@ const adSchema = new mongoose.Schema(
       lowercase: true,
       index: true,
     },
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SellerProfile',
+      index: true,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],
