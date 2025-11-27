@@ -1,8 +1,8 @@
-import { httpClient } from './httpClient';
-import { Ad } from './adsApi';
+import apiClient from './apiClient';
+import { AdPreview, ApiResponse, PaginatedResponse } from '../types';
 
 export const favoritesApi = {
-  getMyFavorites: () => httpClient.get<Ad[]>('/favorites/my'),
-  addToFavorites: (adId: string) => httpClient.post(`/favorites/${adId}`),
-  removeFromFavorites: (adId: string) => httpClient.delete(`/favorites/${adId}`)
+  list: () => apiClient.get<ApiResponse<PaginatedResponse<AdPreview>>>('/favorites'),
+  add: (adId: string) => apiClient.post<ApiResponse<null>>(`/favorites/${adId}`),
+  remove: (adId: string) => apiClient.delete<ApiResponse<null>>(`/favorites/${adId}`)
 };
