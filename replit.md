@@ -18,7 +18,7 @@ The frontend consists of two React applications using TypeScript and Vite:
 - **Web Admin Panel**: Manages products, categories, ads, and users, utilizing shadcn/ui, TanStack Query, Wouter, and Tailwind CSS. Supports Telegram Login, one-time links, and SMS for authentication.
 - **Telegram MiniApp**: Mobile-optimized UI with lazy-loaded pages and 3D WebP icons, featuring a 4-step ad creation wizard with auto-geolocation and scheduled publishing, custom hooks for debounced fetching, and specialized pages.
 
-Image optimization includes lazy loading, skeleton shimmers, responsive images, and a server-side media proxy. Performance optimizations leverage code splitting, data prefetching, Gzip compression, and ETag support.
+Image optimization includes lazy loading, skeleton shimmers, responsive images, and a server-side media proxy with WebP format conversion (95% size reduction for feed images). The Ad model stores a pre-generated `previewUrl` for optimized feed display. The `/api/media/proxy` endpoint supports `?w=WIDTH&q=QUALITY&f=webp` parameters for on-the-fly image optimization using Sharp. Performance optimizations leverage code splitting, data prefetching, Gzip compression, and ETag support.
 
 ### System Design Choices
 The system features a modular backend with separation of concerns. Order data is denormalized for historical integrity, and all photo access is routed through a secure server-side proxy. A "radius-first" architecture governs ad listings, with debounced fetching for API calls.
