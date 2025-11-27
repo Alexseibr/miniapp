@@ -1,44 +1,61 @@
-# KUFAR-CODE Mobile SPA
+# KETMAR Market Mobile (React Native + Expo)
 
-Мобильная SPA-версия маркетплейса с авторизацией по телефону, Telegram виджету и одноразовой ссылке из бота. Приложение оптимизировано для ширины до ~600px и использует единый API с backend.
+Полноценное мобильное приложение KETMAR Market для iOS и Android. Основано на Expo + React Native + TypeScript. Навигация на базе React Navigation (stack + bottom tabs), состояние — Zustand, HTTP-клиент — Axios.
 
-## Функции
-- Маршруты для главной, авторизации, профиля, настроек, избранного и объявлений.
-- AuthContext с хранением JWT и данных пользователя в `localStorage`.
-- API-слой на Axios (`src/api`) с перехватчиком `401` и подстановкой `Authorization: Bearer`.
-- Телефонная авторизация через `/api/auth/phone/request` и `/api/auth/phone/verify` с сохранением токена.
-- Заглушки для Telegram widget login и входа по токену из бота.
-- Bottom navigation и верхний хедер с текущим городом.
+## Быстрый старт
 
-## Запуск
 ```bash
 cd mobile
 npm install
-npm run dev
+npm start # или npx expo start
 ```
 
-Приложение поднимается на `http://localhost:4173`.
+Запуск на устройствах:
+- `npm run android` — открытие Expo DevTools и запуск на эмулятор/устройство Android.
+- `npm run ios` — запуск на iOS (требуется macOS/Xcode или Expo Go на устройстве).
+- `npm run web` — веб-просмотр через Expo.
 
 ## Переменные окружения
-Создайте файл `.env` в `mobile/`:
 
-```bash
-VITE_API_BASE_URL=https://api.kufar-code.by/api
+Expo автоматически прокидывает переменные `EXPO_PUBLIC_*`. Базовый URL API по умолчанию берётся из `app.json` (`extra.apiBaseUrl`) и соответствует документации `docs/API.md` — `https://your-domain.com/api`.
+
+Можно переопределить:
+```
+EXPO_PUBLIC_API_BASE_URL=https://your-domain.com/api
 ```
 
-## Страницы
-- `/` — Главная: загружает layout через `GET /api/layout?cityCode=&screen=home` с фолбеком на `cityCode=global`.
-- `/auth` — Вход: телефонная авторизация + ссылки на Telegram вход.
-- `/profile`, `/profile/edit` — Профиль и редактирование (защищённые маршруты).
-- `/my-ads`, `/create-ad` — Мои объявления и создание объявления.
-- `/favorites` — Избранное с переходом в карточку объявления.
-- `/ad/:id` — Карточка объявления.
-- `/settings` — Настройки (город, уведомления, выход).
+## Основные возможности
+- Онбординг, вход по номеру телефона (см. `POST /api/mobile/v1/auth/request-code` и `/confirm-code`).
+- JWT сохраняется в AsyncStorage и добавляется в заголовки всех защищённых запросов.
+- Лента объявлений с геофильтром (`GET /api/ads/search`, `GET /api/ads/nearby`, `GET /api/ads/live-spots`).
+- Детали объявления, добавление в избранное (`/favorites`).
+- Создание объявления (`POST /api/ads`) с шагом выбора локации.
+- Карта объявлений вокруг пользователя (react-native-maps + geo endpoints).
+- Профиль пользователя (`GET/PATCH /users/me`), выход, быстрый переход в Telegram-бот `@KetmarM_bot`.
+- Заглушки под push-уведомления (`/devices/register`, `/devices/:id/geo`) для будущей интеграции notification-service.
 
-## AuthContext API
-- `login(token, user)` — сохраняет JWT и пользователя.
-- `logout()` — очищает данные и редиректит на `/auth`.
-- `getAccessToken()` — отдаёт текущий токен для httpClient.
+## Структура
+```
+/mobile
+  App.tsx
+  app.json
+  babel.config.js
+  src/
+    api/           // axios-клиенты по разделам API
+    components/    // UI и карточки
+    navigation/    // Root/Auth/App навигаторы
+    screens/       // экраны приложения
+    services/      // гео, хранилище, telegram/push helpers
+    store/         // Zustand-stores (auth, ads, geo, ui)
+    types/         // Общие типы ответов
+```
 
-## Минимальные роли
-Фронт хранит поле `user.role` и может использовать его для проверки доступа к админским экранам (проверка не реализована в маршрутах по умолчанию).
+## Ссылки на API
+- Базовые эндпоинты: см. `docs/API.md`.
+- Расширение для mobile: `docs/mobile-api.md` (`/api/mobile/v1/...`).
+- Геопоиск и расстояние в ответах описаны в файле `ГЕОПОИСК_ГОТОВ.md` (например, `GET /api/ads/search?lat=...&maxDistanceKm=...`).
+
+## Дополнительно
+- Тёмная тема по умолчанию; акцент — неоновый (`#00f5d4`).
+- Компоненты спроектированы так, чтобы добавить skeleton loaders и полноценную загрузку фото по мере развития backend.
+- TODO в коде указывают места, где требуется уточнить GEO endpoints из отсутствующего `docs/GEO_API_DOCUMENTATION.md`.

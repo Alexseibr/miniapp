@@ -1,31 +1,11 @@
-import { httpClient } from './httpClient';
+import { apiClient } from './apiClient';
 
-export interface AdPayload {
-  title: string;
-  description: string;
-  price: number;
-  categoryId: string;
-  cityCode: string;
-  photos?: string[];
-  locationHint?: string;
-}
-
-export interface Ad {
-  _id: string;
-  title: string;
-  description: string;
-  price: number;
-  cityCode: string;
-  photos: string[];
-  status?: string;
-  contact?: {
-    phone?: string;
-    username?: string;
-  };
-}
-
+// Пока заглушка для списка/деталей объявлений
 export const adsApi = {
-  getMyAds: (status?: string) => httpClient.get<Ad[]>(`/ads/my`, { params: { status } }),
-  createAd: (payload: AdPayload) => httpClient.post<Ad>('/ads', payload),
-  getAdById: (id: string) => httpClient.get<Ad>(`/ads/${id}`)
+  listAds(params?: Record<string, unknown>) {
+    return apiClient.get('/ads', { params });
+  },
+  getAd(id: string) {
+    return apiClient.get(`/ads/${id}`);
+  },
 };
