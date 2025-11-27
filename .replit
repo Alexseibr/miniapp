@@ -68,6 +68,10 @@ localPort = 42335
 externalPort = 5173
 
 [[ports]]
+localPort = 44039
+externalPort = 9000
+
+[[ports]]
 localPort = 46331
 externalPort = 8081
 
@@ -101,6 +105,13 @@ integrations = ["javascript_database:1.0.0", "javascript_object_storage:1.0.0"]
 [userenv]
 
 [userenv.shared]
-MINIAPP_URL = "https://07992b17-3400-4b4a-9b37-e944f49f93fa-00-2g6o2va3pbvu4.spock.replit.dev/miniapp"
 MINIAPP_PRODUCTION = "true"
+
+[userenv.production]
+NODE_ENV = "production"
+MINIAPP_URL = "https://ketmarm.replit.app/miniapp"
+BASE_URL = "https://ketmarm.replit.app"
+
+[userenv.development]
+MINIAPP_URL = "https://07992b17-3400-4b4a-9b37-e944f49f93fa-00-2g6o2va3pbvu4.spock.replit.dev/miniapp"
 BASE_URL = "https://07992b17-3400-4b4a-9b37-e944f49f93fa-00-2g6o2va3pbvu4.spock.replit.dev"
