@@ -43,6 +43,7 @@ import sellerTwinRoutes from './routes/sellerTwin.js';
 import queuesRoutes from './routes/queues.js';
 import feedRoutes from './routes/feed.js';
 import autoCategorizationRoutes from './routes/autoCategorization.js';
+import storeProAnalyticsRoutes from './routes/store-pro-analytics.js';
 
 const app = express();
 
@@ -135,5 +136,6 @@ app.use('/api/seller-twin', sellerTwinRoutes);
 app.use('/api/queues', queuesRoutes);
 app.use('/api/feed', feedRoutes);
 app.use('/api/auto-categorize', autoCategorizationRoutes);
+app.use('/api/store/pro-analytics', storeProAnalyticsRoutes);
 
 export default app;

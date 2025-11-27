@@ -31,6 +31,12 @@ const seasonSchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    type: {
+      type: String,
+      enum: ['store', 'farmer', 'both'],
+      default: 'both',
+      index: true,
+    },
     niche: {
       type: String,
       trim: true,

@@ -26,6 +26,21 @@ const analyticsEventSchema = new mongoose.Schema(
       ref: 'Ad',
       index: true,
     },
+    storeId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SellerProfile',
+      index: true,
+    },
+    source: {
+      type: String,
+      enum: ['organic', 'boost', 'banner', 'campaign', 'search', 'recommendation'],
+      default: 'organic',
+      index: true,
+    },
+    campaignCode: {
+      type: String,
+      index: true,
+    },
     type: {
       type: String,
       enum: [
@@ -66,6 +81,9 @@ const analyticsEventSchema = new mongoose.Schema(
 analyticsEventSchema.index({ sellerId: 1, type: 1, createdAt: -1 });
 analyticsEventSchema.index({ sellerId: 1, adId: 1, createdAt: -1 });
 analyticsEventSchema.index({ adId: 1, type: 1, createdAt: -1 });
+analyticsEventSchema.index({ storeId: 1, type: 1, createdAt: -1 });
+analyticsEventSchema.index({ storeId: 1, source: 1, createdAt: -1 });
+analyticsEventSchema.index({ campaignCode: 1, createdAt: -1 });
 analyticsEventSchema.index({ createdAt: -1 });
 analyticsEventSchema.index({ 'geo.lat': 1, 'geo.lng': 1 });
 
