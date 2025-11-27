@@ -73,7 +73,7 @@ export default function CampaignPage() {
   }, [campaignsData, campaignCode]);
 
   const { data: adsData, isLoading } = useQuery<{ success: boolean; data: CampaignData }>({
-    queryKey: ['/api/campaigns', campaignCode, 'ads', { sort, page }],
+    queryKey: ['/api/campaign-analytics/ads', { campaignCode, sort, page }],
     enabled: !!campaignCode,
   });
 
