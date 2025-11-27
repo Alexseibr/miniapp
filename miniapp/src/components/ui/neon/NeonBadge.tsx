@@ -10,6 +10,8 @@ interface NeonBadgeProps {
   animated?: boolean;
   pulse?: boolean;
   className?: string;
+  onClick?: () => void;
+  'data-testid'?: string;
 }
 
 export function NeonBadge({
@@ -20,6 +22,8 @@ export function NeonBadge({
   animated = true,
   pulse = false,
   className = '',
+  onClick,
+  'data-testid': testId,
 }: NeonBadgeProps) {
   const colorValue = getNeonColor(color);
   
@@ -66,9 +70,13 @@ export function NeonBadge({
     whiteSpace: 'nowrap' as const,
   };
 
+  const interactiveStyles = onClick ? {
+    cursor: 'pointer',
+  } : {};
+
   return (
     <motion.span
-      style={badgeStyle}
+      style={{ ...badgeStyle, ...interactiveStyles }}
       className={`neon-badge ${className}`}
       initial={animated ? { opacity: 0, scale: 0.8 } : undefined}
       animate={animated ? { 
@@ -82,6 +90,8 @@ export function NeonBadge({
           ],
         } : {}),
       } : undefined}
+      whileHover={onClick ? { scale: 1.05 } : undefined}
+      whileTap={onClick ? { scale: 0.95 } : undefined}
       transition={pulse ? {
         duration: 2,
         repeat: Infinity,
@@ -89,7 +99,8 @@ export function NeonBadge({
       } : {
         duration: 0.2,
       }}
-      data-testid="neon-badge"
+      onClick={onClick}
+      data-testid={testId || 'neon-badge'}
     >
       {children}
     </motion.span>

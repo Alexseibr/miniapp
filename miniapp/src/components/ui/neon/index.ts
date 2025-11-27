@@ -10,3 +10,4 @@ export type { LineChartDataPoint } from './NeonLineChart';
 export { NeonGrid } from './NeonGrid';
 export { NeonHeatmap, NeonDensityGrid } from './NeonHeatmap';
 export type { HeatmapPoint } from './NeonHeatmap';
+export { NeonRatingForm, NeonRatingDisplay } from './NeonRatingForm';
