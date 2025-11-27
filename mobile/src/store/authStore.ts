@@ -1,7 +1,7 @@
 import create from 'zustand';
 import { persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authApi, AuthTokens, MeResponse } from '../api/authApi';
+import { authApi, MeResponse, VerifyCodeResponse } from '../api/authApi';
 
 interface AuthState {
   accessToken: string | null;
@@ -37,9 +37,9 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true });
         try {
           const res = await authApi.verifyCode({ phone, code });
-          const tokens: AuthTokens = res.data as AuthTokens;
-          accessTokenCache = tokens.accessToken;
-          set({ accessToken: tokens.accessToken });
+          const data: VerifyCodeResponse = res.data as VerifyCodeResponse;
+          accessTokenCache = data.accessToken;
+          set({ accessToken: data.accessToken, user: data.user || null });
           await get().fetchMe();
         } finally {
           set({ loading: false });
