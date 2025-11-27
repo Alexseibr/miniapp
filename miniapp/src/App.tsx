@@ -55,6 +55,7 @@ const CampaignPage = lazy(() => import('@/pages/CampaignPage'));
 const CampaignAnalyticsPage = lazy(() => import('@/pages/CampaignAnalyticsPage'));
 const NeonDemoPage = lazy(() => import('@/pages/NeonDemoPage'));
 const AuthScreen = lazy(() => import('@/components/AuthScreen'));
+const ShopEntryScreen = lazy(() => import('@/screens/ShopEntryScreen'));
 
 export default function App() {
   const location = useLocation();
@@ -238,6 +239,11 @@ export default function App() {
               <Route path="/profile" element={
                 <PrivateRoute>
                   <ProfilePage />
+                </PrivateRoute>
+              } />
+              <Route path="/shop-entry" element={
+                <PrivateRoute>
+                  <ShopEntryScreen />
                 </PrivateRoute>
               } />
               <Route path="/orders" element={
