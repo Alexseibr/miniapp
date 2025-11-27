@@ -16,6 +16,8 @@ export interface AdsListParams {
   minPrice?: number;
   maxPrice?: number;
   sort?: SortOption;
+  // КАСТОМНЫЙ фильтр, которого нет в API.md официально
+  sellerRole?: string; // TODO: реализовать поддержку этого параметра на backend
 }
 
 export interface AdLocation {
