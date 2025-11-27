@@ -45,6 +45,8 @@ import feedRoutes from './routes/feed.js';
 import autoCategorizationRoutes from './routes/autoCategorization.js';
 import storeProAnalyticsRoutes from './routes/store-pro-analytics.js';
 import campaignAnalyticsRoutes from './routes/campaign-analytics.js';
+import ratingRoutes from './routes/rating.js';
+import adminRatingRoutes from './routes/admin-rating.js';
 
 const app = express();
 
@@ -140,5 +142,7 @@ app.use('/api/auto-categorize', autoCategorizationRoutes);
 app.use('/api/store/pro-analytics', storeProAnalyticsRoutes);
 app.use('/api/campaign-analytics', campaignAnalyticsRoutes);
 app.use('/api/campaigns', campaignAnalyticsRoutes);
+app.use('/api/rating', ratingRoutes);
+app.use('/api/admin/rating', adminAuth, adminRatingRoutes);
 
 export default app;
