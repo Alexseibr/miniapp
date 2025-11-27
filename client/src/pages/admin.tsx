@@ -1,7 +1,8 @@
 import AdminAdsTab from "@/components/admin/AdminAdsTab";
 import AdminUsersTab from "@/components/admin/AdminUsersTab";
+import AdminFraudTab from "@/components/admin/AdminFraudTab";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ShieldCheck, Users, PackageOpen } from "lucide-react";
+import { ShieldCheck, Users, PackageOpen, AlertTriangle } from "lucide-react";
 
 export default function AdminPage() {
   return (
@@ -26,6 +27,10 @@ export default function AdminPage() {
             <Users className="h-4 w-4 mr-2" />
             Users Management
           </TabsTrigger>
+          <TabsTrigger value="fraud" data-testid="tab-fraud">
+            <AlertTriangle className="h-4 w-4 mr-2" />
+            Fraud Analytics
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="ads" data-testid="tab-content-ads">
@@ -34,6 +39,10 @@ export default function AdminPage() {
 
         <TabsContent value="users" data-testid="tab-content-users">
           <AdminUsersTab />
+        </TabsContent>
+
+        <TabsContent value="fraud" data-testid="tab-content-fraud">
+          <AdminFraudTab />
         </TabsContent>
       </Tabs>
     </div>
