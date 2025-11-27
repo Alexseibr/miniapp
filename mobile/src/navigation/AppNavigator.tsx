@@ -6,27 +6,22 @@ import AdDetailsScreen from '../screens/AdDetailsScreen';
 import FavoritesScreen from '../screens/FavoritesScreen';
 import MapScreen from '../screens/MapScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import FiltersScreen from '../screens/FiltersScreen';
 import { Text } from 'react-native';
 
 export type HomeStackParamList = {
   HomeFeed: undefined;
   AdDetails: { adId: string };
+  Filters: undefined;
 };
 
 const HomeStack = createNativeStackNavigator<HomeStackParamList>();
 
 const HomeStackNavigator = () => (
-  <HomeStack.Navigator>
-    <HomeStack.Screen
-      name="HomeFeed"
-      component={HomeFeedScreen}
-      options={{ title: 'Рядом с вами' }}
-    />
-    <HomeStack.Screen
-      name="AdDetails"
-      component={AdDetailsScreen}
-      options={{ title: 'Объявление' }}
-    />
+  <HomeStack.Navigator screenOptions={{ headerShown: false }}>
+    <HomeStack.Screen name="HomeFeed" component={HomeFeedScreen} />
+    <HomeStack.Screen name="AdDetails" component={AdDetailsScreen} />
+    <HomeStack.Screen name="Filters" component={FiltersScreen} />
   </HomeStack.Navigator>
 );
 
