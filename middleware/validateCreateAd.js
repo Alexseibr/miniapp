@@ -163,6 +163,21 @@ async function validateCreateAd(req, res, next) {
           .map((photo) => photo.trim())
       : [];
 
+    let previewUrl = null;
+    if (photos.length > 0) {
+      const firstPhoto = photos[0];
+      if (firstPhoto.startsWith('/api/media/')) {
+        previewUrl = firstPhoto.includes('?') 
+          ? `${firstPhoto}&w=600&q=75&f=webp`
+          : `${firstPhoto}?w=600&q=75&f=webp`;
+      } else if (firstPhoto.startsWith('http://') || firstPhoto.startsWith('https://')) {
+        const encodedUrl = encodeURIComponent(firstPhoto);
+        previewUrl = `/api/media/proxy?url=${encodedUrl}&w=600&q=75&f=webp`;
+      } else {
+        previewUrl = `/api/media/proxy?url=${encodeURIComponent(firstPhoto)}&w=600&q=75&f=webp`;
+      }
+    }
+
     let seasonCode = null;
     if (payload.seasonCode) {
       try {
@@ -202,6 +217,7 @@ async function validateCreateAd(req, res, next) {
       price,
       currency: normalizeString(payload.currency) || 'RUB',
       photos,
+      previewUrl,
       attributes,
       sellerTelegramId,
       city: payload.city ? normalizeString(payload.city) : null,

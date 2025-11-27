@@ -59,6 +59,14 @@ export function getThumbnailUrl(photoUrl: string | undefined | null): string {
 }
 
 export function getFeedImageUrl(photoUrl: string | undefined | null): string {
+  if (!photoUrl) {
+    return NO_PHOTO_PLACEHOLDER;
+  }
+  
+  if (photoUrl.includes('f=webp') && photoUrl.includes('w=600')) {
+    return photoUrl;
+  }
+  
   return getOptimizedPhotoUrl(photoUrl, 600, undefined, 75, 'webp');
 }
 
