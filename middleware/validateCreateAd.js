@@ -163,6 +163,27 @@ async function validateCreateAd(req, res, next) {
           .map((photo) => photo.trim())
       : [];
 
+    let previewUrl = null;
+    if (photos.length > 0) {
+      const firstPhoto = photos[0];
+      
+      if (firstPhoto.startsWith('data:')) {
+        previewUrl = null;
+      } else if (firstPhoto.startsWith('/api/media/') && !firstPhoto.includes('..')) {
+        const baseUrl = firstPhoto.split('?')[0];
+        previewUrl = `${baseUrl}?w=600&q=75&f=webp`;
+      } else if (firstPhoto.startsWith('http://') || firstPhoto.startsWith('https://')) {
+        try {
+          const url = new URL(firstPhoto);
+          if (url.hostname && !url.hostname.includes('..')) {
+            previewUrl = `/api/media/proxy?url=${encodeURIComponent(firstPhoto)}&w=600&q=75&f=webp`;
+          }
+        } catch {
+          previewUrl = null;
+        }
+      }
+    }
+
     let seasonCode = null;
     if (payload.seasonCode) {
       try {
@@ -178,7 +199,21 @@ async function validateCreateAd(req, res, next) {
     }
     lifetimeDays = Math.min(lifetimeDays, MAX_LIFETIME_DAYS);
 
-    const validUntil = calculateValidUntil(new Date(), lifetimeDays);
+    const allowedContactTypes = ['telegram_phone', 'telegram_username', 'instagram', 'none'];
+    const contactType = payload.contactType && allowedContactTypes.includes(payload.contactType)
+      ? payload.contactType
+      : 'none';
+
+    let publishAt = null;
+    if (payload.publishAt) {
+      const parsedPublishAt = new Date(payload.publishAt);
+      if (Number.isFinite(parsedPublishAt.getTime()) && parsedPublishAt > new Date()) {
+        publishAt = parsedPublishAt;
+      }
+    }
+
+    const baseDate = publishAt || new Date();
+    const adjustedValidUntil = calculateValidUntil(baseDate, lifetimeDays);
 
     const sanitized = {
       title,
@@ -186,19 +221,26 @@ async function validateCreateAd(req, res, next) {
       categoryId,
       subcategoryId,
       price,
-      currency: normalizeString(payload.currency) || 'BYN',
+      currency: normalizeString(payload.currency) || 'RUB',
       photos,
+      previewUrl,
       attributes,
       sellerTelegramId,
       city: payload.city ? normalizeString(payload.city) : null,
+      geoLabel: payload.geoLabel ? normalizeString(payload.geoLabel) : null,
+      contactType,
+      contactPhone: payload.contactPhone ? normalizeString(payload.contactPhone) : null,
+      contactUsername: payload.contactUsername ? normalizeString(payload.contactUsername) : null,
+      contactInstagram: payload.contactInstagram ? normalizeString(payload.contactInstagram) : null,
       deliveryType,
       deliveryRadiusKm,
       location,
       seasonCode,
       lifetimeDays,
-      validUntil,
-      moderationStatus: 'pending',
-      status: 'active',
+      validUntil: adjustedValidUntil,
+      moderationStatus: publishAt ? 'scheduled' : 'approved',
+      status: publishAt ? 'scheduled' : 'active',
+      publishAt,
       deliveryOptions: Array.isArray(payload.deliveryOptions)
         ? payload.deliveryOptions.filter((option) => typeof option === 'string' && option.trim())
         : undefined,
@@ -220,6 +262,9 @@ async function validateCreateAd(req, res, next) {
     }
     if (!sanitized.deliveryOptions || !sanitized.deliveryOptions.length) {
       delete sanitized.deliveryOptions;
+    }
+    if (!sanitized.publishAt) {
+      delete sanitized.publishAt;
     }
 
     req.validatedAdPayload = sanitized;

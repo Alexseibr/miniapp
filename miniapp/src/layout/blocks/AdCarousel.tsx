@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
-import { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useState, useRef} from 'react';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface AdCarouselProps {
   title?: string;
@@ -22,7 +23,7 @@ interface AdCarouselProps {
 }
 
 export default function AdCarousel(props: AdCarouselProps) {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const scrollRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
@@ -56,9 +57,15 @@ export default function AdCarousel(props: AdCarouselProps) {
     enabled: dataSource !== 'manual' && queryKey.length > 0,
   });
 
-  const ads: any[] = dataSource === 'manual' && adIds.length > 0
-    ? []
-    : adsData?.ads || adsData || [];
+  const ads: any[] = Array.isArray(adsData)
+    ? adsData
+    : Array.isArray(adsData?.ads)
+      ? adsData.ads
+      : Array.isArray(adsData?.items)
+        ? adsData.items
+        : Array.isArray(adsData?.data)
+          ? adsData.data
+          : [];
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
@@ -151,7 +158,7 @@ export default function AdCarousel(props: AdCarouselProps) {
         {ads.map((ad: any) => (
           <div
             key={ad._id}
-            onClick={() => setLocation(`/ads/${ad._id}`)}
+            onClick={() => navigate(`/ads/${ad._id}`)}
             className="card"
             style={{
               minWidth: '200px',
@@ -163,7 +170,7 @@ export default function AdCarousel(props: AdCarouselProps) {
           >
             {ad.photos?.[0] && (
               <img
-                src={ad.photos[0]}
+                src={getThumbnailUrl(ad.photos[0])}
                 alt={ad.title}
                 loading="lazy"
                 decoding="async"
@@ -196,7 +203,7 @@ export default function AdCarousel(props: AdCarouselProps) {
                 color: 'var(--color-primary)',
               }}
             >
-              {ad.price ? `${ad.price} BYN` : 'Цена не указана'}
+              {ad.price ? `${ad.price} руб.` : 'Цена не указана'}
             </div>
             {ad.city && (
               <div

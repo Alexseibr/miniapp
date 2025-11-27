@@ -9,14 +9,17 @@ export interface AuthResponse {
   favorites?: FavoriteItem[];
 }
 
-export async function validateSession(initData?: string): Promise<AuthResponse> {
-  const response = await http.post('/auth/telegram', null, {
-    headers: initData
-      ? {
-          'X-Telegram-Init-Data': initData,
-        }
-      : undefined,
-  });
+export async function validateSession(initData?: string, phone?: string): Promise<AuthResponse> {
+  const response = await http.post('/auth/telegram', 
+    phone ? { phone } : {}, 
+    {
+      headers: initData
+        ? {
+            'X-Telegram-Init-Data': initData,
+          }
+        : undefined,
+    }
+  );
 
   if (response.data?.token) {
     setSessionToken(response.data.token);

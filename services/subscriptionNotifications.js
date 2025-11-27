@@ -117,7 +117,7 @@ async function sendSubscriptionNotifications(bot, ad, subscriptions) {
 
 function formatNewAdNotification(ad) {
   const title = ad.title || 'Новое объявление';
-  const price = ad.price ? `${ad.price} ${ad.currency || 'BYN'}` : 'Цена не указана';
+  const price = ad.price ? `${ad.price} руб.` : 'Цена не указана';
   const description = ad.description
     ? ad.description.substring(0, 100) + (ad.description.length > 100 ? '...' : '')
     : '';

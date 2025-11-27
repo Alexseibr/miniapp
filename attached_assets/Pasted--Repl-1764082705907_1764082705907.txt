@@ -1,0 +1,327 @@
+Мини-промт: анимация появления запланированных / только что опубликованных карточек
+
+Скопируй в Replit / Cursor:
+
+Ты — frontend-разработчик (React + TypeScript, Telegram MiniApp).
+
+Задача: добавить **мягкую анимацию появления** для:
+1) карточек со статусом `scheduled` в списке «Мои объявления»,
+2) карточек, которые только что сменили статус `scheduled → active`
+   (например, когда пользователь зашёл в «Мои объявления» после автопубликации).
+
+Без тяжёлых библиотек, достаточно CSS/Framer Motion, если он уже используется в проекте.
+
+=====================================
+1. БАЗОВАЯ АНИМАЦИЯ ДЛЯ КАРТОЧЕК
+=====================================
+
+Найди компонент карточки объявления в профиле:
+- `MyAdCard` или похожий.
+
+Сделай обёртку над корневым элементом карточки, чтобы можно было применить анимацию.
+
+Если в проекте уже есть Framer Motion:
+- используй `motion.div`.
+
+Пример:
+
+```tsx
+import { motion } from "framer-motion";
+
+const MyAdCard: React.FC<MyAdCardProps> = ({ ad, ... }) => {
+  const isScheduled = ad.status === "scheduled";
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
+      className="my-ad-card"
+    >
+      {/* существующая вёрстка карточки */}
+    </motion.div>
+  );
+};
+
+
+Если Framer Motion не используется:
+
+добавь CSS-анимацию:
+
+.my-ad-card--animated {
+  animation: fadeSlideIn 0.2s ease-out;
+}
+
+@keyframes fadeSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+
+И на карточке:
+
+<div className={clsx("my-ad-card", shouldAnimate && "my-ad-card--animated")}>
+  ...
+</div>
+
+=============================================
+2. ОСОБАЯ АНИМАЦИЯ ДЛЯ ТОЛЬКО ЧТО ОПУБЛИКОВАННЫХ
+
+Нам важно подсветить объявление, которое только что сменило статус
+scheduled → active (после работы cron’а).
+
+Сделай флаг justPublished:
+
+на backend можно передавать поле justPublished: boolean (опционально),
+
+или на фронте вычислять:
+
+если ad.status === 'active' и ad.publishedAt < 10 минут назад → justPublished = true.
+
+В MyAdCard:
+
+const isJustPublished =
+  ad.status === "active" &&
+  ad.publishedAt &&
+  Date.now() - new Date(ad.publishedAt).getTime() < 10 * 60 * 1000;
+
+
+Если isJustPublished === true:
+
+Добавить дополнительную анимацию:
+
+лёгкий "highlight" — вспышка фона:
+
+.my-ad-card--just-published {
+  animation: justPublishedHighlight 1.2s ease-out;
+}
+
+@keyframes justPublishedHighlight {
+  0% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0.4);
+  }
+  40% {
+    box-shadow: 0 0 0 10px rgba(76, 175, 80, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(76, 175, 80, 0);
+  }
+}
+
+
+Показать небольшой чип:
+
+текст: "Только что опубликовано"
+
+фон: мягкий зелёный, иконка ✅.
+
+Чип можно отрендерить над заголовком объявления.
+
+Важно:
+
+не делать анимацию бесконечной, только один цикл при первом рендере.
+
+isJustPublished использовать только как условие для первичного класса,
+чтобы при последующих заходах в приложение карточка уже не мигала.
+
+=====================================
+3. ВКЛЮЧАТЬ АНИМАЦИЮ НЕ ВЕЗДЕ
+
+Логика:
+
+fade/slide анимация — для всех карточек в списке «Мои объявления»
+при первом появлении (mount).
+
+эффект justPublishedHighlight — только для карточек с isJustPublished.
+
+Не забыть:
+
+добавить key на карточку (key={ad.id}),
+
+проверить, что анимация не ломает скролл и не делает список “дёрганым”.
+
+В конце выведи:
+
+какие файлы обновили,
+
+какие классы/компоненты добавили.
+
+
+---
+
+## 2️⃣ Мини-промт: история публикаций в админке (таймлайн)
+
+```text
+Ты — frontend-разработчик (React + TypeScript) в проекте KETMAR Market.
+
+Нужно сделать **экраны истории публикаций** в админке: таймлайн жизненного цикла объявления.
+
+Статусы:
+
+- created (создано)
+- scheduled (запланировано)
+- published / active (опубликовано)
+- archived (архив)
+- optionally: edited (изменение цены/текста)
+
+Бэкенд уже отдаёт историю событиями:
+
+`GET /api/admin/ads/:adId/history`
+
+Пример ответа:
+
+```json
+[
+  { "type": "created", "at": "2025-11-25T10:12:00Z", "by": "user:123" },
+  { "type": "scheduled", "at": "2025-11-25T10:15:00Z", "data": { "publishAt": "2025-11-26T12:00:00Z" } },
+  { "type": "published", "at": "2025-11-26T12:00:03Z" },
+  { "type": "price_changed", "at": "2025-11-27T09:30:00Z", "data": { "from": 3000, "to": 2850 } },
+  { "type": "archived", "at": "2025-12-10T18:45:00Z", "by": "admin:77" }
+]
+
+
+Нужно:
+
+Экран в админке для одного объявления:
+
+блок с основной инфой об объявлении,
+
+ниже вертикальный таймлайн всех событий.
+
+Создать компонент:
+
+admin/src/components/AdHistoryTimeline.tsx
+
+API:
+
+interface AdHistoryEvent {
+  type: 'created' | 'scheduled' | 'published' | 'price_changed' | 'archived' | string;
+  at: string; // ISO
+  by?: string;
+  data?: any;
+}
+
+interface AdHistoryTimelineProps {
+  events: AdHistoryEvent[];
+}
+
+
+ЛОГИКА ОТОБРАЖЕНИЯ:
+
+Отсортировать события по at по возрастанию.
+
+Для каждого события — точка на линии и карточка справа.
+
+Вариант вёрстки:
+
+слева вертикальная линия (border-left),
+
+на каждой точке — кружок,
+
+справа блок:
+
+заголовок события:
+
+type: "created" → "Создано"
+
+"scheduled" → "Запланирована публикация"
+
+"published" → "Опубликовано"
+
+"price_changed" → "Изменение цены"
+
+"archived" → "Переведено в архив"
+
+дата/время: "25 ноября, 10:12"
+
+доп. текст:
+
+scheduled: "Публикация запланирована на 26 ноября, 12:00"
+
+price_changed: "Цена изменена: 3 000 BYN → 2 850 BYN"
+
+by: "Инициатор: пользователь @username" (если есть).
+
+ЦВЕТА ТОЧЕК:
+
+created — серый,
+
+scheduled — синий,
+
+published — зелёный,
+
+price_changed — оранжевый,
+
+archived — красный.
+
+Пример классов:
+
+.timeline {
+  position: relative;
+  padding-left: 20px;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  left: 8px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e0e4ea;
+}
+
+.timeline-item {
+  position: relative;
+  margin-bottom: 16px;
+}
+
+.timeline-dot {
+  position: absolute;
+  left: -2px;
+  top: 4px;
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 2px solid #ccc;
+}
+
+
+И по модификаторам (timeline-dot--published, --scheduled и т.п.) задавать разные цвета рамки.
+
+Экран:
+
+admin/src/pages/AdDetailsPage.tsx
+
+При открытии:
+
+запросить /api/admin/ads/:adId,
+
+запросить /api/admin/ads/:adId/history,
+
+отрендерить:
+
+сверху карточку объявления (фото, заголовок, цена, статус),
+
+ниже <AdHistoryTimeline events={history} />.
+
+UX-мелочи:
+
+Если событий нет → показать текст: "История изменений пока пуста."
+
+Если много событий:
+
+ограничить высоту и сделать overflow-y: auto,
+
+либо показывать последние N событий, с кнопкой "Показать все".
+
+В конце:
+
+выведи список новых/изменённых файлов и короткое описание.

@@ -8,6 +8,7 @@ import {
   FolderTree,
   MapPin,
   Heart,
+  ShieldCheck,
 } from "lucide-react";
 
 export default function Home() {
@@ -113,6 +114,32 @@ export default function Home() {
                 </p>
               </CardContent>
             </Card>
+          </Link>
+
+          <Link href="/admin">
+            <Card className="hover-elevate active-elevate-2 cursor-pointer h-full" data-testid="card-admin">
+              <CardHeader>
+                <div className="flex items-center gap-3">
+                  <ShieldCheck className="h-8 w-8 text-orange-600" />
+                  <CardTitle>Admin Panel</CardTitle>
+                </div>
+                <CardDescription>Moderation & Management</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Manage ads, users, and moderate marketplace content
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        </div>
+
+        <div className="mt-12 text-center">
+          <Link href="/admin/login">
+            <Button variant="outline" size="lg" className="gap-2" data-testid="button-admin-login">
+              <ShieldCheck className="h-5 w-5" />
+              Вход для администраторов
+            </Button>
           </Link>
         </div>
 

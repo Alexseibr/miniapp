@@ -1,273 +1,852 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useLocation, Link } from 'react-router-dom';
-import { listAds, listNearbyAds } from '@/api/ads';
-import { fetchCategories } from '@/api/categories';
-import AdCard from '@/components/AdCard';
-import FilterDrawer from '@/components/FilterDrawer';
-import SeasonBanners from '@/components/SeasonBanners';
-import CategoryScroll from '@/components/CategoryScroll';
-import EmptyState from '@/widgets/EmptyState';
-import { AdPreview, CategoryNode } from '@/types';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Bell, MapPin, Loader2, ChevronUp, ChevronDown } from 'lucide-react';
+import { motion } from 'framer-motion';
+import FeedCard from '@/components/FeedCard';
 import { useGeo } from '@/utils/geo';
-import { SlidersHorizontal } from 'lucide-react';
+import { FeedItem, FeedEvent } from '@/types';
+import http from '@/api/http';
+import { toggleFavorite } from '@/api/favorites';
+import { useUserStore } from '@/store/useUserStore';
+
+const FEED_RADIUS_KM = 20;
+const FEED_LIMIT = 20;
+const AUTO_REFRESH_INTERVAL = 45000; // 45 seconds
 
 export default function FeedPage() {
-  const { search: locationSearch } = useLocation();
-  const searchParams = useMemo(() => new URLSearchParams(locationSearch), [locationSearch]);
-  const [ads, setAds] = useState<AdPreview[]>([]);
-  const [sort, setSort] = useState<'newest' | 'cheapest' | 'expensive' | 'popular' | 'distance'>(() => {
-    const sortParam = searchParams.get('sort');
-    const validSorts = ['newest', 'cheapest', 'expensive', 'popular', 'distance'];
-    return sortParam && validSorts.includes(sortParam) ? (sortParam as 'newest' | 'cheapest' | 'expensive' | 'popular' | 'distance') : 'newest';
-  });
-  const [search, setSearch] = useState(() => searchParams.get('q') || '');
-  const [minPrice, setMinPrice] = useState<string>(() => searchParams.get('minPrice') || '');
-  const [maxPrice, setMaxPrice] = useState<string>(() => searchParams.get('maxPrice') || '');
-  const [loading, setLoading] = useState(true);
-  const [categories, setCategories] = useState<CategoryNode[]>([]);
-  const [showFilters, setShowFilters] = useState(false);
-  const { coords, requestLocation, status, radiusKm, setRadius } = useGeo();
+  const navigate = useNavigate();
+  const { coords, status: geoStatus, requestLocation } = useGeo();
+  const user = useUserStore((state) => state.user);
+  
+  const [items, setItems] = useState<FeedItem[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [showSwipeHint, setShowSwipeHint] = useState(false);
+  const [newBuffer, setNewBuffer] = useState<FeedItem[]>([]);
+  const [favoriteIds, setFavoriteIds] = useState<Set<string>>(new Set());
+  
+  const currentStartTime = useRef<number | null>(null);
+  const pendingEvents = useRef<FeedEvent[]>([]);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const hasShownHint = useRef(false);
+  const lastFetchTime = useRef<number>(Date.now());
+  const lastScrollIndex = useRef<number>(0);
 
+  // Check if hint was shown before
   useEffect(() => {
-    fetchCategories().then(setCategories).catch(console.error);
+    const hintShown = localStorage.getItem('ketmar_feed_hint_shown');
+    if (!hintShown) {
+      setShowSwipeHint(true);
+      hasShownHint.current = false;
+    } else {
+      hasShownHint.current = true;
+    }
   }, []);
 
+  // Auto-hide hint after 3 seconds
   useEffect(() => {
-    const sortParam = searchParams.get('sort');
-    const validSorts = ['newest', 'cheapest', 'expensive', 'popular', 'distance'];
-    if (sortParam && validSorts.includes(sortParam)) {
-      setSort(sortParam as typeof sort);
+    if (showSwipeHint) {
+      const timer = setTimeout(() => {
+        setShowSwipeHint(false);
+        localStorage.setItem('ketmar_feed_hint_shown', 'true');
+        hasShownHint.current = true;
+      }, 3000);
+      return () => clearTimeout(timer);
     }
-    setSearch(searchParams.get('q') || '');
-    setMinPrice(searchParams.get('minPrice') || '');
-    setMaxPrice(searchParams.get('maxPrice') || '');
-  }, [locationSearch]);
+  }, [showSwipeHint]);
 
-  const params = useMemo(
-    () => ({
-      sort,
-      search,
-      minPrice: minPrice ? Number(minPrice) : undefined,
-      maxPrice: maxPrice ? Number(maxPrice) : undefined,
-      categoryId: searchParams.get('categoryId') || undefined,
-      subcategoryId: searchParams.get('subcategoryId') || undefined,
-      seasonCode: searchParams.get('season') || undefined,
-    }),
-    [sort, search, minPrice, maxPrice, searchParams]
-  );
+  const dismissHint = useCallback(() => {
+    if (showSwipeHint) {
+      setShowSwipeHint(false);
+      localStorage.setItem('ketmar_feed_hint_shown', 'true');
+      hasShownHint.current = true;
+    }
+  }, [showSwipeHint]);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      try {
-        const response = sort === 'distance' && coords
-          ? await listNearbyAds({
-              lat: coords.lat,
-              lng: coords.lng,
-              radiusKm,
-              sort: 'distance',
-              q: search,
-              limit: 40,
-              minPrice: params.minPrice,
-              maxPrice: params.maxPrice,
-              categoryId: params.categoryId,
-              subcategoryId: params.subcategoryId,
-              seasonCode: params.seasonCode,
-            })
-          : await listAds({
-              sort,
-              q: search,
-              limit: 40,
-              lat: coords?.lat,
-              lng: coords?.lng,
-              minPrice: params.minPrice,
-              maxPrice: params.maxPrice,
-              categoryId: params.categoryId,
-              subcategoryId: params.subcategoryId,
-              seasonCode: params.seasonCode,
-            });
-        if (!cancelled) {
-          setAds(response.items || []);
-        }
-      } catch (error) {
-        console.error('feed error', error);
-        if (!cancelled) {
-          setAds([]);
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
+  const sendEvents = useCallback(async (events: FeedEvent[]) => {
+    if (events.length === 0) return;
+    try {
+      await http.post('/api/feed/events', { events });
+    } catch (error) {
+      console.error('Failed to send feed events:', error);
+    }
+  }, []);
+
+  const flushPendingEvents = useCallback(() => {
+    if (pendingEvents.current.length > 0) {
+      sendEvents([...pendingEvents.current]);
+      pendingEvents.current = [];
+    }
+  }, [sendEvents]);
+
+  const trackEvent = useCallback((event: FeedEvent) => {
+    pendingEvents.current.push(event);
+    if (pendingEvents.current.length >= 5) {
+      flushPendingEvents();
+    }
+  }, [flushPendingEvents]);
+
+  const filterWithPhotos = (items: FeedItem[]): FeedItem[] => {
+    return items.filter(item => 
+      item.previewUrl ||
+      (item.images && item.images.length > 0) || 
+      (item.photos && item.photos.length > 0)
+    );
+  };
+
+  const loadFeed = useCallback(async (cursor?: string, isRefresh?: boolean) => {
+    if (!coords) return;
+    
+    try {
+      if (!cursor && !isRefresh) {
+        setIsLoading(true);
       }
+      
+      const params = new URLSearchParams({
+        lat: coords.lat.toString(),
+        lng: coords.lng.toString(),
+        radiusKm: FEED_RADIUS_KM.toString(),
+        limit: FEED_LIMIT.toString(),
+      });
+      
+      if (cursor) {
+        params.append('cursor', cursor);
+      }
+      
+      const response = await http.get(`/api/feed?${params.toString()}`);
+      const data = response.data as {
+        items: FeedItem[];
+        nextCursor: string | null;
+        hasMore: boolean;
+      };
+      
+      // Filter out items without photos
+      const filteredItems = filterWithPhotos(data.items);
+      lastFetchTime.current = Date.now();
+      
+      if (isRefresh) {
+        // For refresh, add new items to buffer
+        const existingIds = new Set(items.map(i => i._id));
+        const newItems = filteredItems.filter(item => !existingIds.has(item._id));
+        if (newItems.length > 0) {
+          setNewBuffer(prev => [...prev, ...newItems]);
+        }
+      } else if (cursor) {
+        setItems(prev => [...prev, ...filteredItems]);
+      } else {
+        setItems(filteredItems);
+        setCurrentIndex(0);
+        
+        if (filteredItems.length > 0) {
+          currentStartTime.current = Date.now();
+          trackEvent({
+            adId: filteredItems[0]._id,
+            eventType: 'impression',
+            positionIndex: 0,
+            radiusKm: FEED_RADIUS_KM,
+            meta: { categoryId: filteredItems[0].categoryId },
+          });
+        }
+      }
+      
+      if (!isRefresh) {
+        setNextCursor(data.nextCursor);
+        setHasMore(data.hasMore);
+      }
+    } catch (error) {
+      console.error('Failed to load feed:', error);
+    } finally {
+      setIsLoading(false);
     }
-    load();
+  }, [coords, items, trackEvent]);
+
+  // Initial load
+  useEffect(() => {
+    if (coords) {
+      loadFeed();
+    }
+  }, [coords]);
+
+  // Load more when approaching end
+  useEffect(() => {
+    if (hasMore && nextCursor && currentIndex >= items.length - 3) {
+      loadFeed(nextCursor);
+    }
+  }, [currentIndex, items.length, hasMore, nextCursor]);
+
+  // Periodic refresh for new items
+  useEffect(() => {
+    if (!coords || items.length === 0) return;
+    
+    const interval = setInterval(() => {
+      loadFeed(undefined, true);
+    }, AUTO_REFRESH_INTERVAL);
+    
+    return () => clearInterval(interval);
+  }, [coords, items.length]);
+
+  // Cleanup on unmount
+  useEffect(() => {
     return () => {
-      cancelled = true;
+      flushPendingEvents();
     };
-  }, [params, coords, radiusKm]);
+  }, [flushPendingEvents]);
 
-  const topCategories = useMemo(() => categories.slice(0, 6), [categories]);
+  // Create infinite scroll list (3x items for seamless looping)
+  const infiniteItems = items.length > 0 ? [...items, ...items, ...items] : [];
+  const itemsPerSet = items.length;
+  
+  // Initialize scroll position to middle set
+  useEffect(() => {
+    if (scrollContainerRef.current && items.length > 0) {
+      const container = scrollContainerRef.current;
+      const cardHeight = container.clientHeight;
+      // Start at middle set (index = itemsPerSet)
+      container.scrollTop = cardHeight * itemsPerSet;
+      lastScrollIndex.current = itemsPerSet;
+    }
+  }, [items.length > 0]);
 
-  return (
-    <div>
+  // Handle scroll with infinite loop logic
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current || items.length === 0) return;
+    
+    const container = scrollContainerRef.current;
+    const cardHeight = container.clientHeight;
+    const scrollTop = container.scrollTop;
+    const virtualIndex = Math.round(scrollTop / cardHeight);
+    
+    // Calculate real index (0 to items.length-1)
+    const realIndex = ((virtualIndex % itemsPerSet) + itemsPerSet) % itemsPerSet;
+    
+    // Jump to middle set if at edges (for seamless infinite scroll)
+    if (virtualIndex < itemsPerSet * 0.5) {
+      // Near start - jump forward to middle set
+      container.scrollTop = cardHeight * (itemsPerSet + realIndex);
+      lastScrollIndex.current = itemsPerSet + realIndex;
+    } else if (virtualIndex > itemsPerSet * 2.5) {
+      // Near end - jump back to middle set
+      container.scrollTop = cardHeight * (itemsPerSet + realIndex);
+      lastScrollIndex.current = itemsPerSet + realIndex;
+    }
+    
+    if (virtualIndex !== lastScrollIndex.current) {
+      const prevVirtualIndex = lastScrollIndex.current;
+      const prevRealIndex = ((prevVirtualIndex % itemsPerSet) + itemsPerSet) % itemsPerSet;
+      const prevItem = items[prevRealIndex];
+      const newItem = items[realIndex];
+      
+      // Track dwell time for previous item
+      if (currentStartTime.current && prevItem) {
+        const dwellTimeMs = Date.now() - currentStartTime.current;
+        trackEvent({
+          adId: prevItem._id,
+          eventType: 'impression',
+          dwellTimeMs,
+          positionIndex: prevRealIndex,
+          radiusKm: FEED_RADIUS_KM,
+        });
+      }
+      
+      // Track scroll direction
+      if (prevItem) {
+        trackEvent({
+          adId: prevItem._id,
+          eventType: virtualIndex > prevVirtualIndex ? 'scroll_next' : 'scroll_prev',
+          positionIndex: prevRealIndex,
+          radiusKm: FEED_RADIUS_KM,
+        });
+      }
+      
+      // Track impression for new item
+      if (newItem) {
+        trackEvent({
+          adId: newItem._id,
+          eventType: 'impression',
+          positionIndex: realIndex,
+          radiusKm: FEED_RADIUS_KM,
+          meta: { categoryId: newItem.categoryId },
+        });
+      }
+      
+      lastScrollIndex.current = virtualIndex;
+      currentStartTime.current = Date.now();
+      setCurrentIndex(realIndex);
+      dismissHint();
+    }
+  }, [items, itemsPerSet, trackEvent, dismissHint]);
+
+  const handleLike = useCallback(async (adId: string) => {
+    if (!user?.telegramId) return;
+    
+    const item = items.find(i => i._id === adId);
+    if (!item) return;
+    
+    const isCurrentlyFavorite = favoriteIds.has(adId);
+    const newFavoriteState = !isCurrentlyFavorite;
+    
+    // Optimistic update
+    setFavoriteIds(prev => {
+      const newSet = new Set(prev);
+      if (newFavoriteState) {
+        newSet.add(adId);
+      } else {
+        newSet.delete(adId);
+      }
+      return newSet;
+    });
+    
+    // Track event (only track on adding to favorites)
+    if (newFavoriteState) {
+      trackEvent({
+        adId: item._id,
+        eventType: 'like',
+        positionIndex: items.indexOf(item),
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: item.categoryId },
+      });
+      flushPendingEvents();
+    }
+    
+    // Call API
+    try {
+      await toggleFavorite(adId);
+    } catch (error) {
+      console.error('Failed to toggle favorite:', error);
+      // Rollback on error
+      setFavoriteIds(prev => {
+        const newSet = new Set(prev);
+        if (isCurrentlyFavorite) {
+          newSet.add(adId);
+        } else {
+          newSet.delete(adId);
+        }
+        return newSet;
+      });
+    }
+  }, [items, favoriteIds, user?.telegramId, trackEvent, flushPendingEvents]);
+
+  const handleViewOpen = useCallback(() => {
+    const item = items[currentIndex];
+    if (item) {
+      trackEvent({
+        adId: item._id,
+        eventType: 'view_open',
+        positionIndex: currentIndex,
+        radiusKm: FEED_RADIUS_KM,
+        meta: { categoryId: item.categoryId },
+      });
+      flushPendingEvents();
+    }
+  }, [currentIndex, items, trackEvent, flushPendingEvents]);
+
+  const needsLocation = !coords && geoStatus !== 'loading';
+
+  if (needsLocation) {
+    return (
       <div
         style={{
-          position: 'sticky',
-          top: 0,
-          backgroundColor: 'white',
-          zIndex: 10,
-          padding: '10px 16px',
-          borderBottom: '1px solid #e5e7eb',
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          background: '#FFFFFF',
         }}
       >
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <div style={{ position: 'relative', flex: 1 }}>
-            <input
-              className="input"
-              type="search"
-              placeholder="Поиск объявлений"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              data-testid="input-search"
-              style={{ fontSize: 15, padding: '10px 14px' }}
-            />
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowFilters(true)}
-            data-testid="button-open-filters"
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderBottom: '1px solid #E5E7EB',
+            background: '#FFFFFF',
+          }}
+        >
+          <h1
             style={{
-              padding: 10,
-              backgroundColor: '#f3f4f6',
-              border: '1px solid #e5e7eb',
-              borderRadius: 8,
-              cursor: 'pointer',
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#1F2937',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            KETMAR
+          </h1>
+          <button
+            onClick={() => navigate('/notifications')}
+            data-testid="button-notifications"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: 'none',
+              background: '#F5F6F8',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              minWidth: 40,
-              height: 40,
+              cursor: 'pointer',
             }}
           >
-            <SlidersHorizontal size={20} color="#6b7280" />
+            <Bell size={20} color="#6B7280" />
           </button>
-        </div>
-      </div>
+        </header>
 
-      <div style={{ padding: 16 }}>
-        {topCategories.length > 0 && (
-          <div style={{ marginBottom: 16 }}>
-            <CategoryScroll categories={topCategories} />
-          </div>
-        )}
-
-        <div style={{ marginBottom: 16 }}>
-          <SeasonBanners />
-        </div>
-
-        <div style={{ display: 'flex', gap: 8, marginBottom: 16, overflowX: 'auto', paddingBottom: 4 }}>
-          <button
-            className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
-            data-testid="button-filter-categories"
-          >
-            Категории
-          </button>
-          <button
-            className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
-            data-testid="button-filter-location"
-          >
-            Вся Беларусь
-          </button>
-          <button
-            className="secondary"
-            style={{ whiteSpace: 'nowrap', padding: '7px 14px', fontSize: 13 }}
-            data-testid="button-filter-sort"
-          >
-            По новизне
-          </button>
-        </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
-          <button
-            className="primary"
-            style={{ 
-              padding: '14px', 
-              textAlign: 'left',
+        <main
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: '#F0F4FF',
               display: 'flex',
-              flexDirection: 'column',
-              gap: 4
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
             }}
-            data-testid="button-all-ads"
           >
-            <span style={{ fontSize: 15, fontWeight: 600 }}>Всего</span>
-            <span style={{ fontSize: 13, opacity: 0.9 }}>{ads.length} объявлений</span>
-          </button>
-          <button
-            className="primary"
-            style={{ 
-              padding: '14px', 
-              textAlign: 'left',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 4,
-              backgroundColor: '#10b981'
-            }}
-            data-testid="button-company-ads"
-          >
-            <span style={{ fontSize: 15, fontWeight: 600 }}>Товары компаний</span>
-            <span style={{ fontSize: 13, opacity: 0.9 }}>0 объявлений</span>
-          </button>
-        </div>
-
-        <div style={{ marginBottom: 12 }}>
-          <h2 style={{ margin: 0, fontSize: 16, fontWeight: 600 }} data-testid="text-all-ads-title">Все объявления</h2>
-        </div>
-
-        {loading ? (
-          <EmptyState title="Загружаем объявления" description="Подождите немного" />
-        ) : ads.length ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {ads.map((ad) => (
-              <AdCard key={ad._id} ad={ad} />
-            ))}
+            <MapPin size={36} color="#3A7BFF" />
           </div>
-        ) : (
-          <EmptyState
-            title="Объявлений не найдено"
-            description="Попробуйте изменить фильтры или выбрать другую категорию"
-            action={
-              sort === 'distance' ? (
-                <button type="button" className="secondary" onClick={requestLocation} data-testid="button-update-location">
-                  Обновить координаты
-                </button>
-              ) : undefined
-            }
-          />
-        )}
+          
+          <h2
+            style={{
+              margin: '0 0 12px',
+              fontSize: 22,
+              fontWeight: 700,
+              color: '#1F2937',
+              textAlign: 'center',
+            }}
+          >
+            Определите местоположение
+          </h2>
+          
+          <p
+            style={{
+              margin: '0 0 24px',
+              fontSize: 15,
+              color: '#6B7280',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}
+          >
+            Чтобы показать товары рядом с вами
+          </p>
+          
+          <button
+            onClick={requestLocation}
+            disabled={(geoStatus as string) === 'loading'}
+            data-testid="button-request-location"
+            style={{
+              width: '100%',
+              maxWidth: 300,
+              padding: '16px 24px',
+              background: '#3A7BFF',
+              color: '#FFFFFF',
+              border: 'none',
+              borderRadius: 12,
+              fontSize: 16,
+              fontWeight: 600,
+              cursor: (geoStatus as string) === 'loading' ? 'not-allowed' : 'pointer',
+              opacity: (geoStatus as string) === 'loading' ? 0.6 : 1,
+            }}
+          >
+            {(geoStatus as string) === 'loading' ? 'Получаем геолокацию...' : 'Определить местоположение'}
+          </button>
+        </main>
       </div>
+    );
+  }
 
-      <FilterDrawer
-        isOpen={showFilters}
-        onClose={() => setShowFilters(false)}
-        minPrice={minPrice}
-        maxPrice={maxPrice}
-        sort={sort}
-        onMinPriceChange={setMinPrice}
-        onMaxPriceChange={setMaxPrice}
-        onSortChange={(newSort) => {
-          setSort(newSort as typeof sort);
-          if (newSort === 'distance' && !coords) {
-            requestLocation();
-          }
+  if (isLoading && items.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          background: '#FFFFFF',
         }}
-        onRequestLocation={requestLocation}
-        coords={coords}
-        radiusKm={radiusKm}
-        onRadiusChange={setRadius}
-        geoStatus={status}
-        totalAds={ads.length}
-      />
+      >
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderBottom: '1px solid #F0F2F5',
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#1F2937',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            KETMAR
+          </h1>
+          <button
+            onClick={() => navigate('/notifications')}
+            data-testid="button-notifications"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: 'none',
+              background: '#F5F6F8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <Bell size={20} color="#6B7280" />
+          </button>
+        </header>
+
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <Loader2
+            size={48}
+            color="#3A7BFF"
+            style={{ animation: 'spin 1s linear infinite' }}
+          />
+          <p
+            style={{
+              marginTop: 16,
+              fontSize: 16,
+              color: '#6B7280',
+            }}
+          >
+            Загружаем ленту...
+          </p>
+        </div>
+
+        <style>{`
+          @keyframes spin {
+            to { transform: rotate(360deg); }
+          }
+        `}</style>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          background: '#FFFFFF',
+        }}
+      >
+        <header
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: '12px 16px',
+            borderBottom: '1px solid #E5E7EB',
+          }}
+        >
+          <h1
+            style={{
+              margin: 0,
+              fontSize: 20,
+              fontWeight: 700,
+              color: '#1F2937',
+              letterSpacing: '-0.5px',
+            }}
+          >
+            KETMAR
+          </h1>
+          <button
+            onClick={() => navigate('/notifications')}
+            data-testid="button-notifications"
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: '50%',
+              border: 'none',
+              background: '#F5F6F8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+            }}
+          >
+            <Bell size={20} color="#6B7280" />
+          </button>
+        </header>
+
+        <div
+          style={{
+            flex: 1,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: '#F5F6F8',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginBottom: 24,
+            }}
+          >
+            <MapPin size={36} color="#9CA3AF" />
+          </div>
+          
+          <h2
+            style={{
+              margin: '0 0 12px',
+              fontSize: 20,
+              fontWeight: 600,
+              color: '#1F2937',
+              textAlign: 'center',
+            }}
+          >
+            Нет товаров поблизости
+          </h2>
+          
+          <p
+            style={{
+              margin: 0,
+              fontSize: 15,
+              color: '#6B7280',
+              textAlign: 'center',
+              lineHeight: 1.5,
+            }}
+          >
+            В радиусе {FEED_RADIUS_KM} км пока нет объявлений с фото
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      data-testid="feed-container"
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        height: '100vh',
+        background: '#F5F6F8',
+        overflow: 'hidden',
+      }}
+    >
+      {/* Header - fixed at top */}
+      <header
+        style={{
+          position: 'sticky',
+          top: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '12px 16px',
+          background: '#FFFFFF',
+          borderBottom: '1px solid #E5E7EB',
+          zIndex: 50,
+          flexShrink: 0,
+        }}
+      >
+        <h1
+          style={{
+            margin: 0,
+            fontSize: 20,
+            fontWeight: 700,
+            color: '#1F2937',
+            letterSpacing: '-0.5px',
+          }}
+        >
+          KETMAR
+        </h1>
+        <button
+          onClick={() => navigate('/notifications')}
+          data-testid="button-notifications"
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: '50%',
+            border: 'none',
+            background: '#F5F6F8',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+          }}
+        >
+          <Bell size={20} color="#6B7280" />
+        </button>
+      </header>
+
+      {/* Main content - Instagram-style infinite scroll */}
+      <main
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        style={{
+          flex: 1,
+          overflowY: 'auto',
+          overflowX: 'hidden',
+          scrollSnapType: 'y mandatory',
+          WebkitOverflowScrolling: 'touch',
+        }}
+      >
+        {infiniteItems.map((item, index) => {
+          const realIndex = index % itemsPerSet;
+          const nextRealIndex = (realIndex + 1) % itemsPerSet;
+          const nextItem = items[nextRealIndex];
+          
+          return (
+            <div
+              key={`${item._id}-${index}`}
+              data-index={index}
+              style={{
+                height: 'calc(100vh - 65px - env(safe-area-inset-bottom) - 60px)',
+                scrollSnapAlign: 'start',
+                scrollSnapStop: 'always',
+                padding: '8px 16px 16px',
+                boxSizing: 'border-box',
+              }}
+            >
+              <FeedCard
+                item={item}
+                onLike={handleLike}
+                onViewOpen={handleViewOpen}
+                isActive={realIndex === currentIndex}
+                nextImageUrl={nextItem?.previewUrl || nextItem?.images?.[0] || nextItem?.photos?.[0]}
+                isLiked={favoriteIds.has(item._id)}
+              />
+            </div>
+          );
+        })}
+      </main>
+
+      {/* Swipe hint overlay */}
+      {showSwipeHint && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={dismissHint}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0,0,0,0.75)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 100,
+            gap: 20,
+          }}
+        >
+          <motion.div
+            animate={{ y: [-8, 8, -8] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <ChevronUp size={36} color="#fff" />
+            <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
+              Свайп вверх
+            </span>
+          </motion.div>
+          
+          <div
+            style={{
+              width: 56,
+              height: 90,
+              border: '2px solid rgba(255,255,255,0.4)',
+              borderRadius: 28,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <motion.div
+              animate={{ y: [-18, 18, -18] }}
+              transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+              style={{
+                width: 6,
+                height: 20,
+                background: '#fff',
+                borderRadius: 3,
+              }}
+            />
+          </div>
+          
+          <motion.div
+            animate={{ y: [8, -8, 8] }}
+            transition={{ repeat: Infinity, duration: 1.5, ease: 'easeInOut' }}
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
+            <span style={{ fontSize: 15, color: '#fff', fontWeight: 500 }}>
+              Свайп вниз
+            </span>
+            <ChevronDown size={36} color="#fff" />
+          </motion.div>
+          
+          <p
+            style={{
+              fontSize: 13,
+              color: 'rgba(255,255,255,0.6)',
+              marginTop: 12,
+            }}
+          >
+            Нажмите чтобы продолжить
+          </p>
+        </motion.div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
     </div>
   );
 }

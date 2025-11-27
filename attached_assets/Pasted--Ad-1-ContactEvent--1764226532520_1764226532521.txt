@@ -1,0 +1,309 @@
+Идея: не трогаем Ad, добавляем слой «контакт + оценка»
+Новые сущности (коллекции)
+
+1) ContactEvent — факт, что человек реально пытался связаться по объявлению.
+
+// contacts
+{
+  _id: ObjectId,
+  adId: ObjectId,
+  sellerId: ObjectId,
+  buyerId: ObjectId,      // кто связался (если есть авторизация)
+  channel: "phone" | "tg" | "chat",
+  createdAt: Date
+}
+
+
+2) AdFeedback — оценка конкретного объявления после контакта.
+
+// feedback
+{
+  _id: ObjectId,
+  adId: ObjectId,
+  sellerId: ObjectId,
+  buyerId: ObjectId,        // тот же, что в ContactEvent
+  contactId: ObjectId,      // ссылкой на ContactEvent
+  score: 1 | 2 | 3 | 4 | 5,
+  reasonCode?: string,      // enum, только для 1–3
+  comment?: string,         // короткий комментарий
+  createdAt: Date
+}
+
+
+Важно:
+Ad и User можно не трогать «глубоко» — только добавить туда агрегированные поля.
+
+2. Как это будет работать по логике
+Шаг 1. Пользователь связался
+
+В карточке/деталке объявления:
+
+кнопка Позвонить / Написать в Telegram / Открыть чат
+
+При нажатии:
+
+ты всё равно сейчас логируешь это или можешь легко добавить:
+
+создаём ContactEvent
+
+Именно по ContactEvent потом разрешаем оставить оценку (чтобы избежать фейковых оценок без контакта).
+
+Шаг 2. Предложение оценить
+
+Ты хочешь:
+
+5 — просто сохраняем
+
+4 — сохраняем, но без доп. вопросов
+
+1–3 — спрашиваем причину
+
+Вариант UX:
+
+Через 5–10 минут после контакта (или при следующем заходе в MiniApp) показываем:
+
+«Как прошёл контакт с продавцом по этому объявлению?»
+
+пятизвёздочный рейтинг.
+
+Пользователь ставит:
+
+5 → сразу отправляем на сервер score: 5
+
+4 → отправляем score: 4
+
+3–1 → после выбора оценки показываем быстрый чек-лист причин:
+
+«Не отвечает»
+
+«Фейковое объявление / товар не существует»
+
+«Цена не совпадает с заявленной»
+
+«Грубое общение»
+
+«Другое (поле для текста)»
+
+И только после выбора причины шлём на backend.
+
+3. Агрегация: как получить «звёзды продавца»
+На уровне объявления (Ad)
+
+В Ad можно просто держать кэш:
+
+// в модели Ad
+ratingSummary: {
+  avgScore: number;        // 1.0–5.0
+  totalVotes: number;      // всего оценок
+  lastRatedAt?: Date;      // когда последний раз оценили
+}
+
+
+Каждый новый AdFeedback → обновляем ratingSummary инкрементально:
+
+newAvg = (oldAvg * totalVotes + newScore) / (totalVotes + 1)
+
+totalVotes++
+
+На уровне продавца (User / SellerProfile)
+// в User или SellerProfile
+sellerRating: {
+  avgScore: number;             // средняя по всем объявлениям
+  totalVotes: number;           // сколько всего оценок
+  lowScoreCount: number;        // сколько оценок 1–2
+  fraudFlags?: number;          // сколько раз отмечали "фейк"
+  lastRatedAt?: Date;
+}
+
+
+Логика:
+
+При каждом AdFeedback обновляем:
+
+общую среднюю
+
+счётчики плохих оценок
+
+если reasonCode == "fake" → fraudFlags++
+
+4. Антифейк-логика (внутренняя, без показа пользователю на старте)
+
+Пока ты хочешь «для себя анализировать». Значит:
+
+Внутренние правила (пример)
+
+Подозрительное объявление:
+
+totalVotes >= 3 и
+
+avgScore <= 2.5
+
+или fraudFlags >= 2 за последние 30 дней
+
+→ Помечаем Ad флагом:
+
+ad.flags = { suspicious: true, reason: "low_rating_or_fraud" }
+
+
+Авто-скрытие / отправка на модерацию:
+
+totalVotes >= 5 и avgScore <= 2.0
+→ автоматически:
+
+либо скрываем из выдачи,
+
+либо отправляем в очередь модерации.
+
+Рейтинг продавца:
+
+при большом количестве низких оценок:
+
+снижаем приоритет его объявлений в выдаче,
+
+в будущем можем поставить пометку «низкий рейтинг».
+
+5. Как не ломать текущую систему
+
+Ты переживаешь за структуру и API — делаем мягко:
+
+Новое API, не меняя старое:
+
+POST /api/ads/:adId/contacts
+→ логирует факт контакта, возвращает contactId.
+
+POST /api/ads/:adId/feedback
+
+{
+  "contactId": "…",
+  "score": 1-5,
+  "reasonCode": "fake | no_answer | price_mismatch | rude | other",
+  "comment": "опционально"
+}
+
+
+GET /api/ads/:adId/rating-summary
+→ возвращает ratingSummary.
+
+GET /api/sellers/:sellerId/rating-summary
+→ sellerRating.
+
+Старые эндпоинты поиска/вывода объявлений не трогаем.
+Просто начинаем в выдаче подмешивать ratingSummary, если он есть.
+
+На UI:
+
+если нет оценок — ничего не показываем (или «Мало оценок»).
+
+когда уже соберётся статистика — можно включить:
+
+⭐ звёзды,
+
+бейдж «Надёжный продавец».
+
+6. Защита от накруток
+
+Чтобы звёзды были честными:
+
+Один пользователь → одна оценка на одно объявление.
+
+Лучше вообще требовать, чтобы был ContactEvent (без него не даём поставить оценку).
+
+Можно вводить «вес» пользователя (со временем, когда появятся постоянные покупатели).
+
+Не даём оценивать свои объявления (sellerId != buyerId).
+
+7. Мини-план внедрения (по шагам)
+
+Backend:
+
+Добавить модели ContactEvent и AdFeedback.
+
+Добавить ratingSummary в Ad.
+
+Добавить sellerRating в User/SellerProfile.
+
+Написать сервис/хелпер RatingService для обновления агрегатов.
+
+API:
+
+POST /contacts (лог контакта).
+
+POST /feedback (оставить оценку).
+
+GET для summary.
+
+MiniApp / Web:
+
+Логика кнопки «Связаться» → вызывает /contacts.
+
+После контакта показывать «Оцените сделку» (через пуш, попап или на главном экране блок «Недавно связались — оцените»).
+
+Форма оценки с логикой 5/4/1–3.
+
+Внутренний кабинет модерации / аналитики:
+
+Таблица объявлений с колонками:
+
+avgScore
+
+totalVotes
+
+fraudFlags
+
+Фильтр «Подозрительные» для ручной проверки.
+
+8. Хочешь — вот заготовка под PROMPT для Codex/Replit
+
+Если будешь сразу отдавать в код, можешь бросить что-то такое (сократишь/дополнишь под свой репо):
+
+PROMPT ДЛЯ CODEX:
+
+В существующем проекте маркетплейса (Node.js + MongoDB + MiniApp):
+
+Добавь поддержку оценок объявлений и продавцов, не ломая текущий API:
+
+Новые коллекции:
+
+ContactEvent { adId, sellerId, buyerId, channel, createdAt }
+
+AdFeedback { adId, sellerId, buyerId, contactId, score (1–5), reasonCode?, comment?, createdAt }
+
+В Ad добавь поле ratingSummary: { avgScore, totalVotes, lastRatedAt }.
+
+В User или SellerProfile добавь sellerRating: { avgScore, totalVotes, lowScoreCount, fraudFlags, lastRatedAt }.
+
+Реализуй endpoints:
+
+POST /api/ads/:adId/contacts → создаёт ContactEvent.
+
+POST /api/ads/:adId/feedback → валидирует, что есть ContactEvent для этого buyerId + adId, создаёт AdFeedback, обновляет ratingSummary у Ad и sellerRating у продавца.
+
+GET /api/ads/:adId/rating-summary → возвращает ratingSummary.
+
+GET /api/sellers/:sellerId/rating-summary → возвращает sellerRating.
+
+Логика оценок:
+
+score = 5 → просто сохраняем оценку.
+
+score = 4 → сохраняем, без reasonCode.
+
+score = 1–3 → в запросе обязательный reasonCode из enum:
+
+"fake", "no_answer", "price_mismatch", "rude", "other".
+
+Если reasonCode = "fake" → увеличиваем fraudFlags у продавца.
+
+Агрегация:
+
+Обновление avgScore делать инкрементально, без пересчёта всех записей.
+
+Хелпер RatingService с методами:
+
+addAdFeedback(adId, sellerId, buyerId, contactId, score, reasonCode?, comment?)
+
+внутренние методы обновления агрегатов по Ad и Seller.
+
+На будущее:
+
+предусмотреть флаги для авто-модерации: если у Ad низкое среднее и много "fake" → отдельный флаг flags.suspicious = true.

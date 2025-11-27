@@ -1,6 +1,6 @@
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Compass, ShoppingBag, Heart, User } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { getTelegramWebApp } from '@/utils/telegram';
 
 const tabs = [
   { path: '/', label: 'Главная', Icon: Home },
@@ -12,144 +12,93 @@ const tabs = [
 
 export default function BottomTabs() {
   const location = useLocation();
+  const isTelegramWebApp = !!getTelegramWebApp();
+
+  if (!isTelegramWebApp) {
+    return null;
+  }
 
   return (
     <nav
       data-testid="bottom-tabs"
       style={{
-        position: 'sticky',
+        position: 'fixed',
+        left: 0,
+        right: 0,
         bottom: 0,
-        background: 'linear-gradient(to top, rgba(255,255,255,0.98), rgba(255,255,255,0.95))',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-        padding: '8px 12px calc(env(safe-area-inset-bottom) + 8px)',
-        boxShadow: '0 -2px 20px rgba(15, 23, 42, 0.08), 0 -1px 0 rgba(15, 23, 42, 0.05)',
-        borderTopLeftRadius: 20,
-        borderTopRightRadius: 20,
-        marginTop: 'auto',
-        zIndex: 20,
+        background: '#FFFFFF',
+        padding: '8px 0 calc(env(safe-area-inset-bottom) + 8px)',
+        borderTop: '1px solid #E5E7EB',
+        zIndex: 100,
       }}
     >
       <div
         style={{
           display: 'flex',
-          justifyContent: 'space-around',
           alignItems: 'center',
-          gap: 4,
+          maxWidth: 500,
+          margin: '0 auto',
         }}
       >
         {tabs.map((tab) => {
-          const isActive = location.pathname === tab.path;
+          const isActive = location.pathname === tab.path || 
+            (tab.path === '/' && location.pathname === '/home');
           
           return (
             <NavLink
               key={tab.path}
               to={tab.path}
-              data-testid={`tab-${tab.label.toLowerCase()}`}
+              data-testid={`tab-${tab.path === '/' ? 'home' : tab.path.slice(1)}`}
               style={{
-                position: 'relative',
+                flex: 1,
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 4,
-                padding: '8px 16px',
+                padding: '8px 4px',
                 textDecoration: 'none',
-                borderRadius: 14,
-                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-                flex: 1,
-                minWidth: 0,
+                position: 'relative',
               }}
             >
-              <motion.div
-                initial={false}
-                animate={{
-                  scale: isActive ? 1 : 1,
-                  y: isActive ? -2 : 0,
-                }}
-                transition={{
-                  type: 'spring',
-                  stiffness: 400,
-                  damping: 25,
-                }}
-                style={{
-                  position: 'relative',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                }}
-              >
-                {isActive && (
-                  <motion.div
-                    layoutId="activeTab"
-                    style={{
-                      position: 'absolute',
-                      inset: -8,
-                      background: 'linear-gradient(135deg, rgba(37, 99, 235, 0.12), rgba(124, 58, 237, 0.12))',
-                      borderRadius: 12,
-                      zIndex: -1,
-                    }}
-                    transition={{
-                      type: 'spring',
-                      stiffness: 400,
-                      damping: 30,
-                    }}
-                  />
-                )}
-                
-                <tab.Icon
-                  size={22}
-                  strokeWidth={isActive ? 2.5 : 2}
+              {isActive && (
+                <div
                   style={{
-                    color: isActive
-                      ? '#2563eb'
-                      : '#64748b',
-                    transition: 'all 0.3s ease',
+                    position: 'absolute',
+                    bottom: -8,
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    width: 24,
+                    height: 2,
+                    background: '#3A7BFF',
+                    borderRadius: 1,
                   }}
                 />
-              </motion.div>
-
-              <motion.span
-                initial={false}
-                animate={{
-                  opacity: isActive ? 1 : 0.7,
-                  scale: isActive ? 1 : 0.95,
-                }}
-                transition={{
-                  duration: 0.2,
-                }}
+              )}
+              <tab.Icon
+                size={24}
+                fill={isActive ? '#3A7BFF' : 'none'}
+                strokeWidth={isActive ? 2 : 1.5}
                 style={{
-                  fontSize: '0.7rem',
-                  fontWeight: isActive ? 700 : 600,
-                  color: isActive ? '#2563eb' : '#64748b',
-                  transition: 'all 0.3s ease',
+                  color: isActive ? '#3A7BFF' : '#9CA3AF',
+                  transition: 'all 0.2s ease',
+                }}
+              />
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? '#3A7BFF' : '#9CA3AF',
+                  transition: 'all 0.2s ease',
                   whiteSpace: 'nowrap',
                   overflow: 'hidden',
                   textOverflow: 'ellipsis',
                   maxWidth: '100%',
+                  textAlign: 'center',
                 }}
               >
                 {tab.label}
-              </motion.span>
-
-              {isActive && (
-                <motion.div
-                  layoutId="activeIndicator"
-                  style={{
-                    position: 'absolute',
-                    bottom: 0,
-                    width: 24,
-                    height: 3,
-                    background: 'linear-gradient(90deg, #2563eb, #7c3aed)',
-                    borderRadius: '999px 999px 0 0',
-                  }}
-                  transition={{
-                    type: 'spring',
-                    stiffness: 400,
-                    damping: 30,
-                  }}
-                />
-              )}
+              </span>
             </NavLink>
           );
         })}

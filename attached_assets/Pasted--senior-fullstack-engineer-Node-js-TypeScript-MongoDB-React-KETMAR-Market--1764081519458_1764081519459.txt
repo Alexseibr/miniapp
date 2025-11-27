@@ -1,0 +1,471 @@
+Ты — senior fullstack engineer (Node.js + TypeScript + MongoDB + React) в проекте KETMAR Market.
+
+Нужно реализовать СИСТЕМУ СРАВНЕНИЯ ЦЕН на уровне всего маркетплейса.
+
+ЦЕЛЬ:
+
+1) Продавцу — при создании/редактировании объявления показывать:
+   - среднюю цену по похожим объявлениям,
+   - ценовой коридор (min–max, возможно медиана),
+   - “рекомендуемую” цену.
+
+2) Покупателю — в ленте и на карточке объявления:
+   - бейдж **“ниже рынка на X% / по рынку / выше рынка на X%”**,
+   - для квартир — показывать цену за м² и сравнение с районом/городом,
+   - для авто — сравнение по марке+модели+году,
+   - для телефонов — сравнение по модели + объёму памяти (например, iPhone 15 Pro 512 GB).
+
+3) Анализ делаем по сделкам за ПОСЛЕДНЮЮ НЕДЕЛЮ,  
+   но если мало данных — расширяем окно анализа (до 30/90 дней).
+
+======================================
+0. ТРЕБОВАНИЯ К АРХИТЕКТУРЕ
+======================================
+
+Нужно реализовать:
+
+- МОДЕЛЬ нормализованных атрибутов для сравнения (телефон/авто/квартира).
+- СЕРВИС `PriceAnalyticsService` на backend:
+  - выбор выборки “похожих” объявлений,
+  - динамическое окно по времени (неделя → месяц → 3 месяца),
+  - агрегация по цене (min, max, avg, median, count),
+  - отдельные правила для:
+    - телефонов/электроники,
+    - машин,
+    - квартир/недвижимости,
+    - общих категорий (fallback).
+- REST API для фронта (продавец + покупатель).
+- КЭШИРОВАНИЕ (микро): не пересчитывать постоянно для одного и того же объявления.
+
+Стек backend: Node.js + Express/Nest + Mongoose (смотри по проекту).
+
+======================================
+1. НОРМАЛИЗАЦИЯ ДАННЫХ В МОДЕЛИ Ad
+======================================
+
+Найди модель объявлений `Ad` и ДОБАВЬ/УТОЧНИ НОРМАЛИЗОВАННЫЕ ПОЛЯ:
+
+Общие:
+
+```ts
+categorySlug: string;      // 'electronics', 'cars', 'realty', ...
+subcategorySlug?: string;  // 'smartphones', 'laptops', 'apartments', ...
+price: number;             // BYN
+createdAt: Date;
+status: 'active' | ...;    // объявления только со статусом active участвуют в рынке
+geoCity?: string;          // 'Брест'
+geoArea?: string;          // 'Гершоны', 'Центр'
+geoLabel?: string;         // 'Брест (Гершоны)' etc.
+=== Телефоны / электроника ===
+
+Для смартфонов, ноутбуков и т.п. сделай:
+
+ts
+Копировать код
+brand?: string;        // 'Apple'
+model?: string;        // 'iPhone 15 Pro'
+storageGb?: number;    // 128, 256, 512
+ramGb?: number;        // опционально
+Эти поля нужны, чтобы сравнивать iPhone 15 Pro 512GB с такими же.
+
+=== Автомобили ===
+
+Для автомобилей:
+
+ts
+Копировать код
+carMake?: string;       // 'BMW'
+carModel?: string;      // 'X5'
+carYear?: number;       // 2018
+carEngineVolume?: number; // л, опционально
+carTransmission?: string; // 'auto'/'manual', опционально
+Основной ключ сравнения = carMake + carModel + carYear (плюс регион).
+
+=== Квартиры / недвижимость ===
+
+Для квартир:
+
+ts
+Копировать код
+realtyType?: 'apartment' | 'house' | 'room' | ...;
+realtyRooms?: number;       // 1, 2, 3...
+realtyAreaTotal?: number;   // общая площадь м²
+realtyCity?: string;        // 'Брест'
+realtyDistrict?: string;    // 'Гершоны', 'Центр', etc.
+pricePerSqm?: number;       // вычисляемое поле price / realtyAreaTotal
+Сделай pre-save hook, который, если realtyAreaTotal и price заданы, ставит:
+
+ts
+Копировать код
+if (this.realtyAreaTotal && this.price) {
+  this.pricePerSqm = this.price / this.realtyAreaTotal;
+}
+======================================
+2. PriceAnalyticsService (BACKEND)
+Создай сервис, например:
+
+backend/services/PriceAnalyticsService.ts
+
+Основная идея:
+
+ts
+Копировать код
+interface PriceStats {
+  count: number;
+  avgPrice: number | null;
+  minPrice: number | null;
+  maxPrice: number | null;
+  medianPrice?: number | null;
+  avgPricePerSqm?: number | null; // для квартир
+  diffPercent?: number | null;    // разница текущей цены от avg
+  windowDays: number;             // окно анализа (7/30/90)
+}
+
+class PriceAnalyticsService {
+  async getStatsForAd(adId: string): Promise<PriceStats | null> { ... }
+  async getStatsForAdData(input: PriceContextInput): Promise<PriceStats | null> { ... }
+}
+Где PriceContextInput содержит минимальный набор:
+
+categorySlug,
+
+price,
+
+normalized поля для конкретной категории
+(brand/model/storage или carMake/carModel/carYear, или realtyCity/realtyAreaTotal/realtyRooms и т.д.).
+
+2.1. Общая логика окна по времени
+Правило:
+
+Сначала ищем похожие объявления за последние 7 дней.
+
+Если найдено МЕНЬШЕ N (например, < 10) активных объявлений:
+
+расширяем окно до 30 дней.
+
+Если всё ещё мало (< 10) — расширяем до 90 дней.
+
+Дальше не расширяем.
+
+Реализуй helper:
+
+ts
+Копировать код
+async function collectWithDynamicWindow(
+  baseMatch: FilterQuery<Ad>,
+  thresholds = { minCount: 10, windows: [7, 30, 90] }
+): Promise<{ stats: PriceStats; windowDays: number } | null> { ... }
+Внутри:
+
+для каждого days в windows:
+
+добавляем createdAt: { $gte: now - days },
+
+считаем count, avg, min, max, median,
+
+если count >= minCount — возвращаем.
+
+если даже на 90 днях count == 0 — возвращаем null (нет рынка).
+
+2.2. Категория: Телефоны / электроника
+Для объявлений типа electronics/smartphones:
+
+Формируем baseMatch:
+
+ts
+Копировать код
+{
+  status: 'active',
+  categorySlug: 'electronics',
+  subcategorySlug: 'smartphones',
+  brand: currentAd.brand,
+  model: currentAd.model,
+  storageGb: currentAd.storageGb,
+  price: { $gt: 0 }
+}
+Нужно исключить текущий adId, если он уже создан:
+
+ts
+Копировать код
+{ _id: { $ne: currentAd._id } }
+Вызываем collectWithDynamicWindow(baseMatch).
+
+Считаем diffPercent:
+
+ts
+Копировать код
+diffPercent = (currentPrice - avgPrice) / avgPrice * 100;
+2.3. Категория: Автомобили
+Для categorySlug = 'cars':
+
+baseMatch:
+
+ts
+Копировать код
+{
+  status: 'active',
+  categorySlug: 'cars',
+  carMake: currentAd.carMake,
+  carModel: currentAd.carModel,
+  carYear: currentAd.carYear,
+  price: { $gt: 0 }
+}
+Можно добавить ограничение по региону:
+
+ts
+Копировать код
+geoCity: currentAd.geoCity
+(для начала можно пропустить, если мало данных).
+
+Дальше всё как выше: окно 7/30/90, diffPercent, etc.
+
+2.4. Категория: Квартиры / недвижимость
+Для categorySlug = 'realty' и realtyType = 'apartment':
+
+МЫ СРАВНИВАЕМ цену за м² по району/городу.
+
+baseMatch:
+
+ts
+Копировать код
+{
+  status: 'active',
+  categorySlug: 'realty',
+  realtyType: 'apartment',
+  realtyCity: currentAd.realtyCity,
+  realtyDistrict: currentAd.realtyDistrict, // если есть
+  pricePerSqm: { $gt: 0 }
+}
+В агрегации:
+
+вместо price рассчитываем статистику по pricePerSqm.
+
+В итоговый PriceStats:
+
+ts
+Копировать код
+avgPricePerSqm = ...;
+avgPrice = avgPricePerSqm * currentAd.realtyAreaTotal;
+diffPercent считаем относительно avgPrice, либо отдельно для за м².
+
+Если в районе мало данных — fallback:
+
+расширяем до города (без district),
+
+если всё равно мало — null.
+
+2.5. Fallback для остальных категорий
+Если это не электроника, не авто и не квартиры:
+
+базовое сравнение по:
+
+categorySlug,
+
+subcategorySlug,
+
+и, возможно, geoCity.
+
+ts
+Копировать код
+{
+  status: 'active',
+  categorySlug,
+  subcategorySlug,
+  price: { $gt: 0 }
+}
+Дальше стандартная динамика окна.
+
+======================================
+3. API: ДЛЯ ПРОДАВЦА (подсказка цены)
+Сделать эндпоинт:
+
+GET /api/pricing/ad/:adId/market
+
+backend ищет объявление по adId,
+
+определяет тип (электроника/авто/realty/другое),
+
+вызывает PriceAnalyticsService.getStatsForAd(adId),
+
+возвращает:
+
+json
+Копировать код
+{
+  "adId": "...",
+  "hasMarketData": true,
+  "windowDays": 30,
+  "count": 24,
+  "avgPrice": 2850,
+  "minPrice": 2600,
+  "maxPrice": 3100,
+  "medianPrice": 2820,
+  "avgPricePerSqm": null,
+  "diffPercent": -5.3,
+  "labels": {
+    "marketLevel": "below", // "below" | "fair" | "above"
+    "messageForSeller": "Ваша цена ниже средней по рынку на 5%",
+    "recommendedPriceRange": {
+      "from": 2700,
+      "to": 3000
+    }
+  }
+}
+Если рынка нет (null) — вернуть:
+
+json
+Копировать код
+{ "hasMarketData": false }
+Frontend (шаг ввода цены продавцом):
+
+если hasMarketData:
+
+показать блок:
+
+"Средняя цена на похожие объявления: 2 850 BYN (за последние 30 дней)"
+
+"Диапазон: 2 700–3 100 BYN"
+
+"Ваша цена ниже/выше рынка на X%."
+
+подсознательно подсветить “рекомендуемый диапазон”.
+
+======================================
+4. API: ДЛЯ ПОКУПАТЕЛЯ (бейджи на карточке)
+Нужно получать diffPercent для каждой карточки объявления.
+
+Вариант:
+
+добавить lightweight endpoint:
+
+GET /api/pricing/brief/:adId
+
+→ возвращает:
+
+json
+Копировать код
+{
+  "adId": "...",
+  "hasMarketData": true,
+  "diffPercent": -12.4,
+  "marketLevel": "below" // "below" | "fair" | "above"
+}
+НО лучше:
+
+кэшировать результат в самом Ad или в отдельной коллекции AdPriceSnapshot,
+чтобы не считать каждый раз.
+
+Сделай:
+
+ts
+Копировать код
+interface AdPriceSnapshot {
+  adId: ObjectId;
+  avgPrice: number | null;
+  diffPercent: number | null;
+  marketLevel: 'below' | 'fair' | 'above' | 'unknown';
+  windowDays: number;
+  updatedAt: Date;
+}
+И:
+
+при создании/обновлении объявления или раз в N часов worker-ом пересчитывать snapshot.
+
+при выдаче ленты/поиска делать $lookup или отдельный запрос батчем.
+
+Фронтенд:
+
+если marketLevel === 'below' и diffPercent <= -5:
+
+маленький зелёный бейдж на карточке:
+
+"Цена ниже рынка на 5%"
+
+если fair (|diff| <= 5%):
+
+серый бейдж "Цена по рынку"
+
+если above и diffPercent >= 10:
+
+можно показывать "Цена выше рынка на 12%" (аккуратно, не агрессивно).
+
+Для квартир в детали объявление:
+
+"Цена: 100 000 BYN (1 250 BYN/м²)"
+
+"Средняя по району: 1 400 BYN/м²"
+
+"Ниже средней на 11%".
+
+======================================
+5. WORKER / КЭШИРОВАНИЕ
+Чтобы не грузить БД:
+
+сделать job, которая раз в час/два пересчитывает snapshot для новых/популярных объявлений.
+
+Файл:
+
+backend/jobs/recalculatePriceSnapshots.ts
+
+Логика:
+
+находить объявления:
+
+созданные за последние 7–30 дней,
+
+активно показываемые (можно брать top по impressions, если есть метрика),
+
+для каждого вызвать PriceAnalyticsService и обновить/создать AdPriceSnapshot.
+
+Запускать по cron, как мы делали для отложенной публикации:
+
+ts
+Копировать код
+if (process.env.ENABLE_CRON === 'true') {
+  import './jobs/recalculatePriceSnapshots';
+}
+======================================
+6. ФРОНТЕНД: КАК ИСПОЛЬЗОВАТЬ
+При вводе цены продавцом:
+
+как только заполнены ключевые параметры (категория, модель, объём памяти / марка+модель+год / площадь и т.п.):
+
+дернуть GET /api/pricing/ad/:adId/market или .../suggest для не сохранённой черновой карточки (можно отправлять PriceContextInput).
+
+показать блок с средней ценой и рекомендацией.
+
+В ленте объявлений:
+
+при загрузке списка дополнительно запросить pricing-снимки (или получать их вместе с объявлениями),
+
+выводить бейджи “ниже рынка / по рынку / выше рынка”.
+
+В деталях объявлений:
+
+для квартир показывать блок "Цена за м²" + сравнение по району/городу,
+
+для машин и телефонов — короткий текст:
+
+"Средняя цена на ${model}, ${storageGb} GB — 2 900 BYN. Это объявление дешевле на 7%.".
+
+======================================
+7. В КОНЦЕ — ОТЧЁТ
+По завершению:
+
+Выведи список изменённых/созданных файлов и краткое описание:
+
+Ad.model.ts — добавлены нормализованные поля (brand/model/storage, carMake/carModel/carYear, realtyArea/pricePerSqm).
+
+PriceAnalyticsService.ts — сервис агрегации цен с динамическим окном.
+
+AdPriceSnapshot.model.ts — кэш результатов по объявлениям.
+
+pricing.routes.ts / контроллеры — endpoints для продавца и покупателя.
+
+recalculatePriceSnapshots.ts — cron-job пересчёта.
+
+Предложи ветку и коммит:
+
+ветка: feature/price-analytics-market-comparison
+
+коммит: feat(pricing): market-wide price analytics for phones, cars and realty with seller hints and buyer badges

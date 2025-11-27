@@ -97,7 +97,7 @@ export default function Products() {
                           </button>
                           <div className="text-right">
                             <p className="text-2xl font-bold text-green-600" data-testid={`text-price-${ad._id}`}>
-                              {ad.price} BYN
+                              {ad.price} руб.
                             </p>
                             <p className="text-xs text-muted-foreground mt-1">
                               ID: {ad._id.slice(-6)}

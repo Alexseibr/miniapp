@@ -1,5 +1,5 @@
 import http from './http';
-import { Ad, AdPreview, AdsResponse } from '@/types';
+import { Ad, AdPreview, AdsResponse, NearbyStatsResponse } from '@/types';
 
 export interface ListAdsParams {
   categoryId?: string;
@@ -15,6 +15,8 @@ export interface ListAdsParams {
   radiusKm?: number;
   minPrice?: number;
   maxPrice?: number;
+  brands?: string;
+  signal?: AbortSignal;
 }
 
 export interface NearbyAdsParams {
@@ -35,7 +37,11 @@ export async function getAd(id: string, params?: { lat?: number; lng?: number })
 }
 
 export async function listNearbyAds(params: ListAdsParams): Promise<AdsResponse> {
-  const response = await http.get('/api/ads/nearby', { params });
+  const { signal, ...queryParams } = params;
+  const response = await http.get('/api/ads/nearby', { 
+    params: queryParams,
+    signal 
+  });
   return response.data;
 }
 
@@ -59,6 +65,11 @@ export interface CreateAdPayload {
   photos?: string[];
   sellerTelegramId: number;
   city?: string;
+  geoLabel?: string;
+  contactType?: 'telegram_phone' | 'telegram_username' | 'instagram' | 'none';
+  contactPhone?: string;
+  contactUsername?: string;
+  contactInstagram?: string;
   deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup';
   deliveryRadiusKm?: number;
   location?: {
@@ -69,6 +80,7 @@ export interface CreateAdPayload {
       coordinates: [number, number];
     };
   };
+  publishAt?: string;
 }
 
 export async function fetchMyAds(sellerTelegramId: number) {
@@ -84,4 +96,76 @@ export async function fetchMyAds(sellerTelegramId: number) {
 export async function createAd(payload: CreateAdPayload) {
   const response = await http.post('/api/ads', payload);
   return response.data as Ad;
+}
+
+export async function getSimilarAds(adId: string, subcategoryId: string, limit: number = 6): Promise<AdsResponse> {
+  const response = await http.get('/api/ads/search', {
+    params: {
+      subcategoryId,
+      limit,
+      sort: 'createdAt_desc'
+    }
+  });
+  const items = (response.data.items || []).filter((item: AdPreview) => item._id !== adId);
+  return {
+    ...response.data,
+    items: items.slice(0, limit)
+  };
+}
+
+export interface NearbyStatsParams {
+  lat: number;
+  lng: number;
+  radiusKm: number;
+  signal?: AbortSignal;
+}
+
+export async function getNearbyStats(params: NearbyStatsParams): Promise<NearbyStatsResponse> {
+  const { signal, ...queryParams } = params;
+  const response = await http.get('/api/ads/nearby-stats', { 
+    params: queryParams,
+    signal 
+  });
+  return response.data;
+}
+
+// ========== Analytics Tracking ==========
+
+const trackedImpressions = new Set<string>();
+
+export async function trackImpression(adId: string): Promise<void> {
+  if (trackedImpressions.has(adId)) return;
+  trackedImpressions.add(adId);
+  
+  try {
+    await http.post(`/api/ads/${adId}/track-impression`);
+  } catch (error) {
+    console.warn('[trackImpression]', error);
+  }
+}
+
+export async function trackView(adId: string): Promise<void> {
+  try {
+    await http.post(`/api/ads/${adId}/track-view`);
+  } catch (error) {
+    console.warn('[trackView]', error);
+  }
+}
+
+export async function trackContact(adId: string): Promise<void> {
+  try {
+    await http.post(`/api/ads/${adId}/track-contact`);
+  } catch (error) {
+    console.warn('[trackContact]', error);
+  }
+}
+
+export async function trackContactReveal(adId: string): Promise<{ success: boolean; contactRevealCount?: number }> {
+  try {
+    const response = await http.post(`/api/ads/${adId}/contact-reveal`);
+    return response.data;
+  } catch (error) {
+    console.warn('[trackContactReveal]', error);
+    return { success: false };
+  }
 }

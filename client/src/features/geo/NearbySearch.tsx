@@ -214,7 +214,7 @@ export function NearbySearch() {
                     <div className="text-right space-y-1 min-w-[140px]">
                       {typeof ad.price === "number" && (
                         <p className="text-2xl font-bold text-green-600">
-                          {ad.price} {ad.currency ?? "BYN"}
+                          {ad.price} руб.
                         </p>
                       )}
                       {typeof ad.distanceKm === "number" && (

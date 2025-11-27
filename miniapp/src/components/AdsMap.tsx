@@ -123,7 +123,7 @@ export function AdsMap({
                         marginBottom: '4px',
                       }}
                     >
-                      {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+                      {ad.price.toLocaleString('ru-RU')} руб.
                     </div>
                   )}
                   {ad.city && (

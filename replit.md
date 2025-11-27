@@ -1,156 +1,113 @@
 # KETMAR Market
 
 ## Overview
-
-KETMAR Market is a Telegram-based marketplace application for buying and selling goods, featuring seasonal promotions and hierarchical product categories. It comprises a REST API backend (Express.js, MongoDB), a Telegram bot interface (Telegraf), a React-based admin panel for marketplace management, and a React-based Telegram MiniApp for mobile users.
+KETMAR Market is a Telegram-based marketplace for buying and selling goods, featuring seasonal promotions and a hierarchical product categorization system. It includes a REST API backend, a Telegram bot, a React administration panel, and a React-based Telegram MiniApp. The project aims to provide a comprehensive and intuitive e-commerce experience within Telegram, focusing on efficient advertisement management, engaging user interfaces with 3D icons, and real-time chat. The business vision is to establish a user-friendly e-commerce platform leveraging the Telegram ecosystem to capture a significant share of the mobile-first online retail market.
 
 ## User Preferences
-
 Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Backend Architecture
+### UI/UX Decisions
+The MiniApp features a fixed layout with a scrollable content area, sticky header, and fixed bottom tabs with safe area padding. Ad cards display price, title, and location with distance. Category icons utilize 3D WebP images with lazy loading. The Admin Panel uses a tabbed interface for robust management. The MiniApp is mobile-first, with "radius-first" navigation, elderly-friendly sizing, and accessibility features like large fonts and high contrast.
 
-The backend uses Node.js with Express.js, orchestrating an API server and Telegram bot. It supports a dual Vite server setup for client and MiniApp frontends. The architecture is modular, separating API, bot logic, database services, and configuration. The API follows a route-based modular pattern with centralized error handling.
+### Multi-Platform Web Adaptation (NEW)
+The MiniApp now supports full web browser access with responsive layout adaptation:
+- **Platform Detection**: `detectPlatform()` in `miniapp/src/platform/platformDetection.ts` identifies telegram/mobile_app/web platforms
+- **AppLayout**: Responsive layout (`miniapp/src/components/layout/AppLayout.tsx`) switches between:
+  - Mobile: BottomTabs navigation (for Telegram MiniApp and mobile web)
+  - Desktop: DesktopSidebar navigation (for web browsers on screens >= 768px)
+- **DesktopSidebar**: Full sidebar navigation (`miniapp/src/components/layout/DesktopSidebar.tsx`) with logo, navigation sections, user avatar, and logout
+- **SMS Authentication**: Web users authenticate via phone number + SMS code:
+  - Endpoints: `/api/auth/sms/requestCode` and `/api/auth/sms/login`
+  - Store: `useUserStore.requestSmsCode()` and `useUserStore.verifySmsCode()`
+  - Token storage: `localStorage.setItem('ketmar_auth_token', token)`
+- **AuthScreen**: Full authentication screen (`miniapp/src/components/AuthScreen.tsx`) with phone input, code verification, and Telegram login option
+- **PrivateRoute**: Route protection (`miniapp/src/components/PrivateRoute.tsx`) redirects unauthenticated web users to `/auth`
+- **JWT Compatibility**: `api/routes/phoneAuth.js` uses SESSION_SECRET for JWT signing, compatible with AuthService
 
-### Data Architecture
+### Technical Implementations
+The backend is built with Node.js and Express.js, providing RESTful APIs and Telegram bot logic, secured by JWT authentication. Data is stored in MongoDB Atlas using Mongoose, with models for Users, hierarchical Categories, Ads (including geolocation and contact info), and Orders, supporting seasonal promotions. Geocoding is handled by Nominatim OSM with preset fallbacks. Geo-search supports radius-based queries. The Telegram bot uses Telegraf for user interaction and an authenticated moderation panel.
 
-MongoDB Atlas is used with Mongoose for data modeling. Key entities include User, Category (hierarchical with `parentSlug`), Season, Ad (product listings), and Order. Categories feature a slug-based parent-child relationship for intuitive URLs and support for 3D rendered PNG icons across multiple hierarchy levels, mirroring Kufar.by's taxonomy. Ad documents store photos as URL arrays, `city` field for seller's city display, geolocation (lat/lng + GeoJSON Point) for distance-based search, and Order items are denormalized to preserve historical data.
+The frontend consists of two React applications using TypeScript and Vite:
+- **Web Admin Panel**: Manages products, categories, ads, and users, utilizing shadcn/ui, TanStack Query, Wouter, and Tailwind CSS. Supports Telegram Login, one-time links, and SMS for authentication.
+- **Telegram MiniApp**: Mobile-optimized UI with lazy-loaded pages and 3D WebP icons, featuring a 4-step ad creation wizard with auto-geolocation and scheduled publishing, custom hooks for debounced fetching, and specialized pages.
 
-**Real Estate (Недвижимость) Category Structure:**
-- `realty` (Недвижимость)
-  - `realty_rent` (Аренда)
-    - `realty_rent_daily` (Посуточно) - Short-term/daily rentals
-    - `realty_rent_long` (Долгосрочная) - Long-term rentals
-  - Legacy categories: `rent_flat`, `rent_house`, `country_base`
+Image optimization includes lazy loading, skeleton shimmers, responsive images, and a server-side media proxy with WebP format conversion (95% size reduction for feed images). The Ad model stores a pre-generated `previewUrl` for optimized feed display. The `/api/media/proxy` endpoint supports `?w=WIDTH&q=QUALITY&f=webp` parameters for on-the-fly image optimization using Sharp. Performance optimizations leverage code splitting, data prefetching, Gzip compression, and ETag support.
 
-**Short-Term Rental Promo Block:**
-A permanent Season (`short_term_rental`) is configured as a promotional "island" for daily rentals (`realty_rent_daily`). This block is featured prominently in both the MiniApp and bot, and can be accessed via deep link for dedicated bot instances.
+### System Design Choices
+The system features a modular backend with separation of concerns. Order data is denormalized for historical integrity, and all photo access is routed through a secure server-side proxy. A "radius-first" architecture governs ad listings, with debounced fetching for API calls.
 
-### Telegram Bot Interface
+A Fast Market Scoring System ranks ads by distance, freshness, and engagement, with category boosts. An AI-powered Farmer Tips Service provides demand recommendations. Ads support deferred publishing with a cron worker. A Price Comparison System offers market analytics. Users can favorite ads with notifications via a Favorites System, and Ad History Tracking monitors ad lifecycles.
 
-Built with Telegraf, the bot handles user commands like `/start`, `/categories`, `/sell` (including geolocation), `/my_ads`, `/market`, and `/rental`. The `/rental` command provides quick access to short-term (daily) rental listings with deep links to the MiniApp. The bot also features a moderation panel with JWT-authenticated approval/rejection workflows for ads. The bot is the primary mobile interface, complementing the web admin panel.
+Category management includes Auto-Suggestion, an Evolution System for gradual hierarchy growth, and Dynamic Visibility based on ad counts and geo-location. A Smart Search System offers fuzzy matching and category suggestions. Local Trends Analytics tracks demand/supply spikes, and a Hot Search System aggregates popular geo-located searches. A Scope Toggle allows switching between "local" and "country" ad listings.
 
-### Frontend Architecture (Web Admin)
+A specialized Farmer Category System supports agricultural products with unit types and quick-post features. A Farmer Cabinet Dashboard provides a comprehensive seller interface with product management, analytics, and local demand tracking. A Farmer Monetization System offers a three-tier subscription model. A Seasonal Fairs System integrates predefined events.
 
-The admin panel is a React 18 application built with TypeScript and Vite. It leverages shadcn/ui (based on Radix UI) for components, TanStack Query for state management, Wouter for routing, and Tailwind CSS for styling. It provides product, category, and dashboard management tools.
+The Media Upload System manages file size, thumbnails, and cleanup. The Ad Lifecycle System handles expiration, extension, and republishing based on category-specific rules. Search Alerts and Demand Notification systems provide user and seller notifications, respectively.
 
-### API Design
+An AI Layer provides unified services for text generation, personalized recommendations (feed, similar ads, trending nearby), and content moderation, learning from user activity. A Geo-Intelligence Map System offers real-time geo-analytics with heatmaps, clustered ad markers, and smart geo-recommendations, tracking user geo-activity and using interactive Leaflet maps.
 
-A RESTful HTTP API with JSON payloads serves both the Telegram bot and web frontends. Key endpoints manage categories, seasons, ads (with filtering), and orders. Moderation endpoints are secured with JWT authentication.
+A Multi-Platform Authentication System provides unified JWT-based authentication across MiniApp, Web, and Mobile WebView, with platform adapters, SMS verification, and account merging logic.
 
-### Configuration Management
+A Seller Stores System enables dedicated storefronts with customizable profiles, subscriptions, reviews, notifications, and deep link support. Store PRO Analytics offers an advanced dashboard for store owners with daily stats, KPI cards, time-series charts, conversion funnels, top product rankings, geographic analysis, campaign tracking, audience segmentation, and CSV export.
 
-Environment variables are used for configuration, supporting dual naming conventions (e.g., `MONGO_URL` or `MONGODB_URI`) for deployment flexibility. `JWT_SECRET` is crucial for securing moderation tokens.
+A Campaign Analytics System tracks marketing campaigns (seasonal fairs, special events) with public campaign storefronts, campaign-specific analytics for stores, and integration with Store PRO Analytics. Campaigns are managed through the Season model with code, name, type (store/farmer/both), dates, and isActive status. API endpoints include /api/campaign-analytics/campaigns (public listing), /ads (campaign ads), /overview, /daily, /geo, and /prices (authenticated analytics). MiniApp pages CampaignsListPage and CampaignPage provide user-facing campaign browsing.
+
+MEGA-ANALYTICS 10.0 provides professional marketplace-level seller analytics with event tracking, an analytics engine, overview dashboards, price position analysis, category performance insights, geo-analytics, AI suggestions, and warnings.
+
+MEGA-PROMPT 14.0 Digital Twin is an AI-powered personalized shopping assistant with a UserTwin model tracking interests, a service for AI chat, context-aware recommendations, notifications, watchlist management, and interest learning.
+
+MEGA-PROMPT 13.0 AI Dynamic Pricing offers Uber-style surge pricing optimization for sellers, analyzing demand, competition, seasonality, timing, and buyer activity to provide price recommendations, market position detection, and potential buyer estimations. It includes a PriceWatcher worker for market monitoring and seller alerts.
+
+MEGA-PROMPT 15.0 Seller's Digital Twin is an AI-powered business assistant for sellers, tracking inventory, providing listing quality analysis, demand prediction, competitive analysis, product suggestions, optimal publishing times, and market change monitoring.
+
+MEGA-PROMPT 17.0 AI Recommendations provides a TikTok-style personalized product feed using a RecommendationEngine with multi-factor scoring (similarity, geo-proximity, trending, quality, seller affinity), user context extraction, candidate retrieval, and AI-generated insights.
+
+### Rating & Anti-Fraud System
+A comprehensive rating system with fraud detection to ensure marketplace trust:
+- **Models**: `ContactEvent` (tracks buyer-seller contact events with channel, timestamps), `AdFeedback` (one feedback per contact with 1-5 rating, reason codes, comments)
+- **Rating Storage**: Ad model extended with `ratingSummary` (avgScore, totalVotes, lastRatedAt) and `flags` (suspicious, suspiciousReason, markedAt). User model extended with `sellerRating` (avgScore, totalVotes, lowScoreCount, fraudFlags)
+- **RatingService**: Core service handling contact logging, feedback submission, rating aggregation, and automatic fraud detection
+- **Fraud Detection Heuristics**: Low rating threshold (avg <= 2.5 with 3+ votes marks suspicious), fraud report threshold (2+ fake reports triggers flag), auto-hide (5+ votes with avg <= 2.0 hides ad)
+- **Reason Codes**: no_response, wrong_price, wrong_description, fake, rude, other - required for low scores (1-3)
+- **API Endpoints**: 
+  - `POST /api/rating/ads/:adId/contact` - Log contact event
+  - `POST /api/rating/ads/:adId/feedback` - Submit rating (requires valid contact)
+  - `GET /api/rating/ads/:adId/rating` - Get ad rating summary
+  - `GET /api/rating/sellers/:sellerId/rating` - Get seller rating
+  - `GET /api/rating/my/pending-feedback` - Get user's pending feedback requests
+  - `GET /api/admin/rating/fraud/overview` - Admin fraud analytics dashboard
+  - `GET /api/admin/rating/fraud/suspicious-ads` - List suspicious ads
+  - `GET /api/admin/rating/fraud/suspicious-sellers` - List suspicious sellers
+  - Admin actions: clear flags, mark suspicious, recalculate ratings
+- **UI Components**: `NeonRatingForm` (Matrix/Neon styled rating form with star selection, reason codes, comments), `NeonRatingDisplay` (compact rating display with stars and votes), `AdminFraudTab` (admin fraud analytics dashboard)
+
+### Neon UI Kit (Matrix/Cyberpunk Design System)
+A custom component library for analytics visualization with Matrix/Cyberpunk aesthetic:
+- **Location**: `miniapp/src/components/ui/neon/`
+- **Theme**: `neonTheme.ts` - Color palette (cyan/lime/fuchsia), shadows, gradients, animations
+- **CSS**: `neon.css` - Pulse, flicker, glow animations
+- **Components**:
+  - `NeonCard`, `NeonStatCard` - Glass morphism cards with glow effects
+  - `NeonBadge`, `NeonStatusBadge`, `NeonTag` - Status indicators with variants
+  - `NeonHistogram` - Animated bar charts with tooltips
+  - `NeonLineChart` - Smooth line charts with area fills
+  - `NeonGrid`, `NeonGridItem`, `NeonGridSkeleton` - Product grid displays
+  - `NeonHeatmap`, `NeonDensityGrid` - Geo-analytics visualization
+  - `NeonRatingForm`, `NeonRatingDisplay` - Rating UI with star selection and reason codes
+- **Demo Page**: `/miniapp/neon-demo` - Component showcase
+- **Analytics Page**: `/miniapp/campaigns/:campaignCode/analytics` - Campaign metrics visualization
+- **Tech Stack**: TypeScript, Framer Motion for animations, explicit React type imports (ReactNode, MouseEvent)
 
 ## External Dependencies
 
 ### Database Services
-
-- **MongoDB Atlas**: Cloud-hosted NoSQL database, managed via Mongoose.
+- **MongoDB Atlas**: Cloud-hosted NoSQL database.
 
 ### Third-Party APIs
-
-- **Telegram Bot API**: Used for all bot interactions, authenticated with `BOT_TOKEN`.
+- **Telegram Bot API**: For all Telegram bot interactions.
+- **Nominatim OSM**: For geocoding services.
 
 ### Cloud Services
-
-- **Replit**: Optional deployment platform.
-
-### NPM Packages (Key Dependencies)
-
-**Backend**: `express`, `mongoose`, `telegraf`, `dotenv`.
-**Frontend**: `react`, `react-dom`, `@tanstack/react-query`, `@radix-ui/*`, `tailwindcss`, `wouter`, `zod`, `react-hook-form`, `vite`.
-
-### File Upload
-
-- **@uppy/core** + **@uppy/aws-s3**: Configured for future S3-compatible file storage for product images.
-
-## Recent Changes (November 24, 2025)
-
-### Phone Authentication System
-- **Backend**: Implemented SMS-based phone auth with 4-digit codes (5-minute TTL)
-  - API Routes: `/api/auth/sms/requestCode`, `/api/auth/sms/login`
-  - Model: `SmsLoginCode` with automatic expiration
-  - Security: SMS codes logged server-side only, never returned in API responses
-  - JWT tokens with 7-day expiration
-  - TODO: Integrate real SMS provider (Twilio/SMS.ru) for production
-
-### Chat Messaging System
-- **Backend**: Real-time chat with 3-second polling
-  - API Routes: `/api/chat/*` (requires JWT auth)
-  - Models: `Conversation` (2 participants + ad reference), `Message` (read status tracking)
-  - Middleware: `middleware/auth.js` validates Bearer tokens, checks user.isBlocked
-  - Endpoints: `/start`, `/my`, `/:id/messages`, `/:id/poll`
-
-- **Frontend (MiniApp)**: 
-  - Pages: `ChatPage.tsx` (real-time chat), `ConversationsPage.tsx` (chat list)
-  - Components: `AdCard.tsx` (favorites, delivery badges), `AdGallery.tsx` (Swiper carousel), `AdsMap.tsx` (Leaflet maps)
-  - Routes: `/chats`, `/chat/:conversationId`
-  - Enhanced: AdPage with "Chat with Seller" button
-  - Dependencies: swiper, leaflet, react-leaflet@4
-
-### Security Improvements
-- Fixed critical vulnerability: Removed SMS code exposure from API responses
-- JWT authentication enforced on all chat endpoints
-- User blocking support in auth middleware
-
-## MiniApp Performance Optimizations (November 2025)
-
-### Production Build & Code Splitting
-
-- **Build System**: Vite production build with esbuild minification
-- **Code Splitting Strategy**:
-  - Manual vendor chunks: vendor-react (164KB/53KB gzipped), vendor-ui (3.72KB/1.63KB gzipped)
-  - Lazy-loaded pages: 9 pages using React.lazy + Suspense
-  - Main bundle: 57.91KB (23.02KB gzipped)
-  - Lazy chunks: FeedPage (13.78KB/4.55KB gzipped), SubcategoryPage (3.86KB/1.58KB gzipped), ProfilePage (3.25KB/1.46KB gzipped), etc.
-- **Total Bundle Size**: ~217KB raw (~74KB gzipped total)
-- **Performance Impact**: 
-  - Initial load: ~600ms DOMContentLoaded
-  - Lazy chunk load: <200ms first time
-  - Total reduction: Main bundle reduced from ~85KB to ~58KB (35% reduction)
-
-### HTTP Caching Strategy
-
-- **Hashed Assets Caching** (/miniapp/assets/*.js, *.css, *.webp):
-  - `Cache-Control: public, max-age=31536000, immutable`
-  - Long-term caching (1 year) for all hashed assets
-  - Safe because Vite includes content hash in filenames
-  - ETag enabled for validation
-- **HTML Revalidation** (index.html):
-  - `Cache-Control: no-cache, max-age=0, must-revalidate`
-  - Always revalidates to get latest version after deployments
-- **Lazy Chunk Caching**:
-  - Lazy-loaded pages (FeedPage, ProfilePage, etc.) cached with immutable headers
-  - Browser back/forward navigation uses cache (no re-download)
-  - Navigation performance: instant for cached routes
-- **Implementation**: Express.js middleware with path-based header logic
-- **Environment**: Requires NODE_ENV=production and MINIAPP_PRODUCTION=true
-- **Performance Impact**: Cached reload <50ms (14x faster than initial load)
-
-### Category Icon Optimization
-
-- **Format Migration**: Converted all 58 category icons from PNG to WebP format
-- **Compression Ratio**: 45x size reduction (43MB → 1.2MB total, 97% smaller)
-- **Quality**: WebP q=80 compression maintains high visual quality
-- **Icon Distribution**:
-  - Level 1 (Main): 14 icons at ~15-30KB each (vs ~800KB PNG)
-  - Level 2 (Subcategories): 30 icons at ~12-20KB each (vs ~700KB PNG)
-  - Level 3: 11 icons at ~15-30KB each
-  - Level 4: 3 icons at ~28-52KB each
-- **Loading Optimizations**:
-  - Lazy loading: `loading="lazy"` attribute on all category icons
-  - Async decoding: `decoding="async"` for non-blocking image rendering
-  - Browser caching for instant subsequent page loads
-- **Impact**: Initial page load <2 seconds, icon rendering near-instant with lazy loading
-
-### Overall Performance Results
-
-- **Initial Page Load**: ~600ms DOMContentLoaded (production build)
-- **Cached Reload**: <50ms DOMContentLoaded (HTTP caching)
-- **Total JavaScript**: ~217KB raw (~74KB gzipped)
-- **Total Images**: ~1.2MB WebP (all 58 category icons)
-- **Navigation**: Instant for cached routes, <200ms for first-time lazy loads
-- **Telegram WebView Compatibility**: Full HTTP caching support, no service worker needed
+- **Google Cloud Storage**: Used for photo uploads and storage.

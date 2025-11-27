@@ -1,0 +1,187 @@
+Проект: KETMAR Market  
+Текущая структура API находится в файлах API.md, GEO_API_DOCUMENTATION.md и code-overview.md.  
+Backend уже реализован в стиле REST API:  
+- JWT авторизация  
+- /auth/*  
+- /ads/*  
+- /users/*  
+- /geo/*  
+- /favorites/*  
+- логика гео-фильтров, объявлений, профилей, ролей
+
+Задача:
+Добавить в существующий проект полноценный модуль мобильных уведомлений:
+
+====================================
+1) Создать модуль "devices" (/src/modules/devices)
+====================================
+
+Сделать новую коллекцию MongoDB: **devices**
+
+Поля:
+- _id: ObjectId
+- userId: ObjectId (ссылка на users)
+- deviceId: string (uuid, генерируется на клиенте)
+- platform: "ios" | "android"
+- pushToken: string | null (FCM/APNs)
+- pushEnabled: boolean (default: true)
+- lastGeo: { type: "Point", coordinates: [lng, lat] } | null
+- lastSeenAt: Date
+- createdAt / updatedAt
+
+Индексы:
+- { userId: 1 }
+- { lastSeenAt: -1 }
+- { lastGeo: "2dsphere" }
+
+Сделать:
+- device.model.ts  
+- device.service.ts  
+- device.controller.ts  
+- device.repository.ts  
+
+Добавить эндпоинты:
+
+POST /devices/register  
+Body:  
+{  
+  "deviceId": "uuid-string",  
+  "platform": "ios" | "android",  
+  "pushToken": "string or null",  
+  "geo": { "lat": number, "lng": number }  
+}  
+Использует userId из Authorization: Bearer JWT.  
+Если deviceId существует — обновлять данные, если нет — создать.
+
+POST /devices/geo  
+Body: { "deviceId": "uuid", "geo": {lat, lng} }  
+Обновляет lastGeo + lastSeenAt.
+
+====================================
+2) Реализовать NotificationService
+(/src/modules/notifications)
+====================================
+
+Структура модуля:
+
+/notifications  
+  notification.module.ts (если NestJS) или index.ts (если Express-модуль)  
+  notification.service.ts  
+  notification.controller.ts (если понадобится)  
+  /integrations  
+      fcm.client.ts  
+      apns.client.ts  
+      telegram.client.ts  
+
+NotificationService должен уметь:
+
+Метод notifyUsersAboutNewAd(adId: string):
+
+1. Находит объявление по adId через существующий AdsService.
+2. Находит пользователей, которым релевантно:
+   - по геолокации:  
+     MongoDB geo query `$near` или `$geoWithin` относительно объявления.
+   - можно упростить и брать всех пользователей с lastGeo в радиусе объявления.
+3. Для каждого пользователя:
+   - Найти devices, где pushEnabled = true.
+   - Если есть хотя бы 1 — сделать попытку отправить push через FCM/APNs.
+   - Если push API вернул ошибку "invalid token / unregistered":
+       → поставить pushEnabled=false
+       → fallback в Telegram
+   - Если устройств нет или все недоступны → отправить Telegram-уведомление.
+
+Push интеграции:
+- fcm.client.ts: простой клиент отправки POST на FCM API (ключ — FCM_SERVER_KEY из .env)
+- apns.client.ts: можно упростить до "mock" клиента или сделать фейковый обработчик, чтобы Codex не требовал сертификат.
+
+Telegram интеграция:
+- telegram.client.ts использует существующие токены и Telegram Bot API:
+  POST https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage
+  body: { chat_id: telegramUserId, text: string }
+
+Формат текста уведомления:
+"Рядом с вами появилось новое объявление: {title}. Смотреть: {frontendUrl}/ads/{adId}"
+
+====================================
+3) Интеграция с уже существующим кодом объявлений
+====================================
+
+Внутри модуля объявлений (ads.service.ts):
+
+После успешного создания объявления:
+- вызвать eventBus.emit("AD_CREATED", { adId })
+
+Создать простой bus:
+src/shared/events/eventBus.ts:
+использовать Node.js EventEmitter (class EventBus extends EventEmitter).
+
+В notification.module:
+eventBus.on("AD_CREATED", async ({ adId }) => {
+  await notificationService.notifyUsersAboutNewAd(adId);
+});
+
+====================================
+4) Интеграция Mobile App (React Native + WebView)
+====================================
+
+Мобильное приложение должно:
+
+— На первом запуске:
+   1. Получить deviceId (uuid)
+   2. Получить pushToken (FCM/APNs)
+   3. Запросить один раз разрешение GEO
+   4. Отправить на backend:
+      POST /devices/register
+
+— Периодически или при движении пользователя:
+   POST /devices/geo
+
+WebView логика:
+- Через RN → WebView bridge (postMessage) передать токен и координаты в Web/MiniApp.
+- Web часть использует их при запросах.
+
+Backend НЕ должен зависеть от WebView.  
+Гео логика должна работать и с RN, и с веб.
+
+====================================
+5) Файлы .env
+====================================
+
+Добавить переменные:
+
+MONGODB_URI=...  
+FCM_SERVER_KEY=...  
+APNS_AUTH_KEY=... (если нужно)  
+TELEGRAM_BOT_TOKEN=...  
+TELEGRAM_API_URL=https://api.telegram.org  
+FRONTEND_URL=https://ketmar.by  
+
+====================================
+6) Требования к коду
+====================================
+
+- TypeScript  
+- Чистая структура модулей, как в code-overview.md  
+- Асинхронные методы на async/await  
+- Ошибки оборачивать через HttpException (если Express — свой middleware)  
+- Код должен быть легко переносимым в микросервис (модульность!)  
+- notifications.module НЕ должен зависеть от фронтенда или MiniApp  
+
+====================================
+Конечная цель
+====================================
+
+1. /devices/register  
+2. /devices/geo  
+3. NotificationService с приоритетом отправки:  
+   **mobile push → telegram fallback**  
+4. Связка с событиями объявлений (AD_CREATED)  
+5. Корректная гео-таргетированная доставка уведомлений  
+6. Структура полностью совместима с текущим API из API.md
+
+Сгенерируй полностью рабочий код модулей:
+- devices (model, controller, service, repository)
+- notifications (service + интеграции)
+- eventBus
+- примеры использования в ads.service.ts
+- обновление app.module.ts / index.ts для подключения новых модулей

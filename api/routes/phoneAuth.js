@@ -19,13 +19,19 @@ function generateCode() {
 }
 
 function buildToken(user) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters');
+  }
   return jwt.sign(
     {
+      userId: user._id.toString(),
       id: user._id,
       role: user.role,
+      phone: user.phone,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    secret,
+    { expiresIn: '30d' }
   );
 }
 
@@ -85,6 +91,46 @@ router.post('/sms/login', async (req, res) => {
   } catch (error) {
     console.error('login error', error);
     return res.status(500).json({ message: 'Не удалось выполнить вход' });
+  }
+});
+
+router.post('/admin/login', async (req, res) => {
+  try {
+    const normalizedPhone = normalizePhone(req.body?.phone);
+    const code = String(req.body?.code || '').trim();
+
+    if (!normalizedPhone || !code) {
+      return res.status(400).json({ message: 'Телефон и код обязательны' });
+    }
+
+    const loginCode = await SmsLoginCode.findOne({ phone: normalizedPhone, code })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    if (!loginCode || !loginCode.expiresAt || loginCode.expiresAt < new Date()) {
+      return res.status(400).json({ message: 'Код неверен или истёк' });
+    }
+
+    let user = await User.findOne({ phone: normalizedPhone });
+    if (!user) {
+      return res.status(404).json({ message: 'Пользователь не найден' });
+    }
+
+    // CRITICAL SECURITY CHECK: Verify admin role
+    if (user.role !== 'admin') {
+      return res.status(403).json({ 
+        message: 'Доступ запрещен. Только администраторы могут войти.' 
+      });
+    }
+
+    const token = buildToken(user);
+
+    await SmsLoginCode.deleteMany({ phone: normalizedPhone });
+
+    return res.json({ token, user: formatUser(user) });
+  } catch (error) {
+    console.error('Admin login error:', error);
+    return res.status(500).json({ message: 'Ошибка входа' });
   }
 });
 

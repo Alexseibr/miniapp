@@ -1,4 +1,5 @@
 import express from 'express';
+import http from 'http';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
@@ -9,7 +10,20 @@ import app from './api/server.js';
 import { bot } from './bot/bot.js';
 import { checkFavoritesForChanges } from './notifications/watcher.js';
 import { startNotificationWorker } from './workers/notificationWorker.js';
+import { startPublishScheduler } from './workers/publishScheduler.js';
+import { startMediaCleanupWorker } from './workers/mediaCleanup.js';
+import { startCategoryStatsCleanupWorker } from './workers/categoryStatsCleanup.js';
+import categoryEvolutionWorker from './workers/categoryEvolutionWorker.js';
+import { startTrendAnalyticsWorker } from './workers/trendAnalyticsWorker.js';
+import { startHotSearchWorker } from './workers/hotSearchWorker.js';
+import { startAdLifecycleWorker, setNotificationCallback } from './workers/adLifecycleWorker.js';
+import { startDemandWorker, setDemandNotificationCallback } from './workers/demandWorker.js';
 import { logErrors, notFoundHandler, errorHandler } from './api/middleware/errorHandlers.js';
+import PriceWatcher from './workers/PriceWatcher.js';
+import FavoriteNotificationWorker from './workers/FavoriteNotificationWorker.js';
+import farmerDemandWorker from './workers/FarmerDemandWorker.js';
+import farmerSuggestionWorker from './workers/FarmerSuggestionWorker.js';
+import { initializeQueues, shutdownQueues, isQueueEnabled } from './services/queue/index.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -43,6 +57,9 @@ async function start() {
     
     console.log(`✅ Telegram webhook endpoint зарегистрирован: ${webhookPath}`);
     
+    // 1.7 Создание HTTP сервера (перед Vite чтобы передать его для HMR)
+    const server = http.createServer(app);
+    
     // 2. Настройка Vite dev server для фронтенда (только в dev mode)
     if (process.env.NODE_ENV !== 'production') {
       console.log('\n🎨 Настройка Vite dev server...');
@@ -55,9 +72,8 @@ async function start() {
         plugins: [react.default()],
         server: { 
           middlewareMode: true,
-          hmr: {
-            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
-          },
+          allowedHosts: true,
+          hmr: { server },
         },
         appType: 'custom',
         root: path.resolve(__dirname, 'client'),
@@ -75,9 +91,8 @@ async function start() {
         plugins: [react.default()],
         server: { 
           middlewareMode: true,
-          hmr: {
-            host: process.env.REPLIT_DEV_DOMAIN || 'localhost',
-          },
+          allowedHosts: true,
+          hmr: { server },
         },
         appType: 'custom',
         base: '/miniapp/',
@@ -90,6 +105,19 @@ async function start() {
           },
         },
       });
+      
+      // Serve category icons and attached assets (before Vite middlewares)
+      const attachedAssetsPath = path.resolve(__dirname, 'attached_assets');
+      if (fs.existsSync(attachedAssetsPath)) {
+        app.use('/attached_assets', express.static(attachedAssetsPath, {
+          setHeaders: (res, filePath) => {
+            if (filePath.endsWith('.webp') || filePath.endsWith('.png')) {
+              res.set('Cache-Control', 'public, max-age=31536000, immutable');
+            }
+          },
+        }));
+        console.log('✅ Attached assets доступны по /attached_assets');
+      }
       
       // Handle MiniApp assets with miniappVite FIRST (JS, CSS, images, etc.)
       app.use('/miniapp', miniappVite.middlewares);
@@ -155,6 +183,21 @@ async function start() {
       // Production mode: serve static built assets
       console.log('\n📦 Production mode: serving static assets...');
       
+      // Serve category icons and other attached assets
+      const attachedAssetsPath = path.resolve(__dirname, 'attached_assets');
+      if (fs.existsSync(attachedAssetsPath)) {
+        app.use('/attached_assets', express.static(attachedAssetsPath, {
+          setHeaders: (res, filePath) => {
+            // Long-term caching for generated images (WebP icons)
+            if (filePath.endsWith('.webp') || filePath.endsWith('.png')) {
+              res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+            }
+          },
+          etag: true,
+        }));
+        console.log('✅ Attached assets (category icons) configured');
+      }
+      
       // Serve MiniApp static assets from miniapp/dist
       const miniappDistPath = path.resolve(__dirname, 'miniapp/dist');
       if (fs.existsSync(miniappDistPath)) {
@@ -218,9 +261,9 @@ async function start() {
       }
     }
     
-    // 3. Запуск Express API сервера
+    // 3. Запуск HTTP сервера на прослушивание
     console.log(`\n🌐 Запуск API сервера на порту ${PORT}...`);
-    const server = app.listen(PORT, '0.0.0.0', () => {
+    server.listen(PORT, '0.0.0.0', () => {
       const publicUrl = process.env.REPLIT_DEV_DOMAIN 
         ? `https://${process.env.REPLIT_DEV_DOMAIN}`
         : `http://localhost:${PORT}`;
@@ -300,6 +343,52 @@ async function start() {
     favoritesInterval = setInterval(runFavoritesCheck, 2 * 60 * 1000);
 
     startNotificationWorker();
+    startPublishScheduler();
+    startMediaCleanupWorker();
+    startCategoryStatsCleanupWorker();
+    startTrendAnalyticsWorker();
+    startHotSearchWorker();
+    
+    const sendTelegramNotification = async (telegramId, message, type) => {
+      try {
+        if (bot && telegramId) {
+          await bot.telegram.sendMessage(telegramId, message);
+        }
+      } catch (err) {
+        console.error(`[Notification] Failed to send ${type} notification to ${telegramId}:`, err.message);
+      }
+    };
+    
+    setNotificationCallback(sendTelegramNotification);
+    setDemandNotificationCallback(sendTelegramNotification);
+    startAdLifecycleWorker();
+    startDemandWorker();
+    PriceWatcher.start();
+    FavoriteNotificationWorker.start();
+    farmerDemandWorker.start();
+    farmerSuggestionWorker.start();
+    
+    // 6. Initialize distributed queue system (Redis + BullMQ)
+    if (isQueueEnabled()) {
+      console.log('\n📬 Инициализация системы очередей...');
+      const queueResult = await initializeQueues({
+        telegramBot: bot,
+        notificationCallback: sendTelegramNotification,
+        aiServices: {
+        },
+        enableWorkers: true,
+      });
+      
+      if (queueResult.initialized) {
+        console.log(`✅ Система очередей запущена (${queueResult.workersStarted} воркеров)`);
+      } else if (queueResult.fallback) {
+        console.log('ℹ️  Система очередей работает в fallback режиме');
+      } else {
+        console.warn('⚠️  Не удалось инициализировать систему очередей');
+      }
+    } else {
+      console.log('ℹ️  REDIS_URL не настроен - система очередей отключена');
+    }
     
     // Регистрируем error handlers в самом конце, после всех middleware
     app.use(logErrors);
@@ -321,6 +410,13 @@ async function start() {
       if (favoritesInterval) {
         clearInterval(favoritesInterval);
         favoritesInterval = null;
+      }
+
+      // Shutdown queue system
+      if (isQueueEnabled()) {
+        console.log('📬 Остановка системы очередей...');
+        await shutdownQueues();
+        console.log('✅ Система очередей остановлена');
       }
 
       bot.stop(signal);

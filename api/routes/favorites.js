@@ -16,6 +16,8 @@ function getUserTelegramId(req) {
 router.get('/my', async (req, res, next) => {
   try {
     const userTelegramId = getUserTelegramId(req);
+    console.log('[Favorites] Getting favorites for user:', userTelegramId);
+    
     if (!userTelegramId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
@@ -24,7 +26,30 @@ router.get('/my', async (req, res, next) => {
       .populate('adId')
       .lean();
 
-    res.json(favorites);
+    console.log('[Favorites] Raw favorites count:', favorites.length);
+    if (favorites.length > 0) {
+      console.log('[Favorites] First favorite adId type:', typeof favorites[0].adId);
+      console.log('[Favorites] First favorite adId:', JSON.stringify(favorites[0].adId).slice(0, 200));
+    }
+
+    // Преобразуем формат: adId (populated) → ad
+    const items = favorites.map((fav) => {
+      const adData = fav.adId && typeof fav.adId === 'object' ? fav.adId : null;
+      return {
+        adId: adData?._id?.toString() || (typeof fav.adId === 'string' ? fav.adId : fav.adId?.toString()),
+        ad: adData,
+        createdAt: fav.createdAt,
+        notifyOnPriceChange: fav.notifyOnPriceChange,
+        notifyOnStatusChange: fav.notifyOnStatusChange,
+      };
+    });
+
+    console.log('[Favorites] Transformed items count:', items.length);
+    if (items.length > 0) {
+      console.log('[Favorites] First item has ad:', !!items[0].ad);
+    }
+
+    res.json({ items, count: items.length });
   } catch (err) {
     next(err);
   }

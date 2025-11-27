@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useLocation } from 'wouter';
+import { useNavigate } from 'react-router-dom';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface MapBlockProps {
   title?: string;
@@ -21,7 +22,7 @@ interface MapBlockProps {
 }
 
 export default function MapBlock(props: MapBlockProps) {
-  const [, setLocation] = useLocation();
+  const navigate = useNavigate();
   const title = props.title || props.config?.title;
   const center = props.center || props.config?.center;
   const geoRadius = props.geoRadius || props.config?.geoRadius;
@@ -36,7 +37,15 @@ export default function MapBlock(props: MapBlockProps) {
     enabled: adIds.length > 0,
   });
 
-  const ads = adsData?.ads || [];
+  const ads: any[] = Array.isArray(adsData)
+    ? adsData
+    : Array.isArray(adsData?.ads)
+      ? adsData.ads
+      : Array.isArray(adsData?.items)
+        ? adsData.items
+        : Array.isArray(adsData?.data)
+          ? adsData.data
+          : [];
 
   return (
     <div data-testid="map-block">
@@ -105,7 +114,7 @@ export default function MapBlock(props: MapBlockProps) {
             {ads.slice(0, 3).map((ad: any) => (
               <div
                 key={ad._id}
-                onClick={() => setLocation(`/ads/${ad._id}`)}
+                onClick={() => navigate(`/ads/${ad._id}`)}
                 className="card"
                 style={{
                   cursor: 'pointer',
@@ -119,7 +128,7 @@ export default function MapBlock(props: MapBlockProps) {
               >
                 {ad.photos && ad.photos.length > 0 && (
                   <img
-                    src={ad.photos[0]}
+                    src={getThumbnailUrl(ad.photos[0])}
                     alt={ad.title}
                     loading="lazy"
                     style={{
@@ -153,7 +162,7 @@ export default function MapBlock(props: MapBlockProps) {
                       color: 'var(--color-accent-highlight)',
                     }}
                   >
-                    {ad.price} BYN
+                    {ad.price} руб.
                   </p>
                 </div>
               </div>

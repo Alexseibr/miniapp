@@ -9,6 +9,9 @@ import Products from "@/pages/products-simple";
 import Categories from "@/pages/categories-simple";
 import NearbyPage from "@/pages/nearby";
 import FavoritesRoute from "@/pages/favorites";
+import AdminPage from "@/pages/admin";
+import AdminLoginPage from "@/pages/admin-login";
+import AdminAuthCallback from "@/pages/admin-auth-callback";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -20,6 +23,9 @@ function Router() {
       <Route path="/categories" component={Categories} />
       <Route path="/nearby" component={NearbyPage} />
       <Route path="/favorites" component={FavoritesRoute} />
+      <Route path="/admin/login" component={AdminLoginPage} />
+      <Route path="/admin/auth" component={AdminAuthCallback} />
+      <Route path="/admin" component={AdminPage} />
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft } from 'lucide-react';
+import { ChevronLeft, MapPin } from 'lucide-react';
 
 interface FilterDrawerProps {
   isOpen: boolean;
@@ -207,23 +207,39 @@ export default function FilterDrawer({
         {/* Радиус поиска */}
         {localSort === 'distance' && (
           <div style={{ marginBottom: 20, paddingTop: 16, borderTop: '1px solid #f3f4f6' }}>
-            <h3 style={{ margin: '0 0 10px', fontSize: 14, fontWeight: 600, color: '#111827' }} data-testid="text-radius-label">
+            <h3 style={{ margin: '0 0 12px', fontSize: 14, fontWeight: 600, color: '#111827' }} data-testid="text-radius-label">
               Радиус поиска
             </h3>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
-              <input
-                type="range"
-                min={1}
-                max={50}
-                step={1}
-                value={localRadiusKm}
-                onChange={(e) => setLocalRadiusKm(Number(e.target.value))}
-                style={{ flex: 1 }}
-                data-testid="slider-radius"
-              />
-              <span style={{ fontSize: 14, fontWeight: 600, minWidth: 60 }} data-testid="text-radius-value">
-                {localRadiusKm} км
-              </span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
+              {[
+                { value: 0.3, label: '300 м' },
+                { value: 1, label: '1 км' },
+                { value: 3, label: '3 км' },
+                { value: 5, label: '5 км' },
+                { value: 10, label: '10 км' },
+              ].map((preset) => (
+                <button
+                  key={preset.value}
+                  type="button"
+                  onClick={() => setLocalRadiusKm(preset.value)}
+                  style={{
+                    flex: '1 1 auto',
+                    minWidth: '80px',
+                    padding: '10px 16px',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    border: localRadiusKm === preset.value ? '2px solid #3B73FC' : '1px solid #e5e7eb',
+                    borderRadius: 12,
+                    backgroundColor: localRadiusKm === preset.value ? '#EBF3FF' : 'white',
+                    color: localRadiusKm === preset.value ? '#3B73FC' : '#111827',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                  }}
+                  data-testid={`button-radius-${preset.value}`}
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
             {geoStatus !== 'ready' && (
               <>
@@ -235,18 +251,24 @@ export default function FilterDrawer({
                     type="button"
                     onClick={onRequestLocation}
                     style={{
-                      padding: '8px 16px',
+                      padding: '10px 16px',
                       backgroundColor: '#10b981',
                       color: 'white',
                       border: 'none',
-                      borderRadius: 6,
+                      borderRadius: 8,
                       fontSize: 13,
                       fontWeight: 500,
                       cursor: 'pointer',
                       marginTop: 8,
+                      width: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 6,
                     }}
                     data-testid="button-request-location"
                   >
+                    <MapPin size={16} />
                     Включить геолокацию
                   </button>
                 )}

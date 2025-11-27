@@ -1,8 +1,10 @@
 import { useEffect, useState } from 'react';
+import { MapPin, Truck } from 'lucide-react';
 import { getAd } from '@/api/ads';
 import { Ad } from '@/types';
 import { useCartStore } from '@/store/cart';
 import FavoriteButton from './FavoriteButton';
+import { getThumbnailUrl } from '@/constants/placeholders';
 
 interface Props {
   adId: string | null;
@@ -45,8 +47,9 @@ export default function AdDetailsModal({ adId, onClose }: Props) {
                 {ad.photos.map((photo) => (
                   <img
                     key={photo}
-                    src={photo}
+                    src={getThumbnailUrl(photo)}
                     alt={ad.title}
+                    loading="lazy"
                     style={{ width: 160, height: 120, objectFit: 'cover', borderRadius: 12 }}
                   />
                 ))}
@@ -54,7 +57,7 @@ export default function AdDetailsModal({ adId, onClose }: Props) {
             ) : null}
 
             <p style={{ fontSize: '1.6rem', fontWeight: 700, margin: '12px 0' }}>
-              {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
+              {ad.price.toLocaleString('ru-RU')} руб.
             </p>
 
             {ad.attributes && Object.keys(ad.attributes).length > 0 && (
@@ -71,14 +74,16 @@ export default function AdDetailsModal({ adId, onClose }: Props) {
             )}
 
             {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
-              <div className="badge" style={{ alignSelf: 'flex-start', marginBottom: 10 }}>
-                🚚 Доставка {ad.deliveryRadiusKm ? `в радиусе ${ad.deliveryRadiusKm} км` : ''}
+              <div className="badge" style={{ alignSelf: 'flex-start', marginBottom: 10, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <Truck size={14} />
+                Доставка {ad.deliveryRadiusKm ? `в радиусе ${ad.deliveryRadiusKm} км` : ''}
               </div>
             )}
 
             {ad.isLiveSpot && (
-              <div className="badge" style={{ alignSelf: 'flex-start', background: '#ecfeff', color: '#0ea5e9' }}>
-                📍 На ярмарке сейчас
+              <div className="badge" style={{ alignSelf: 'flex-start', background: '#ecfeff', color: '#0ea5e9', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                <MapPin size={14} />
+                На ярмарке сейчас
               </div>
             )}
 
