@@ -1,83 +1,41 @@
-import { Navigate, Route, Routes } from 'react-router-dom';
-import { Suspense, lazy } from 'react';
-import { Header } from './components/Header';
-import { BottomNav } from './components/BottomNav';
-import { ProtectedRoute } from './auth/ProtectedRoute';
-import { LoaderScreen } from './components/LoaderScreen';
+import React, { useEffect, useState } from 'react';
+import { NavigationContainer } from '@react-navigation/native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
+import RootNavigator from './navigation/RootNavigator';
+import { useAuthStore } from './store/authStore';
 
-const HomePage = lazy(() => import('./pages/HomePage'));
-const AuthPage = lazy(() => import('./pages/AuthPage'));
-const ProfilePage = lazy(() => import('./pages/ProfilePage'));
-const ProfileEditPage = lazy(() => import('./pages/ProfileEditPage'));
-const FavoritesPage = lazy(() => import('./pages/FavoritesPage'));
-const MyAdsPage = lazy(() => import('./pages/MyAdsPage'));
-const CreateAdPage = lazy(() => import('./pages/CreateAdPage'));
-const AdPage = lazy(() => import('./pages/AdPage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
-export default function App() {
+const App = () => {
+  const initAuthFromStorage = useAuthStore((s) => s.initFromStorage);
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    const prepare = async () => {
+      try {
+        await initAuthFromStorage();
+      } catch (e) {
+        console.warn('Auth init error', e);
+      } finally {
+        setIsReady(true);
+        SplashScreen.hideAsync().catch(() => {});
+      }
+    };
+    prepare();
+  }, [initAuthFromStorage]);
+
+  if (!isReady) {
+    return null;
+  }
+
   return (
-    <div className="app-shell">
-      <Header />
-      <main>
-        <Suspense fallback={<LoaderScreen message="Загрузка" />}>
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/auth" element={<AuthPage />} />
-            <Route
-              path="/profile"
-              element={
-                <ProtectedRoute>
-                  <ProfilePage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/profile/edit"
-              element={
-                <ProtectedRoute>
-                  <ProfileEditPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/my-ads"
-              element={
-                <ProtectedRoute>
-                  <MyAdsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/create-ad"
-              element={
-                <ProtectedRoute>
-                  <CreateAdPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/favorites"
-              element={
-                <ProtectedRoute>
-                  <FavoritesPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="/ad/:id" element={<AdPage />} />
-            <Route
-              path="/settings"
-              element={
-                <ProtectedRoute>
-                  <SettingsPage />
-                </ProtectedRoute>
-              }
-            />
-            <Route path="*" element={<Navigate to="/" replace />} />
-          </Routes>
-        </Suspense>
-      </main>
-      <BottomNav />
-    </div>
+    <SafeAreaProvider>
+      <NavigationContainer>
+        <RootNavigator />
+      </NavigationContainer>
+    </SafeAreaProvider>
   );
-}
+};
+
+export default App;

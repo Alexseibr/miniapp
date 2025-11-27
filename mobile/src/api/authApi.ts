@@ -1,17 +1,41 @@
-import { httpClient } from './httpClient';
-import { User } from '../types/user';
+import { apiClient } from './apiClient';
 
-export interface AuthResponse {
+export interface RequestPhoneCodePayload {
+  phone: string;
+}
+
+export interface VerifyCodePayload {
+  phone: string;
+  code: string;
+}
+
+export interface AuthTokens {
   accessToken: string;
-  user: User;
+  refreshToken?: string;
+}
+
+export interface MeResponse {
+  id: string;
+  username?: string;
+  phone: string;
+  role: string;
+}
+
+export interface VerifyCodeResponse extends AuthTokens {
+  user: MeResponse;
+  isNewUser?: boolean;
 }
 
 export const authApi = {
-  requestPhoneCode: (phone: string) =>
-    httpClient.post<void>('/auth/phone/request', { phone }),
-  verifyPhoneCode: (phone: string, code: string) =>
-    httpClient.post<AuthResponse>('/auth/phone/verify', { phone, code }),
-  telegramWidgetLogin: (data: Record<string, string>) =>
-    httpClient.get<AuthResponse>('/auth/telegram/widget/callback', { params: data }),
-  botTokenLogin: (token: string) => httpClient.post<AuthResponse>('/auth/bot/consume', { token })
+  requestPhoneCode(payload: RequestPhoneCodePayload) {
+    return apiClient.post('/auth/link-phone/request', payload);
+  },
+
+  verifyCode(payload: VerifyCodePayload) {
+    return apiClient.post<VerifyCodeResponse>('/auth/link-phone/verify', payload);
+  },
+
+  me() {
+    return apiClient.get<MeResponse>('/auth/me');
+  },
 };

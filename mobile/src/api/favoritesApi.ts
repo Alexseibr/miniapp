@@ -1,8 +1,13 @@
-import { httpClient } from './httpClient';
-import { Ad } from './adsApi';
+import { apiClient } from './apiClient';
 
 export const favoritesApi = {
-  getMyFavorites: () => httpClient.get<Ad[]>('/favorites/my'),
-  addToFavorites: (adId: string) => httpClient.post(`/favorites/${adId}`),
-  removeFromFavorites: (adId: string) => httpClient.delete(`/favorites/${adId}`)
+  list() {
+    return apiClient.get('/favorites');
+  },
+  add(adId: string) {
+    return apiClient.post(`/favorites/${adId}`);
+  },
+  remove(adId: string) {
+    return apiClient.delete(`/favorites/${adId}`);
+  },
 };
