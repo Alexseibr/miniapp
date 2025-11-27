@@ -49,6 +49,22 @@ MEGA-PROMPT 15.0 Seller's Digital Twin is an AI-powered business assistant for s
 
 MEGA-PROMPT 17.0 AI Recommendations provides a TikTok-style personalized product feed using a RecommendationEngine with multi-factor scoring (similarity, geo-proximity, trending, quality, seller affinity), user context extraction, candidate retrieval, and AI-generated insights.
 
+### Neon UI Kit (Matrix/Cyberpunk Design System)
+A custom component library for analytics visualization with Matrix/Cyberpunk aesthetic:
+- **Location**: `miniapp/src/components/ui/neon/`
+- **Theme**: `neonTheme.ts` - Color palette (cyan/lime/fuchsia), shadows, gradients, animations
+- **CSS**: `neon.css` - Pulse, flicker, glow animations
+- **Components**:
+  - `NeonCard`, `NeonStatCard` - Glass morphism cards with glow effects
+  - `NeonBadge`, `NeonStatusBadge`, `NeonTag` - Status indicators with variants
+  - `NeonHistogram` - Animated bar charts with tooltips
+  - `NeonLineChart` - Smooth line charts with area fills
+  - `NeonGrid`, `NeonGridItem`, `NeonGridSkeleton` - Product grid displays
+  - `NeonHeatmap`, `NeonDensityGrid` - Geo-analytics visualization
+- **Demo Page**: `/miniapp/neon-demo` - Component showcase
+- **Analytics Page**: `/miniapp/campaigns/:campaignCode/analytics` - Campaign metrics visualization
+- **Tech Stack**: TypeScript, Framer Motion for animations, explicit React type imports (ReactNode, MouseEvent)
+
 ## External Dependencies
 
 ### Database Services
