@@ -392,6 +392,41 @@ const adSchema = new mongoose.Schema(
       default: null,
     },
     
+    // === Rating Summary ===
+    ratingSummary: {
+      avgScore: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5,
+      },
+      totalVotes: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lastRatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    flags: {
+      suspicious: {
+        type: Boolean,
+        default: false,
+        index: true,
+      },
+      suspiciousReason: {
+        type: String,
+        enum: ['low_rating', 'fraud_reports', 'manual', null],
+        default: null,
+      },
+      markedAt: {
+        type: Date,
+        default: null,
+      },
+    },
+    
     needsCategoryReview: {
       type: Boolean,
       default: false,

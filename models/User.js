@@ -122,6 +122,33 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    sellerRating: {
+      avgScore: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5,
+      },
+      totalVotes: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lowScoreCount: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      fraudFlags: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lastRatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
     favorites: {
       type: [FavoriteSchema],
       default: [],
