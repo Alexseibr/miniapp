@@ -7,6 +7,7 @@ import {
   getPricePosition,
   getShopOverviewAnalytics,
 } from "./analyticsService";
+import { listNearbyAds } from "./geoFeedService";
 import {
   canSellerUseTopSlot,
   claimTopSlotForSeller,
@@ -42,6 +43,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const userRole = req.header("x-user-role") || "SELLER";
     (req as any).user = { id: userId, role: userRole };
     next();
+  });
+
+  api.get("/ads/near", (req, res) => {
+    const { lat, lng, radius, geoZoneId, limit, cursor } = req.query as {
+      lat?: string;
+      lng?: string;
+      radius?: string;
+      geoZoneId?: string;
+      limit?: string;
+      cursor?: string;
+    };
+
+    if (!lat || !lng) {
+      return res.status(400).json({ message: "lat and lng are required" });
+    }
+
+    const parsedLat = parseFloat(lat);
+    const parsedLng = parseFloat(lng);
+    if (!Number.isFinite(parsedLat) || !Number.isFinite(parsedLng)) {
+      return res.status(400).json({ message: "lat and lng must be valid numbers" });
+    }
+
+    const parsedRadius = radius ? parseFloat(radius) : undefined;
+    const parsedLimit = limit ? parseInt(limit, 10) : undefined;
+
+    const feed = listNearbyAds({
+      lat: parsedLat,
+      lng: parsedLng,
+      radiusMeters: parsedRadius,
+      geoZoneId: geoZoneId || undefined,
+      limit: parsedLimit,
+      cursor: cursor || undefined,
+    });
+
+    return res.json(feed);
   });
 
   api.get("/shops/:shopId/analytics/overview", (req, res) => {
