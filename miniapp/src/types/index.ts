@@ -243,3 +243,13 @@ export interface NearbyStatsResponse {
   total: number;
   radiusKm: number;
 }
+
+export type ShopStatus = 'pending' | 'approved' | 'rejected' | 'paused';
+
+export interface Shop {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  status: ShopStatus;
+  slug?: string;
+}
