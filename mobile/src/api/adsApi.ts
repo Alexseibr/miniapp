@@ -49,6 +49,7 @@ export interface AdsListResponse {
   total: number;
 }
 
+// Пока заглушка для списка/деталей объявлений
 export const adsApi = {
   listAds(params: AdsListParams) {
     return apiClient.get<AdsListResponse>('/ads', { params });
