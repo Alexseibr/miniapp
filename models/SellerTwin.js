@@ -150,7 +150,7 @@ const performanceMetricsSchema = new mongoose.Schema({
 
 const sellerTwinSchema = new mongoose.Schema({
   sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-  sellerTelegramId: { type: Number, required: true, index: true },
+  sellerTelegramId: { type: Number, required: true },
   
   inventory: [inventoryItemSchema],
   

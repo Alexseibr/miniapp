@@ -1,6 +1,6 @@
 import BrandStats from '../models/BrandStats.js';
 import Category from '../models/Category.js';
-import brandsData from '../data/brands.json' assert { type: 'json' };
+import brandsData from '../data/brands.json' with { type: 'json' };
 
 const LOCAL_VISIBILITY_THRESHOLD = 7;
 const COUNTRY_VISIBILITY_THRESHOLD = 15;
