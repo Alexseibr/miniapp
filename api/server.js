@@ -47,6 +47,7 @@ import storeProAnalyticsRoutes from './routes/store-pro-analytics.js';
 import campaignAnalyticsRoutes from './routes/campaign-analytics.js';
 import ratingRoutes from './routes/rating.js';
 import adminRatingRoutes from './routes/admin-rating.js';
+import devicesRoutes from './routes/devices.js';
 
 const app = express();
 
@@ -144,5 +145,6 @@ app.use('/api/campaign-analytics', campaignAnalyticsRoutes);
 app.use('/api/campaigns', campaignAnalyticsRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/admin/rating', adminAuth, adminRatingRoutes);
+app.use('/api/devices', devicesRoutes);
 
 export default app;
