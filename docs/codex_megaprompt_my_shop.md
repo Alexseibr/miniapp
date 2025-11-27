@@ -83,4 +83,18 @@
 - Разделить модули: shops, productTemplates, listings, analytics, fairService, publicShopPage, deepLinkDispatcher.
 - Индексация: shopId, listingId, ts. Телеграм MiniApp должен уметь загружать витрину по start=shop_<id>.
 - БД: Mongo/Postgres, хранение сущностей по моделям выше.
+
+11. QR-коды для магазинов
+- Модуль `/modules/qr` (`qr.controller.ts`, `qr.router.ts`, `qr.service.ts`, `qr.storage.ts`), использовать `qrcode`/`qr-image`, PNG по умолчанию, SVG по запросу, кэширование и сохранение в хранилище.
+- Модель `ShopQrCode { id, shopId, type: 'public_url'|'deep_link', format: 'png'|'svg', url, createdAt }`, индексы по `shopId` и паре (`shopId`,`type`,`format`).
+- API: `POST /shops/:shopId/qr` (генерация для `/shop/<slug>` или `t.me/<bot>?start=shop_<id>`), `GET /shops/:shopId/qr`, `GET /shops/:shopId/qr/:qrId`, `DELETE /shops/:shopId/qr/:qrId`.
+- В кабинете: блок “Ссылки и QR” с выбором типа/формата, скачать/скопировать/удалить; бот по `/myshop` может выдавать или создавать QR (кнопки “QR для витрины” / “QR для Telegram-миниаппа”).
+- Опционально: `POST /admin/fairs/:fairId/qr` (QR на витрину с `?fair=<fairId>`), будущий `POST /shops/:shopId/listings/:listingId/qr`.
+
+12. Связка Admin Panel + бот
+- Бот принимает `POST /bot/admin-notify` на события `shop_created`, `verification_requested`, `complaint_new`, `seller_score_low`, и шлёт сообщения в админ-чат с кнопками.
+- Callback-и `shop_approve_<id>`, `shop_reject_<id>`, `shop_pause_<id>`, `shop_unpause_<id>`, `shop_verify_<id>`, `shop_unverify_<id>` вызывают backend `POST /admin/shops/:id/approve|reject|pause|...`, бот отвечает подтверждением.
+- В карточке магазина в админке: тумблер “Уведомлять администраторов в Telegram?” определяет отправку на `/bot/admin-notify`.
+- Админ-команды: `/shops_pending`, `/complaints_today`, `/suspicious` (списки с inline-кнопками и ссылками в админку).
+- Бот уведомляет продавца при approve/reject/verify/unpause: “Ваш магазин <name> одобрен/отклонён/верифицирован...”.
 ```
