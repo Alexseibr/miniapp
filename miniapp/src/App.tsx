@@ -47,6 +47,7 @@ const SearchPage = lazy(() => import('@/pages/SearchPage'));
 const SearchResultsPage = lazy(() => import('@/pages/SearchResultsPage'));
 const CategoryResultsPage = lazy(() => import('@/pages/CategoryResultsPage'));
 const StoreCabinetPage = lazy(() => import('@/pages/StoreCabinetPage'));
+const StoreProAnalyticsPage = lazy(() => import('@/pages/StoreProAnalyticsPage'));
 
 export default function App() {
   const location = useLocation();
@@ -240,6 +241,7 @@ export default function App() {
                 <Route path="/store/:id" element={<SellerStorePage />} />
                 <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
                 <Route path="/seller/cabinet" element={<StoreCabinetPage />} />
+                <Route path="/seller/cabinet/pro-analytics" element={<StoreProAnalyticsPage />} />
                 <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
                 <Route path="/twin" element={<TwinPage />} />
                 <Route path="/twin/chat" element={<TwinChatPage />} />

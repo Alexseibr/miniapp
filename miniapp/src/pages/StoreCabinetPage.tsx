@@ -4,7 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
   Store, Eye, Package, Phone, Plus, Settings, ChevronRight, 
   Heart, EyeOff, Pencil, Camera, Upload, TrendingUp, 
-  MapPin, Send, Check, X, Loader2, ExternalLink
+  MapPin, Send, Check, X, Loader2, ExternalLink, Sparkles
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -463,6 +463,31 @@ export default function StoreCabinetPage() {
         {/* Stats Tab */}
         {activeTab === 'stats' && (
           <div className="space-y-4">
+            {/* PRO Analytics Banner */}
+            <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-medium text-sm">PRO Аналитика</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Детальные графики, воронки и аналитика по географии
+                    </p>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    onClick={() => navigate('/seller/cabinet/pro-analytics')}
+                    data-testid="button-pro-analytics"
+                  >
+                    Открыть
+                    <ChevronRight className="w-4 h-4 ml-1" />
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
             {statsLoading ? (
               <div className="grid grid-cols-2 gap-3">
                 {[1, 2, 3, 4].map(i => (
