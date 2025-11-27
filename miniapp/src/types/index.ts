@@ -252,4 +252,9 @@ export interface Shop {
   logoUrl?: string | null;
   status: ShopStatus;
   slug?: string;
+  location?: {
+    city?: string | null;
+    district?: string | null;
+  } | null;
+  isVerified?: boolean;
 }
