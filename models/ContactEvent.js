@@ -32,7 +32,7 @@ const contactEventSchema = new mongoose.Schema(
     },
     channel: {
       type: String,
-      enum: ['phone', 'telegram', 'chat', 'whatsapp'],
+      enum: ['phone', 'telegram', 'instagram', 'whatsapp', 'chat'],
       required: true,
     },
     feedbackSubmitted: {

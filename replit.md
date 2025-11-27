@@ -49,6 +49,25 @@ MEGA-PROMPT 15.0 Seller's Digital Twin is an AI-powered business assistant for s
 
 MEGA-PROMPT 17.0 AI Recommendations provides a TikTok-style personalized product feed using a RecommendationEngine with multi-factor scoring (similarity, geo-proximity, trending, quality, seller affinity), user context extraction, candidate retrieval, and AI-generated insights.
 
+### Rating & Anti-Fraud System
+A comprehensive rating system with fraud detection to ensure marketplace trust:
+- **Models**: `ContactEvent` (tracks buyer-seller contact events with channel, timestamps), `AdFeedback` (one feedback per contact with 1-5 rating, reason codes, comments)
+- **Rating Storage**: Ad model extended with `ratingSummary` (avgScore, totalVotes, lastRatedAt) and `flags` (suspicious, suspiciousReason, markedAt). User model extended with `sellerRating` (avgScore, totalVotes, lowScoreCount, fraudFlags)
+- **RatingService**: Core service handling contact logging, feedback submission, rating aggregation, and automatic fraud detection
+- **Fraud Detection Heuristics**: Low rating threshold (avg <= 2.5 with 3+ votes marks suspicious), fraud report threshold (2+ fake reports triggers flag), auto-hide (5+ votes with avg <= 2.0 hides ad)
+- **Reason Codes**: no_response, wrong_price, wrong_description, fake, rude, other - required for low scores (1-3)
+- **API Endpoints**: 
+  - `POST /api/rating/ads/:adId/contact` - Log contact event
+  - `POST /api/rating/ads/:adId/feedback` - Submit rating (requires valid contact)
+  - `GET /api/rating/ads/:adId/rating` - Get ad rating summary
+  - `GET /api/rating/sellers/:sellerId/rating` - Get seller rating
+  - `GET /api/rating/my/pending-feedback` - Get user's pending feedback requests
+  - `GET /api/admin/rating/fraud/overview` - Admin fraud analytics dashboard
+  - `GET /api/admin/rating/fraud/suspicious-ads` - List suspicious ads
+  - `GET /api/admin/rating/fraud/suspicious-sellers` - List suspicious sellers
+  - Admin actions: clear flags, mark suspicious, recalculate ratings
+- **UI Components**: `NeonRatingForm` (Matrix/Neon styled rating form with star selection, reason codes, comments), `NeonRatingDisplay` (compact rating display with stars and votes), `AdminFraudTab` (admin fraud analytics dashboard)
+
 ### Neon UI Kit (Matrix/Cyberpunk Design System)
 A custom component library for analytics visualization with Matrix/Cyberpunk aesthetic:
 - **Location**: `miniapp/src/components/ui/neon/`
@@ -61,6 +80,7 @@ A custom component library for analytics visualization with Matrix/Cyberpunk aes
   - `NeonLineChart` - Smooth line charts with area fills
   - `NeonGrid`, `NeonGridItem`, `NeonGridSkeleton` - Product grid displays
   - `NeonHeatmap`, `NeonDensityGrid` - Geo-analytics visualization
+  - `NeonRatingForm`, `NeonRatingDisplay` - Rating UI with star selection and reason codes
 - **Demo Page**: `/miniapp/neon-demo` - Component showcase
 - **Analytics Page**: `/miniapp/campaigns/:campaignCode/analytics` - Campaign metrics visualization
 - **Tech Stack**: TypeScript, Framer Motion for animations, explicit React type imports (ReactNode, MouseEvent)

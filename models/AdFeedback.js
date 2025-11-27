@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
 
-const REASON_CODES = ['fake', 'no_answer', 'price_mismatch', 'rude', 'other'];
+const REASON_CODES = ['no_response', 'wrong_price', 'wrong_description', 'fake', 'rude', 'other'];
 
 const adFeedbackSchema = new mongoose.Schema(
   {
@@ -90,11 +90,12 @@ adFeedbackSchema.index({ reasonCode: 1, createdAt: -1 });
 adFeedbackSchema.statics.REASON_CODES = REASON_CODES;
 
 adFeedbackSchema.statics.REASON_LABELS = {
-  fake: 'Фейковое объявление',
-  no_answer: 'Не отвечает',
-  price_mismatch: 'Цена не совпадает',
-  rude: 'Грубое общение',
-  other: 'Другое',
+  no_response: 'No Response',
+  wrong_price: 'Wrong Price',
+  wrong_description: 'Wrong Description',
+  fake: 'Fake Ad',
+  rude: 'Rude Seller',
+  other: 'Other',
 };
 
 adFeedbackSchema.statics.getAdStats = async function(adId) {
@@ -111,8 +112,9 @@ adFeedbackSchema.statics.getAdStats = async function(adId) {
         score2: { $sum: { $cond: [{ $eq: ['$score', 2] }, 1, 0] } },
         score1: { $sum: { $cond: [{ $eq: ['$score', 1] }, 1, 0] } },
         fakeCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'fake'] }, 1, 0] } },
-        noAnswerCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'no_answer'] }, 1, 0] } },
-        priceMismatchCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'price_mismatch'] }, 1, 0] } },
+        noResponseCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'no_response'] }, 1, 0] } },
+        wrongPriceCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'wrong_price'] }, 1, 0] } },
+        wrongDescCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'wrong_description'] }, 1, 0] } },
         rudeCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'rude'] }, 1, 0] } },
       },
     },
@@ -123,7 +125,7 @@ adFeedbackSchema.statics.getAdStats = async function(adId) {
       avgScore: 0,
       totalVotes: 0,
       distribution: { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 },
-      reasons: { fake: 0, no_answer: 0, price_mismatch: 0, rude: 0 },
+      reasons: { fake: 0, no_response: 0, wrong_price: 0, wrong_description: 0, rude: 0 },
     };
   }
   
@@ -139,8 +141,9 @@ adFeedbackSchema.statics.getAdStats = async function(adId) {
     },
     reasons: {
       fake: stats[0].fakeCount,
-      no_answer: stats[0].noAnswerCount,
-      price_mismatch: stats[0].priceMismatchCount,
+      no_response: stats[0].noResponseCount,
+      wrong_price: stats[0].wrongPriceCount,
+      wrong_description: stats[0].wrongDescCount,
       rude: stats[0].rudeCount,
     },
   };
@@ -156,8 +159,9 @@ adFeedbackSchema.statics.getSellerStats = async function(sellerId) {
         totalVotes: { $sum: 1 },
         lowScoreCount: { $sum: { $cond: [{ $lte: ['$score', 2] }, 1, 0] } },
         fraudFlags: { $sum: { $cond: [{ $eq: ['$reasonCode', 'fake'] }, 1, 0] } },
-        noAnswerCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'no_answer'] }, 1, 0] } },
-        priceMismatchCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'price_mismatch'] }, 1, 0] } },
+        noResponseCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'no_response'] }, 1, 0] } },
+        wrongPriceCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'wrong_price'] }, 1, 0] } },
+        wrongDescCount: { $sum: { $cond: [{ $eq: ['$reasonCode', 'wrong_description'] }, 1, 0] } },
       },
     },
   ]);
@@ -168,7 +172,7 @@ adFeedbackSchema.statics.getSellerStats = async function(sellerId) {
       totalVotes: 0,
       lowScoreCount: 0,
       fraudFlags: 0,
-      reasons: { fake: 0, no_answer: 0, price_mismatch: 0 },
+      reasons: { fake: 0, no_response: 0, wrong_price: 0, wrong_description: 0 },
     };
   }
   
@@ -179,8 +183,9 @@ adFeedbackSchema.statics.getSellerStats = async function(sellerId) {
     fraudFlags: stats[0].fraudFlags,
     reasons: {
       fake: stats[0].fraudFlags,
-      no_answer: stats[0].noAnswerCount,
-      price_mismatch: stats[0].priceMismatchCount,
+      no_response: stats[0].noResponseCount,
+      wrong_price: stats[0].wrongPriceCount,
+      wrong_description: stats[0].wrongDescCount,
     },
   };
 };
