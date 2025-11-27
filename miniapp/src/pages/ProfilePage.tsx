@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { ReactNode, useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  User, 
-  MapPin, 
+import {
+  User,
+  MapPin,
   ShoppingBag, 
   Store, 
   Tractor, 
@@ -12,18 +12,74 @@ import {
   Shield,
   Crown,
   Star,
-  Settings,
   RefreshCw
 } from 'lucide-react';
 import AuthScreen from '@/components/AuthScreen';
+import { ShopEntryCard } from '@/components/ShopEntryCard';
 import { useUserStore } from '@/store/useUserStore';
 import { useGeo } from '@/utils/geo';
-import { getTelegramWebApp } from '@/utils/telegram';
+import { getMyShop } from '@/api/shops';
+import type { Shop } from '@/types';
+
+const Section = ({ title, children }: { title: string; children: ReactNode }) => (
+  <div style={{ marginTop: 16 }}>
+    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+      <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#111827' }}>{title}</h2>
+      <div
+        style={{
+          height: 4,
+          flex: 1,
+          borderRadius: 999,
+          background: 'linear-gradient(90deg, #3B82F6 0%, #8B5CF6 100%)',
+          opacity: 0.2,
+        }}
+      />
+    </div>
+    {children}
+  </div>
+);
 
 export default function ProfilePage() {
   const navigate = useNavigate();
   const user = useUserStore((state) => state.user);
   const { requestLocation, status } = useGeo();
+  const [shop, setShop] = useState<Shop | null>(null);
+  const [shopState, setShopState] = useState<'loading' | 'noShop' | 'hasShop' | 'error'>('loading');
+
+  const fetchShop = useCallback(async (isCancelled?: () => boolean) => {
+    setShopState('loading');
+
+    try {
+      const response = await getMyShop();
+      if (isCancelled?.()) return;
+      const shopData = response.data;
+      if (shopData) {
+        setShop(shopData);
+        setShopState('hasShop');
+      } else {
+        setShop(null);
+        setShopState('noShop');
+      }
+    } catch (error: any) {
+      if (isCancelled?.()) return;
+      if (error?.response?.status === 404) {
+        setShop(null);
+        setShopState('noShop');
+      } else {
+        setShopState('error');
+        console.error('Не удалось загрузить магазин', error);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetchShop(() => cancelled);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchShop]);
 
   const telegramSummary = useMemo(() => {
     if (!user) return null;
@@ -208,6 +264,16 @@ export default function ProfilePage() {
             </button>
           ))}
         </div>
+
+        <Section title="Мой магазин">
+          <ShopEntryCard
+            state={shopState}
+            shop={shop || undefined}
+            onClickCreate={() => navigate('/shop-entry?mode=create')}
+            onClickOpenDashboard={() => navigate('/shop-entry?mode=dashboard')}
+            onRetry={() => fetchShop()}
+          />
+        </Section>
 
         {/* Location Card */}
         <div style={{
