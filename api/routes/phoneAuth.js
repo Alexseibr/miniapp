@@ -19,13 +19,19 @@ function generateCode() {
 }
 
 function buildToken(user) {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    throw new Error('SESSION_SECRET must be at least 32 characters');
+  }
   return jwt.sign(
     {
+      userId: user._id.toString(),
       id: user._id,
       role: user.role,
+      phone: user.phone,
     },
-    process.env.JWT_SECRET,
-    { expiresIn: '7d' }
+    secret,
+    { expiresIn: '30d' }
   );
 }
 

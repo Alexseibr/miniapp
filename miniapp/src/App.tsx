@@ -1,7 +1,8 @@
 import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import BottomTabs from '@/components/BottomTabs';
+import AppLayout from '@/components/layout/AppLayout';
+import PrivateRoute from '@/components/PrivateRoute';
 import PhoneAuthRequest from '@/components/PhoneAuthRequest';
 import PageLoader from '@/components/PageLoader';
 import { useUserStore } from '@/store/useUserStore';
@@ -13,6 +14,7 @@ import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
 import { initWebVitals } from '@/utils/webVitals';
 import { Loader2 } from 'lucide-react';
 import { PlatformProvider } from '@/platform/PlatformProvider';
+import { detectPlatform } from '@/platform/platformDetection';
 
 const HomePage = lazy(() => import('@/pages/HomePage'));
 const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
@@ -52,6 +54,7 @@ const CampaignsListPage = lazy(() => import('@/pages/CampaignsListPage'));
 const CampaignPage = lazy(() => import('@/pages/CampaignPage'));
 const CampaignAnalyticsPage = lazy(() => import('@/pages/CampaignAnalyticsPage'));
 const NeonDemoPage = lazy(() => import('@/pages/NeonDemoPage'));
+const AuthScreen = lazy(() => import('@/components/AuthScreen'));
 
 export default function App() {
   const location = useLocation();
@@ -63,39 +66,39 @@ export default function App() {
   const refreshLocationOnAppStart = useGeoStore((state) => state.refreshLocationOnAppStart);
   const [isInitialized, setIsInitialized] = useState(false);
   
+  const platform = detectPlatform();
+  
   useRoutePrefetch();
 
   useEffect(() => {
     const initApp = async () => {
       try {
         console.log('🚀 Initializing KETMAR Market MiniApp...');
+        console.log(`📱 Platform detected: ${platform}`);
         
-        // Проверка Telegram WebApp SDK
-        const tg = getTelegramWebApp();
-        if (tg) {
-          console.log('✅ Telegram WebApp SDK found');
-          tg.ready();
-          tg.expand();
-          
-          if ('enableClosingConfirmation' in tg) {
-            (tg as any).enableClosingConfirmation();
-          }
-          
-          // Обработка deep link из Telegram (startapp параметр)
-          const startParam = (tg as any).initDataUnsafe?.start_param;
-          if (startParam) {
-            console.log('📱 Deep link detected:', startParam);
-            handleDeepLink(startParam);
+        if (platform === 'telegram') {
+          const tg = getTelegramWebApp();
+          if (tg) {
+            console.log('✅ Telegram WebApp SDK found');
+            tg.ready();
+            tg.expand();
+            
+            if ('enableClosingConfirmation' in tg) {
+              (tg as any).enableClosingConfirmation();
+            }
+            
+            const startParam = (tg as any).initDataUnsafe?.start_param;
+            if (startParam) {
+              console.log('📱 Deep link detected:', startParam);
+              handleDeepLink(startParam);
+            }
           }
         }
 
-        // Инициализация пользователя в фоне
         initialize().catch(console.error);
         
-        // Prefetch критичных данных в фоне
         prefetchCriticalData().catch(console.error);
         
-        // Полная очистка старого кэша геолокации (версия 2)
         const geoStoreKey = 'ketmar-geo-store';
         const geoResetKey = 'ketmar-geo-reset-v3';
         try {
@@ -108,18 +111,15 @@ export default function App() {
           console.warn('Ошибка очистки localStorage:', e);
         }
         
-        // Автоматический запрос геолокации при каждом входе
         console.log('📍 Запрашиваем актуальную геолокацию...');
         refreshLocationOnAppStart().catch((err) => {
           console.warn('📍 Не удалось получить геолокацию:', err);
         });
         
-        // Инициализация Web Vitals monitoring
         if (typeof window !== 'undefined') {
           initWebVitals();
         }
         
-        // Показываем UI сразу
         setIsInitialized(true);
         console.log('✅ App initialization complete');
       } catch (error) {
@@ -129,49 +129,36 @@ export default function App() {
     };
 
     initApp();
-  }, [initialize, refreshLocationOnAppStart]);
+  }, [initialize, refreshLocationOnAppStart, platform]);
   
-  // Обработка deep link из бота
   function handleDeepLink(startParam: string) {
-    // Формат: season_short_term_rental, category_realty_rent_daily, store_<slug> и т.д.
     if (startParam.startsWith('season_')) {
       const seasonCode = startParam.replace('season_', '');
-      // Перенаправляем на FeedPage с фильтром по сезону
       window.location.href = `/feed?season=${encodeURIComponent(seasonCode)}`;
     } else if (startParam.startsWith('category_')) {
       const categoryId = startParam.replace('category_', '');
-      // Перенаправляем на FeedPage с фильтром по категории
       window.location.href = `/feed?categoryId=${encodeURIComponent(categoryId)}`;
     } else if (startParam.startsWith('store_')) {
       const storeSlug = startParam.replace('store_', '');
-      // Перенаправляем на страницу магазина продавца
       window.location.href = `/store/${encodeURIComponent(storeSlug)}`;
     } else if (startParam === 'twin') {
-      // Перенаправляем на Digital Twin (AI ассистент)
       window.location.href = `/twin`;
     } else if (startParam.startsWith('pricing_')) {
       const adId = startParam.replace('pricing_', '');
-      // Перенаправляем на динамическое ценообразование для объявления
       window.location.href = `/dynamic-pricing/${encodeURIComponent(adId)}`;
     } else if (startParam.startsWith('ad_')) {
       const adId = startParam.replace('ad_', '');
-      // Перенаправляем на страницу объявления
       window.location.href = `/ads/${encodeURIComponent(adId)}`;
     } else if (startParam === 'favorites') {
-      // Перенаправляем на избранное
       window.location.href = `/favorites`;
     } else if (startParam === 'seller-twin') {
-      // Перенаправляем на Digital Twin продавца
       window.location.href = `/seller-twin`;
     } else if (startParam === 'dynamic-price') {
-      // Перенаправляем на аналитику цен
       window.location.href = `/dynamic-pricing`;
     } else if (startParam === 'farmer_demand') {
-      // Перенаправляем на спрос фермера
       window.location.href = `/farmer/demand`;
     } else if (startParam.startsWith('create_farmer_')) {
       const productKey = startParam.replace('create_farmer_', '');
-      // Перенаправляем на создание фермерского объявления
       window.location.href = `/create?category=farmer-market&product=${encodeURIComponent(productKey)}`;
     }
   }
@@ -198,8 +185,7 @@ export default function App() {
     );
   }
 
-  // Показываем запрос номера телефона если нужен
-  if (userStatus === 'need_phone') {
+  if (platform === 'telegram' && userStatus === 'need_phone') {
     return (
       <QueryClientProvider client={queryClient}>
         <PhoneAuthRequest 
@@ -213,57 +199,143 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <PlatformProvider>
-        <div className="app-shell">
-          <main>
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/" element={<HomePage />} />
-                <Route path="/search" element={<SearchPage />} />
-                <Route path="/search/results" element={<SearchResultsPage />} />
-                <Route path="/category/:slug" element={<CategoryResultsPage />} />
-                <Route path="/subcategory/:slug" element={<SubcategoryPage />} />
-                <Route path="/feed" element={<FeedPage />} />
-                <Route path="/create" element={<CreateAdPage />} />
-                <Route path="/favorites" element={<FavoritesPage />} />
-                <Route path="/profile" element={<ProfilePage />} />
-                <Route path="/orders" element={<OrdersPage />} />
-                <Route path="/seasons" element={<SeasonsPage />} />
-                <Route path="/seasons/:code" element={<SeasonViewPage />} />
-                <Route path="/categories/:slug" element={<CategoryPage />} />
-                <Route path="/ads/:id" element={<AdPage />} />
-                <Route path="/my-ads" element={<MyAdsPage />} />
-                <Route path="/ads/create" element={<CreateAdPage />} />
-                <Route path="/chats" element={<ConversationsPage />} />
-                <Route path="/chat/:conversationId" element={<ChatPage />} />
-                <Route path="/farmer-feed" element={<FarmerFeedPage />} />
-                <Route path="/farmer/bulk-upload" element={<BulkFarmerUploadPage />} />
-                <Route path="/farmer/analytics" element={<FarmerAnalyticsPage />} />
-                <Route path="/farmer/cabinet" element={<FarmerCabinetPage />} />
-                <Route path="/all-categories" element={<AllCategoriesPage />} />
-                <Route path="/map" element={<GeoMapPage />} />
-                <Route path="/geo-feed" element={<GeoFeedScreen />} />
-                <Route path="/store/:id" element={<SellerStorePage />} />
-                <Route path="/seller/dashboard" element={<SellerDashboardPage />} />
-                <Route path="/seller/cabinet" element={<StoreCabinetPage />} />
-                <Route path="/seller/cabinet/pro-analytics" element={<StoreProAnalyticsPage />} />
-                <Route path="/seller/analytics" element={<SellerAnalyticsPage />} />
-                <Route path="/twin" element={<TwinPage />} />
-                <Route path="/twin/chat" element={<TwinChatPage />} />
-                <Route path="/dynamic-pricing" element={<DynamicPricingPage />} />
-                <Route path="/dynamic-pricing/:adId" element={<DynamicPricingPage />} />
-                <Route path="/seller-twin" element={<SellerTwinPage />} />
-                <Route path="/for-you" element={<ForYouFeedPage />} />
-                <Route path="/campaigns" element={<CampaignsListPage />} />
-                <Route path="/campaigns/:campaignCode" element={<CampaignPage />} />
-                <Route path="/campaigns/:campaignCode/analytics" element={<CampaignAnalyticsPage />} />
-                <Route path="/neon-demo" element={<NeonDemoPage />} />
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-            </Suspense>
-          </main>
+        <AppLayout>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {/* Public routes */}
+              <Route path="/" element={<HomePage />} />
+              <Route path="/auth" element={<AuthScreen />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/search/results" element={<SearchResultsPage />} />
+              <Route path="/category/:slug" element={<CategoryResultsPage />} />
+              <Route path="/subcategory/:slug" element={<SubcategoryPage />} />
+              <Route path="/feed" element={<FeedPage />} />
+              <Route path="/seasons" element={<SeasonsPage />} />
+              <Route path="/seasons/:code" element={<SeasonViewPage />} />
+              <Route path="/categories/:slug" element={<CategoryPage />} />
+              <Route path="/ads/:id" element={<AdPage />} />
+              <Route path="/all-categories" element={<AllCategoriesPage />} />
+              <Route path="/map" element={<GeoMapPage />} />
+              <Route path="/geo-feed" element={<GeoFeedScreen />} />
+              <Route path="/store/:id" element={<SellerStorePage />} />
+              <Route path="/farmer-feed" element={<FarmerFeedPage />} />
+              <Route path="/campaigns" element={<CampaignsListPage />} />
+              <Route path="/campaigns/:campaignCode" element={<CampaignPage />} />
+              <Route path="/for-you" element={<ForYouFeedPage />} />
+              <Route path="/neon-demo" element={<NeonDemoPage />} />
 
-          <BottomTabs />
-        </div>
+              {/* Private routes - require authentication */}
+              <Route path="/create" element={
+                <PrivateRoute>
+                  <CreateAdPage />
+                </PrivateRoute>
+              } />
+              <Route path="/favorites" element={
+                <PrivateRoute>
+                  <FavoritesPage />
+                </PrivateRoute>
+              } />
+              <Route path="/profile" element={
+                <PrivateRoute>
+                  <ProfilePage />
+                </PrivateRoute>
+              } />
+              <Route path="/orders" element={
+                <PrivateRoute>
+                  <OrdersPage />
+                </PrivateRoute>
+              } />
+              <Route path="/my-ads" element={
+                <PrivateRoute>
+                  <MyAdsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/ads/create" element={
+                <PrivateRoute>
+                  <CreateAdPage />
+                </PrivateRoute>
+              } />
+              <Route path="/chats" element={
+                <PrivateRoute>
+                  <ConversationsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/chat/:conversationId" element={
+                <PrivateRoute>
+                  <ChatPage />
+                </PrivateRoute>
+              } />
+              <Route path="/farmer/bulk-upload" element={
+                <PrivateRoute>
+                  <BulkFarmerUploadPage />
+                </PrivateRoute>
+              } />
+              <Route path="/farmer/analytics" element={
+                <PrivateRoute>
+                  <FarmerAnalyticsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/farmer/cabinet" element={
+                <PrivateRoute>
+                  <FarmerCabinetPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/dashboard" element={
+                <PrivateRoute>
+                  <SellerDashboardPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/cabinet" element={
+                <PrivateRoute>
+                  <StoreCabinetPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/cabinet/pro-analytics" element={
+                <PrivateRoute>
+                  <StoreProAnalyticsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/analytics" element={
+                <PrivateRoute>
+                  <SellerAnalyticsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/twin" element={
+                <PrivateRoute>
+                  <TwinPage />
+                </PrivateRoute>
+              } />
+              <Route path="/twin/chat" element={
+                <PrivateRoute>
+                  <TwinChatPage />
+                </PrivateRoute>
+              } />
+              <Route path="/dynamic-pricing" element={
+                <PrivateRoute>
+                  <DynamicPricingPage />
+                </PrivateRoute>
+              } />
+              <Route path="/dynamic-pricing/:adId" element={
+                <PrivateRoute>
+                  <DynamicPricingPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller-twin" element={
+                <PrivateRoute>
+                  <SellerTwinPage />
+                </PrivateRoute>
+              } />
+              <Route path="/campaigns/:campaignCode/analytics" element={
+                <PrivateRoute>
+                  <CampaignAnalyticsPage />
+                </PrivateRoute>
+              } />
+
+              {/* Fallback */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </Suspense>
+        </AppLayout>
       </PlatformProvider>
     </QueryClientProvider>
   );

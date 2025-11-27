@@ -91,7 +91,6 @@ const seasonSchema = new mongoose.Schema(
 );
 
 seasonSchema.index({ isActive: 1, startDate: 1 });
-seasonSchema.index({ code: 1 });
 seasonSchema.index({ type: 1, isActive: 1 });
 
 seasonSchema.statics.findActive = async function() {

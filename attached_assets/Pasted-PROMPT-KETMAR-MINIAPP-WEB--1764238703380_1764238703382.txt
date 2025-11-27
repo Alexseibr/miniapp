@@ -1,0 +1,177 @@
+PROMPT ДЛЯ РЕФАКТОРИНГА KETMAR MINIAPP (WEB-АДАПТАЦИЯ)
+
+Контекст проекта
+----------------
+У меня есть существующий проект маркетплейса KETMAR Market.
+
+Стек:
+- Frontend MiniApp: React + Vite (TypeScript)
+- Router: React Router (v6+)
+- State: Zustand
+- Уже есть Platform Adapter (Telegram/Web/MobileApp) с detectPlatform()
+- Backend API уже реализован: /auth/sms/request, /auth/sms/verify, /auth/telegram, /auth/telegram-init, /auth/link-phone/* и т.д.
+
+Структура фронта (упрощённо):
+- miniapp/
+  - src/
+    - App.tsx
+    - router/
+      - routes.tsx или аналогичный файл
+    - components/
+      - layout/
+      - BottomTabs.tsx (таб-бар для мобильного)
+    - pages/
+      - FeedPage.tsx
+      - AdDetailsPage.tsx
+      - CategoriesPage.tsx
+      - CreateAdWizard.tsx
+      - ProfilePage.tsx
+      - FarmerDashboard.tsx
+      - ...
+    - store/
+      - useAuthStore.ts
+      - useGeoStore.ts
+    - platform/
+      - platformDetection.ts
+      - PlatformProvider.tsx
+      - WebPlatformAdapter.ts
+      - TelegramPlatformAdapter.ts
+      - MobileAppPlatformAdapter.ts
+
+ЗАДАЧА №1 — Layout-переключатель Mobile/Desktop
+-----------------------------------------------
+Нужно сделать единый layout, который:
+- Если ширина окна < 768px → использует текущий mobile-вид с BottomTabs.
+- Если ширина окна ≥ 768px → использует layout в стиле Desktop:
+  - Sidebar слева (или TopNav сверху) с основными пунктами: Лента, Категории, Карта, Профиль, Фермерский кабинет.
+  - Контент справа / в основной области.
+
+Требования:
+1. Создай общий компонент, например: src/components/layout/AppLayout.tsx.
+2. Внутри AppLayout:
+   - Определи ширину экрана (через window.innerWidth + resize listener или через matchMedia).
+   - Если mobile (<768px) → рендери:
+     - children + BottomTabs (как сейчас в MiniApp).
+   - Если desktop (≥768px) → рендери:
+     - Sidebar/TopNav + children без BottomTabs.
+3. Вынеси в отдельный компонент Sidebar/TopNav, например:
+   - src/components/layout/DesktopSidebar.tsx
+   - В нём сделай навигацию по основным разделам (через <Link> или useNavigate):
+     - Лента
+     - Категории
+     - Карта (если есть отдельный экран)
+     - Профиль
+     - Фермерский кабинет
+4. Подключи AppLayout вокруг всего роутера (в App.tsx или Router.tsx), чтобы все страницы автоматически наследовали layout.
+
+Важно:
+- Не ломай текущую логику MiniApp для Telegram (mobile). Для Telegram/Web на мобильном должно остаться поведение как сейчас: BottomTabs.
+- Для Desktop (web версия) — работа через Sidebar/TopNav.
+
+Сделай полный код AppLayout + DesktopSidebar, покажи, как обернуть Router в этот layout, и не забудь про типы (TypeScript).
+
+ЗАДАЧА №2 — Экран авторизации для Web (SMS + Telegram)
+------------------------------------------------------
+Сейчас авторизация завязана на Telegram WebApp initData.  
+Для web-версии нужно сделать нормальный AuthScreen.
+
+Функционал экрана авторизации:
+1. Форма SMS-логина:
+   - Поле «Номер телефона»
+   - Кнопка «Отправить код»
+   - Поле «Код из SMS»
+   - Кнопка «Войти»
+   - Использовать существующие API:
+     - POST /auth/sms/request
+     - POST /auth/sms/verify
+   - После успешной авторизации:
+     - сохранить JWT в localStorage (WebPlatformAdapter.getAuthToken() должен потом использовать этот токен)
+     - записать юзера в Zustand (useAuthStore)
+
+2. Кнопка «Войти через Telegram»:
+   - Кнопка, которая ведёт на deep link:
+     - t.me/KetmarM_bot?start=auth_<token>
+   - <token> — это временный токен (можешь пока сделать заглушку или использовать существующую auth-логику, если она уже есть).
+   - Важно: код должен быть готов к тому, что мы потом подставим реальный <token> от backend.
+
+3. UI:
+   - Сделай отдельную страницу: src/pages/AuthScreen.tsx
+   - Экран должен хорошо работать в web-режиме (браузер, без Telegram).
+
+4. Логика в Zustand:
+   - В useAuthStore или аналогичном месте:
+     - методы loginWithSms(phone, code)
+     - состояние: user, isAuthenticated, loading и т.п.
+   - AuthScreen должен вызывать эти методы, не дублировать бизнес-логику.
+
+Сделай:
+- Полный код AuthScreen.tsx
+- Изменения в useAuthStore.ts (или напиши, если его нет)
+- Пример вызовов /auth/sms/request и /auth/sms/verify (через уже существующий HTTP-клиент).
+
+ЗАДАЧА №3 — Роутинг для Web (публичные/приватные)
+-------------------------------------------------
+Нужно настроить роутинг так, чтобы:
+
+Публичные страницы (доступны без логина):
+- Лента объявлений (FeedPage)
+- Категории (CategoriesPage)
+- Страница одного объявления (AdDetailsPage)
+- Поиск (если есть отдельная SearchPage)
+
+Приватные страницы (только после авторизации):
+- Создание объявления (CreateAdWizard)
+- Профиль пользователя (ProfilePage)
+- Фермерский кабинет (FarmerDashboard / FarmerAnalytics)
+
+Требования:
+1. Настроить Router:
+   - Например, в src/router/routes.tsx или App.tsx:
+     - Публичные маршруты:
+       - "/" или "/feed" → FeedPage
+       - "/categories" → CategoriesPage
+       - "/ad/:id" → AdDetailsPage
+       - "/search" → SearchPage (если есть)
+     - Приватные маршруты:
+       - "/create" → CreateAdWizard
+       - "/profile" → ProfilePage
+       - "/farmer" → FarmerDashboard (или как у тебя называется фермерский кабинет)
+
+2. Реализовать защиту приватных роутов:
+   - Сделать компонент-обёртку типа:
+     - <PrivateRoute> или hook useRequireAuth()
+   - Логика:
+     - Если useAuthStore().isAuthenticated === true → пускаем на страницу
+     - Если нет:
+       - редирект на /auth (AuthScreen)
+   - Учитывать, что авторизация может быть из:
+     - Telegram initData (для MiniApp)
+     - JWT в localStorage (для web)
+
+3. Убрать жёсткую привязку к Telegram initData:
+   - Сейчас часть кода может предполагать, что всегда есть Telegram.WebApp.initData.
+   - Для web-режима это неверно.
+   - Нужно:
+     - оставить Telegram-ветку для платформы 'telegram'
+     - и добавить web-ветку, где авторизация идёт через AuthScreen + SMS + localStorage.
+
+4. Покажи полный пример:
+   - Конфигурации роутов (React Router)
+   - Компонента PrivateRoute (или hook)
+   - Подключения AuthScreen, FeedPage, CreateAdWizard, ProfilePage, FarmerDashboard в роутере.
+
+Дополнительные пожелания
+------------------------
+- Пожалуйста, пиши код аккуратно, на TypeScript.
+- Не ломай существующую Telegram MiniApp-логику, а дополни её веткой для web.
+- В ответе:
+  1) Покажи новые/обновлённые файлы:
+     - AppLayout.tsx + DesktopSidebar.tsx (или аналогичные)
+     - AuthScreen.tsx
+     - изменения в useAuthStore.ts
+     - конфиг роутера (routes.tsx / App.tsx)
+     - PrivateRoute.tsx (если вводишь)
+  2) Кратко опиши, как всё запускать в режиме web:
+     - какой URL, какие ENV-переменные нужны (если есть).
+
+Считай, что проект уже установлен и работает (npm run dev / npm run build). Нужно только дописать/переорганизовать код под web + desktop.

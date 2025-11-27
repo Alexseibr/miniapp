@@ -11,6 +11,21 @@ Preferred communication style: Simple, everyday language.
 ### UI/UX Decisions
 The MiniApp features a fixed layout with a scrollable content area, sticky header, and fixed bottom tabs with safe area padding. Ad cards display price, title, and location with distance. Category icons utilize 3D WebP images with lazy loading. The Admin Panel uses a tabbed interface for robust management. The MiniApp is mobile-first, with "radius-first" navigation, elderly-friendly sizing, and accessibility features like large fonts and high contrast.
 
+### Multi-Platform Web Adaptation (NEW)
+The MiniApp now supports full web browser access with responsive layout adaptation:
+- **Platform Detection**: `detectPlatform()` in `miniapp/src/platform/platformDetection.ts` identifies telegram/mobile_app/web platforms
+- **AppLayout**: Responsive layout (`miniapp/src/components/layout/AppLayout.tsx`) switches between:
+  - Mobile: BottomTabs navigation (for Telegram MiniApp and mobile web)
+  - Desktop: DesktopSidebar navigation (for web browsers on screens >= 768px)
+- **DesktopSidebar**: Full sidebar navigation (`miniapp/src/components/layout/DesktopSidebar.tsx`) with logo, navigation sections, user avatar, and logout
+- **SMS Authentication**: Web users authenticate via phone number + SMS code:
+  - Endpoints: `/api/auth/sms/requestCode` and `/api/auth/sms/login`
+  - Store: `useUserStore.requestSmsCode()` and `useUserStore.verifySmsCode()`
+  - Token storage: `localStorage.setItem('ketmar_auth_token', token)`
+- **AuthScreen**: Full authentication screen (`miniapp/src/components/AuthScreen.tsx`) with phone input, code verification, and Telegram login option
+- **PrivateRoute**: Route protection (`miniapp/src/components/PrivateRoute.tsx`) redirects unauthenticated web users to `/auth`
+- **JWT Compatibility**: `api/routes/phoneAuth.js` uses SESSION_SECRET for JWT signing, compatible with AuthService
+
 ### Technical Implementations
 The backend is built with Node.js and Express.js, providing RESTful APIs and Telegram bot logic, secured by JWT authentication. Data is stored in MongoDB Atlas using Mongoose, with models for Users, hierarchical Categories, Ads (including geolocation and contact info), and Orders, supporting seasonal promotions. Geocoding is handled by Nominatim OSM with preset fallbacks. Geo-search supports radius-based queries. The Telegram bot uses Telegraf for user interaction and an authenticated moderation panel.
 

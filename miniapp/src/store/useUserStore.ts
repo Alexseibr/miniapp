@@ -2,15 +2,22 @@ import { create } from 'zustand';
 import { validateSession } from '@/api/telegramAuth';
 import { fetchFavorites, toggleFavorite as apiToggleFavorite } from '@/api/favorites';
 import { FavoriteItem, UserProfile } from '@/types';
+import { detectPlatform } from '@/platform/platformDetection';
+
+const AUTH_TOKEN_KEY = 'ketmar_auth_token';
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 export interface UserState {
   user: UserProfile | null;
   cityCode: string | null;
-  status: 'idle' | 'loading' | 'ready' | 'error' | 'need_phone' | 'guest';
+  status: 'idle' | 'loading' | 'ready' | 'error' | 'need_phone' | 'guest' | 'need_auth';
   error?: string;
   favorites: FavoriteItem[];
   favoritesLoading: boolean;
   favoriteIds: Set<string>;
+  smsStep: 'phone' | 'code' | 'done';
+  smsPending: boolean;
+  smsError?: string;
   initialize: () => Promise<void>;
   refreshFavorites: (userLat?: number, userLng?: number) => Promise<void>;
   toggleFavorite: (adId: string) => Promise<boolean>;
@@ -18,6 +25,10 @@ export interface UserState {
   setCityCode: (cityCode: string) => void;
   submitPhone: (phone: string) => Promise<void>;
   skipPhoneRequest: () => void;
+  requestSmsCode: (phone: string) => Promise<boolean>;
+  verifySmsCode: (phone: string, code: string) => Promise<boolean>;
+  logout: () => void;
+  isAuthenticated: () => boolean;
 }
 
 export const useUserStore = create<UserState>((set, get) => ({
@@ -28,51 +39,170 @@ export const useUserStore = create<UserState>((set, get) => ({
   favorites: [],
   favoritesLoading: false,
   favoriteIds: new Set(),
+  smsStep: 'phone',
+  smsPending: false,
+  smsError: undefined,
 
   async initialize() {
     if (get().status === 'loading') {
       return;
     }
-    const initData = window.Telegram?.WebApp?.initData;
-    if (!initData) {
-      set({ status: 'ready', cityCode: 'brest' });
-      return;
-    }
-    
-    const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-    const phoneSkipped = localStorage.getItem(`phone_skipped_${telegramId}`);
-    
-    try {
-      set({ status: 'loading', error: undefined });
-      const response = await validateSession(initData);
+
+    const platform = detectPlatform();
+
+    if (platform === 'telegram') {
+      const initData = window.Telegram?.WebApp?.initData;
+      if (!initData) {
+        set({ status: 'ready', cityCode: 'brest' });
+        return;
+      }
       
-      if (response.user) {
-        if (!response.user.phone && !phoneSkipped) {
-          set({ status: 'need_phone', cityCode: 'brest' });
-          return;
-        }
+      const telegramId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+      const phoneSkipped = localStorage.getItem(`phone_skipped_${telegramId}`);
+      
+      try {
+        set({ status: 'loading', error: undefined });
+        const response = await validateSession(initData);
         
-        if (!response.user.phone && phoneSkipped) {
+        if (response.user) {
+          if (!response.user.phone && !phoneSkipped) {
+            set({ status: 'need_phone', cityCode: 'brest' });
+            return;
+          }
+          
+          if (!response.user.phone && phoneSkipped) {
+            set({ 
+              user: response.user as UserProfile,
+              status: 'guest',
+              cityCode: 'brest'
+            });
+            return;
+          }
+          
           set({ 
             user: response.user as UserProfile,
-            status: 'guest',
-            cityCode: 'brest'
+            cityCode: (response as any).cityCode || 'brest'
           });
-          return;
+          await get().refreshFavorites();
+          set({ status: 'ready' });
+        } else {
+          set({ status: 'ready' });
         }
-        
-        set({ 
-          user: response.user as UserProfile,
-          cityCode: (response as any).cityCode || 'brest'
-        });
-        await get().refreshFavorites();
-        set({ status: 'ready' });
+      } catch (error) {
+        console.error('MiniApp auth error', error);
+        set({ status: 'error', error: 'Не удалось пройти авторизацию', cityCode: 'brest' });
+      }
+    } else {
+      const storedToken = localStorage.getItem(AUTH_TOKEN_KEY);
+      
+      if (storedToken) {
+        try {
+          set({ status: 'loading', error: undefined });
+          
+          const response = await fetch(`${API_BASE}/api/auth/me`, {
+            headers: {
+              'Authorization': `Bearer ${storedToken}`,
+              'Content-Type': 'application/json'
+            }
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            if (data.user) {
+              set({ 
+                user: data.user as UserProfile,
+                status: 'ready',
+                cityCode: data.cityCode || 'brest'
+              });
+              await get().refreshFavorites();
+              return;
+            }
+          }
+          
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+          set({ status: 'need_auth', cityCode: 'brest' });
+        } catch (error) {
+          console.error('Web auth error', error);
+          localStorage.removeItem(AUTH_TOKEN_KEY);
+          set({ status: 'need_auth', cityCode: 'brest' });
+        }
       } else {
-        set({ status: 'ready' });
+        set({ status: 'need_auth', cityCode: 'brest' });
+      }
+    }
+  },
+
+  async requestSmsCode(phone: string) {
+    try {
+      set({ smsPending: true, smsError: undefined });
+      
+      const response = await fetch(`${API_BASE}/api/auth/sms/requestCode`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.ok) {
+        set({ smsStep: 'code', smsPending: false });
+        return true;
+      } else {
+        set({ 
+          smsError: data.message || data.error || 'Не удалось отправить код', 
+          smsPending: false 
+        });
+        return false;
       }
     } catch (error) {
-      console.error('MiniApp auth error', error);
-      set({ status: 'error', error: 'Не удалось пройти авторизацию', cityCode: 'brest' });
+      console.error('SMS request error:', error);
+      set({ 
+        smsError: 'Ошибка сети. Попробуйте ещё раз.', 
+        smsPending: false 
+      });
+      return false;
+    }
+  },
+
+  async verifySmsCode(phone: string, code: string) {
+    try {
+      set({ smsPending: true, smsError: undefined });
+      
+      const response = await fetch(`${API_BASE}/api/auth/sms/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, code })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.token) {
+        localStorage.setItem(AUTH_TOKEN_KEY, data.token);
+        
+        set({ 
+          user: data.user as UserProfile,
+          status: 'ready',
+          smsStep: 'done',
+          smsPending: false,
+          cityCode: data.cityCode || 'brest'
+        });
+        
+        await get().refreshFavorites();
+        return true;
+      } else {
+        set({ 
+          smsError: data.message || data.error || 'Неверный код', 
+          smsPending: false 
+        });
+        return false;
+      }
+    } catch (error) {
+      console.error('SMS verify error:', error);
+      set({ 
+        smsError: 'Ошибка сети. Попробуйте ещё раз.', 
+        smsPending: false 
+      });
+      return false;
     }
   },
 
@@ -127,13 +257,33 @@ export const useUserStore = create<UserState>((set, get) => ({
     }
   },
 
+  logout() {
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    set({
+      user: null,
+      status: 'need_auth',
+      favorites: [],
+      favoriteIds: new Set(),
+      smsStep: 'phone',
+      smsError: undefined
+    });
+  },
+
+  isAuthenticated() {
+    const { user, status } = get();
+    return !!user && (status === 'ready' || status === 'guest');
+  },
+
   setCityCode(cityCode: string) {
     set({ cityCode });
   },
 
   async refreshFavorites(userLat?: number, userLng?: number) {
-    const telegramId = get().user?.telegramId;
-    if (!telegramId) {
+    const user = get().user;
+    const telegramId = user?.telegramId;
+    const userId = user?.id;
+    
+    if (!telegramId && !userId) {
       set({ favorites: [], favoriteIds: new Set() });
       return;
     }
@@ -150,8 +300,11 @@ export const useUserStore = create<UserState>((set, get) => ({
   },
 
   async toggleFavorite(adId: string) {
-    const telegramId = get().user?.telegramId;
-    if (!telegramId) {
+    const user = get().user;
+    const telegramId = user?.telegramId;
+    const userId = user?.id;
+    
+    if (!telegramId && !userId) {
       throw new Error('Для добавления в избранное нужно авторизоваться');
     }
 
@@ -196,4 +349,10 @@ export function useIsFavorite(adId?: string) {
   const favoriteIds = useUserStore((state) => state.favoriteIds);
   if (!adId) return false;
   return favoriteIds.has(adId);
+}
+
+export function useIsAuthenticated() {
+  const user = useUserStore((state) => state.user);
+  const status = useUserStore((state) => state.status);
+  return !!user && (status === 'ready' || status === 'guest');
 }
