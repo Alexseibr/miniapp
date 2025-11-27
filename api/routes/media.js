@@ -97,10 +97,11 @@ function cleanCache() {
 
 router.get('/proxy', async (req, res) => {
   try {
-    const { url, w, h, q } = req.query;
+    const { url, w, h, q, f } = req.query;
     const width = w ? parseInt(w, 10) : null;
     const height = h ? parseInt(h, 10) : null;
-    const quality = q ? parseInt(q, 10) : 60;
+    const quality = q ? parseInt(q, 10) : 75;
+    const format = f === 'webp' ? 'webp' : (f === 'jpeg' ? 'jpeg' : null);
     
     if (!url) {
       res.setHeader('Content-Type', 'image/svg+xml');
@@ -117,7 +118,7 @@ router.get('/proxy', async (req, res) => {
       return res.send(PLACEHOLDER_SVG);
     }
 
-    const cacheKey = `${decodedUrl}_${width || 'auto'}_${height || 'auto'}_${quality}`;
+    const cacheKey = `${decodedUrl}_${width || 'auto'}_${height || 'auto'}_${quality}_${format || 'auto'}`;
     
     if (imageCache.has(cacheKey)) {
       const cached = imageCache.get(cacheKey);
@@ -174,7 +175,8 @@ router.get('/proxy', async (req, res) => {
         let data = Buffer.concat(chunks);
         let outputContentType = contentType;
         
-        if (width || height || quality < 100) {
+        const needsTransform = width || height || quality < 100 || format;
+        if (needsTransform) {
           try {
             let transformer = sharp(data);
             
@@ -185,15 +187,18 @@ router.get('/proxy', async (req, res) => {
               });
             }
             
-            if (contentType.includes('png')) {
-              data = await transformer.png({ quality: Math.min(quality, 100), compressionLevel: 9 }).toBuffer();
-              outputContentType = 'image/png';
-            } else {
+            if (format === 'webp') {
+              data = await transformer.webp({ quality: Math.min(quality, 100) }).toBuffer();
+              outputContentType = 'image/webp';
+            } else if (format === 'jpeg' || !contentType.includes('png')) {
               data = await transformer.jpeg({ quality: Math.min(quality, 100), progressive: true }).toBuffer();
               outputContentType = 'image/jpeg';
+            } else {
+              data = await transformer.png({ quality: Math.min(quality, 100), compressionLevel: 9 }).toBuffer();
+              outputContentType = 'image/png';
             }
           } catch (sharpErr) {
-            console.warn('[MediaProxy] Sharp resize failed:', sharpErr.message);
+            console.warn('[MediaProxy] Sharp transform failed:', sharpErr.message);
           }
         }
         
