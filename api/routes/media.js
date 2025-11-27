@@ -178,6 +178,13 @@ router.get('/proxy', async (req, res) => {
         const needsTransform = width || height || quality < 100 || format;
         if (needsTransform) {
           try {
+            const metadata = await sharp(data).metadata();
+            if (!metadata || !metadata.format) {
+              console.warn('[MediaProxy] Invalid image data - no format detected');
+              res.status(502).set('Retry-After', '60').json({ error: 'Image decode failed' });
+              return;
+            }
+            
             let transformer = sharp(data);
             
             if (width || height) {
@@ -190,7 +197,7 @@ router.get('/proxy', async (req, res) => {
             if (format === 'webp') {
               data = await transformer.webp({ quality: Math.min(quality, 100) }).toBuffer();
               outputContentType = 'image/webp';
-            } else if (format === 'jpeg' || !contentType.includes('png')) {
+            } else if (format === 'jpeg' || (metadata.format !== 'png' && metadata.format !== 'gif')) {
               data = await transformer.jpeg({ quality: Math.min(quality, 100), progressive: true }).toBuffer();
               outputContentType = 'image/jpeg';
             } else {
@@ -198,7 +205,11 @@ router.get('/proxy', async (req, res) => {
               outputContentType = 'image/png';
             }
           } catch (sharpErr) {
-            console.warn('[MediaProxy] Sharp transform failed:', sharpErr.message);
+            console.error('[MediaProxy] Sharp transform failed:', sharpErr.message);
+            if (!res.headersSent) {
+              res.status(502).set('Retry-After', '60').json({ error: 'Image transform failed', retry: true });
+            }
+            return;
           }
         }
         

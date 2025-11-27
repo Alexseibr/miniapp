@@ -166,15 +166,21 @@ async function validateCreateAd(req, res, next) {
     let previewUrl = null;
     if (photos.length > 0) {
       const firstPhoto = photos[0];
-      if (firstPhoto.startsWith('/api/media/')) {
-        previewUrl = firstPhoto.includes('?') 
-          ? `${firstPhoto}&w=600&q=75&f=webp`
-          : `${firstPhoto}?w=600&q=75&f=webp`;
+      
+      if (firstPhoto.startsWith('data:')) {
+        previewUrl = null;
+      } else if (firstPhoto.startsWith('/api/media/') && !firstPhoto.includes('..')) {
+        const baseUrl = firstPhoto.split('?')[0];
+        previewUrl = `${baseUrl}?w=600&q=75&f=webp`;
       } else if (firstPhoto.startsWith('http://') || firstPhoto.startsWith('https://')) {
-        const encodedUrl = encodeURIComponent(firstPhoto);
-        previewUrl = `/api/media/proxy?url=${encodedUrl}&w=600&q=75&f=webp`;
-      } else {
-        previewUrl = `/api/media/proxy?url=${encodeURIComponent(firstPhoto)}&w=600&q=75&f=webp`;
+        try {
+          const url = new URL(firstPhoto);
+          if (url.hostname && !url.hostname.includes('..')) {
+            previewUrl = `/api/media/proxy?url=${encodeURIComponent(firstPhoto)}&w=600&q=75&f=webp`;
+          }
+        } catch {
+          previewUrl = null;
+        }
       }
     }
 
