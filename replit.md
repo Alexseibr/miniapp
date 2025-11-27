@@ -37,6 +37,8 @@ A Multi-Platform Authentication System provides unified JWT-based authentication
 
 A Seller Stores System enables dedicated storefronts with customizable profiles, subscriptions, reviews, notifications, and deep link support. Store PRO Analytics offers an advanced dashboard for store owners with daily stats, KPI cards, time-series charts, conversion funnels, top product rankings, geographic analysis, campaign tracking, audience segmentation, and CSV export.
 
+A Campaign Analytics System tracks marketing campaigns (seasonal fairs, special events) with public campaign storefronts, campaign-specific analytics for stores, and integration with Store PRO Analytics. Campaigns are managed through the Season model with code, name, type (store/farmer/both), dates, and isActive status. API endpoints include /api/campaign-analytics/campaigns (public listing), /ads (campaign ads), /overview, /daily, /geo, and /prices (authenticated analytics). MiniApp pages CampaignsListPage and CampaignPage provide user-facing campaign browsing.
+
 MEGA-ANALYTICS 10.0 provides professional marketplace-level seller analytics with event tracking, an analytics engine, overview dashboards, price position analysis, category performance insights, geo-analytics, AI suggestions, and warnings.
 
 MEGA-PROMPT 14.0 Digital Twin is an AI-powered personalized shopping assistant with a UserTwin model tracking interests, a service for AI chat, context-aware recommendations, notifications, watchlist management, and interest learning.
