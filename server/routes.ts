@@ -7,6 +7,24 @@ import {
   getPricePosition,
   getShopOverviewAnalytics,
 } from "./analyticsService";
+import {
+  canSellerUseTopSlot,
+  claimTopSlotForSeller,
+  createFair,
+  deactivateFair,
+  findFairById,
+  findFairBySlug,
+  getActiveFairsForRole,
+  getFairFeed,
+  getTopSlotsForZone,
+  getZoneId,
+  isFairCurrentlyActive,
+  listAds,
+  listFairs,
+  setAdFairParticipation,
+  summarizeSellerParticipation,
+  updateFair,
+} from "./fairsService";
 
 function parseDateRange(query: Record<string, string | undefined>) {
   const to = query.to ? new Date(query.to) : new Date();
@@ -18,6 +36,13 @@ function parseDateRange(query: Record<string, string | undefined>) {
 
 export async function registerRoutes(app: Express): Promise<Server> {
   const api = Router();
+
+  api.use((req, _res, next) => {
+    const userId = req.header("x-user-id") || "seller-1";
+    const userRole = req.header("x-user-role") || "SELLER";
+    (req as any).user = { id: userId, role: userRole };
+    next();
+  });
 
   api.get("/shops/:shopId/analytics/overview", (req, res) => {
     const { shopId } = req.params;
@@ -57,6 +82,142 @@ export async function registerRoutes(app: Express): Promise<Server> {
       return res.status(404).json({ message: "Shop not found" });
     }
     return res.json(score);
+  });
+
+  api.post("/admin/fairs", (req, res) => {
+    const payload = req.body as any;
+    const allowedRoles =
+      payload.type === "holiday" ? ["SHOP", "SELLER"] : payload.type === "autumn_farm" ? ["FARMER"] : payload.allowedRoles;
+    const geoRules = {
+      radiusMeters: payload.geoRules?.radiusMeters ?? 2000,
+      zoneRadiusMeters: payload.geoRules?.zoneRadiusMeters ?? 500,
+      maxStaticSlots: payload.geoRules?.maxStaticSlots ?? 2,
+    };
+    const fair = createFair({
+      slug: payload.slug,
+      title: payload.title,
+      description: payload.description,
+      type: payload.type,
+      allowedRoles,
+      dateStart: new Date(payload.dateStart),
+      dateEnd: new Date(payload.dateEnd),
+      isActive: payload.isActive ?? true,
+      geoRules,
+    });
+    return res.status(201).json(fair);
+  });
+
+  api.get("/admin/fairs", (_req, res) => {
+    return res.json(listFairs());
+  });
+
+  api.get("/admin/fairs/:id", (req, res) => {
+    const fair = findFairById(req.params.id);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    return res.json(fair);
+  });
+
+  api.patch("/admin/fairs/:id", (req, res) => {
+    const fair = updateFair(req.params.id, req.body);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    return res.json(fair);
+  });
+
+  api.delete("/admin/fairs/:id", (req, res) => {
+    const fair = deactivateFair(req.params.id);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    return res.json(fair);
+  });
+
+  api.get("/seller/fairs/available", (req, res) => {
+    const user = (req as any).user as { id: string; role: string };
+    const { lat, lng } = req.query as { lat?: string; lng?: string };
+    const fairs = getActiveFairsForRole(user.role);
+    const participation = fairs.map((fair) => ({
+      fair,
+      participation: summarizeSellerParticipation({
+        sellerId: user.id,
+        fair,
+        lat: lat ? parseFloat(lat) : undefined,
+        lng: lng ? parseFloat(lng) : undefined,
+      }),
+    }));
+    return res.json(participation);
+  });
+
+  api.post("/seller/fairs/:fairId/ads/:adId/join", (req, res) => {
+    const user = (req as any).user as { id: string; role: string };
+    const fair = findFairById(req.params.fairId);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    if (!isFairCurrentlyActive(fair)) return res.status(400).json({ message: "Fair is not active" });
+    if (!fair.allowedRoles.includes(user.role)) return res.status(403).json({ message: "Role not allowed for this fair" });
+    const ad = setAdFairParticipation({ adId: req.params.adId, sellerId: user.id, fairId: fair.id });
+    if (!ad) return res.status(404).json({ message: "Ad not found or not owned" });
+    return res.json(ad);
+  });
+
+  api.post("/seller/fairs/:fairId/ads/:adId/leave", (req, res) => {
+    const user = (req as any).user as { id: string; role: string };
+    const fair = findFairById(req.params.fairId);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    const ad = setAdFairParticipation({ adId: req.params.adId, sellerId: user.id, fairId: null });
+    if (!ad) return res.status(404).json({ message: "Ad not found or not owned" });
+    return res.json(ad);
+  });
+
+  api.post("/seller/fairs/:fairId/top-slot/claim", async (req, res, next) => {
+    try {
+      const user = (req as any).user as { id: string; role: string };
+      const fair = findFairById(req.params.fairId);
+      if (!fair) return res.status(404).json({ message: "Fair not found" });
+      if (!isFairCurrentlyActive(fair)) return res.status(400).json({ message: "Fair is not active" });
+      if (!fair.allowedRoles.includes(user.role)) return res.status(403).json({ message: "Role not allowed" });
+      const { lat, lng } = req.body as { lat: number; lng: number };
+      if (!(await canSellerUseTopSlot(user.id, fair.id))) {
+        return res.status(403).json({ message: "Seller cannot use top slot" });
+      }
+      const result = claimTopSlotForSeller({ fair, sellerId: user.id, lat, lng });
+      return res.json({ ...result, zoneId: getZoneId(lat, lng, fair.geoRules.zoneRadiusMeters) });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  api.get("/public/fairs/active", (req, res) => {
+    const { lat, lng } = req.query as { lat?: string; lng?: string };
+    const now = new Date();
+    const activeFairs = listFairs().filter((fair) => isFairCurrentlyActive(fair, now));
+    const primaryFair = activeFairs[0];
+    return res.json({ fairs: activeFairs, primaryFair, location: { lat, lng } });
+  });
+
+  api.get("/public/fairs/:slug/top-slots", (req, res) => {
+    const fair = findFairBySlug(req.params.slug) || findFairById(req.params.slug);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    const { lat, lng } = req.query as { lat?: string; lng?: string };
+    if (!lat || !lng) return res.status(400).json({ message: "lat and lng are required" });
+    const zoneId = getZoneId(parseFloat(lat), parseFloat(lng), fair.geoRules.zoneRadiusMeters);
+    const slot = getTopSlotsForZone(fair.id, zoneId);
+    return res.json({ fair, zoneId, slot });
+  });
+
+  api.get("/public/fairs/:slug/feed", (req, res) => {
+    const fair = findFairBySlug(req.params.slug) || findFairById(req.params.slug);
+    if (!fair) return res.status(404).json({ message: "Fair not found" });
+    const { lat, lng, page, limit } = req.query as { lat?: string; lng?: string; page?: string; limit?: string };
+    if (!lat || !lng) return res.status(400).json({ message: "lat and lng are required" });
+    const feed = getFairFeed({
+      fair,
+      lat: parseFloat(lat),
+      lng: parseFloat(lng),
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+    return res.json({ fair, ...feed });
+  });
+
+  api.get("/public/fairs/:slug/ads", (_req, res) => {
+    return res.json(listAds());
   });
 
   app.use("/api", api);
