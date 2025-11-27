@@ -48,6 +48,8 @@ const SearchResultsPage = lazy(() => import('@/pages/SearchResultsPage'));
 const CategoryResultsPage = lazy(() => import('@/pages/CategoryResultsPage'));
 const StoreCabinetPage = lazy(() => import('@/pages/StoreCabinetPage'));
 const StoreProAnalyticsPage = lazy(() => import('@/pages/StoreProAnalyticsPage'));
+const CampaignsListPage = lazy(() => import('@/pages/CampaignsListPage'));
+const CampaignPage = lazy(() => import('@/pages/CampaignPage'));
 
 export default function App() {
   const location = useLocation();
@@ -249,6 +251,8 @@ export default function App() {
                 <Route path="/dynamic-pricing/:adId" element={<DynamicPricingPage />} />
                 <Route path="/seller-twin" element={<SellerTwinPage />} />
                 <Route path="/for-you" element={<ForYouFeedPage />} />
+                <Route path="/campaigns" element={<CampaignsListPage />} />
+                <Route path="/campaigns/:campaignCode" element={<CampaignPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>

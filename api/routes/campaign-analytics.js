@@ -1,6 +1,6 @@
 import express from 'express';
 import CampaignAnalyticsService from '../../services/CampaignAnalyticsService.js';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware } from '../../middleware/auth.js';
 import SellerProfile from '../../models/SellerProfile.js';
 
 const router = express.Router();
