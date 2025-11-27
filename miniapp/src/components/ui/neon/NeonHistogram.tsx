@@ -1,3 +1,4 @@
+import type { MouseEvent } from 'react';
 import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { neonTheme, NeonColor, getNeonColor, getGlowStyle } from './neonTheme';
@@ -46,7 +47,7 @@ export function NeonHistogram({
   const primaryColorValue = getNeonColor(primaryColor);
   const secondaryColorValue = neonTheme.colors.neonLime;
 
-  const handleMouseMove = (e: React.MouseEvent, index: number) => {
+  const handleMouseMove = (e: MouseEvent, index: number) => {
     if (showTooltip) {
       const rect = e.currentTarget.getBoundingClientRect();
       setTooltipPos({

@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { neonTheme, NeonColor, getNeonColor, getGlowStyle } from './neonTheme';
 
 interface NeonBadgeProps {
-  children: React.ReactNode;
+  children: ReactNode;
   color?: NeonColor;
   variant?: 'filled' | 'outlined' | 'glow';
   size?: 'sm' | 'md' | 'lg';

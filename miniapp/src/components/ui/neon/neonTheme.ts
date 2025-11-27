@@ -44,6 +44,7 @@ export const neonTheme = {
   blur: {
     card: 'blur(12px)',
     background: 'blur(20px)',
+    heavy: 'blur(24px)',
   },
   
   animation: {

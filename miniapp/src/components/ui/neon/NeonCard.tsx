@@ -1,8 +1,9 @@
+import type { ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import { neonTheme, NeonColor, getGlowStyle } from './neonTheme';
 
 interface NeonCardProps {
-  children: React.ReactNode;
+  children: ReactNode;
   className?: string;
   glowColor?: NeonColor;
   hoverable?: boolean;
@@ -95,7 +96,7 @@ interface NeonStatCardProps {
   title: string;
   value: string | number;
   subtitle?: string;
-  icon?: React.ReactNode;
+  icon?: ReactNode;
   trend?: { value: number; isPositive: boolean };
   glowColor?: NeonColor;
   className?: string;

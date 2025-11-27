@@ -50,6 +50,8 @@ const StoreCabinetPage = lazy(() => import('@/pages/StoreCabinetPage'));
 const StoreProAnalyticsPage = lazy(() => import('@/pages/StoreProAnalyticsPage'));
 const CampaignsListPage = lazy(() => import('@/pages/CampaignsListPage'));
 const CampaignPage = lazy(() => import('@/pages/CampaignPage'));
+const CampaignAnalyticsPage = lazy(() => import('@/pages/CampaignAnalyticsPage'));
+const NeonDemoPage = lazy(() => import('@/pages/NeonDemoPage'));
 
 export default function App() {
   const location = useLocation();
@@ -253,6 +255,8 @@ export default function App() {
                 <Route path="/for-you" element={<ForYouFeedPage />} />
                 <Route path="/campaigns" element={<CampaignsListPage />} />
                 <Route path="/campaigns/:campaignCode" element={<CampaignPage />} />
+                <Route path="/campaigns/:campaignCode/analytics" element={<CampaignAnalyticsPage />} />
+                <Route path="/neon-demo" element={<NeonDemoPage />} />
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </Suspense>
