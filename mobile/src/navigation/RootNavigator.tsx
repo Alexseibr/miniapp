@@ -1,30 +1,28 @@
-import React, { useEffect, useState } from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { ActivityIndicator, View } from 'react-native';
-import { AuthNavigator } from './AuthNavigator';
-import { AppNavigator } from './AppNavigator';
+import React from 'react';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import AuthNavigator from './AuthNavigator';
+import AppNavigator from './AppNavigator';
 import { useAuthStore } from '../store/authStore';
 
-export const RootNavigator = () => {
-  const { accessToken, onboardingCompleted, hydrate, user } = useAuthStore();
-  const [hydrated, setHydrated] = useState(false);
+export type RootStackParamList = {
+  Auth: undefined;
+  App: undefined;
+};
 
-  useEffect(() => {
-    hydrate().finally(() => setHydrated(true));
-  }, [hydrate]);
+const Stack = createNativeStackNavigator<RootStackParamList>();
 
-  if (!hydrated) {
-    return (
-      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#050608' }}>
-        <ActivityIndicator color="#00f5d4" />
-      </View>
-    );
-  }
-
-  const isAuthenticated = Boolean(accessToken && user);
-  const shouldShowOnboarding = !onboardingCompleted;
+const RootNavigator = () => {
+  const isAuthenticated = useAuthStore((s) => !!s.accessToken);
 
   return (
-    <NavigationContainer>{isAuthenticated && !shouldShowOnboarding ? <AppNavigator /> : <AuthNavigator />}</NavigationContainer>
+    <Stack.Navigator screenOptions={{ headerShown: false }}>
+      {isAuthenticated ? (
+        <Stack.Screen name="App" component={AppNavigator} />
+      ) : (
+        <Stack.Screen name="Auth" component={AuthNavigator} />
+      )}
+    </Stack.Navigator>
   );
 };
+
+export default RootNavigator;

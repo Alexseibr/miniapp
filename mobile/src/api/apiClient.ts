@@ -1,43 +1,23 @@
 import axios from 'axios';
-import Constants from 'expo-constants';
-import { storage } from '../services/storage';
-import { useAuthStore } from '../store/authStore';
+import { getAccessToken } from '../store/authStore';
 
-const fallbackBaseUrl = 'https://your-domain.com/api';
-const apiBaseUrl =
-  process.env.EXPO_PUBLIC_API_BASE_URL ||
-  (Constants.expoConfig?.extra as { apiBaseUrl?: string } | undefined)?.apiBaseUrl ||
-  fallbackBaseUrl;
+const BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://your-domain.com/api';
 
 export const apiClient = axios.create({
-  baseURL: apiBaseUrl,
-  headers: {
-    'Content-Type': 'application/json'
-  }
+  baseURL: BASE_URL,
+  timeout: 10000,
 });
 
-apiClient.interceptors.request.use(async (config) => {
-  const tokenFromStore = useAuthStore.getState().accessToken;
-  const token = tokenFromStore || (await storage.getAccessToken());
-  if (token) {
-    config.headers = {
-      ...config.headers,
-      Authorization: `Bearer ${token}`
-    };
-  }
-  return config;
-});
-
-apiClient.interceptors.response.use(
-  (response) => response,
-  async (error) => {
-    if (error.response?.status === 401) {
-      // TODO: optional refresh flow using /api/mobile/v1/auth/refresh when backend is ready
-      await storage.clearTokens();
-      useAuthStore.getState().logout();
+apiClient.interceptors.request.use(
+  async (config) => {
+    const token = getAccessToken();
+    if (token) {
+      config.headers = {
+        ...config.headers,
+        Authorization: `Bearer ${token}`,
+      };
     }
-    return Promise.reject(error);
-  }
+    return config;
+  },
+  (error) => Promise.reject(error)
 );
-
-export default apiClient;

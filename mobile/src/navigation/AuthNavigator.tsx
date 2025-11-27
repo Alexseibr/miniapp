@@ -1,8 +1,8 @@
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { OnboardingScreen } from '../screens/OnboardingScreen';
-import { LoginPhoneScreen } from '../screens/LoginPhoneScreen';
-import { VerifyCodeScreen } from '../screens/VerifyCodeScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
+import LoginPhoneScreen from '../screens/LoginPhoneScreen';
+import VerifyCodeScreen from '../screens/VerifyCodeScreen';
 
 export type AuthStackParamList = {
   Onboarding: undefined;
@@ -12,10 +12,26 @@ export type AuthStackParamList = {
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
-export const AuthNavigator = () => (
-  <Stack.Navigator screenOptions={{ headerShown: false }}>
-    <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-    <Stack.Screen name="LoginPhone" component={LoginPhoneScreen} />
-    <Stack.Screen name="VerifyCode" component={VerifyCodeScreen} />
-  </Stack.Navigator>
-);
+const AuthNavigator = () => {
+  return (
+    <Stack.Navigator>
+      <Stack.Screen
+        name="Onboarding"
+        component={OnboardingScreen}
+        options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="LoginPhone"
+        component={LoginPhoneScreen}
+        options={{ title: 'Вход по телефону' }}
+      />
+      <Stack.Screen
+        name="VerifyCode"
+        component={VerifyCodeScreen}
+        options={{ title: 'Подтверждение кода' }}
+      />
+    </Stack.Navigator>
+  );
+};
+
+export default AuthNavigator;

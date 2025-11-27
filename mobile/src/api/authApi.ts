@@ -1,31 +1,36 @@
-import apiClient from './apiClient';
-import { ApiResponse, AuthTokens, User } from '../types';
+import { apiClient } from './apiClient';
 
-export interface RequestCodePayload {
+export interface RequestPhoneCodePayload {
   phone: string;
 }
 
-export interface ConfirmCodePayload {
+export interface VerifyCodePayload {
   phone: string;
   code: string;
 }
 
-export interface ConfirmCodeResponse extends AuthTokens {
-  user?: User;
+export interface AuthTokens {
+  accessToken: string;
+  refreshToken?: string;
+}
+
+export interface MeResponse {
+  id: string;
+  username?: string;
+  phone: string;
+  role: string;
 }
 
 export const authApi = {
-  requestCode: (payload: RequestCodePayload) =>
-    apiClient.post<ApiResponse<null>>('/mobile/v1/auth/request-code', payload),
+  requestPhoneCode(payload: RequestPhoneCodePayload) {
+    return apiClient.post('/auth/phone/request-code', payload);
+  },
 
-  confirmCode: (payload: ConfirmCodePayload) =>
-    apiClient.post<ApiResponse<ConfirmCodeResponse>>('/mobile/v1/auth/confirm-code', payload),
+  verifyCode(payload: VerifyCodePayload) {
+    return apiClient.post<AuthTokens>('/auth/phone/verify', payload);
+  },
 
-  telegramAuth: (initData: string) =>
-    apiClient.post<ApiResponse<ConfirmCodeResponse>>('/mobile/v1/auth/telegram', { initData }),
-
-  refreshToken: (refreshToken: string) =>
-    apiClient.post<ApiResponse<AuthTokens>>('/mobile/v1/auth/refresh', { refreshToken }),
-
-  me: () => apiClient.get<ApiResponse<User>>('/users/me')
+  me() {
+    return apiClient.get<MeResponse>('/auth/me');
+  },
 };

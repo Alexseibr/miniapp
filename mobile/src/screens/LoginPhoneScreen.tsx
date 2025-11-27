@@ -1,54 +1,50 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { View, Text, TextInput, Button, StyleSheet } from 'react-native';
 import { NativeStackScreenProps } from '@react-navigation/native-stack';
-import { authApi } from '../api/authApi';
-import { TextField } from '../components/ui/TextField';
-import { PrimaryButton } from '../components/ui/PrimaryButton';
 import { AuthStackParamList } from '../navigation/AuthNavigator';
+import { useAuthStore } from '../store/authStore';
 
-export type LoginPhoneProps = NativeStackScreenProps<AuthStackParamList, 'LoginPhone'>;
+type Props = NativeStackScreenProps<AuthStackParamList, 'LoginPhone'>;
 
-export const LoginPhoneScreen: React.FC<LoginPhoneProps> = ({ navigation }) => {
+const LoginPhoneScreen: React.FC<Props> = ({ navigation }) => {
   const [phone, setPhone] = useState('');
-  const [loading, setLoading] = useState(false);
+  const requestPhoneCode = useAuthStore((s) => s.requestPhoneCode);
+  const loading = useAuthStore((s) => s.loading);
 
-  const handleRequestCode = async () => {
-    setLoading(true);
-    try {
-      await authApi.requestCode({ phone });
-      navigation.navigate('VerifyCode', { phone });
-    } catch (error) {
-      Alert.alert('Ошибка', 'Не удалось запросить код. Проверьте номер.');
-    } finally {
-      setLoading(false);
-    }
+  const handleContinue = async () => {
+    if (!phone) return;
+    await requestPhoneCode(phone);
+    navigation.navigate('VerifyCode', { phone });
   };
 
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Вход по телефону</Text>
-      <TextField
-        label="Телефон"
-        value={phone}
-        placeholder="+375291234567"
+      <TextInput
+        style={styles.input}
+        placeholder="+375..."
+        placeholderTextColor="#6b7280"
         keyboardType="phone-pad"
+        value={phone}
         onChangeText={setPhone}
       />
-      <PrimaryButton title="Получить код" onPress={handleRequestCode} loading={loading} disabled={!phone} />
+      <Button title={loading ? 'Отправка...' : 'Получить код'} onPress={handleContinue} />
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#050608',
-    padding: 24
+  container: { flex: 1, backgroundColor: '#020617', padding: 24, justifyContent: 'center' },
+  title: { fontSize: 22, fontWeight: '600', color: '#e5e7eb', marginBottom: 16 },
+  input: {
+    borderWidth: 1,
+    borderColor: '#4b5563',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    color: '#f9fafb',
+    marginBottom: 16,
   },
-  title: {
-    color: '#fff',
-    fontSize: 22,
-    fontWeight: '700',
-    marginBottom: 12
-  }
 });
+
+export default LoginPhoneScreen;
