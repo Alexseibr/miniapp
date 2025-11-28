@@ -72,6 +72,20 @@ const userSchema = new mongoose.Schema(
       type: String,
       trim: true,
     },
+    countryCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    preferredCurrency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+    },
+    preferredLocale: {
+      type: String,
+      trim: true,
+    },
     phone: {
       type: String,
       trim: true,
@@ -162,6 +176,7 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });
+userSchema.index({ countryCode: 1 });
 userSchema.index({ phone: 1 }, { unique: true, sparse: true });
 userSchema.index({ telegramId: 1 }, { unique: true, sparse: true });
 userSchema.index({ appUserId: 1 }, { unique: true, sparse: true });
