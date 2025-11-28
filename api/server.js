@@ -152,5 +152,6 @@ app.use('/api/campaigns', campaignAnalyticsRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/admin/rating', adminAuth, adminRatingRoutes);
 app.use('/api/devices', devicesRoutes);
+app.use('/api/my-shop', myShopRoutes);
 
 export default app;
