@@ -8,6 +8,7 @@ import HotSearchService from '../../services/HotSearchService.js';
 import SearchAlertService from '../../services/SearchAlertService.js';
 import DemandNotificationService from '../../services/DemandNotificationService.js';
 import FastMarketScoringService from '../../services/FastMarketScoringService.js';
+import SellerProfile from '../../models/SellerProfile.js';
 
 const router = Router();
 const DEFAULT_LIMIT = 100;
@@ -115,6 +116,7 @@ router.get('/search', async (req, res) => {
       minPrice,
       maxPrice,
       sort = 'newest',
+      onlyWithDelivery,
       limit,
     } = req.query;
 
@@ -158,10 +160,43 @@ router.get('/search', async (req, res) => {
       baseQuery.price = { ...baseQuery.price, $lte: maxPriceNumber };
     }
 
+    if (onlyWithDelivery === 'true' || onlyWithDelivery === true) {
+      baseQuery.hasDelivery = true;
+      baseQuery.$or = [
+        ...(baseQuery.$or || []),
+        { storeId: { $ne: null } },
+        { shopProfileId: { $ne: null } },
+      ];
+    }
+
     const ads = await Ad.find(baseQuery).sort({ createdAt: -1 }).limit(FETCH_LIMIT).lean();
 
     const regex = q ? new RegExp(q, 'i') : null;
     let filtered = regex ? ads.filter((ad) => matchesQuery(ad, regex)) : ads;
+
+    if (onlyWithDelivery === 'true' || onlyWithDelivery === true) {
+      const storeIds = filtered
+        .map((ad) => ad.storeId || ad.shopProfileId)
+        .filter(Boolean);
+      const uniqueStoreIds = [...new Set(storeIds.map((id) => id.toString()))];
+
+      if (uniqueStoreIds.length > 0) {
+        const stores = await SellerProfile.find({
+          _id: { $in: uniqueStoreIds },
+          canDeliver: true,
+        })
+          .select('_id canDeliver')
+          .lean();
+
+        const deliverableStores = new Set(stores.map((s) => s._id.toString()));
+        filtered = filtered.filter((ad) => {
+          const storeId = ad.storeId || ad.shopProfileId;
+          return storeId && deliverableStores.has(storeId.toString()) && ad.hasDelivery === true;
+        });
+      } else {
+        filtered = [];
+      }
+    }
 
     const latNumber = parseNumber(lat);
     const lngNumber = parseNumber(lng);

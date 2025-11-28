@@ -41,6 +41,7 @@ const orderSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    buyerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, default: null },
     buyerName: {
       type: String,
       trim: true,
@@ -63,6 +64,15 @@ const orderSchema = new mongoose.Schema(
         message: 'Заказ должен содержать хотя бы один товар',
       },
     },
+    adId: { type: mongoose.Schema.Types.ObjectId, ref: 'Ad', index: true, default: null },
+    sellerId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true, default: null },
+    sellerTelegramId: { type: Number, index: true, default: null },
+    shopProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SellerProfile',
+      index: true,
+      default: null,
+    },
     acceptedSellerIds: {
       type: [Number],
       default: [],
@@ -79,9 +89,16 @@ const orderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['new', 'processed', 'completed', 'cancelled'],
+      enum: ['new', 'processed', 'completed', 'cancelled', 'NEW', 'CONFIRMED', 'COMPLETED', 'CANCELLED'],
       default: 'new',
       index: true,
+    },
+    scheduledDate: { type: Date, default: null, index: true },
+    deliveryRequired: { type: Boolean, default: false },
+    deliveryAddress: { type: String, trim: true, default: null },
+    deliveryLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
     },
     comment: {
       type: String,
@@ -106,5 +123,8 @@ orderSchema.pre('save', function (next) {
 
 orderSchema.index({ buyerTelegramId: 1, createdAt: -1 });
 orderSchema.index({ status: 1, createdAt: -1 });
+orderSchema.index({ sellerId: 1, scheduledDate: 1 });
+orderSchema.index({ shopProfileId: 1, scheduledDate: 1 });
+orderSchema.index({ adId: 1, scheduledDate: 1 });
 
 export default mongoose.model('Order', orderSchema);
