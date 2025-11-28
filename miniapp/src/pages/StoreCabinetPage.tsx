@@ -1,10 +1,11 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { 
-  Store, Eye, Package, Phone, Plus, Settings, ChevronRight, 
-  Heart, EyeOff, Pencil, Camera, Upload, TrendingUp, 
-  MapPin, Send, Check, X, Loader2, ExternalLink, Sparkles
+  Store, Eye, Package, Phone, Plus, Settings, ChevronRight,
+  Heart, EyeOff, Pencil, Upload, TrendingUp,
+  MapPin, Check, X, Loader2, ExternalLink, Sparkles,
+  Pause, Play, CircleDollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,6 +15,9 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { usePlatform } from '@/platform/PlatformProvider';
 import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
+import { CreateProductWizard } from '@/components/seller/CreateProductWizard';
+import { BaseLocationPrompt } from '@/components/seller/BaseLocationPrompt';
+import { pauseProduct, publishProduct, updateBaseLocation, updateProductPricing } from '@/api/myShop';
 
 const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
 const textareaClass = "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
@@ -31,6 +35,11 @@ interface SellerProfile {
   telegramUsername?: string;
   city?: string;
   region?: string;
+  baseLocation?: {
+    lat: number;
+    lng: number;
+    address?: string | null;
+  };
   showPhone: boolean;
   subscribersCount: number;
   productsCount: number;
@@ -59,6 +68,9 @@ interface StoreAd {
   currency: string;
   photos: string[];
   status: string;
+  measureUnit?: string;
+  stockQuantity?: number | null;
+  quantity?: number | null;
   viewsTotal?: number;
   favoritesCount?: number;
   createdAt: string;
@@ -67,7 +79,7 @@ interface StoreAd {
   categoryId?: string;
 }
 
-type TabType = 'products' | 'stats' | 'settings';
+type TabType = 'products' | 'create' | 'stats' | 'demand' | 'pro' | 'fairs' | 'settings';
 
 export default function StoreCabinetPage() {
   const navigate = useNavigate();
@@ -75,12 +87,16 @@ export default function StoreCabinetPage() {
   const { toast } = useToast();
   const { getAuthToken } = usePlatform();
   const [activeTab, setActiveTab] = useState<TabType>('products');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden'>('all');
-  
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden' | 'draft' | 'paused'>('all');
+
   const [formData, setFormData] = useState<Partial<SellerProfile>>({});
   const [isFormDirty, setIsFormDirty] = useState(false);
   const [uploading, setUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showBaseLocationPrompt, setShowBaseLocationPrompt] = useState(false);
+  const [, setSavingLocation] = useState(false);
+  const [pricingForms, setPricingForms] = useState<Record<string, { price: string; stock: string; measureUnit: string }>>({});
+  const [expandedPricingId, setExpandedPricingId] = useState<string | null>(null);
 
   const { data: profileData, isLoading: profileLoading } = useQuery({
     queryKey: ['/api/seller-profile/my'],
@@ -182,9 +198,156 @@ export default function StoreCabinetPage() {
     },
   });
 
+  const pricingMutation = useMutation({
+    mutationFn: async ({ adId, price, stockQuantity, measureUnit }: { adId: string; price?: number; stockQuantity?: number; measureUnit?: string }) => {
+      const token = await getAuthToken();
+      if (!token) throw new Error('Not authenticated');
+      return updateProductPricing(adId, { price, stockQuantity, measureUnit }, token);
+    },
+    onSuccess: () => {
+      toast({ title: 'Сохранено' });
+      setExpandedPricingId(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Не удалось сохранить цену';
+      toast({ title: message, variant: 'destructive' });
+    },
+  });
+
+  const publishMutation = useMutation({
+    mutationFn: async ({ adId, measureUnit }: { adId: string; measureUnit?: string }) => {
+      const token = await getAuthToken();
+      if (!token) throw new Error('Not authenticated');
+      return publishProduct(adId, measureUnit, token);
+    },
+    onSuccess: () => {
+      toast({ title: 'Товар опубликован' });
+      setExpandedPricingId(null);
+      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/stats'] });
+    },
+    onError: (error: any) => {
+      const message = error?.response?.data?.message || 'Не удалось опубликовать товар';
+      toast({ title: message, variant: 'destructive' });
+    },
+  });
+
+  const pauseMutation = useMutation({
+    mutationFn: async ({ adId }: { adId: string }) => {
+      const token = await getAuthToken();
+      if (!token) throw new Error('Not authenticated');
+      return pauseProduct(adId, token);
+    },
+    onSuccess: () => {
+      toast({ title: 'Товар поставлен на паузу' });
+      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
+    },
+    onError: () => {
+      toast({ title: 'Не удалось поставить на паузу', variant: 'destructive' });
+    },
+  });
+
   const handleSaveSettings = () => {
     if (Object.keys(formData).length === 0) return;
     updateProfileMutation.mutate(formData);
+  };
+
+  const measureLabels: Record<string, string> = {
+    kg: 'кг',
+    pcs: 'шт',
+    ltr: 'литр',
+    pack: 'упаковка',
+    portion: 'порция',
+    piece: 'шт',
+    liter: 'литр',
+  };
+
+  const mapUnitTypeToMeasure = (unitType?: string | null) => {
+    if (!unitType) return undefined;
+    if (unitType === 'piece') return 'pcs';
+    if (unitType === 'liter') return 'ltr';
+    return unitType;
+  };
+
+  const getMeasureLabel = (unit?: string | null) => measureLabels[unit || ''] || unit;
+
+  const getPricingState = (ad: StoreAd) => ({
+    price: ad.price > 0 ? String(ad.price) : '',
+    stock: ad.stockQuantity != null ? String(ad.stockQuantity) : ad.quantity != null ? String(ad.quantity) : '',
+    measureUnit: ad.measureUnit || mapUnitTypeToMeasure(ad.unitType) || 'kg',
+  });
+
+  const handleBaseLocationSubmit = async (data: { lat: number; lng: number; address?: string }) => {
+    try {
+      setSavingLocation(true);
+      const token = await getAuthToken();
+      await updateBaseLocation(data, token || undefined);
+      toast({ title: 'Точка продажи сохранена' });
+      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my'] });
+      setShowBaseLocationPrompt(false);
+    } catch (error) {
+      toast({ title: 'Не удалось сохранить точку', variant: 'destructive' });
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const handleOpenPricing = (ad: StoreAd) => {
+    setExpandedPricingId(ad._id);
+    setPricingForms(prev => ({ ...prev, [ad._id]: getPricingState(ad) }));
+  };
+
+  const handlePricingChange = (adId: string, field: 'price' | 'stock' | 'measureUnit', value: string) => {
+    setPricingForms(prev => ({
+      ...prev,
+      [adId]: { ...(prev[adId] || {}), [field]: value },
+    }));
+  };
+
+  const handleSavePricing = (ad: StoreAd) => {
+    const form = pricingForms[ad._id] || getPricingState(ad);
+    if (!form.price) {
+      toast({ title: 'Укажите цену', variant: 'destructive' });
+      return;
+    }
+
+    pricingMutation.mutate({
+      adId: ad._id,
+      price: Number(form.price),
+      stockQuantity: form.stock ? Number(form.stock) : undefined,
+      measureUnit: form.measureUnit,
+    });
+  };
+
+  const handlePublish = (ad: StoreAd) => {
+    const form = pricingForms[ad._id] || getPricingState(ad);
+    const priceToUse = form.price || ad.price;
+    if (!priceToUse) {
+      toast({ title: 'Сначала укажите цену', variant: 'destructive' });
+      return;
+    }
+
+    if (form.price && Number(form.price) !== ad.price) {
+      pricingMutation.mutate(
+        {
+          adId: ad._id,
+          price: Number(form.price),
+          stockQuantity: form.stock ? Number(form.stock) : undefined,
+          measureUnit: form.measureUnit,
+        },
+        {
+          onSuccess: () => publishMutation.mutate({ adId: ad._id, measureUnit: form.measureUnit }),
+        }
+      );
+      return;
+    }
+
+    publishMutation.mutate({ adId: ad._id, measureUnit: form.measureUnit });
+  };
+
+  const handlePause = (ad: StoreAd) => {
+    pauseMutation.mutate({ adId: ad._id });
   };
 
   const handleFormChange = (field: keyof SellerProfile, value: any) => {
@@ -244,6 +407,12 @@ export default function StoreCabinetPage() {
   const profile: SellerProfile | null = profileData?.profile || null;
   const stats: StoreStats | null = statsData?.stats || null;
   const ads: StoreAd[] = adsData?.items || [];
+
+  useEffect(() => {
+    if (profile && !profile.baseLocation) {
+      setShowBaseLocationPrompt(true);
+    }
+  }, [profile]);
 
   if (!profile) {
     return (
@@ -310,10 +479,14 @@ export default function StoreCabinetPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b bg-card sticky top-0 z-10">
+      <div className="flex border-b bg-card sticky top-0 z-10 overflow-x-auto">
         {[
           { id: 'products' as TabType, label: 'Товары', icon: Package },
+          { id: 'create' as TabType, label: 'Создать товар', icon: Plus },
           { id: 'stats' as TabType, label: 'Статистика', icon: TrendingUp },
+          { id: 'demand' as TabType, label: 'Спрос', icon: Eye },
+          { id: 'pro' as TabType, label: 'PRO', icon: Sparkles },
+          { id: 'fairs' as TabType, label: 'Ярмарки', icon: Store },
           { id: 'settings' as TabType, label: 'Настройки', icon: Settings },
         ].map(tab => {
           const Icon = tab.icon;
@@ -321,7 +494,7 @@ export default function StoreCabinetPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
                   ? 'text-primary border-b-2 border-primary'
                   : 'text-muted-foreground hover:text-foreground'
@@ -340,20 +513,51 @@ export default function StoreCabinetPage() {
         {/* Products Tab */}
         {activeTab === 'products' && (
           <div className="space-y-4">
-            <Button 
-              className="w-full"
-              onClick={() => navigate('/ads/create')}
-              data-testid="button-add-product"
-            >
-              <Plus className="w-4 h-4 mr-2" />
-              Добавить товар
-            </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button
+                className="w-full"
+                onClick={() => setActiveTab('create')}
+                data-testid="button-add-product"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Создать товар
+              </Button>
+              <Button
+                className="w-full"
+                variant="outline"
+                onClick={() => navigate('/ads/create')}
+              >
+                <Pencil className="w-4 h-4 mr-2" />
+                Расширенный режим
+              </Button>
+            </div>
+
+            <Card className="border-dashed">
+              <CardContent className="p-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold">Базовая точка продажи</p>
+                  <p className="text-xs text-muted-foreground">
+                    {profile.baseLocation
+                      ? `${profile.baseLocation.lat.toFixed(4)}, ${profile.baseLocation.lng.toFixed(4)}`
+                      : 'Не указана'}
+                  </p>
+                  {profile.baseLocation?.address && (
+                    <p className="text-xs text-muted-foreground truncate">{profile.baseLocation.address}</p>
+                  )}
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setShowBaseLocationPrompt(true)}>
+                  <MapPin className="w-4 h-4 mr-1" /> {profile.baseLocation ? 'Изменить' : 'Указать'}
+                </Button>
+              </CardContent>
+            </Card>
 
             {/* Status Filter */}
-            <div className="flex gap-2">
+            <div className="flex gap-2 flex-wrap">
               {[
                 { id: 'all' as const, label: 'Все' },
+                { id: 'draft' as const, label: 'Черновики' },
                 { id: 'active' as const, label: 'Активные' },
+                { id: 'paused' as const, label: 'На паузе' },
                 { id: 'hidden' as const, label: 'Скрытые' },
               ].map(filter => (
                 <Button
@@ -384,80 +588,234 @@ export default function StoreCabinetPage() {
               </Card>
             ) : (
               <div className="space-y-3">
-                {ads.map(ad => (
-                  <Card key={ad._id} className="overflow-hidden" data-testid={`card-ad-${ad._id}`}>
-                    <CardContent className="p-3 flex gap-3">
-                      {/* Photo */}
-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
-                        <img
-                          src={ad.photos?.[0] ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER}
-                          alt={ad.title}
-                          className="w-full h-full object-cover"
-                          loading="lazy"
-                        />
-                      </div>
-                      
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-sm truncate">{ad.title}</h3>
-                        <p className="text-primary font-bold mt-0.5">
-                          {ad.price.toLocaleString()} {ad.currency}
-                          {ad.unitType && <span className="text-xs text-muted-foreground">/{ad.unitType}</span>}
-                        </p>
-                        
-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Eye className="w-3 h-3" />
-                            {ad.viewsTotal || 0}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Heart className="w-3 h-3" />
-                            {ad.favoritesCount || 0}
-                          </span>
+                {ads.map(ad => {
+                  const unitLabel = getMeasureLabel(ad.measureUnit || mapUnitTypeToMeasure(ad.unitType));
+                  const priceLabel = ad.price > 0 ? `${ad.price.toLocaleString()} ${ad.currency || 'BYN'}` : 'Цена не задана';
+                  const isPricingOpen = expandedPricingId === ad._id;
+                  const formState = pricingForms[ad._id] || getPricingState(ad);
+                  const statusLabel =
+                    ad.status === 'draft'
+                      ? 'Черновик'
+                      : ad.status === 'paused'
+                        ? 'На паузе'
+                        : ad.status === 'hidden'
+                          ? 'Скрыто'
+                          : ad.status === 'archived'
+                            ? 'Архив'
+                            : ad.status === 'expired'
+                              ? 'Истёк'
+                              : 'Активно';
+
+                  return (
+                    <Card key={ad._id} className="overflow-hidden" data-testid={`card-ad-${ad._id}`}>
+                      <CardContent className="p-3 space-y-3">
+                        <div className="flex gap-3">
+                          {/* Photo */}
+                          <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+                            <img
+                              src={ad.photos?.[0] ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER}
+                              alt={ad.title}
+                              className="w-full h-full object-cover"
+                              loading="lazy"
+                            />
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium text-sm truncate">{ad.title}</h3>
+                            <p className="text-primary font-bold mt-0.5">
+                              {priceLabel}
+                              {unitLabel && <span className="text-xs text-muted-foreground">/{unitLabel}</span>}
+                            </p>
+
+                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
+                                <Eye className="w-3 h-3" />
+                                {ad.viewsTotal || 0}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Heart className="w-3 h-3" />
+                                {ad.favoritesCount || 0}
+                              </span>
+                            </div>
+
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <Badge
+                                variant={ad.status === 'active' ? 'default' : ad.status === 'draft' ? 'outline' : 'secondary'}
+                                className="text-xs"
+                              >
+                                {statusLabel}
+                              </Badge>
+                              {(ad.stockQuantity != null || ad.quantity != null) && (
+                                <Badge variant="outline" className="text-xs">
+                                  Остаток: {ad.stockQuantity ?? ad.quantity}
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex flex-col gap-2">
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => navigate(`/ads/edit/${ad._id}`)}
+                              data-testid={`button-edit-${ad._id}`}
+                            >
+                              <Pencil className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => {
+                                const newStatus = ad.status === 'active' ? 'hidden' : 'active';
+                                toggleAdStatusMutation.mutate({ adId: ad._id, newStatus });
+                              }}
+                              data-testid={`button-toggle-${ad._id}`}
+                            >
+                              {ad.status === 'active' ? (
+                                <EyeOff className="w-4 h-4" />
+                              ) : (
+                                <Eye className="w-4 h-4" />
+                              )}
+                            </Button>
+                          </div>
                         </div>
 
-                        <div className="flex items-center gap-2 mt-2">
-                          <Badge 
-                            variant={ad.status === 'active' ? 'default' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {ad.status === 'active' ? 'Активно' : 'Скрыто'}
-                          </Badge>
-                        </div>
-                      </div>
-                      
-                      {/* Actions */}
-                      <div className="flex flex-col gap-2">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => navigate(`/ads/edit/${ad._id}`)}
-                          data-testid={`button-edit-${ad._id}`}
-                        >
-                          <Pencil className="w-4 h-4" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            const newStatus = ad.status === 'active' ? 'hidden' : 'active';
-                            toggleAdStatusMutation.mutate({ adId: ad._id, newStatus });
-                          }}
-                          data-testid={`button-toggle-${ad._id}`}
-                        >
-                          {ad.status === 'active' ? (
-                            <EyeOff className="w-4 h-4" />
-                          ) : (
-                            <Eye className="w-4 h-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
+                        {ad.status === 'active' && (
+                          <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs sm:text-sm">
+                            <span>Чтобы изменить цену, поставьте товар на паузу.</span>
+                            <Button size="sm" variant="outline" onClick={() => handlePause(ad)}>
+                              <Pause className="w-4 h-4 mr-1" /> Пауза
+                            </Button>
+                          </div>
+                        )}
+
+                        {(ad.status === 'draft' || ad.status === 'paused') && !isPricingOpen && (
+                          <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenPricing(ad)}>
+                            <CircleDollarSign className="w-4 h-4 mr-2" /> Указать цену и остаток
+                          </Button>
+                        )}
+
+                        {isPricingOpen && (
+                          <div className="rounded-lg bg-slate-50 p-3 space-y-3">
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-full rounded-lg border px-3 py-2 text-sm"
+                                placeholder="Цена за единицу"
+                                value={formState.price}
+                                onChange={(e) => handlePricingChange(ad._id, 'price', e.target.value)}
+                              />
+                              <input
+                                type="number"
+                                min="0"
+                                className="w-full rounded-lg border px-3 py-2 text-sm"
+                                placeholder="Остаток"
+                                value={formState.stock || ''}
+                                onChange={(e) => handlePricingChange(ad._id, 'stock', e.target.value)}
+                              />
+                              <select
+                                className="w-full rounded-lg border px-3 py-2 text-sm"
+                                value={formState.measureUnit}
+                                onChange={(e) => handlePricingChange(ad._id, 'measureUnit', e.target.value)}
+                              >
+                                <option value="kg">кг</option>
+                                <option value="pcs">шт</option>
+                                <option value="ltr">литр</option>
+                                <option value="pack">упаковка</option>
+                                <option value="portion">порция</option>
+                              </select>
+                            </div>
+                            <div className="flex justify-end gap-2 flex-wrap">
+                              <Button variant="ghost" size="sm" onClick={() => setExpandedPricingId(null)}>
+                                Отмена
+                              </Button>
+                              <Button size="sm" onClick={() => handleSavePricing(ad)} disabled={pricingMutation.isPending}>
+                                Сохранить
+                              </Button>
+                              {ad.status !== 'active' && (
+                                <Button
+                                  size="sm"
+                                  variant="secondary"
+                                  onClick={() => handlePublish(ad)}
+                                  disabled={publishMutation.isPending}
+                                >
+                                  <Play className="w-4 h-4 mr-1" /> Опубликовать
+                                </Button>
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  );
+                })}
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'create' && (
+          <div className="space-y-4">
+            <Card className="border-dashed">
+              <CardContent className="p-3 flex items-center gap-3">
+                <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                  <MapPin className="w-5 h-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-semibold">Базовая точка продажи</p>
+                  <p className="text-xs text-muted-foreground">
+                    {profile.baseLocation ? 'Мы подставим её автоматически' : 'Сначала сохраните точку, потом карточку товара'}
+                  </p>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => setShowBaseLocationPrompt(true)}>
+                  {profile.baseLocation ? 'Поменять' : 'Указать'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <CreateProductWizard
+              onCreated={() => {
+                queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
+                setActiveTab('products');
+              }}
+            />
+          </div>
+        )}
+
+        {activeTab === 'demand' && (
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <CardTitle className="text-base">Спрос рядом с вами</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Здесь появятся подсказки, чего не хватает покупателям и что добавить в ассортимент.
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'pro' && (
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4" />PRO</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Расширенная аналитика и рекомендации для роста продаж. Скоро добавим больше инструментов.
+              </p>
+              <Button size="sm" onClick={() => navigate('/seller/cabinet/pro-analytics')}>Открыть PRO-аналитику</Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {activeTab === 'fairs' && (
+          <Card>
+            <CardContent className="p-4 space-y-2">
+              <CardTitle className="text-base">Ярмарки и события</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                Подборка ярмарок и точек продаж появится здесь. Следите за обновлениями.</p>
+            </CardContent>
+          </Card>
         )}
 
         {/* Stats Tab */}
@@ -773,6 +1131,7 @@ export default function StoreCabinetPage() {
           </div>
         )}
       </div>
+      <BaseLocationPrompt open={showBaseLocationPrompt} onSubmit={handleBaseLocationSubmit} />
     </div>
   );
 }

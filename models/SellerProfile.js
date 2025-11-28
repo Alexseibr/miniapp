@@ -202,6 +202,11 @@ const sellerProfileSchema = new mongoose.Schema(
       type: String,
       trim: true,
     }],
+    baseLocation: {
+      lat: { type: Number },
+      lng: { type: Number },
+      address: { type: String, trim: true, default: null },
+    },
   },
   {
     timestamps: true,

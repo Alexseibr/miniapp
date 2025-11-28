@@ -68,6 +68,8 @@ export interface AdPreview {
   city?: string | null;
   geoLabel?: string | null;
   status?: string;
+  measureUnit?: string | null;
+  stockQuantity?: number | null;
   seasonCode?: string | null;
   favoritesCount?: number;
   distanceKm?: number;
