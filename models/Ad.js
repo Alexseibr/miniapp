@@ -92,10 +92,33 @@ const adSchema = new mongoose.Schema(
       required: true,
       min: 0,
     },
+    priceValue: {
+      type: Number,
+      min: 0,
+      default() {
+        return this.price;
+      },
+    },
     currency: {
       type: String,
       default: 'RUB',
       trim: true,
+      uppercase: true,
+    },
+    priceCurrency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default() {
+        return this.currency || 'RUB';
+      },
+    },
+    countryCode: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      index: true,
+      default: null,
     },
     unitType: {
       type: String,
@@ -794,6 +817,26 @@ adSchema.index({ status: 1, createdAt: -1 });
 adSchema.index({ seasonCode: 1, status: 1 });
 adSchema.index({ 'location.lat': 1, 'location.lng': 1 });
 adSchema.index({ geo: '2dsphere' });
+
+adSchema.pre('validate', function syncMonetaryFields(next) {
+  if (typeof this.priceValue === 'number' && (this.price === undefined || this.price === null)) {
+    this.price = this.priceValue;
+  }
+
+  if (typeof this.price === 'number' && (this.priceValue === undefined || this.priceValue === null)) {
+    this.priceValue = this.price;
+  }
+
+  if (!this.priceCurrency && this.currency) {
+    this.priceCurrency = this.currency;
+  }
+
+  if (!this.currency && this.priceCurrency) {
+    this.currency = this.priceCurrency;
+  }
+
+  next();
+});
 
 // Индексы для сравнения цен
 // Электроника: brand + model + storageGb
