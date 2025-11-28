@@ -100,8 +100,6 @@ const orderSchema = new mongoose.Schema(
       lat: { type: Number },
       lng: { type: Number },
     },
-    quantityKg: { type: Number, min: 0, default: null },
-    unit: { type: String, enum: ['kg', 'pcs', 'piece', 'unit', null], default: null },
     comment: {
       type: String,
       trim: true,

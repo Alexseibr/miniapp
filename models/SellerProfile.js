@@ -223,11 +223,6 @@ const sellerProfileSchema = new mongoose.Schema(
       min: 0,
       default: null,
     },
-    brestFixedDeliveryPrice: {
-      type: Number,
-      min: 0,
-      default: null,
-    },
 
     // === Verification ===
     verificationLevel: {

@@ -174,25 +174,28 @@ router.get('/search', async (req, res) => {
     const regex = q ? new RegExp(q, 'i') : null;
     let filtered = regex ? ads.filter((ad) => matchesQuery(ad, regex)) : ads;
 
-    const storeIds = filtered
-      .map((ad) => ad.storeId || ad.shopProfileId)
-      .filter(Boolean)
-      .map((id) => id.toString());
-    const uniqueStoreIds = [...new Set(storeIds)];
-    const storeProfiles = uniqueStoreIds.length
-      ? await SellerProfile.find({ _id: { $in: uniqueStoreIds } })
-          .select('_id role canDeliver deliveryRadiusKm baseLocation isVerified name')
-          .lean()
-      : [];
-    const storeMap = new Map(storeProfiles.map((profile) => [profile._id.toString(), profile]));
-
     if (onlyWithDelivery === 'true' || onlyWithDelivery === true) {
-      filtered = filtered.filter((ad) => {
-        const storeId = ad.storeId || ad.shopProfileId;
-        if (!storeId) return false;
-        const profile = storeMap.get(storeId.toString());
-        return Boolean(profile?.canDeliver) && ad.hasDelivery === true;
-      });
+      const storeIds = filtered
+        .map((ad) => ad.storeId || ad.shopProfileId)
+        .filter(Boolean);
+      const uniqueStoreIds = [...new Set(storeIds.map((id) => id.toString()))];
+
+      if (uniqueStoreIds.length > 0) {
+        const stores = await SellerProfile.find({
+          _id: { $in: uniqueStoreIds },
+          canDeliver: true,
+        })
+          .select('_id canDeliver')
+          .lean();
+
+        const deliverableStores = new Set(stores.map((s) => s._id.toString()));
+        filtered = filtered.filter((ad) => {
+          const storeId = ad.storeId || ad.shopProfileId;
+          return storeId && deliverableStores.has(storeId.toString()) && ad.hasDelivery === true;
+        });
+      } else {
+        filtered = [];
+      }
     }
 
     const latNumber = parseNumber(lat);

@@ -49,8 +49,6 @@ import ratingRoutes from './routes/rating.js';
 import adminRatingRoutes from './routes/admin-rating.js';
 import devicesRoutes from './routes/devices.js';
 import shopOrdersRoutes from './routes/shop-orders.js';
-import shopAnalyticsRoutes from './routes/shop-analytics.js';
-import farmerOrdersRoutes from './routes/farmer-orders.js';
 
 const app = express();
 
@@ -122,8 +120,6 @@ app.use('/api/content', contentRoutes);
 app.use('/auth', authRoutes);
 app.use('/api/auth', phoneAuthRoutes);
 app.use('/api/shop/orders', shopOrdersRoutes);
-app.use('/api/shop/analytics', shopAnalyticsRoutes);
-app.use('/api/farmer/orders', farmerOrdersRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/media', mediaRoutes);
