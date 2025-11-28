@@ -222,10 +222,21 @@ router.get('/search', async (req, res) => {
           }
 
           const roundedDistance = Number(distanceKm.toFixed(2));
+          const storeId = ad.storeId || ad.shopProfileId;
+          const profile = storeId ? storeMap.get(storeId.toString()) : null;
+          const deliveryRadiusKm = profile?.deliveryRadiusKm;
+          const deliverableByRadius = Boolean(
+            profile?.canDeliver === true &&
+            ['FARMER', 'ARTISAN'].includes(profile?.role) &&
+            typeof deliveryRadiusKm === 'number' &&
+            roundedDistance <= deliveryRadiusKm
+          );
+
           if (
             maxDistanceNumber != null &&
             Number.isFinite(maxDistanceNumber) &&
-            roundedDistance > maxDistanceNumber
+            roundedDistance > maxDistanceNumber &&
+            !deliverableByRadius
           ) {
             return null;
           }
@@ -234,6 +245,7 @@ router.get('/search', async (req, res) => {
           return {
             ...adWithoutDistance,
             distanceKm: roundedDistance,
+            deliverableToUser: deliverableByRadius,
           };
         })
         .filter(Boolean);
