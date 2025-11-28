@@ -209,6 +209,38 @@ router.get('/my', authMiddleware, async (req, res) => {
   }
 });
 
+router.put('/my/base-location', authMiddleware, async (req, res) => {
+  try {
+    const user = req.currentUser;
+    const profile = await SellerProfile.findOne({ userId: user._id });
+
+    if (!profile) {
+      return res.status(404).json({ success: false, error: 'not_found' });
+    }
+
+    const { lat, lng, address } = req.body || {};
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ success: false, error: 'invalid_coords' });
+    }
+
+    profile.baseLocation = {
+      lat: latNumber,
+      lng: lngNumber,
+      address: address?.trim() || null,
+    };
+
+    await profile.save();
+
+    return res.json({ success: true, baseLocation: profile.baseLocation });
+  } catch (error) {
+    console.error('[SellerProfile] Update base location error:', error);
+    return res.status(500).json({ success: false, error: 'server_error' });
+  }
+});
+
 router.get('/my/ads', authMiddleware, async (req, res) => {
   try {
     const user = req.currentUser;
@@ -241,7 +273,7 @@ router.get('/my/ads', authMiddleware, async (req, res) => {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(parseInt(limit))
-        .select('_id title price currency photos status viewsTotal favoritesCount createdAt unitType isFarmerAd categoryId')
+        .select('_id title price currency photos status viewsTotal favoritesCount createdAt unitType measureUnit stockQuantity quantity isFarmerAd categoryId')
         .lean(),
       Ad.countDocuments(query),
     ]);
