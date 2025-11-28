@@ -236,6 +236,32 @@ const adSchema = new mongoose.Schema(
       index: true,
       default: null,
     },
+    shopProfileId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'SellerProfile',
+      index: true,
+      default: null,
+    },
+    hasDelivery: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    deliveryPriceOverride: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    maxDailyQuantity: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    availableQuantity: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
     status: {
       type: String,
       enum: ['draft', 'active', 'paused', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],

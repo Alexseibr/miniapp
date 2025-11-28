@@ -1,4 +1,5 @@
 import Season from '../models/Season.js';
+import SellerProfile from '../models/SellerProfile.js';
 
 const ALLOWED_DELIVERY_TYPES = ['pickup_only', 'delivery_only', 'delivery_and_pickup'];
 const CATEGORY_DEFAULT_LIFETIME = {
@@ -112,6 +113,7 @@ async function validateCreateAd(req, res, next) {
     if (!sellerTelegramId) {
       return res.status(400).json({ error: 'Поле sellerTelegramId обязательно' });
     }
+    const sellerProfile = await SellerProfile.findOne({ telegramId: sellerTelegramId }).lean();
 
     let deliveryType = null;
     if (payload.deliveryType != null) {
@@ -134,6 +136,28 @@ async function validateCreateAd(req, res, next) {
         return res.status(400).json({ error: 'deliveryRadiusKm должно быть положительным числом' });
       }
       deliveryRadiusKm = parsedRadius;
+    }
+
+    const wantsDelivery = Boolean(payload.hasDelivery);
+    if (wantsDelivery && (!sellerProfile || !sellerProfile.canDeliver)) {
+      return res.status(400).json({ error: 'Доставка доступна только продавцам с активированным магазином' });
+    }
+
+    const deliveryPriceOverride = payload.deliveryPriceOverride != null
+      ? Number(payload.deliveryPriceOverride)
+      : null;
+    if (deliveryPriceOverride != null && (!Number.isFinite(deliveryPriceOverride) || deliveryPriceOverride < 0)) {
+      return res.status(400).json({ error: 'deliveryPriceOverride должно быть неотрицательным числом' });
+    }
+
+    const maxDailyQuantity = payload.maxDailyQuantity != null ? Number(payload.maxDailyQuantity) : null;
+    if (maxDailyQuantity != null && (!Number.isFinite(maxDailyQuantity) || maxDailyQuantity < 0)) {
+      return res.status(400).json({ error: 'maxDailyQuantity должно быть неотрицательным числом' });
+    }
+
+    const availableQuantity = payload.availableQuantity != null ? Number(payload.availableQuantity) : null;
+    if (availableQuantity != null && (!Number.isFinite(availableQuantity) || availableQuantity < 0)) {
+      return res.status(400).json({ error: 'availableQuantity должно быть неотрицательным числом' });
     }
 
     let attributes = {};
@@ -234,6 +258,16 @@ async function validateCreateAd(req, res, next) {
       contactInstagram: payload.contactInstagram ? normalizeString(payload.contactInstagram) : null,
       deliveryType,
       deliveryRadiusKm,
+      hasDelivery: wantsDelivery,
+      deliveryPriceOverride,
+      maxDailyQuantity: maxDailyQuantity != null ? maxDailyQuantity : undefined,
+      availableQuantity: availableQuantity != null
+        ? availableQuantity
+        : maxDailyQuantity != null
+          ? maxDailyQuantity
+          : undefined,
+      storeId: sellerProfile?._id,
+      shopProfileId: sellerProfile?._id,
       location,
       seasonCode,
       lifetimeDays,

@@ -15,6 +15,7 @@ interface Ad {
   createdAt: string;
   categoryId?: string;
   subcategoryId?: string;
+  hasDelivery?: boolean;
 }
 
 interface FilterChip {
@@ -59,6 +60,7 @@ export default function SearchResultsPage() {
   const [sortBy, setSortBy] = useState('distance');
   const [showSortSheet, setShowSortSheet] = useState(false);
   const [activeFilter, setActiveFilter] = useState('all');
+  const [onlyWithDelivery, setOnlyWithDelivery] = useState(false);
   
   const filterChips: FilterChip[] = useMemo(() => {
     const chips: FilterChip[] = [
@@ -88,6 +90,9 @@ export default function SearchResultsPage() {
           sort: sortBy === 'newest' ? 'date' : sortBy,
           limit: '50',
         });
+        if (onlyWithDelivery) {
+          params.set('onlyWithDelivery', 'true');
+        }
         
         console.log('🌐 API запрос:', `/api/search?${params.toString()}`);
         const response = await fetch(`/api/search?${params.toString()}`);
@@ -125,7 +130,7 @@ export default function SearchResultsPage() {
     };
     
     fetchResults();
-  }, [query, userLat, userLng, selectedRadius, sortBy, activeFilter]);
+  }, [query, userLat, userLng, selectedRadius, sortBy, activeFilter, onlyWithDelivery]);
 
   const handleBack = () => {
     navigate(-1);
@@ -278,11 +283,29 @@ export default function SearchResultsPage() {
               }}
               data-testid={`filter-chip-${chip.id}`}
             >
-              {chip.label}
-            </button>
-          ))}
-        </div>
+            {chip.label}
+          </button>
+        ))}
       </div>
+
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'flex-start',
+        padding: '0 16px 8px',
+        gap: 8,
+      }}>
+        <input
+          type="checkbox"
+          id="onlyDelivery"
+          checked={onlyWithDelivery}
+          onChange={(e) => setOnlyWithDelivery(e.target.checked)}
+        />
+        <label htmlFor="onlyDelivery" style={{ fontSize: 14, color: '#1F2937' }}>
+          Показывать только с доставкой
+        </label>
+      </div>
+    </div>
 
       {/* Results Section */}
       <div style={{ flex: 1, padding: '12px 16px', paddingBottom: 100 }}>
@@ -455,6 +478,22 @@ export default function SearchResultsPage() {
                   }}>
                     {formatPrice(ad.price)}
                   </div>
+                  {ad.hasDelivery && (
+                    <div style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                      background: '#E0F2FE',
+                      color: '#0C4A6E',
+                      borderRadius: 12,
+                      padding: '4px 8px',
+                      fontSize: 12,
+                      marginBottom: 6,
+                    }}>
+                      <span>🚚</span>
+                      <span>Доставка</span>
+                    </div>
+                  )}
                   <div style={{
                     fontSize: 13,
                     color: '#374151',

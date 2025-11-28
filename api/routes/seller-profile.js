@@ -44,6 +44,12 @@ router.post('/', authMiddleware, async (req, res) => {
       workingHours,
       deliveryInfo,
       tags,
+      role,
+      canDeliver,
+      deliveryRadiusKm,
+      defaultDeliveryPrice,
+      verificationLevel,
+      baseLocation,
     } = req.body;
     
     if (!name || name.trim().length < 2) {
@@ -78,6 +84,12 @@ router.post('/', authMiddleware, async (req, res) => {
       workingHours,
       deliveryInfo,
       tags: tags || [],
+      role: role || 'SHOP',
+      canDeliver: Boolean(canDeliver),
+      deliveryRadiusKm: deliveryRadiusKm ?? null,
+      defaultDeliveryPrice: defaultDeliveryPrice ?? null,
+      verificationLevel: verificationLevel || null,
+      baseLocation: baseLocation || undefined,
     });
     
     await profile.save();
@@ -117,7 +129,9 @@ router.put('/', authMiddleware, async (req, res) => {
       'name', 'avatar', 'banner', 'description', 'isFarmer',
       'phone', 'instagram', 'telegramUsername', 'address',
       'city', 'cityCode', 'region', 'workingHours', 'deliveryInfo',
-      'showPhone', 'tags', 'baseLocation',
+      'showPhone', 'tags', 'role', 'canDeliver', 'deliveryRadiusKm',
+      'defaultDeliveryPrice', 'verificationLevel', 'baseLocation',
+      'isVerified',
     ];
     
     for (const field of allowedFields) {

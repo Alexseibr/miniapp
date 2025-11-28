@@ -202,6 +202,41 @@ const sellerProfileSchema = new mongoose.Schema(
       type: String,
       trim: true,
     }],
+
+    // === Delivery & Roles ===
+    role: {
+      type: String,
+      enum: ['SHOP', 'FARMER', 'BLOGGER', 'ARTISAN'],
+      default: 'SHOP',
+    },
+    canDeliver: {
+      type: Boolean,
+      default: false,
+    },
+    deliveryRadiusKm: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    defaultDeliveryPrice: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+    brestFixedDeliveryPrice: {
+      type: Number,
+      min: 0,
+      default: null,
+    },
+
+    // === Verification ===
+    verificationLevel: {
+      type: String,
+      enum: ['basic', 'pro', null],
+      default: null,
+    },
+
+    // === Route Planning ===
     baseLocation: {
       lat: { type: Number },
       lng: { type: Number },
