@@ -119,6 +119,23 @@ const sellerProfileSchema = new mongoose.Schema(
       trim: true,
       default: null,
     },
+    messengers: {
+      telegram: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      viber: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+      whatsapp: {
+        type: String,
+        trim: true,
+        default: null,
+      },
+    },
     address: {
       type: String,
       trim: true,

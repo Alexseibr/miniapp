@@ -56,6 +56,7 @@ const CampaignAnalyticsPage = lazy(() => import('@/pages/CampaignAnalyticsPage')
 const NeonDemoPage = lazy(() => import('@/pages/NeonDemoPage'));
 const AuthScreen = lazy(() => import('@/components/AuthScreen'));
 const ShopEntryScreen = lazy(() => import('@/screens/ShopEntryScreen'));
+const MyShopPage = lazy(() => import('@/pages/MyShopPage'));
 
 export default function App() {
   const location = useLocation();
@@ -244,6 +245,11 @@ export default function App() {
               <Route path="/shop-entry" element={
                 <PrivateRoute>
                   <ShopEntryScreen />
+                </PrivateRoute>
+              } />
+              <Route path="/my-shop" element={
+                <PrivateRoute>
+                  <MyShopPage />
                 </PrivateRoute>
               } />
               <Route path="/orders" element={
