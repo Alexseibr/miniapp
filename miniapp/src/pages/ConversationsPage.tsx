@@ -12,20 +12,17 @@ interface Conversation {
     price: number;
     images?: string[];
   } | null;
-  interlocutor?: {
-    _id: string;
+  counterpart?: {
+    id: string;
     firstName?: string;
     lastName?: string;
     username?: string;
     telegramUsername?: string;
     avatar?: string;
   } | null;
-  lastMessage?: {
-    _id: string;
-    text: string;
-    createdAt: string;
-    sender: string;
-  } | null;
+  lastMessageText?: string;
+  lastMessageAt?: string;
+  unreadCount?: number;
 }
 
 export default function ConversationsPage() {
@@ -44,7 +41,7 @@ export default function ConversationsPage() {
       setLoading(true);
       setError(null);
       try {
-        const { data } = await http.get('/api/chat/my');
+        const { data } = await http.get('/api/chat/threads');
         setConversations(Array.isArray(data) ? data : []);
       } catch (err) {
         console.error('Failed to load conversations:', err);
@@ -166,13 +163,14 @@ export default function ConversationsPage() {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }} data-testid="conversations-list">
           {conversations.map((conversation) => {
-            const interlocutorName = conversation.interlocutor
-              ? conversation.interlocutor.firstName || conversation.interlocutor.lastName
-                ? `${conversation.interlocutor.firstName || ''} ${conversation.interlocutor.lastName || ''}`.trim()
-                : conversation.interlocutor.username || conversation.interlocutor.telegramUsername || 'Пользователь'
+            const interlocutorName = conversation.counterpart
+              ? conversation.counterpart.firstName || conversation.counterpart.lastName
+                ? `${conversation.counterpart.firstName || ''} ${conversation.counterpart.lastName || ''}`.trim()
+                : conversation.counterpart.username || conversation.counterpart.telegramUsername || 'Пользователь'
               : 'Пользователь';
 
-            const isMyMessage = conversation.lastMessage?.sender === user._id;
+            const isMyMessage = false;
+            const unreadCount = conversation.unreadCount || 0;
 
             return (
               <div
@@ -244,7 +242,7 @@ export default function ConversationsPage() {
                     >
                       {interlocutorName}
                     </h3>
-                    {conversation.lastMessage && (
+                    {conversation.lastMessageAt && (
                       <span
                         style={{
                           fontSize: '12px',
@@ -252,7 +250,7 @@ export default function ConversationsPage() {
                           flexShrink: 0,
                         }}
                       >
-                        {formatTime(conversation.lastMessage.createdAt)}
+                        {formatTime(conversation.lastMessageAt)}
                       </span>
                     )}
                   </div>
@@ -277,7 +275,7 @@ export default function ConversationsPage() {
                     </div>
                   )}
 
-                  {conversation.lastMessage && (
+                  {conversation.lastMessageText && (
                     <p
                       style={{
                         margin: '6px 0 0',
@@ -289,13 +287,27 @@ export default function ConversationsPage() {
                       }}
                     >
                       {isMyMessage && <span style={{ fontWeight: 600 }}>Вы: </span>}
-                      {conversation.lastMessage.text}
+                      {conversation.lastMessageText}
                     </p>
                   )}
                 </div>
 
                 {/* Chevron */}
-                <div style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  {unreadCount > 0 && (
+                    <span
+                      style={{
+                        background: 'var(--color-primary)',
+                        color: '#fff',
+                        borderRadius: '999px',
+                        padding: '4px 10px',
+                        fontSize: '12px',
+                        fontWeight: 700,
+                      }}
+                    >
+                      {unreadCount}
+                    </span>
+                  )}
                   <ChevronRight size={20} style={{ color: 'var(--color-secondary)' }} />
                 </div>
               </div>

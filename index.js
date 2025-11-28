@@ -24,6 +24,7 @@ import FavoriteNotificationWorker from './workers/FavoriteNotificationWorker.js'
 import farmerDemandWorker from './workers/FarmerDemandWorker.js';
 import farmerSuggestionWorker from './workers/FarmerSuggestionWorker.js';
 import { initializeQueues, shutdownQueues, isQueueEnabled } from './services/queue/index.js';
+import { setupChatSocket } from './services/chatSocket.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -54,6 +55,7 @@ async function start() {
     
     // 1.7 Создание HTTP сервера (перед Vite чтобы передать его для HMR)
     const server = http.createServer(app);
+    setupChatSocket(server);
     
     // 2. Настройка Vite dev server для фронтенда (только в dev mode)
     if (process.env.NODE_ENV !== 'production') {
