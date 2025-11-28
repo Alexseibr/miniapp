@@ -8,6 +8,7 @@ import HotSearchService from '../../services/HotSearchService.js';
 import SearchAlertService from '../../services/SearchAlertService.js';
 import DemandNotificationService from '../../services/DemandNotificationService.js';
 import FastMarketScoringService from '../../services/FastMarketScoringService.js';
+import SellerProfile from '../../models/SellerProfile.js';
 
 const router = Router();
 const DEFAULT_LIMIT = 100;
@@ -115,6 +116,7 @@ router.get('/search', async (req, res) => {
       minPrice,
       maxPrice,
       sort = 'newest',
+      onlyWithDelivery,
       limit,
     } = req.query;
 
@@ -158,10 +160,40 @@ router.get('/search', async (req, res) => {
       baseQuery.price = { ...baseQuery.price, $lte: maxPriceNumber };
     }
 
+    if (onlyWithDelivery === 'true' || onlyWithDelivery === true) {
+      baseQuery.hasDelivery = true;
+      baseQuery.$or = [
+        ...(baseQuery.$or || []),
+        { storeId: { $ne: null } },
+        { shopProfileId: { $ne: null } },
+      ];
+    }
+
     const ads = await Ad.find(baseQuery).sort({ createdAt: -1 }).limit(FETCH_LIMIT).lean();
 
     const regex = q ? new RegExp(q, 'i') : null;
     let filtered = regex ? ads.filter((ad) => matchesQuery(ad, regex)) : ads;
+
+    const storeIds = filtered
+      .map((ad) => ad.storeId || ad.shopProfileId)
+      .filter(Boolean)
+      .map((id) => id.toString());
+    const uniqueStoreIds = [...new Set(storeIds)];
+    const storeProfiles = uniqueStoreIds.length
+      ? await SellerProfile.find({ _id: { $in: uniqueStoreIds } })
+          .select('_id role canDeliver deliveryRadiusKm baseLocation isVerified name')
+          .lean()
+      : [];
+    const storeMap = new Map(storeProfiles.map((profile) => [profile._id.toString(), profile]));
+
+    if (onlyWithDelivery === 'true' || onlyWithDelivery === true) {
+      filtered = filtered.filter((ad) => {
+        const storeId = ad.storeId || ad.shopProfileId;
+        if (!storeId) return false;
+        const profile = storeMap.get(storeId.toString());
+        return Boolean(profile?.canDeliver) && ad.hasDelivery === true;
+      });
+    }
 
     const latNumber = parseNumber(lat);
     const lngNumber = parseNumber(lng);
@@ -187,10 +219,21 @@ router.get('/search', async (req, res) => {
           }
 
           const roundedDistance = Number(distanceKm.toFixed(2));
+          const storeId = ad.storeId || ad.shopProfileId;
+          const profile = storeId ? storeMap.get(storeId.toString()) : null;
+          const deliveryRadiusKm = profile?.deliveryRadiusKm;
+          const deliverableByRadius = Boolean(
+            profile?.canDeliver === true &&
+            ['FARMER', 'ARTISAN'].includes(profile?.role) &&
+            typeof deliveryRadiusKm === 'number' &&
+            roundedDistance <= deliveryRadiusKm
+          );
+
           if (
             maxDistanceNumber != null &&
             Number.isFinite(maxDistanceNumber) &&
-            roundedDistance > maxDistanceNumber
+            roundedDistance > maxDistanceNumber &&
+            !deliverableByRadius
           ) {
             return null;
           }
@@ -199,6 +242,7 @@ router.get('/search', async (req, res) => {
           return {
             ...adWithoutDistance,
             distanceKm: roundedDistance,
+            deliverableToUser: deliverableByRadius,
           };
         })
         .filter(Boolean);
