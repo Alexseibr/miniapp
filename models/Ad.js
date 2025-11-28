@@ -89,8 +89,9 @@ const adSchema = new mongoose.Schema(
     },
     price: {
       type: Number,
-      required: true,
+      required: false,
       min: 0,
+      default: 0,
     },
     currency: {
       type: String,
@@ -102,7 +103,17 @@ const adSchema = new mongoose.Schema(
       enum: ['kg', 'g', 'piece', 'liter', 'pack', 'jar', 'bunch', 'bag', null],
       default: null,
     },
+    measureUnit: {
+      type: String,
+      trim: true,
+      default: null,
+    },
     quantity: {
+      type: Number,
+      default: null,
+      min: 0,
+    },
+    stockQuantity: {
       type: Number,
       default: null,
       min: 0,
@@ -227,7 +238,7 @@ const adSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],
+      enum: ['draft', 'active', 'paused', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],
       default: 'active',
       index: true,
     },

@@ -1368,7 +1368,7 @@ router.post('/:id/liveSpot/off', async (req, res, next) => {
 router.post('/bulk/update-status', async (req, res) => {
   try {
     const { adIds, status } = req.body || {};
-    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
+    const allowedStatuses = new Set(['active', 'hidden', 'archived', 'paused', 'draft']);
 
     if (!Array.isArray(adIds) || adIds.length === 0) {
       return res.status(400).json({ error: 'adIds must be a non-empty array' });
