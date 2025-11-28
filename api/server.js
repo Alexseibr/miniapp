@@ -49,6 +49,7 @@ import ratingRoutes from './routes/rating.js';
 import adminRatingRoutes from './routes/admin-rating.js';
 import devicesRoutes from './routes/devices.js';
 import shopOrdersRoutes from './routes/shop-orders.js';
+import adminChatRoutes from './routes/adminChat.js';
 
 const app = express();
 
@@ -147,6 +148,7 @@ app.use('/api/campaign-analytics', campaignAnalyticsRoutes);
 app.use('/api/campaigns', campaignAnalyticsRoutes);
 app.use('/api/rating', ratingRoutes);
 app.use('/api/admin/rating', adminAuth, adminRatingRoutes);
+app.use('/api/admin/chat', adminChatRoutes);
 app.use('/api/devices', devicesRoutes);
 app.use('/api/my-shop', myShopRoutes);
 

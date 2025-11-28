@@ -67,7 +67,7 @@ export default function AdPage() {
     if (!ad?._id) return;
     setStartingChat(true);
     try {
-      const { data } = await http.post('/api/chat/start', { adId: ad._id });
+      const { data } = await http.post('/api/chat/threads', { adId: ad._id });
       navigate(`/chat/${data._id}`);
     } catch (error) {
       console.error('Failed to start chat:', error);

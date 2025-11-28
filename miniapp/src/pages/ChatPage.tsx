@@ -1,14 +1,18 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import http from '@/api/http';
 import { useUserStore } from '@/store/useUserStore';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, Trash2 } from 'lucide-react';
+import { useChatSocket } from '@/hooks/useChatSocket';
 
 interface Message {
   _id: string;
-  text: string;
-  sender: string;
+  text?: string;
+  fromUserId: string;
+  toUserId: string;
   createdAt: string;
+  attachments?: Array<{ type: string; url: string }>;
+  meta?: { readBy?: string[] };
 }
 
 interface ConversationDetails {
@@ -18,14 +22,13 @@ interface ConversationDetails {
     title: string;
     price: number;
     images?: string[];
-  };
-  participants: Array<{
-    _id: string;
-    firstName?: string;
-    lastName?: string;
-    username?: string;
-    telegramUsername?: string;
-  }>;
+  } | null;
+  buyer?: { id: string; firstName?: string; lastName?: string; username?: string; telegramUsername?: string } | null;
+  seller?: { id: string; firstName?: string; lastName?: string; username?: string; telegramUsername?: string } | null;
+  counterpart?: { id: string; firstName?: string; lastName?: string; username?: string; telegramUsername?: string } | null;
+  lastMessageText?: string;
+  lastMessageAt?: string;
+  unreadCount?: number;
 }
 
 export default function ChatPage() {
@@ -37,31 +40,46 @@ export default function ChatPage() {
   const [text, setText] = useState('');
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
-  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastMessageTimeRef = useRef<string | undefined>(undefined);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const authToken = useRef<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
+
+  const markMessageRead = useCallback(
+    async (message: Message) => {
+      if (!user) return;
+      const alreadyRead = message.meta?.readBy?.includes(user._id);
+      if (message.fromUserId === user._id || alreadyRead) return;
+
+      try {
+        await http.post(`/api/chat/messages/${message._id}/read`);
+      } catch (error) {
+        console.error('Failed to mark message read', error);
+      }
+    },
+    [user]
+  );
 
   useEffect(() => {
     const load = async () => {
       if (!conversationId) return;
       setLoading(true);
       try {
-        const { data: messagesData } = await http.get(`/api/chat/${conversationId}/messages`);
+        const { data: messagesData } = await http.get(`/api/chat/threads/${conversationId}/messages`, {
+          params: { limit: 100 },
+        });
         const messagesList = Array.isArray(messagesData) ? messagesData : messagesData.items ?? [];
         setMessages(messagesList);
-        const last = messagesList.slice(-1)[0];
-        lastMessageTimeRef.current = last?.createdAt;
 
-        // Get conversation details from /api/chat/my
-        const { data: conversationsData } = await http.get('/api/chat/my');
+        const { data: conversationsData } = await http.get('/api/chat/threads');
         const conv = conversationsData.find((c: ConversationDetails) => c._id === conversationId);
         if (conv) {
           setConversation(conv);
         }
+
+        messagesList.forEach((message) => void markMessageRead(message));
       } catch (error) {
         console.error('Failed to load chat:', error);
       } finally {
@@ -69,32 +87,13 @@ export default function ChatPage() {
       }
     };
     void load();
-  }, [conversationId]);
+    const storedToken = localStorage.getItem('ketmar_auth_token');
+    authToken.current = storedToken;
+  }, [conversationId, markMessageRead]);
 
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  useEffect(() => {
-    if (!conversationId) return;
-    pollingRef.current = setInterval(async () => {
-      try {
-        const since = lastMessageTimeRef.current;
-        const { data } = await http.get(`/api/chat/${conversationId}/poll`, { params: { since } });
-        const newMessages = data?.messages || [];
-        if (Array.isArray(newMessages) && newMessages.length > 0) {
-          lastMessageTimeRef.current = data.newSince || newMessages[newMessages.length - 1]?.createdAt || since;
-          setMessages((prev) => [...prev, ...newMessages]);
-        }
-      } catch (error) {
-        console.error('Polling error:', error);
-      }
-    }, 3000);
-
-    return () => {
-      if (pollingRef.current) clearInterval(pollingRef.current);
-    };
-  }, [conversationId]);
 
   const sendMessage = async () => {
     if (!text.trim() || !conversationId || sending) return;
@@ -102,9 +101,8 @@ export default function ChatPage() {
     setText('');
     setSending(true);
     try {
-      const { data } = await http.post(`/api/chat/${conversationId}/messages`, { text: newMessage });
+      const { data } = await http.post(`/api/chat/threads/${conversationId}/messages`, { text: newMessage });
       setMessages((prev) => [...prev, data]);
-      lastMessageTimeRef.current = data.createdAt;
     } catch (error) {
       console.error('Failed to send message:', error);
       setText(newMessage);
@@ -144,7 +142,43 @@ export default function ChatPage() {
     );
   }
 
-  const interlocutor = conversation?.participants?.find((p) => p._id !== user._id);
+  const interlocutor = conversation?.counterpart || null;
+
+  const handleSocketEvent = useCallback(
+    (event: string, payload: any) => {
+      if (event === 'chat:message:new') {
+        setMessages((prev) => [...prev, payload]);
+        void markMessageRead(payload as Message);
+      }
+      if (event === 'chat:message:hidden') {
+        setMessages((prev) => prev.filter((message) => message._id !== payload.messageId));
+      }
+      if (event === 'chat:thread:update') {
+        setConversation((prev) =>
+          prev
+            ? {
+                ...prev,
+                lastMessageText: payload.lastMessageText ?? prev.lastMessageText,
+                lastMessageAt: payload.lastMessageAt ?? prev.lastMessageAt,
+                unreadCount:
+                  user && payload.unreadForBuyer !== undefined && payload.unreadForSeller !== undefined
+                    ? prev.buyer?.id === user._id
+                      ? payload.unreadForBuyer
+                      : payload.unreadForSeller
+                    : prev.unreadCount,
+              }
+            : prev
+        );
+      }
+    },
+    [markMessageRead, user]
+  );
+
+  useChatSocket({
+    threadId: conversationId,
+    token: authToken.current,
+    onEvent: handleSocketEvent,
+  });
 
   return (
     <div
@@ -233,7 +267,8 @@ export default function ChatPage() {
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {messages.map((message) => {
-              const isMine = message.sender === user._id;
+              const isMine = message.fromUserId === user._id;
+              const messageText = message.text?.trim() || (message.attachments?.length ? 'Вложение' : '');
               return (
                 <div
                   key={message._id}
@@ -254,8 +289,19 @@ export default function ChatPage() {
                     }}
                   >
                     <p style={{ margin: 0, wordBreak: 'break-word', whiteSpace: 'pre-wrap' }}>
-                      {message.text}
+                      {messageText}
                     </p>
+                    {message.attachments?.length ? (
+                      <ul style={{ margin: '8px 0 0', paddingLeft: '18px', color: isMine ? '#f0f0f0' : 'var(--color-primary)' }}>
+                        {message.attachments.map((file, index) => (
+                          <li key={index}>
+                            <a href={file.url} target="_blank" rel="noreferrer" style={{ color: isMine ? '#fff' : 'var(--color-primary)' }}>
+                              {file.type === 'image' ? 'Изображение' : 'Файл'}
+                            </a>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
                     <div
                       style={{
                         fontSize: '11px',
@@ -268,6 +314,24 @@ export default function ChatPage() {
                         hour: '2-digit',
                         minute: '2-digit',
                       })}
+                      <button
+                        onClick={() => http.post(`/api/chat/messages/${message._id}/hide`).then(() =>
+                          setMessages((prev) => prev.filter((m) => m._id !== message._id))
+                        )}
+                        style={{
+                          background: 'transparent',
+                          border: 'none',
+                          color: isMine ? '#fff' : 'var(--color-secondary)',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: '4px',
+                          marginLeft: '8px',
+                          cursor: 'pointer',
+                        }}
+                        title="Скрыть сообщение"
+                      >
+                        <Trash2 size={14} />
+                      </button>
                     </div>
                   </div>
                 </div>
