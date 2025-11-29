@@ -1,0 +1,127 @@
+Error response from daemon: failed to set up container networking: driver failed programming external connectivity on endpoint ketmar-mongo (7be2a515027c805ff16603dca5ca67fcc8dc5cc8b0dad731b3e674aae83708a0): failed to bind host port 127.0.0.1:27017/tcp: address already in use
+root@server-strqxk:/var/www/ketmar# docker compose ps[200~# Остановить существующий MongoDB[
+Usage:  docker compose [OPTIONS] COMMAND
+
+Define and run multi-container applications with Docker
+
+Options:
+      --all-resources              Include all resources, even those not used by services
+      --ansi string                Control when to print ANSI control characters ("never"|"always"|"auto") (default "auto")
+      --compatibility              Run compose in backward compatibility mode
+      --dry-run                    Execute command in dry run mode
+      --env-file stringArray       Specify an alternate environment file
+  -f, --file stringArray           Compose configuration files
+      --parallel int               Control max parallelism, -1 for unlimited (default -1)
+      --profile stringArray        Specify a profile to enable
+      --progress string            Set type of progress output (auto, tty, plain, json, quiet)
+      --project-directory string   Specify an alternate working directory
+                                   (default: the path of the, first specified, Compose file)
+  -p, --project-name string        Project name
+
+Management Commands:
+  bridge      Convert compose files into another model
+
+Commands:
+  attach      Attach local standard input, output, and error streams to a service's running container
+  build       Build or rebuild services
+  commit      Create a new image from a service container's changes
+  config      Parse, resolve and render compose file in canonical format
+  cp          Copy files/folders between a service container and the local filesystem
+  create      Creates containers for a service
+  down        Stop and remove containers, networks
+  events      Receive real time events from containers
+  exec        Execute a command in a running container
+  export      Export a service container's filesystem as a tar archive
+  images      List images used by the created containers
+  kill        Force stop service containers
+  logs        View output from containers
+  ls          List running compose projects
+  pause       Pause services
+  port        Print the public port for a port binding
+  ps          List containers
+  publish     Publish compose application
+  pull        Pull service images
+  push        Push service images
+  restart     Restart service containers
+  rm          Removes stopped service containers
+  run         Run a one-off command on a service
+  scale       Scale services 
+  start       Start services
+  stats       Display a live stream of container(s) resource usage statistics
+  stop        Stop services
+  top         Display the running processes
+  unpause     Unpause services
+  up          Create and start containers
+  version     Show the Docker Compose version information
+  volumes     List volumes
+  wait        Block until containers of all (or specified) services stop.
+  watch       Watch build context for service and rebuild/refresh containers when files are updated
+
+Run 'docker compose COMMAND --help' for more information on a command.
+unknown docker command: "compose ps[200~#"
+root@server-strqxk:/var/www/ketmar# systemctl stop mongod
+root@server-strqxk:/var/www/ketmar# systemctl disable mongod
+Removed '/etc/systemd/system/multi-user.target.wants/mongod.service'.
+root@server-strqxk:/var/www/ketmar# 
+root@server-strqxk:/var/www/ketmar# # Запустить снова Docker
+root@server-strqxk:/var/www/ketmar# docker compose up -d~systemctl stop mongod
+docker compose up -d
+unknown shorthand flag: '~' in -~systemctl
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 3/3
+ ✔ Container ketmar-redis  Healthy                                                                                                                                    0.7s 
+ ✔ Container ketmar-mongo  Healthy                                                                                                                                   31.1s 
+ ✔ Container ketmar-app    Started                                                                                                                                    0.3s 
+root@server-strqxk:/var/www/ketmar# docker compose logs app --tail 50
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+ketmar-app  | ℹ️ MINIAPP_URL не задан — кнопки WebApp будут вести на значение по умолчанию.
+ketmar-app  | [CategoryEvolutionWorker] Starting category evolution worker...
+ketmar-app  | [CategoryEvolutionWorker] Will analyze "Other" categories daily at 4:00 AM
+ketmar-app  | [CategoryEvolutionWorker] Cron job scheduled - runs daily at 4:00 AM (Europe/Minsk)
+ketmar-app  | [MobileNotificationService] Event listeners initialized
+ketmar-app  | 🚀 Запуск KETMAR Market...
+ketmar-app  | 
+ketmar-app  | 📊 Подключение к MongoDB...
+ketmar-app  | ❌ MongoDB connection error: MongooseServerSelectionError: getaddrinfo ENOTFOUND mongo
+ketmar-app  |     at _handleConnectionErrors (/app/node_modules/mongoose/lib/connection.js:1169:11)
+ketmar-app  |     at NativeConnection.openUri (/app/node_modules/mongoose/lib/connection.js:1100:11)
+ketmar-app  |     at async connectDB (file:///app/services/db.js:6:5)
+ketmar-app  |     at async start (file:///app/index.js:43:5) {
+ketmar-app  |   errorLabelSet: Set(0) {},
+ketmar-app  |   reason: TopologyDescription {
+ketmar-app  |     type: 'Unknown',
+ketmar-app  |     servers: Map(1) { 'mongo:27017' => [ServerDescription] },
+ketmar-app  |     stale: false,
+ketmar-app  |     compatible: true,
+ketmar-app  |     heartbeatFrequencyMS: 10000,
+ketmar-app  |     localThresholdMS: 15,
+ketmar-app  |     setName: null,
+ketmar-app  |     maxElectionId: null,
+ketmar-app  |     maxSetVersion: null,
+ketmar-app  |     commonWireVersion: 0,
+ketmar-app  |     logicalSessionTimeoutMinutes: null
+ketmar-app  |   },
+ketmar-app  |   code: undefined,
+ketmar-app  |   cause: TopologyDescription {
+ketmar-app  |     type: 'Unknown',
+ketmar-app  |     servers: Map(1) { 'mongo:27017' => [ServerDescription] },
+ketmar-app  |     stale: false,
+ketmar-app  |     compatible: true,
+ketmar-app  |     heartbeatFrequencyMS: 10000,
+ketmar-app  |     localThresholdMS: 15,
+ketmar-app  |     setName: null,
+ketmar-app  |     maxElectionId: null,
+ketmar-app  |     maxSetVersion: null,
+ketmar-app  |     commonWireVersion: 0,
+ketmar-app  |     logicalSessionTimeoutMinutes: null
+ketmar-app  |   }
+ketmar-app  | }
+ketmar-app  | ℹ️ MINIAPP_URL не задан — кнопки WebApp будут вести на значение по умолчанию.
+ketmar-app  | [CategoryEvolutionWorker] Starting category evolution worker...
+ketmar-app  | [CategoryEvolutionWorker] Will analyze "Other" categories daily at 4:00 AM
+ketmar-app  | [CategoryEvolutionWorker] Cron job scheduled - runs daily at 4:00 AM (Europe/Minsk)
+ketmar-app  | [MobileNotificationService] Event listeners initialized
+ketmar-app  | 🚀 Запуск KETMAR Market...
+ketmar-app  | 
+ketmar-app  | 📊 Подключение к MongoDB...
+root@server-strqxk:/var/www/ketmar# 

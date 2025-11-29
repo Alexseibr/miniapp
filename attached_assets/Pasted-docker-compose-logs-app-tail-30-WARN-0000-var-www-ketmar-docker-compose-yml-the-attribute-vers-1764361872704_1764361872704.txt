@@ -1,0 +1,38 @@
+docker compose logs app --tail 30
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+NAME           IMAGE            COMMAND                  SERVICE   CREATED          STATUS                            PORTS
+ketmar-app     ketmar-app       "docker-entrypoint.s…"   app       36 seconds ago   Up 5 seconds (health: starting)   127.0.0.1:3000->3000/tcp
+ketmar-mongo   mongo:7          "docker-entrypoint.s…"   mongo     37 seconds ago   Up 36 seconds (healthy)           127.0.0.1:27017->27017/tcp
+ketmar-redis   redis:7-alpine   "docker-entrypoint.s…"   redis     37 seconds ago   Up 36 seconds (healthy)           127.0.0.1:6379->6379/tcp
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+ketmar-app  | [AdLifecycleWorker] Starting ad lifecycle worker...
+ketmar-app  | [AdLifecycleWorker] Frequent tasks scheduled - runs every 5 minutes
+ketmar-app  | [AdLifecycleWorker] Daily tasks scheduled - runs at 00:05 AM (Europe/Minsk)
+ketmar-app  | [AdLifecycleWorker] Reminder tasks scheduled - runs at 9:00 AM and 6:00 PM (Europe/Minsk)
+ketmar-app  | [AdLifecycleWorker] All cron jobs scheduled successfully
+ketmar-app  | [DemandWorker] Starting demand analytics worker...
+ketmar-app  | [DemandWorker] Demand aggregation scheduled - runs every hour
+ketmar-app  | [DemandWorker] Seller notifications scheduled - runs at 10:00, 14:00, 19:00 (Europe/Minsk)
+ketmar-app  | [DemandWorker] All cron jobs scheduled successfully
+ketmar-app  | [PriceWatcher] Started - price checks every 10 minutes
+ketmar-app  | [PriceWatcher] Daily alerts at 9:00, 14:00, 19:00
+ketmar-app  | [FavoriteNotification] Started - smart notifications enabled
+ketmar-app  | [FavoriteNotification] Price/status checks every 5 min
+ketmar-app  | [FavoriteNotification] Similar ads check at 10:00 and 18:00
+ketmar-app  | [FavoriteNotification] Seller nudges at 12:00
+ketmar-app  | [FarmerDemandWorker] Starting demand aggregation worker...
+ketmar-app  | [FarmerDemandWorker] Cron job scheduled - runs every hour
+ketmar-app  | [FarmerSuggestionWorker] Starting suggestion worker...
+ketmar-app  | [FarmerSuggestionWorker] Cron jobs scheduled - generate every hour, send every 5 min
+ketmar-app  | ℹ️  REDIS_URL не настроен - система очередей отключена
+ketmar-app  | ✅ Error handlers зарегистрированы
+ketmar-app  | 
+ketmar-app  | ✨ Все сервисы успешно запущены!
+ketmar-app  | 
+ketmar-app  | 📋 Доступные команды бота:
+ketmar-app  |    /start - Приветствие
+ketmar-app  |    /myid - Узнать свой Telegram ID
+ketmar-app  |    /categories - Список категорий
+ketmar-app  |    /new_test_ad - Создать тестовое объявление
+ketmar-app  | 
+root@server-strqxk:/var/www/ketmar# 

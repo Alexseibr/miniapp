@@ -1,0 +1,2181 @@
+diff --git a/api/routes/ads.js b/api/routes/ads.js
+index 3e7130fb47d8c223da2c8bd89b2fb1fda797bde2..22352a947fc692d9c3df18dd428a969f6ece9210 100644
+--- a/api/routes/ads.js
++++ b/api/routes/ads.js
+@@ -1346,51 +1346,51 @@ router.post('/:id/liveSpot/on', async (req, res, next) => {
+ });
+ 
+ router.post('/:id/liveSpot/off', async (req, res, next) => {
+   try {
+     const sellerId = getSellerIdFromRequest(req);
+ 
+     if (!sellerId) {
+       return res.status(400).json({ message: 'sellerTelegramId is required' });
+     }
+ 
+     const ad = await findAdOwnedBySeller(req.params.id, sellerId);
+     await applyLiveSpotStatus(ad, false);
+ 
+     return res.json({ item: ad, isLiveSpot: ad.isLiveSpot });
+   } catch (error) {
+     if (error.status) {
+       return res.status(error.status).json({ message: error.message });
+     }
+     next(error);
+   }
+ });
+ 
+ router.post('/bulk/update-status', async (req, res) => {
+   try {
+     const { adIds, status } = req.body || {};
+-    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
++    const allowedStatuses = new Set(['active', 'hidden', 'archived', 'paused', 'draft']);
+ 
+     if (!Array.isArray(adIds) || adIds.length === 0) {
+       return res.status(400).json({ error: 'adIds must be a non-empty array' });
+     }
+ 
+     if (typeof status !== 'string' || !allowedStatuses.has(status)) {
+       return res.status(400).json({ error: 'Invalid status value' });
+     }
+ 
+     const ads = await Ad.find({ _id: { $in: adIds } });
+     let updated = 0;
+ 
+     for (const ad of ads) {
+       await updateAdStatus(ad._id, status);
+       updated += 1;
+     }
+ 
+     console.log(`[BULK UPDATE] update-status — ${updated} ads updated`);
+ 
+     return res.json({ updated, status });
+   } catch (error) {
+     console.error('POST /api/ads/bulk/update-status error:', error);
+     return res.status(500).json({ error: 'Server error' });
+   }
+ });
+diff --git a/api/routes/my-shop.js b/api/routes/my-shop.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..4b509aebbe8c375b16ae3ef604c253342f7ceeea
+--- /dev/null
++++ b/api/routes/my-shop.js
+@@ -0,0 +1,193 @@
++import { Router } from 'express';
++import { authMiddleware } from '../../middleware/auth.js';
++import SellerProfile from '../../models/SellerProfile.js';
++import Ad from '../../models/Ad.js';
++import { updateAdPrice, updateAdStatus } from '../../services/adUpdateService.js';
++
++const router = Router();
++
++function mapMeasureUnitToLegacy(unit) {
++  switch (unit) {
++    case 'pcs':
++      return 'piece';
++    case 'ltr':
++      return 'liter';
++    case 'kg':
++    case 'pack':
++    case 'portion':
++      return unit;
++    default:
++      return null;
++  }
++}
++
++async function getSellerProfile(userId) {
++  return SellerProfile.findOne({ userId });
++}
++
++router.post('/products/draft', authMiddleware, async (req, res) => {
++  try {
++    const user = req.currentUser;
++    const profile = await getSellerProfile(user._id);
++
++    if (!profile) {
++      return res.status(404).json({ success: false, error: 'profile_not_found' });
++    }
++
++    if (!Number.isFinite(profile.baseLocation?.lat) || !Number.isFinite(profile.baseLocation?.lng)) {
++      return res.status(400).json({
++        success: false,
++        error: 'base_location_required',
++        message: 'Укажите базовую точку продажи перед созданием товара',
++      });
++    }
++
++    const { title, description, categoryId, subcategoryId, photos = [], measureUnit } = req.body || {};
++
++    if (!title || !categoryId) {
++      return res.status(400).json({ success: false, error: 'invalid_payload', message: 'Название и категория обязательны' });
++    }
++
++    const unitType = mapMeasureUnitToLegacy(measureUnit);
++
++    const ad = new Ad({
++      title: title.trim(),
++      description: description?.trim() || null,
++      categoryId,
++      subcategoryId: subcategoryId || categoryId,
++      price: 0,
++      currency: 'BYN',
++      photos,
++      sellerTelegramId: profile.telegramId,
++      storeId: profile._id,
++      status: 'draft',
++      measureUnit: measureUnit || null,
++      unitType: unitType || null,
++      stockQuantity: null,
++      quantity: null,
++      geoLabel: profile.baseLocation.address || 'Точка продажи',
++      location: {
++        lat: profile.baseLocation.lat,
++        lng: profile.baseLocation.lng,
++        geo: {
++          type: 'Point',
++          coordinates: [profile.baseLocation.lng, profile.baseLocation.lat],
++        },
++      },
++    });
++
++    await ad.save();
++
++    return res.status(201).json({ success: true, ad });
++  } catch (error) {
++    console.error('[MyShop] Create draft error:', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++router.patch('/products/:id/pricing', authMiddleware, async (req, res) => {
++  try {
++    const user = req.currentUser;
++    const profile = await getSellerProfile(user._id);
++    if (!profile) {
++      return res.status(404).json({ success: false, error: 'profile_not_found' });
++    }
++
++    const ad = await Ad.findOne({ _id: req.params.id, sellerTelegramId: profile.telegramId });
++    if (!ad) {
++      return res.status(404).json({ success: false, error: 'ad_not_found' });
++    }
++
++    const { price, stockQuantity, measureUnit } = req.body || {};
++
++    if (ad.status === 'active' && (price !== undefined || measureUnit !== undefined || stockQuantity !== undefined)) {
++      return res.status(400).json({
++        success: false,
++        error: 'price_locked',
++        message: 'Чтобы изменить цену, поставьте товар на паузу',
++      });
++    }
++
++    let workingAd = ad;
++
++    if (price !== undefined) {
++      const priceNumber = Number(price);
++      if (!Number.isFinite(priceNumber) || priceNumber <= 0) {
++        return res.status(400).json({ success: false, error: 'invalid_price', message: 'Цена должна быть больше нуля' });
++      }
++      workingAd = await updateAdPrice(ad._id, priceNumber);
++    }
++
++    if (stockQuantity !== undefined) {
++      const stockNumber = Number(stockQuantity);
++      if (!Number.isFinite(stockNumber) || stockNumber < 0) {
++        return res.status(400).json({ success: false, error: 'invalid_stock' });
++      }
++      workingAd.stockQuantity = stockNumber;
++      workingAd.quantity = stockNumber;
++    }
++
++    if (measureUnit !== undefined) {
++      workingAd.measureUnit = measureUnit;
++      workingAd.unitType = mapMeasureUnitToLegacy(measureUnit);
++    }
++
++    await workingAd.save();
++
++    return res.json({ success: true, ad: workingAd });
++  } catch (error) {
++    console.error('[MyShop] Update pricing error:', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++router.post('/products/:id/publish', authMiddleware, async (req, res) => {
++  try {
++    const user = req.currentUser;
++    const profile = await getSellerProfile(user._id);
++    if (!profile) {
++      return res.status(404).json({ success: false, error: 'profile_not_found' });
++    }
++
++    const ad = await Ad.findOne({ _id: req.params.id, sellerTelegramId: profile.telegramId });
++    if (!ad) {
++      return res.status(404).json({ success: false, error: 'ad_not_found' });
++    }
++
++    if (!ad.price || ad.price <= 0) {
++      return res.status(400).json({ success: false, error: 'price_required', message: 'Укажите цену перед публикацией' });
++    }
++
++    ad.measureUnit = ad.measureUnit || req.body?.measureUnit || null;
++    ad.unitType = ad.unitType || mapMeasureUnitToLegacy(ad.measureUnit);
++
++    const updated = await updateAdStatus(ad._id, 'active');
++    return res.json({ success: true, ad: updated });
++  } catch (error) {
++    console.error('[MyShop] Publish product error:', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++router.post('/products/:id/pause', authMiddleware, async (req, res) => {
++  try {
++    const user = req.currentUser;
++    const profile = await getSellerProfile(user._id);
++    if (!profile) {
++      return res.status(404).json({ success: false, error: 'profile_not_found' });
++    }
++
++    const ad = await Ad.findOne({ _id: req.params.id, sellerTelegramId: profile.telegramId });
++    if (!ad) {
++      return res.status(404).json({ success: false, error: 'ad_not_found' });
++    }
++
++    const updated = await updateAdStatus(ad._id, 'paused');
++    return res.json({ success: true, ad: updated });
++  } catch (error) {
++    console.error('[MyShop] Pause product error:', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++export default router;
+diff --git a/api/routes/seller-profile.js b/api/routes/seller-profile.js
+index 8c36bbae28cb77fc7c2aefc8b206a32302949322..6dac8050c51ddeb3c937e4e300057babeaf9cd23 100644
+--- a/api/routes/seller-profile.js
++++ b/api/routes/seller-profile.js
+@@ -94,52 +94,52 @@ router.post('/', authMiddleware, async (req, res) => {
+     res.status(500).json({
+       success: false,
+       error: 'server_error',
+       message: 'Ошибка создания магазина',
+     });
+   }
+ });
+ 
+ router.put('/', authMiddleware, async (req, res) => {
+   try {
+     const user = req.currentUser;
+     
+     const profile = await SellerProfile.findOne({ userId: user._id });
+     
+     if (!profile) {
+       return res.status(404).json({
+         success: false,
+         error: 'not_found',
+         message: 'Магазин не найден',
+       });
+     }
+     
+     const allowedFields = [
+       'name', 'avatar', 'banner', 'description', 'isFarmer',
+       'phone', 'instagram', 'telegramUsername', 'address',
+-      'city', 'cityCode', 'region', 'workingHours', 'deliveryInfo', 
+-      'showPhone', 'tags',
++      'city', 'cityCode', 'region', 'workingHours', 'deliveryInfo',
++      'showPhone', 'tags', 'baseLocation',
+     ];
+     
+     for (const field of allowedFields) {
+       if (req.body[field] !== undefined) {
+         profile[field] = req.body[field];
+       }
+     }
+     
+     if (req.body.geo) {
+       profile.geo = {
+         type: 'Point',
+         coordinates: [
+           req.body.geo.lng || req.body.geo.coordinates?.[0],
+           req.body.geo.lat || req.body.geo.coordinates?.[1],
+         ],
+       };
+     }
+     
+     if (req.body.name && req.body.name !== profile.name) {
+       profile.slug = await SellerProfile.generateSlug(req.body.name);
+     }
+     
+     await profile.save();
+     
+     console.log(`[SellerProfile] Updated store "${profile.name}"`);
+@@ -173,83 +173,115 @@ router.get('/my', authMiddleware, async (req, res) => {
+         name: 'Мой магазин',
+         phone: user.phone || null,
+         telegramUsername: user.username || null,
+         showPhone: true,
+       });
+       await profile.save();
+       console.log(`[SellerProfile] Auto-created store for user ${user.telegramId}`);
+     }
+     
+     await profile.updateProductsCount();
+     
+     res.json({
+       success: true,
+       profile,
+       hasStore: true,
+     });
+   } catch (error) {
+     console.error('[SellerProfile] Get my store error:', error);
+     res.status(500).json({
+       success: false,
+       error: 'server_error',
+     });
+   }
+ });
+ 
++router.put('/my/base-location', authMiddleware, async (req, res) => {
++  try {
++    const user = req.currentUser;
++    const profile = await SellerProfile.findOne({ userId: user._id });
++
++    if (!profile) {
++      return res.status(404).json({ success: false, error: 'not_found' });
++    }
++
++    const { lat, lng, address } = req.body || {};
++    const latNumber = Number(lat);
++    const lngNumber = Number(lng);
++
++    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
++      return res.status(400).json({ success: false, error: 'invalid_coords' });
++    }
++
++    profile.baseLocation = {
++      lat: latNumber,
++      lng: lngNumber,
++      address: address?.trim() || null,
++    };
++
++    await profile.save();
++
++    return res.json({ success: true, baseLocation: profile.baseLocation });
++  } catch (error) {
++    console.error('[SellerProfile] Update base location error:', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
+ router.get('/my/ads', authMiddleware, async (req, res) => {
+   try {
+     const user = req.currentUser;
+     const { status, page = 1, limit = 50 } = req.query;
+     
+     const profile = await SellerProfile.findOne({ userId: user._id });
+     
+     if (!profile) {
+       return res.json({
+         success: true,
+         items: [],
+         total: 0,
+       });
+     }
+     
+     const query = { sellerTelegramId: profile.telegramId };
+     
+     if (status) {
+       if (status === 'hidden') {
+         query.status = { $in: ['hidden', 'archived'] };
+       } else {
+         query.status = status;
+       }
+     }
+     
+     const skip = (parseInt(page) - 1) * parseInt(limit);
+     
+     const [items, total] = await Promise.all([
+       Ad.find(query)
+         .sort({ createdAt: -1 })
+         .skip(skip)
+         .limit(parseInt(limit))
+-        .select('_id title price currency photos status viewsTotal favoritesCount createdAt unitType isFarmerAd categoryId')
++        .select('_id title price currency photos status viewsTotal favoritesCount createdAt unitType measureUnit stockQuantity quantity isFarmerAd categoryId')
+         .lean(),
+       Ad.countDocuments(query),
+     ]);
+     
+     res.json({
+       success: true,
+       items,
+       total,
+       page: parseInt(page),
+       totalPages: Math.ceil(total / parseInt(limit)),
+     });
+   } catch (error) {
+     console.error('[SellerProfile] Get my ads error:', error);
+     res.status(500).json({
+       success: false,
+       error: 'server_error',
+     });
+   }
+ });
+ 
+ router.get('/my/stats', authMiddleware, async (req, res) => {
+   try {
+     const user = req.currentUser;
+     
+     const profile = await SellerProfile.findOne({ userId: user._id });
+diff --git a/api/server.js b/api/server.js
+index a3e488ba68d6f8c0f830dd0cfd5819dcfa339b03..60bbe58722524f98d490ec4e4080a3a14e26629f 100644
+--- a/api/server.js
++++ b/api/server.js
+@@ -26,50 +26,51 @@ import uploadsRoutes from './routes/uploads.js';
+ import mediaRoutes from './routes/media.js';
+ import geoRoutes from './routes/geo.js';
+ import pricingRoutes from './routes/pricing.js';
+ import farmerRoutes from './routes/farmer.js';
+ import farmerSubscriptionsRoutes from './routes/farmer-subscriptions.js';
+ import globalSearchRoutes from './routes/globalSearch.js';
+ import trendsRoutes from './routes/trends.js';
+ import aiRoutes from './routes/ai.js';
+ import recommendationsRoutes from './routes/recommendations.js';
+ import geoIntelligenceRoutes from './routes/geoIntelligence.js';
+ import sellerProfileRoutes from './routes/seller-profile.js';
+ import sellerSubscriptionsRoutes from './routes/seller-subscriptions.js';
+ import sellerReviewsRoutes from './routes/seller-reviews.js';
+ import sellerAnalyticsRoutes from './routes/seller-analytics.js';
+ import twinRoutes from './routes/twin.js';
+ import dynamicPriceRoutes from './routes/dynamicPrice.js';
+ import sellerTwinRoutes from './routes/sellerTwin.js';
+ import queuesRoutes from './routes/queues.js';
+ import feedRoutes from './routes/feed.js';
+ import autoCategorizationRoutes from './routes/autoCategorization.js';
+ import storeProAnalyticsRoutes from './routes/store-pro-analytics.js';
+ import campaignAnalyticsRoutes from './routes/campaign-analytics.js';
+ import ratingRoutes from './routes/rating.js';
+ import adminRatingRoutes from './routes/admin-rating.js';
+ import devicesRoutes from './routes/devices.js';
++import myShopRoutes from './routes/my-shop.js';
+ 
+ const app = express();
+ 
+ // Compression middleware (gzip)
+ app.use(compression({
+   filter: (req, res) => {
+     if (req.headers['x-no-compression']) {
+       return false;
+     }
+     return compression.filter(req, res);
+   },
+   threshold: 1024,
+   level: 6,
+ }));
+ 
+ // Middleware
+ app.use(express.json());
+ app.use(express.urlencoded({ extended: true }));
+ 
+ // Базовые маршруты
+ app.get('/api', (_req, res) => {
+   res.json({
+     message: 'KETMAR API',
+     version: '1.0.0',
+     endpoints: {
+@@ -124,27 +125,28 @@ app.use('/api/media', mediaRoutes);
+ app.use('/api/geo', geoRoutes);
+ app.use('/api/pricing', pricingRoutes);
+ app.use('/api/farmer', farmerRoutes);
+ app.use('/api/farmer/subscriptions', farmerSubscriptionsRoutes);
+ app.use('/api/search', globalSearchRoutes);
+ app.use('/api/trends', trendsRoutes);
+ app.use('/api/ai', aiRoutes);
+ app.use('/api/recommendations', recommendationsRoutes);
+ app.use('/api/geo-intelligence', geoIntelligenceRoutes);
+ app.use('/api/seller-profile', sellerProfileRoutes);
+ app.use('/api/seller/subscribe', sellerSubscriptionsRoutes);
+ app.use('/api/seller', sellerReviewsRoutes);
+ app.use('/api/seller-analytics', sellerAnalyticsRoutes);
+ app.use('/api/twin', twinRoutes);
+ app.use('/api/dynamic-price', dynamicPriceRoutes);
+ app.use('/api/seller-twin', sellerTwinRoutes);
+ app.use('/api/queues', queuesRoutes);
+ app.use('/api/feed', feedRoutes);
+ app.use('/api/auto-categorize', autoCategorizationRoutes);
+ app.use('/api/store/pro-analytics', storeProAnalyticsRoutes);
+ app.use('/api/campaign-analytics', campaignAnalyticsRoutes);
+ app.use('/api/campaigns', campaignAnalyticsRoutes);
+ app.use('/api/rating', ratingRoutes);
+ app.use('/api/admin/rating', adminAuth, adminRatingRoutes);
+ app.use('/api/devices', devicesRoutes);
++app.use('/api/my-shop', myShopRoutes);
+ 
+ export default app;
+diff --git a/miniapp/src/api/myShop.ts b/miniapp/src/api/myShop.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..f933261ad9a8ab47a8ee904e7c76ba31c8fbefd9
+--- /dev/null
++++ b/miniapp/src/api/myShop.ts
+@@ -0,0 +1,50 @@
++import http from './http';
++import { Ad } from '@/types';
++
++export interface DraftProductPayload {
++  title: string;
++  description?: string;
++  categoryId: string;
++  subcategoryId?: string;
++  photos?: string[];
++  measureUnit?: string;
++}
++
++export async function createDraftProduct(payload: DraftProductPayload, token?: string): Promise<{ ad: Ad }> {
++  const response = await http.post('/api/my-shop/products/draft', payload, {
++    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
++  });
++  return response.data;
++}
++
++export async function updateProductPricing(
++  productId: string,
++  payload: { price?: number; stockQuantity?: number; measureUnit?: string },
++  token?: string,
++): Promise<{ ad: Ad }> {
++  const response = await http.patch(`/api/my-shop/products/${productId}/pricing`, payload, {
++    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
++  });
++  return response.data;
++}
++
++export async function publishProduct(productId: string, measureUnit?: string, token?: string): Promise<{ ad: Ad }> {
++  const response = await http.post(`/api/my-shop/products/${productId}/publish`, { measureUnit }, {
++    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
++  });
++  return response.data;
++}
++
++export async function pauseProduct(productId: string, token?: string): Promise<{ ad: Ad }> {
++  const response = await http.post(`/api/my-shop/products/${productId}/pause`, undefined, {
++    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
++  });
++  return response.data;
++}
++
++export async function updateBaseLocation(payload: { lat: number; lng: number; address?: string }, token?: string) {
++  const response = await http.put('/api/seller-profile/my/base-location', payload, {
++    headers: token ? { Authorization: `Bearer ${token}` } : undefined,
++  });
++  return response.data;
++}
+diff --git a/miniapp/src/components/seller/BaseLocationPrompt.tsx b/miniapp/src/components/seller/BaseLocationPrompt.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..c9fef7e62bd7ee065bdd338875819608a58217ea
+--- /dev/null
++++ b/miniapp/src/components/seller/BaseLocationPrompt.tsx
+@@ -0,0 +1,122 @@
++import { useEffect, useState } from 'react';
++import { MapPin, Loader2, Check, LocateFixed } from 'lucide-react';
++import { resolveGeoLocation } from '@/api/geo';
++import { usePlatform } from '@/platform/PlatformProvider';
++import { Button } from '@/components/ui/button';
++
++interface BaseLocationPromptProps {
++  open: boolean;
++  onSubmit: (data: { lat: number; lng: number; address?: string }) => Promise<void>;
++}
++
++export function BaseLocationPrompt({ open, onSubmit }: BaseLocationPromptProps) {
++  const { requestLocation } = usePlatform();
++  const [lat, setLat] = useState<number | null>(null);
++  const [lng, setLng] = useState<number | null>(null);
++  const [address, setAddress] = useState('');
++  const [detectedLabel, setDetectedLabel] = useState('');
++  const [loading, setLoading] = useState(false);
++  const [submitting, setSubmitting] = useState(false);
++  const [error, setError] = useState('');
++
++  useEffect(() => {
++    if (!open) return;
++    setError('');
++  }, [open]);
++
++  const handleDetect = async () => {
++    setLoading(true);
++    setError('');
++    try {
++      const coords = await requestLocation();
++      setLat(coords.lat);
++      setLng(coords.lng);
++      const resolved = await resolveGeoLocation(coords.lat, coords.lng);
++      setDetectedLabel(resolved.label || 'Определенная точка');
++      if (resolved.raw?.display_name) {
++        setAddress(resolved.raw.display_name);
++      }
++    } catch (err) {
++      console.error('Detect base location error', err);
++      setError('Не удалось определить точку. Введите адрес вручную.');
++    } finally {
++      setLoading(false);
++    }
++  };
++
++  const handleSubmit = async () => {
++    if (lat == null || lng == null) {
++      setError('Укажите точку на карте или определите автоматически');
++      return;
++    }
++    setSubmitting(true);
++    setError('');
++    try {
++      await onSubmit({ lat, lng, address: address.trim() || detectedLabel || undefined });
++    } catch (err) {
++      setError('Не удалось сохранить точку. Попробуйте еще раз.');
++    } finally {
++      setSubmitting(false);
++    }
++  };
++
++  if (!open) return null;
++
++  return (
++    <div className="fixed inset-0 bg-black/70 z-50 flex items-center justify-center px-4">
++      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg p-6 space-y-4">
++        <div className="flex items-start gap-3">
++          <div className="p-3 rounded-xl bg-primary/10 text-primary">
++            <MapPin className="w-6 h-6" />
++          </div>
++          <div className="flex-1">
++            <h2 className="text-xl font-bold">Вы с этой точки будете продавать товар?</h2>
++            <p className="text-sm text-muted-foreground mt-1">
++              Выберите базовую локацию один раз. Мы будем подставлять ее при создании новых товаров.
++            </p>
++          </div>
++        </div>
++
++        <div className="space-y-2">
++          <div className="flex items-center gap-2 text-sm">
++            <Check className="w-4 h-4 text-green-600" />
++            <span>Локация нужна только один раз для кабинета продавца</span>
++          </div>
++          <div className="flex items-center gap-2 text-sm">
++            <LocateFixed className="w-4 h-4 text-primary" />
++            <span>Все новые товары получат эту точку автоматически</span>
++          </div>
++        </div>
++
++        <div className="space-y-2 p-4 rounded-xl bg-slate-50">
++          <div className="flex items-center justify-between">
++            <div>
++              <p className="text-sm font-medium">Координаты</p>
++              <p className="text-xs text-muted-foreground">
++                {lat != null && lng != null
++                  ? `${lat.toFixed(5)}, ${lng.toFixed(5)}`
++                  : 'Точка ещё не выбрана'}
++              </p>
++            </div>
++            <Button onClick={handleDetect} disabled={loading} variant="secondary">
++              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <MapPin className="w-4 h-4 mr-1" />}Определить
++            </Button>
++          </div>
++          <textarea
++            value={address}
++            onChange={(e) => setAddress(e.target.value)}
++            placeholder={detectedLabel || 'Адрес или ориентир (опционально)'}
++            className="w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
++          />
++        </div>
++
++        {error && <p className="text-sm text-red-600">{error}</p>}
++
++        <Button className="w-full text-base" onClick={handleSubmit} disabled={submitting}>
++          {submitting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
++          Сохранить точку
++        </Button>
++      </div>
++    </div>
++  );
++}
+diff --git a/miniapp/src/components/seller/CreateProductWizard.tsx b/miniapp/src/components/seller/CreateProductWizard.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..364c6f5dedc08e7695e092ada91ed0b871272fa6
+--- /dev/null
++++ b/miniapp/src/components/seller/CreateProductWizard.tsx
+@@ -0,0 +1,323 @@
++import { useEffect, useMemo, useState } from 'react';
++import { Camera, Image as ImageIcon, ArrowLeft, ArrowRight, CheckCircle2, Loader2, Sparkles, Lightbulb } from 'lucide-react';
++import { fetchCategories } from '@/api/categories';
++import { createDraftProduct, DraftProductPayload } from '@/api/myShop';
++import { CategoryNode } from '@/types';
++import { usePlatform } from '@/platform/PlatformProvider';
++import { Button } from '@/components/ui/button';
++
++interface CreateProductWizardProps {
++  onCreated: () => void;
++}
++
++function suggestProductMeta(title: string): { categoryId?: string; suggestedDescription?: string } {
++  const lower = title.toLowerCase();
++  if (lower.includes('морков')) return { categoryId: 'vegetables', suggestedDescription: 'Свежая морковь с грядки, чистая и сладкая.' };
++  if (lower.includes('малина')) return { categoryId: 'berries', suggestedDescription: 'Ароматная малина, собранная вручную.' };
++  if (lower.includes('кофе')) return { categoryId: 'coffee', suggestedDescription: 'Зерновой кофе, свежеобжаренный, ароматный.' };
++  return {};
++}
++
++function flattenCategories(categories: CategoryNode[]): { value: string; label: string }[] {
++  const result: { value: string; label: string }[] = [];
++
++  categories.forEach((cat) => {
++    result.push({ value: cat.slug, label: cat.name });
++    if (cat.subcategories) {
++      cat.subcategories.forEach((sub) => {
++        result.push({ value: sub.slug, label: `${cat.name} / ${sub.name}` });
++      });
++    }
++  });
++
++  return result;
++}
++
++export function CreateProductWizard({ onCreated }: CreateProductWizardProps) {
++  const { getAuthToken } = usePlatform();
++  const [step, setStep] = useState(1);
++  const [photos, setPhotos] = useState<string[]>([]);
++  const [title, setTitle] = useState('');
++  const [description, setDescription] = useState('');
++  const [categoryId, setCategoryId] = useState('');
++  const [measureUnit, setMeasureUnit] = useState('kg');
++  const [suggestedDescription, setSuggestedDescription] = useState('');
++  const [suggestedCategoryId, setSuggestedCategoryId] = useState('');
++  const [categories, setCategories] = useState<CategoryNode[]>([]);
++  const [saving, setSaving] = useState(false);
++  const [created, setCreated] = useState(false);
++  const [error, setError] = useState('');
++  const [uploading, setUploading] = useState(false);
++
++  useEffect(() => {
++    fetchCategories().then(setCategories).catch(() => setCategories([]));
++  }, []);
++
++  useEffect(() => {
++    if (!title) return;
++    const suggestion = suggestProductMeta(title);
++    if (suggestion.categoryId) {
++      setSuggestedCategoryId(suggestion.categoryId);
++    }
++    if (suggestion.suggestedDescription && !description) {
++      setSuggestedDescription(suggestion.suggestedDescription);
++      setDescription(suggestion.suggestedDescription);
++    }
++  }, [title, description]);
++
++  const categoryOptions = useMemo(() => flattenCategories(categories), [categories]);
++
++  const canGoNext = () => {
++    if (step === 2) return title.trim().length > 1;
++    if (step === 4) return Boolean(categoryId || suggestedCategoryId);
++    return true;
++  };
++
++  const handleUploadPhotos = async (files: FileList | null) => {
++    if (!files || files.length === 0) return;
++    const token = await getAuthToken();
++    const uploads = Array.from(files).slice(0, 4 - photos.length);
++    setUploading(true);
++    const uploaded: string[] = [];
++
++    for (const file of uploads) {
++      const formData = new FormData();
++      formData.append('photo', file);
++      const res = await fetch('/api/upload', {
++        method: 'POST',
++        headers: token ? { Authorization: `Bearer ${token}` } : undefined,
++        body: formData,
++      });
++      if (res.ok) {
++        const data = await res.json();
++        if (data.url) {
++          uploaded.push(data.url);
++        }
++      }
++    }
++
++    setPhotos((prev) => [...prev, ...uploaded].slice(0, 4));
++    setUploading(false);
++  };
++
++  const goNext = () => {
++    if (step < 6) {
++      setStep((prev) => prev + 1);
++    }
++  };
++
++  const goBack = () => {
++    if (step > 1) {
++      setStep((prev) => prev - 1);
++    }
++  };
++
++  const handleCreate = async () => {
++    if (!title.trim()) {
++      setError('Название обязательно');
++      return;
++    }
++    const finalCategory = categoryId || suggestedCategoryId;
++    if (!finalCategory) {
++      setError('Выберите категорию');
++      return;
++    }
++    setSaving(true);
++    setError('');
++    try {
++      const token = await getAuthToken();
++      const payload: DraftProductPayload = {
++        title: title.trim(),
++        description: description.trim(),
++        categoryId: finalCategory,
++        photos,
++        measureUnit,
++      };
++      await createDraftProduct(payload, token || undefined);
++      setCreated(true);
++      onCreated();
++    } catch (err) {
++      console.error('Create draft error', err);
++      setError('Не удалось сохранить товар. Проверьте данные.');
++    } finally {
++      setSaving(false);
++    }
++  };
++
++  if (created) {
++    return (
++      <div className="p-4 space-y-4">
++        <div className="p-4 rounded-2xl bg-green-50 border border-green-100 flex items-start gap-3">
++          <CheckCircle2 className="w-6 h-6 text-green-600" />
++          <div>
++            <h3 className="text-lg font-semibold">Товар сохранён в черновики</h3>
++            <p className="text-sm text-muted-foreground">
++              Теперь задайте цену и опубликуйте его во вкладке «Товары».
++            </p>
++          </div>
++        </div>
++        <Button className="w-full" onClick={onCreated}>
++          Перейти к товарам
++        </Button>
++      </div>
++    );
++  }
++
++  return (
++    <div className="bg-white rounded-xl border p-4 space-y-4 shadow-sm">
++      <div className="flex items-center justify-between">
++        <h2 className="text-lg font-bold">Создать товар</h2>
++        <div className="text-sm text-muted-foreground">Шаг {step} из 6</div>
++      </div>
++
++      {step === 1 && (
++        <div className="space-y-3">
++          <h3 className="text-base font-semibold">Добавьте фотографии товара</h3>
++          <p className="text-sm text-muted-foreground">C фото товар продаётся лучше.</p>
++          <div className="grid grid-cols-2 gap-3">
++            {Array.from({ length: 4 }).map((_, idx) => {
++              const url = photos[idx];
++              return (
++                <label
++                  key={idx}
++                  className="aspect-square rounded-xl border border-dashed flex items-center justify-center cursor-pointer bg-slate-50 overflow-hidden"
++                >
++                  {url ? (
++                    <img src={url} alt="Фото товара" className="w-full h-full object-cover" />
++                  ) : (
++                    <div className="flex flex-col items-center text-muted-foreground text-sm">
++                      <Camera className="w-6 h-6 mb-1" />
++                      Фото
++                    </div>
++                  )}
++                  <input
++                    type="file"
++                    accept="image/*"
++                    className="hidden"
++                    onChange={(e) => handleUploadPhotos(e.target.files)}
++                  />
++                </label>
++              );
++            })}
++          </div>
++          {uploading && (
++            <p className="text-sm text-muted-foreground flex items-center gap-2">
++              <Loader2 className="w-4 h-4 animate-spin" /> Загружаем фото...
++            </p>
++          )}
++        </div>
++      )}
++
++      {step === 2 && (
++        <div className="space-y-3">
++          <h3 className="text-base font-semibold">Название товара</h3>
++          <input
++            className="w-full h-12 rounded-lg border px-3 text-base"
++            placeholder="Морковь свежая, Малина, Кофе зерновой"
++            value={title}
++            onChange={(e) => setTitle(e.target.value)}
++          />
++          <p className="text-xs text-muted-foreground">Коротко и понятно, без лишних слов.</p>
++        </div>
++      )}
++
++      {step === 3 && (
++        <div className="space-y-3">
++          <h3 className="text-base font-semibold">Описание товара</h3>
++          <textarea
++            className="w-full min-h-[120px] rounded-lg border px-3 py-2 text-sm"
++            placeholder="Добавьте описание или оставьте предложенный вариант"
++            value={description}
++            onChange={(e) => setDescription(e.target.value)}
++          />
++          {suggestedDescription && (
++            <div className="flex items-center gap-2 text-xs text-muted-foreground bg-amber-50 border border-amber-100 rounded-lg p-2">
++              <Lightbulb className="w-4 h-4 text-amber-500" />
++              Мы предложили описание — можно отредактировать.
++            </div>
++          )}
++        </div>
++      )}
++
++      {step === 4 && (
++        <div className="space-y-3">
++          <h3 className="text-base font-semibold">Группа товаров</h3>
++          {suggestedCategoryId && (
++            <div className="flex items-center gap-2 text-sm text-green-700 bg-green-50 border border-green-100 rounded-lg p-2">
++              <Sparkles className="w-4 h-4" /> Категория предложена автоматически
++            </div>
++          )}
++          <select
++            className="w-full h-12 rounded-lg border px-3"
++            value={categoryId || suggestedCategoryId}
++            onChange={(e) => setCategoryId(e.target.value)}
++          >
++            <option value="">Выберите категорию</option>
++            {categoryOptions.map((opt) => (
++              <option key={opt.value} value={opt.value}>
++                {opt.label}
++              </option>
++            ))}
++          </select>
++        </div>
++      )}
++
++      {step === 5 && (
++        <div className="space-y-3">
++          <h3 className="text-base font-semibold">Единица измерения</h3>
++          <select
++            className="w-full h-12 rounded-lg border px-3"
++            value={measureUnit}
++            onChange={(e) => setMeasureUnit(e.target.value)}
++          >
++            <option value="kg">кг</option>
++            <option value="pcs">шт</option>
++            <option value="ltr">литр</option>
++            <option value="pack">упаковка</option>
++            <option value="portion">порция</option>
++          </select>
++          <p className="text-xs text-muted-foreground">Можно расширять список позже.</p>
++        </div>
++      )}
++
++      {step === 6 && (
++        <div className="space-y-3">
++          <h3 className="text-base font-semibold">Готово к созданию</h3>
++          <div className="rounded-xl border bg-slate-50 p-3 space-y-1 text-sm">
++            <div className="flex items-center gap-2">
++              <ImageIcon className="w-4 h-4 text-muted-foreground" />
++              {photos.length > 0 ? `${photos.length} фото` : 'Без фото (можно добавить позже)'}
++            </div>
++            <div className="flex items-center gap-2">
++              <Sparkles className="w-4 h-4 text-muted-foreground" />
++              {title || 'Название не заполнено'}
++            </div>
++            <div className="flex items-center gap-2">
++              <Lightbulb className="w-4 h-4 text-muted-foreground" />
++              {measureUnit ? `Ед. измерения: ${measureUnit}` : 'Ед. измерения не выбрана'}
++            </div>
++          </div>
++          <p className="text-sm text-muted-foreground">
++            Мы создадим черновик без цены. Задайте цену и остаток во вкладке «Товары».
++          </p>
++          {error && <p className="text-sm text-red-600">{error}</p>}
++          <Button className="w-full" onClick={handleCreate} disabled={saving}>
++            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : null}
++            Создать товар
++          </Button>
++        </div>
++      )}
++
++      {step < 6 && (
++        <div className="flex justify-between pt-2">
++          <Button variant="ghost" onClick={goBack} disabled={step === 1}>
++            <ArrowLeft className="w-4 h-4 mr-1" /> Назад
++          </Button>
++          <Button onClick={step === 5 ? () => setStep(6) : goNext} disabled={!canGoNext()}>
++            Далее <ArrowRight className="w-4 h-4 ml-1" />
++          </Button>
++        </div>
++      )}
++    </div>
++  );
++}
+diff --git a/miniapp/src/pages/StoreCabinetPage.tsx b/miniapp/src/pages/StoreCabinetPage.tsx
+index 383bc26b3a2699b23037d93e4c339c3fca0da306..199582ce177e6a5b6c60dcb479ee2531a005808d 100644
+--- a/miniapp/src/pages/StoreCabinetPage.tsx
++++ b/miniapp/src/pages/StoreCabinetPage.tsx
+@@ -1,108 +1,124 @@
+-import { useState, useRef } from 'react';
++import { useState, useRef, useEffect } from 'react';
+ import { useNavigate } from 'react-router-dom';
+ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+ import { 
+-  Store, Eye, Package, Phone, Plus, Settings, ChevronRight, 
+-  Heart, EyeOff, Pencil, Camera, Upload, TrendingUp, 
+-  MapPin, Send, Check, X, Loader2, ExternalLink, Sparkles
++  Store, Eye, Package, Phone, Plus, Settings, ChevronRight,
++  Heart, EyeOff, Pencil, Upload, TrendingUp,
++  MapPin, Check, X, Loader2, ExternalLink, Sparkles,
++  Pause, Play, CircleDollarSign
+ } from 'lucide-react';
+ import { Button } from '@/components/ui/button';
+ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+ import { Badge } from '@/components/ui/badge';
+ import { Skeleton } from '@/components/ui/skeleton';
+ import { Switch } from '@/components/ui/switch';
+ import { useToast } from '@/hooks/use-toast';
+ import { usePlatform } from '@/platform/PlatformProvider';
+ import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
++import { CreateProductWizard } from '@/components/seller/CreateProductWizard';
++import { BaseLocationPrompt } from '@/components/seller/BaseLocationPrompt';
++import { pauseProduct, publishProduct, updateBaseLocation, updateProductPricing } from '@/api/myShop';
+ 
+ const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+ const textareaClass = "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+ const labelClass = "text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70";
+ 
+ interface SellerProfile {
+   _id: string;
+   name: string;
+   slug: string;
+   avatar?: string;
+   banner?: string;
+   description?: string;
+   isFarmer: boolean;
+   phone?: string;
+   telegramUsername?: string;
+   city?: string;
+   region?: string;
++  baseLocation?: {
++    lat: number;
++    lng: number;
++    address?: string | null;
++  };
+   showPhone: boolean;
+   subscribersCount: number;
+   productsCount: number;
+   ratings: { score: number; count: number };
+   isVerified: boolean;
+ }
+ 
+ interface StoreStats {
+   totalAds: number;
+   activeAds: number;
+   hiddenAds: number;
+   viewsLast7Days: number;
+   contactClicksLast7Days: number;
+   topAds: Array<{
+     _id: string;
+     title: string;
+     viewsCount: number;
+     photo?: string;
+   }>;
+ }
+ 
+ interface StoreAd {
+   _id: string;
+   title: string;
+   price: number;
+   currency: string;
+   photos: string[];
+   status: string;
++  measureUnit?: string;
++  stockQuantity?: number | null;
++  quantity?: number | null;
+   viewsTotal?: number;
+   favoritesCount?: number;
+   createdAt: string;
+   unitType?: string;
+   isFarmerAd?: boolean;
+   categoryId?: string;
+ }
+ 
+-type TabType = 'products' | 'stats' | 'settings';
++type TabType = 'products' | 'create' | 'stats' | 'demand' | 'pro' | 'fairs' | 'settings';
+ 
+ export default function StoreCabinetPage() {
+   const navigate = useNavigate();
+   const queryClient = useQueryClient();
+   const { toast } = useToast();
+   const { getAuthToken } = usePlatform();
+   const [activeTab, setActiveTab] = useState<TabType>('products');
+-  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden'>('all');
+-  
++  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'hidden' | 'draft' | 'paused'>('all');
++
+   const [formData, setFormData] = useState<Partial<SellerProfile>>({});
+   const [isFormDirty, setIsFormDirty] = useState(false);
+   const [uploading, setUploading] = useState(false);
+   const fileInputRef = useRef<HTMLInputElement>(null);
++  const [showBaseLocationPrompt, setShowBaseLocationPrompt] = useState(false);
++  const [, setSavingLocation] = useState(false);
++  const [pricingForms, setPricingForms] = useState<Record<string, { price: string; stock: string; measureUnit: string }>>({});
++  const [expandedPricingId, setExpandedPricingId] = useState<string | null>(null);
+ 
+   const { data: profileData, isLoading: profileLoading } = useQuery({
+     queryKey: ['/api/seller-profile/my'],
+     queryFn: async () => {
+       const token = await getAuthToken();
+       if (!token) throw new Error('Not authenticated');
+       
+       const res = await fetch('/api/seller-profile/my', {
+         headers: { 'Authorization': `Bearer ${token}` },
+       });
+       if (!res.ok) throw new Error('Failed to load profile');
+       return res.json();
+     },
+     staleTime: 30000,
+   });
+ 
+   const { data: statsData, isLoading: statsLoading } = useQuery({
+     queryKey: ['/api/seller-profile/my/stats'],
+     queryFn: async () => {
+       const token = await getAuthToken();
+       if (!token) return null;
+       
+       const res = await fetch('/api/seller-profile/my/stats', {
+         headers: { 'Authorization': `Bearer ${token}` },
+       });
+@@ -160,55 +176,202 @@ export default function StoreCabinetPage() {
+     },
+   });
+ 
+   const toggleAdStatusMutation = useMutation({
+     mutationFn: async ({ adId, newStatus }: { adId: string; newStatus: string }) => {
+       const token = await getAuthToken();
+       if (!token) throw new Error('Not authenticated');
+       
+       const res = await fetch(`/api/ads/${adId}/status`, {
+         method: 'PATCH',
+         headers: {
+           'Authorization': `Bearer ${token}`,
+           'Content-Type': 'application/json',
+         },
+         body: JSON.stringify({ status: newStatus }),
+       });
+       if (!res.ok) throw new Error('Failed to update status');
+       return res.json();
+     },
+     onSuccess: () => {
+       queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
+       queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/stats'] });
+     },
+   });
+ 
++  const pricingMutation = useMutation({
++    mutationFn: async ({ adId, price, stockQuantity, measureUnit }: { adId: string; price?: number; stockQuantity?: number; measureUnit?: string }) => {
++      const token = await getAuthToken();
++      if (!token) throw new Error('Not authenticated');
++      return updateProductPricing(adId, { price, stockQuantity, measureUnit }, token);
++    },
++    onSuccess: () => {
++      toast({ title: 'Сохранено' });
++      setExpandedPricingId(null);
++      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
++    },
++    onError: (error: any) => {
++      const message = error?.response?.data?.message || 'Не удалось сохранить цену';
++      toast({ title: message, variant: 'destructive' });
++    },
++  });
++
++  const publishMutation = useMutation({
++    mutationFn: async ({ adId, measureUnit }: { adId: string; measureUnit?: string }) => {
++      const token = await getAuthToken();
++      if (!token) throw new Error('Not authenticated');
++      return publishProduct(adId, measureUnit, token);
++    },
++    onSuccess: () => {
++      toast({ title: 'Товар опубликован' });
++      setExpandedPricingId(null);
++      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
++      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/stats'] });
++    },
++    onError: (error: any) => {
++      const message = error?.response?.data?.message || 'Не удалось опубликовать товар';
++      toast({ title: message, variant: 'destructive' });
++    },
++  });
++
++  const pauseMutation = useMutation({
++    mutationFn: async ({ adId }: { adId: string }) => {
++      const token = await getAuthToken();
++      if (!token) throw new Error('Not authenticated');
++      return pauseProduct(adId, token);
++    },
++    onSuccess: () => {
++      toast({ title: 'Товар поставлен на паузу' });
++      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
++    },
++    onError: () => {
++      toast({ title: 'Не удалось поставить на паузу', variant: 'destructive' });
++    },
++  });
++
+   const handleSaveSettings = () => {
+     if (Object.keys(formData).length === 0) return;
+     updateProfileMutation.mutate(formData);
+   };
+ 
++  const measureLabels: Record<string, string> = {
++    kg: 'кг',
++    pcs: 'шт',
++    ltr: 'литр',
++    pack: 'упаковка',
++    portion: 'порция',
++    piece: 'шт',
++    liter: 'литр',
++  };
++
++  const mapUnitTypeToMeasure = (unitType?: string | null) => {
++    if (!unitType) return undefined;
++    if (unitType === 'piece') return 'pcs';
++    if (unitType === 'liter') return 'ltr';
++    return unitType;
++  };
++
++  const getMeasureLabel = (unit?: string | null) => measureLabels[unit || ''] || unit;
++
++  const getPricingState = (ad: StoreAd) => ({
++    price: ad.price > 0 ? String(ad.price) : '',
++    stock: ad.stockQuantity != null ? String(ad.stockQuantity) : ad.quantity != null ? String(ad.quantity) : '',
++    measureUnit: ad.measureUnit || mapUnitTypeToMeasure(ad.unitType) || 'kg',
++  });
++
++  const handleBaseLocationSubmit = async (data: { lat: number; lng: number; address?: string }) => {
++    try {
++      setSavingLocation(true);
++      const token = await getAuthToken();
++      await updateBaseLocation(data, token || undefined);
++      toast({ title: 'Точка продажи сохранена' });
++      queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my'] });
++      setShowBaseLocationPrompt(false);
++    } catch (error) {
++      toast({ title: 'Не удалось сохранить точку', variant: 'destructive' });
++    } finally {
++      setSavingLocation(false);
++    }
++  };
++
++  const handleOpenPricing = (ad: StoreAd) => {
++    setExpandedPricingId(ad._id);
++    setPricingForms(prev => ({ ...prev, [ad._id]: getPricingState(ad) }));
++  };
++
++  const handlePricingChange = (adId: string, field: 'price' | 'stock' | 'measureUnit', value: string) => {
++    setPricingForms(prev => ({
++      ...prev,
++      [adId]: { ...(prev[adId] || {}), [field]: value },
++    }));
++  };
++
++  const handleSavePricing = (ad: StoreAd) => {
++    const form = pricingForms[ad._id] || getPricingState(ad);
++    if (!form.price) {
++      toast({ title: 'Укажите цену', variant: 'destructive' });
++      return;
++    }
++
++    pricingMutation.mutate({
++      adId: ad._id,
++      price: Number(form.price),
++      stockQuantity: form.stock ? Number(form.stock) : undefined,
++      measureUnit: form.measureUnit,
++    });
++  };
++
++  const handlePublish = (ad: StoreAd) => {
++    const form = pricingForms[ad._id] || getPricingState(ad);
++    const priceToUse = form.price || ad.price;
++    if (!priceToUse) {
++      toast({ title: 'Сначала укажите цену', variant: 'destructive' });
++      return;
++    }
++
++    if (form.price && Number(form.price) !== ad.price) {
++      pricingMutation.mutate(
++        {
++          adId: ad._id,
++          price: Number(form.price),
++          stockQuantity: form.stock ? Number(form.stock) : undefined,
++          measureUnit: form.measureUnit,
++        },
++        {
++          onSuccess: () => publishMutation.mutate({ adId: ad._id, measureUnit: form.measureUnit }),
++        }
++      );
++      return;
++    }
++
++    publishMutation.mutate({ adId: ad._id, measureUnit: form.measureUnit });
++  };
++
++  const handlePause = (ad: StoreAd) => {
++    pauseMutation.mutate({ adId: ad._id });
++  };
++
+   const handleFormChange = (field: keyof SellerProfile, value: any) => {
+     setFormData(prev => ({ ...prev, [field]: value }));
+     setIsFormDirty(true);
+   };
+ 
+   const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     
+     if (file.size > 5 * 1024 * 1024) {
+       toast({ title: 'Файл слишком большой (макс. 5MB)', variant: 'destructive' });
+       return;
+     }
+     
+     setUploading(true);
+     try {
+       const token = await getAuthToken();
+       if (!token) throw new Error('Not authenticated');
+       
+       const formData = new FormData();
+       formData.append('photo', file);
+       
+       const res = await fetch('/api/upload', {
+         method: 'POST',
+         headers: { 'Authorization': `Bearer ${token}` },
+@@ -223,50 +386,56 @@ export default function StoreCabinetPage() {
+     } catch (error) {
+       toast({ title: 'Ошибка загрузки', variant: 'destructive' });
+     } finally {
+       setUploading(false);
+     }
+   };
+ 
+   if (profileLoading) {
+     return (
+       <div className="min-h-screen bg-background p-4 space-y-4">
+         <Skeleton className="h-24 w-full rounded-xl" />
+         <div className="flex gap-2">
+           <Skeleton className="h-10 flex-1 rounded-lg" />
+           <Skeleton className="h-10 flex-1 rounded-lg" />
+           <Skeleton className="h-10 flex-1 rounded-lg" />
+         </div>
+         <Skeleton className="h-48 w-full rounded-xl" />
+       </div>
+     );
+   }
+ 
+   const profile: SellerProfile | null = profileData?.profile || null;
+   const stats: StoreStats | null = statsData?.stats || null;
+   const ads: StoreAd[] = adsData?.items || [];
+ 
++  useEffect(() => {
++    if (profile && !profile.baseLocation) {
++      setShowBaseLocationPrompt(true);
++    }
++  }, [profile]);
++
+   if (!profile) {
+     return (
+       <div className="min-h-screen bg-background flex items-center justify-center p-4">
+         <Card className="w-full max-w-sm">
+           <CardContent className="pt-6 text-center">
+             <Store className="w-16 h-16 mx-auto text-primary mb-4" />
+             <h2 className="text-xl font-bold mb-2">Создание магазина...</h2>
+             <p className="text-sm text-muted-foreground">
+               Пожалуйста, подождите
+             </p>
+           </CardContent>
+         </Card>
+       </div>
+     );
+   }
+ 
+   const currentFormData = { ...profile, ...formData };
+ 
+   return (
+     <div className="min-h-screen bg-background pb-20">
+       {/* Store Header */}
+       <div className="bg-gradient-to-br from-primary/10 to-primary/5 p-4">
+         <div className="flex items-center gap-4">
+           <div className="w-16 h-16 rounded-xl bg-card overflow-hidden shadow-md flex-shrink-0">
+             {(currentFormData.avatar || profile.avatar) ? (
+@@ -288,200 +457,389 @@ export default function StoreCabinetPage() {
+             {(profile.city || profile.region) && (
+               <div className="flex items-center gap-1 text-sm text-muted-foreground mt-0.5">
+                 <MapPin className="w-3.5 h-3.5" />
+                 <span>{[profile.city, profile.region].filter(Boolean).join(', ')}</span>
+               </div>
+             )}
+             <div className="flex items-center gap-2 mt-1">
+               <Badge variant="secondary" className="text-xs">
+                 <Package className="w-3 h-3 mr-1" />
+                 {stats?.activeAds || profile.productsCount} товаров
+               </Badge>
+             </div>
+           </div>
+           <Button 
+             size="sm"
+             variant="outline"
+             onClick={() => navigate(`/store/${profile.slug}`)}
+             data-testid="button-view-store"
+           >
+             <ExternalLink className="w-4 h-4" />
+           </Button>
+         </div>
+       </div>
+ 
+       {/* Tabs */}
+-      <div className="flex border-b bg-card sticky top-0 z-10">
++      <div className="flex border-b bg-card sticky top-0 z-10 overflow-x-auto">
+         {[
+           { id: 'products' as TabType, label: 'Товары', icon: Package },
++          { id: 'create' as TabType, label: 'Создать товар', icon: Plus },
+           { id: 'stats' as TabType, label: 'Статистика', icon: TrendingUp },
++          { id: 'demand' as TabType, label: 'Спрос', icon: Eye },
++          { id: 'pro' as TabType, label: 'PRO', icon: Sparkles },
++          { id: 'fairs' as TabType, label: 'Ярмарки', icon: Store },
+           { id: 'settings' as TabType, label: 'Настройки', icon: Settings },
+         ].map(tab => {
+           const Icon = tab.icon;
+           return (
+             <button
+               key={tab.id}
+               onClick={() => setActiveTab(tab.id)}
+-              className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
++              className={`flex-1 min-w-[120px] flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors ${
+                 activeTab === tab.id
+                   ? 'text-primary border-b-2 border-primary'
+                   : 'text-muted-foreground hover:text-foreground'
+               }`}
+               data-testid={`tab-${tab.id}`}
+             >
+               <Icon className="w-4 h-4" />
+               {tab.label}
+             </button>
+           );
+         })}
+       </div>
+ 
+       {/* Tab Content */}
+       <div className="p-4">
+         {/* Products Tab */}
+         {activeTab === 'products' && (
+           <div className="space-y-4">
+-            <Button 
+-              className="w-full"
+-              onClick={() => navigate('/ads/create')}
+-              data-testid="button-add-product"
+-            >
+-              <Plus className="w-4 h-4 mr-2" />
+-              Добавить товар
+-            </Button>
++            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
++              <Button
++                className="w-full"
++                onClick={() => setActiveTab('create')}
++                data-testid="button-add-product"
++              >
++                <Plus className="w-4 h-4 mr-2" />
++                Создать товар
++              </Button>
++              <Button
++                className="w-full"
++                variant="outline"
++                onClick={() => navigate('/ads/create')}
++              >
++                <Pencil className="w-4 h-4 mr-2" />
++                Расширенный режим
++              </Button>
++            </div>
++
++            <Card className="border-dashed">
++              <CardContent className="p-3 flex items-center justify-between gap-3">
++                <div className="min-w-0">
++                  <p className="text-sm font-semibold">Базовая точка продажи</p>
++                  <p className="text-xs text-muted-foreground">
++                    {profile.baseLocation
++                      ? `${profile.baseLocation.lat.toFixed(4)}, ${profile.baseLocation.lng.toFixed(4)}`
++                      : 'Не указана'}
++                  </p>
++                  {profile.baseLocation?.address && (
++                    <p className="text-xs text-muted-foreground truncate">{profile.baseLocation.address}</p>
++                  )}
++                </div>
++                <Button size="sm" variant="outline" onClick={() => setShowBaseLocationPrompt(true)}>
++                  <MapPin className="w-4 h-4 mr-1" /> {profile.baseLocation ? 'Изменить' : 'Указать'}
++                </Button>
++              </CardContent>
++            </Card>
+ 
+             {/* Status Filter */}
+-            <div className="flex gap-2">
++            <div className="flex gap-2 flex-wrap">
+               {[
+                 { id: 'all' as const, label: 'Все' },
++                { id: 'draft' as const, label: 'Черновики' },
+                 { id: 'active' as const, label: 'Активные' },
++                { id: 'paused' as const, label: 'На паузе' },
+                 { id: 'hidden' as const, label: 'Скрытые' },
+               ].map(filter => (
+                 <Button
+                   key={filter.id}
+                   size="sm"
+                   variant={statusFilter === filter.id ? 'default' : 'outline'}
+                   onClick={() => setStatusFilter(filter.id)}
+                   data-testid={`filter-${filter.id}`}
+                 >
+                   {filter.label}
+                 </Button>
+               ))}
+             </div>
+ 
+             {/* Ads List */}
+             {adsLoading ? (
+               <div className="space-y-3">
+                 {[1, 2, 3].map(i => (
+                   <Skeleton key={i} className="h-24 rounded-xl" />
+                 ))}
+               </div>
+             ) : ads.length === 0 ? (
+               <Card>
+                 <CardContent className="py-8 text-center">
+                   <Package className="w-12 h-12 mx-auto text-muted-foreground mb-3" />
+                   <p className="text-muted-foreground">Нет товаров</p>
+                 </CardContent>
+               </Card>
+             ) : (
+               <div className="space-y-3">
+-                {ads.map(ad => (
+-                  <Card key={ad._id} className="overflow-hidden" data-testid={`card-ad-${ad._id}`}>
+-                    <CardContent className="p-3 flex gap-3">
+-                      {/* Photo */}
+-                      <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
+-                        <img
+-                          src={ad.photos?.[0] ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER}
+-                          alt={ad.title}
+-                          className="w-full h-full object-cover"
+-                          loading="lazy"
+-                        />
+-                      </div>
+-                      
+-                      {/* Info */}
+-                      <div className="flex-1 min-w-0">
+-                        <h3 className="font-medium text-sm truncate">{ad.title}</h3>
+-                        <p className="text-primary font-bold mt-0.5">
+-                          {ad.price.toLocaleString()} {ad.currency}
+-                          {ad.unitType && <span className="text-xs text-muted-foreground">/{ad.unitType}</span>}
+-                        </p>
+-                        
+-                        <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
+-                          <span className="flex items-center gap-1">
+-                            <Eye className="w-3 h-3" />
+-                            {ad.viewsTotal || 0}
+-                          </span>
+-                          <span className="flex items-center gap-1">
+-                            <Heart className="w-3 h-3" />
+-                            {ad.favoritesCount || 0}
+-                          </span>
+-                        </div>
++                {ads.map(ad => {
++                  const unitLabel = getMeasureLabel(ad.measureUnit || mapUnitTypeToMeasure(ad.unitType));
++                  const priceLabel = ad.price > 0 ? `${ad.price.toLocaleString()} ${ad.currency || 'BYN'}` : 'Цена не задана';
++                  const isPricingOpen = expandedPricingId === ad._id;
++                  const formState = pricingForms[ad._id] || getPricingState(ad);
++                  const statusLabel =
++                    ad.status === 'draft'
++                      ? 'Черновик'
++                      : ad.status === 'paused'
++                        ? 'На паузе'
++                        : ad.status === 'hidden'
++                          ? 'Скрыто'
++                          : ad.status === 'archived'
++                            ? 'Архив'
++                            : ad.status === 'expired'
++                              ? 'Истёк'
++                              : 'Активно';
+ 
+-                        <div className="flex items-center gap-2 mt-2">
+-                          <Badge 
+-                            variant={ad.status === 'active' ? 'default' : 'secondary'}
+-                            className="text-xs"
+-                          >
+-                            {ad.status === 'active' ? 'Активно' : 'Скрыто'}
+-                          </Badge>
++                  return (
++                    <Card key={ad._id} className="overflow-hidden" data-testid={`card-ad-${ad._id}`}>
++                      <CardContent className="p-3 space-y-3">
++                        <div className="flex gap-3">
++                          {/* Photo */}
++                          <div className="w-20 h-20 rounded-lg overflow-hidden bg-muted flex-shrink-0">
++                            <img
++                              src={ad.photos?.[0] ? getThumbnailUrl(ad.photos[0]) : NO_PHOTO_PLACEHOLDER}
++                              alt={ad.title}
++                              className="w-full h-full object-cover"
++                              loading="lazy"
++                            />
++                          </div>
++
++                          {/* Info */}
++                          <div className="flex-1 min-w-0">
++                            <h3 className="font-medium text-sm truncate">{ad.title}</h3>
++                            <p className="text-primary font-bold mt-0.5">
++                              {priceLabel}
++                              {unitLabel && <span className="text-xs text-muted-foreground">/{unitLabel}</span>}
++                            </p>
++
++                            <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground">
++                              <span className="flex items-center gap-1">
++                                <Eye className="w-3 h-3" />
++                                {ad.viewsTotal || 0}
++                              </span>
++                              <span className="flex items-center gap-1">
++                                <Heart className="w-3 h-3" />
++                                {ad.favoritesCount || 0}
++                              </span>
++                            </div>
++
++                            <div className="flex items-center gap-2 mt-2 flex-wrap">
++                              <Badge
++                                variant={ad.status === 'active' ? 'default' : ad.status === 'draft' ? 'outline' : 'secondary'}
++                                className="text-xs"
++                              >
++                                {statusLabel}
++                              </Badge>
++                              {(ad.stockQuantity != null || ad.quantity != null) && (
++                                <Badge variant="outline" className="text-xs">
++                                  Остаток: {ad.stockQuantity ?? ad.quantity}
++                                </Badge>
++                              )}
++                            </div>
++                          </div>
++
++                          {/* Actions */}
++                          <div className="flex flex-col gap-2">
++                            <Button
++                              size="icon"
++                              variant="ghost"
++                              onClick={() => navigate(`/ads/edit/${ad._id}`)}
++                              data-testid={`button-edit-${ad._id}`}
++                            >
++                              <Pencil className="w-4 h-4" />
++                            </Button>
++                            <Button
++                              size="icon"
++                              variant="ghost"
++                              onClick={() => {
++                                const newStatus = ad.status === 'active' ? 'hidden' : 'active';
++                                toggleAdStatusMutation.mutate({ adId: ad._id, newStatus });
++                              }}
++                              data-testid={`button-toggle-${ad._id}`}
++                            >
++                              {ad.status === 'active' ? (
++                                <EyeOff className="w-4 h-4" />
++                              ) : (
++                                <Eye className="w-4 h-4" />
++                              )}
++                            </Button>
++                          </div>
+                         </div>
+-                      </div>
+-                      
+-                      {/* Actions */}
+-                      <div className="flex flex-col gap-2">
+-                        <Button
+-                          size="icon"
+-                          variant="ghost"
+-                          onClick={() => navigate(`/ads/edit/${ad._id}`)}
+-                          data-testid={`button-edit-${ad._id}`}
+-                        >
+-                          <Pencil className="w-4 h-4" />
+-                        </Button>
+-                        <Button
+-                          size="icon"
+-                          variant="ghost"
+-                          onClick={() => {
+-                            const newStatus = ad.status === 'active' ? 'hidden' : 'active';
+-                            toggleAdStatusMutation.mutate({ adId: ad._id, newStatus });
+-                          }}
+-                          data-testid={`button-toggle-${ad._id}`}
+-                        >
+-                          {ad.status === 'active' ? (
+-                            <EyeOff className="w-4 h-4" />
+-                          ) : (
+-                            <Eye className="w-4 h-4" />
+-                          )}
+-                        </Button>
+-                      </div>
+-                    </CardContent>
+-                  </Card>
+-                ))}
++
++                        {ad.status === 'active' && (
++                          <div className="flex items-center justify-between bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 text-xs sm:text-sm">
++                            <span>Чтобы изменить цену, поставьте товар на паузу.</span>
++                            <Button size="sm" variant="outline" onClick={() => handlePause(ad)}>
++                              <Pause className="w-4 h-4 mr-1" /> Пауза
++                            </Button>
++                          </div>
++                        )}
++
++                        {(ad.status === 'draft' || ad.status === 'paused') && !isPricingOpen && (
++                          <Button variant="outline" size="sm" className="w-full" onClick={() => handleOpenPricing(ad)}>
++                            <CircleDollarSign className="w-4 h-4 mr-2" /> Указать цену и остаток
++                          </Button>
++                        )}
++
++                        {isPricingOpen && (
++                          <div className="rounded-lg bg-slate-50 p-3 space-y-3">
++                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
++                              <input
++                                type="number"
++                                min="0"
++                                className="w-full rounded-lg border px-3 py-2 text-sm"
++                                placeholder="Цена за единицу"
++                                value={formState.price}
++                                onChange={(e) => handlePricingChange(ad._id, 'price', e.target.value)}
++                              />
++                              <input
++                                type="number"
++                                min="0"
++                                className="w-full rounded-lg border px-3 py-2 text-sm"
++                                placeholder="Остаток"
++                                value={formState.stock || ''}
++                                onChange={(e) => handlePricingChange(ad._id, 'stock', e.target.value)}
++                              />
++                              <select
++                                className="w-full rounded-lg border px-3 py-2 text-sm"
++                                value={formState.measureUnit}
++                                onChange={(e) => handlePricingChange(ad._id, 'measureUnit', e.target.value)}
++                              >
++                                <option value="kg">кг</option>
++                                <option value="pcs">шт</option>
++                                <option value="ltr">литр</option>
++                                <option value="pack">упаковка</option>
++                                <option value="portion">порция</option>
++                              </select>
++                            </div>
++                            <div className="flex justify-end gap-2 flex-wrap">
++                              <Button variant="ghost" size="sm" onClick={() => setExpandedPricingId(null)}>
++                                Отмена
++                              </Button>
++                              <Button size="sm" onClick={() => handleSavePricing(ad)} disabled={pricingMutation.isPending}>
++                                Сохранить
++                              </Button>
++                              {ad.status !== 'active' && (
++                                <Button
++                                  size="sm"
++                                  variant="secondary"
++                                  onClick={() => handlePublish(ad)}
++                                  disabled={publishMutation.isPending}
++                                >
++                                  <Play className="w-4 h-4 mr-1" /> Опубликовать
++                                </Button>
++                              )}
++                            </div>
++                          </div>
++                        )}
++                      </CardContent>
++                    </Card>
++                  );
++                })}
+               </div>
+             )}
+           </div>
+         )}
+ 
++        {activeTab === 'create' && (
++          <div className="space-y-4">
++            <Card className="border-dashed">
++              <CardContent className="p-3 flex items-center gap-3">
++                <div className="p-2 rounded-lg bg-primary/10 text-primary">
++                  <MapPin className="w-5 h-5" />
++                </div>
++                <div className="flex-1">
++                  <p className="text-sm font-semibold">Базовая точка продажи</p>
++                  <p className="text-xs text-muted-foreground">
++                    {profile.baseLocation ? 'Мы подставим её автоматически' : 'Сначала сохраните точку, потом карточку товара'}
++                  </p>
++                </div>
++                <Button size="sm" variant="outline" onClick={() => setShowBaseLocationPrompt(true)}>
++                  {profile.baseLocation ? 'Поменять' : 'Указать'}
++                </Button>
++              </CardContent>
++            </Card>
++
++            <CreateProductWizard
++              onCreated={() => {
++                queryClient.invalidateQueries({ queryKey: ['/api/seller-profile/my/ads'] });
++                setActiveTab('products');
++              }}
++            />
++          </div>
++        )}
++
++        {activeTab === 'demand' && (
++          <Card>
++            <CardContent className="p-4 space-y-2">
++              <CardTitle className="text-base">Спрос рядом с вами</CardTitle>
++              <p className="text-sm text-muted-foreground">
++                Здесь появятся подсказки, чего не хватает покупателям и что добавить в ассортимент.
++              </p>
++            </CardContent>
++          </Card>
++        )}
++
++        {activeTab === 'pro' && (
++          <Card>
++            <CardContent className="p-4 space-y-2">
++              <CardTitle className="text-base flex items-center gap-2"><Sparkles className="w-4 h-4" />PRO</CardTitle>
++              <p className="text-sm text-muted-foreground">
++                Расширенная аналитика и рекомендации для роста продаж. Скоро добавим больше инструментов.
++              </p>
++              <Button size="sm" onClick={() => navigate('/seller/cabinet/pro-analytics')}>Открыть PRO-аналитику</Button>
++            </CardContent>
++          </Card>
++        )}
++
++        {activeTab === 'fairs' && (
++          <Card>
++            <CardContent className="p-4 space-y-2">
++              <CardTitle className="text-base">Ярмарки и события</CardTitle>
++              <p className="text-sm text-muted-foreground">
++                Подборка ярмарок и точек продаж появится здесь. Следите за обновлениями.</p>
++            </CardContent>
++          </Card>
++        )}
++
+         {/* Stats Tab */}
+         {activeTab === 'stats' && (
+           <div className="space-y-4">
+             {/* PRO Analytics Banner */}
+             <Card className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent border-primary/20">
+               <CardContent className="p-4">
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                     <Sparkles className="w-5 h-5 text-primary" />
+                   </div>
+                   <div className="flex-1">
+                     <h3 className="font-medium text-sm">PRO Аналитика</h3>
+                     <p className="text-xs text-muted-foreground">
+                       Детальные графики, воронки и аналитика по географии
+                     </p>
+                   </div>
+                   <Button 
+                     size="sm" 
+                     onClick={() => navigate('/seller/cabinet/pro-analytics')}
+                     data-testid="button-pro-analytics"
+                   >
+                     Открыть
+                     <ChevronRight className="w-4 h-4 ml-1" />
+                   </Button>
+                 </div>
+@@ -751,28 +1109,29 @@ export default function StoreCabinetPage() {
+                     checked={currentFormData.showPhone ?? true}
+                     onCheckedChange={(checked) => handleFormChange('showPhone', checked)}
+                     data-testid="switch-show-phone"
+                   />
+                 </div>
+               </CardContent>
+             </Card>
+ 
+             {/* Save Button */}
+             <Button
+               className="w-full"
+               onClick={handleSaveSettings}
+               disabled={!isFormDirty || updateProfileMutation.isPending}
+               data-testid="button-save-settings"
+             >
+               {updateProfileMutation.isPending ? (
+                 <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+               ) : (
+                 <Check className="w-4 h-4 mr-2" />
+               )}
+               Сохранить
+             </Button>
+           </div>
+         )}
+       </div>
++      <BaseLocationPrompt open={showBaseLocationPrompt} onSubmit={handleBaseLocationSubmit} />
+     </div>
+   );
+ }
+diff --git a/miniapp/src/types/index.ts b/miniapp/src/types/index.ts
+index ecb27aab2da5501b573333c610b25c38fa9fadd5..d632ed8ccf0d091d98e6524d09060a442f77931d 100644
+--- a/miniapp/src/types/index.ts
++++ b/miniapp/src/types/index.ts
+@@ -46,50 +46,52 @@ export interface DeliveryOption {
+   type?: string | null;
+   radiusKm?: number | null;
+ }
+ 
+ export interface PriceBadgeData {
+   hasMarketData: boolean;
+   marketLevel: 'below' | 'fair' | 'above' | 'unknown';
+   diffPercent?: number | null;
+   avgPrice?: number | null;
+   windowDays?: number | null;
+ }
+ 
+ export interface AdPreview {
+   _id: string;
+   title: string;
+   description?: string;
+   price: number;
+   currency?: string;
+   photos?: string[];
+   categoryId: string;
+   subcategoryId: string;
+   sellerTelegramId: number;
+   city?: string | null;
+   geoLabel?: string | null;
+   status?: string;
++  measureUnit?: string | null;
++  stockQuantity?: number | null;
+   seasonCode?: string | null;
+   favoritesCount?: number;
+   distanceKm?: number;
+   attributes?: Record<string, string | number>;
+   deliveryOptions?: DeliveryOption[];
+   isLiveSpot?: boolean;
+   deliveryType?: 'pickup_only' | 'delivery_only' | 'delivery_and_pickup' | null;
+   deliveryRadiusKm?: number | null;
+   location?: {
+     lat?: number;
+     lng?: number;
+   } | null;
+   createdAt?: string;
+   priceBadge?: PriceBadgeData | null;
+ }
+ 
+ export interface Ad extends AdPreview {
+   moderationStatus?: 'pending' | 'approved' | 'rejected' | 'scheduled';
+   lifetimeDays: number;
+   validUntil?: string;
+   updatedAt?: string;
+   views?: number;
+   viewsTotal?: number;
+   impressionsTotal?: number;
+   contactClicks?: number;
+diff --git a/models/Ad.js b/models/Ad.js
+index dfb995fd1df358e0678fc12bbf094545f8b926d6..b39302cb16b6a2748a6d1dfeaed8c091fcd15f3c 100644
+--- a/models/Ad.js
++++ b/models/Ad.js
+@@ -67,68 +67,79 @@ const LocationSchema = new mongoose.Schema(
+ const adSchema = new mongoose.Schema(
+   {
+     title: {
+       type: String,
+       required: true,
+       trim: true,
+     },
+     description: {
+       type: String,
+       trim: true,
+     },
+     categoryId: {
+       type: String,
+       required: true,
+       trim: true,
+       index: true,
+     },
+     subcategoryId: {
+       type: String,
+       required: true,
+       trim: true,
+       index: true,
+     },
+     price: {
+       type: Number,
+-      required: true,
++      required: false,
+       min: 0,
++      default: 0,
+     },
+     currency: {
+       type: String,
+       default: 'RUB',
+       trim: true,
+     },
+     unitType: {
+       type: String,
+       enum: ['kg', 'g', 'piece', 'liter', 'pack', 'jar', 'bunch', 'bag', null],
+       default: null,
+     },
++    measureUnit: {
++      type: String,
++      trim: true,
++      default: null,
++    },
+     quantity: {
+       type: Number,
+       default: null,
+       min: 0,
+     },
++    stockQuantity: {
++      type: Number,
++      default: null,
++      min: 0,
++    },
+     pricePerKg: {
+       type: Number,
+       default: null,
+       min: 0,
+     },
+     isFarmerAd: {
+       type: Boolean,
+       default: false,
+       index: true,
+     },
+     deliveryFromFarm: {
+       type: Boolean,
+       default: false,
+     },
+     canDeliver: {
+       type: Boolean,
+       default: false,
+     },
+     farmLocation: {
+       type: String,
+       default: null,
+       trim: true,
+     },
+     harvestDate: {
+       type: Date,
+@@ -205,51 +216,51 @@ const adSchema = new mongoose.Schema(
+     },
+     deliveryType: {
+       type: String,
+       enum: ['pickup_only', 'delivery_only', 'delivery_and_pickup'],
+       default: undefined,
+     },
+     deliveryRadiusKm: {
+       type: Number,
+       min: 0,
+       default: null,
+     },
+     seasonCode: {
+       type: String,
+       trim: true,
+       lowercase: true,
+       index: true,
+     },
+     storeId: {
+       type: mongoose.Schema.Types.ObjectId,
+       ref: 'SellerProfile',
+       index: true,
+       default: null,
+     },
+     status: {
+       type: String,
+-      enum: ['draft', 'active', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],
++      enum: ['draft', 'active', 'paused', 'sold', 'archived', 'hidden', 'expired', 'scheduled'],
+       default: 'active',
+       index: true,
+     },
+     
+     // === Lifecycle Management ===
+     lifetimeType: {
+       type: String,
+       enum: ['perishable_daily', 'fast', 'medium', 'long'],
+       default: 'fast',
+       index: true,
+     },
+     repeatMode: {
+       type: String,
+       enum: ['none', 'daily'],
+       default: 'none',
+     },
+     repeatUntil: {
+       type: Date,
+       default: null,
+     },
+     expiresAt: {
+       type: Date,
+       default: null,
+       index: true,
+     },
+diff --git a/models/SellerProfile.js b/models/SellerProfile.js
+index 45f8e7891e353c806281daba3a63fb8e3c95b0e1..c412fdca4195cb1d237a7c950572e637d730726d 100644
+--- a/models/SellerProfile.js
++++ b/models/SellerProfile.js
+@@ -180,50 +180,55 @@ const sellerProfileSchema = new mongoose.Schema(
+     },
+     workingHours: {
+       type: String,
+       trim: true,
+       default: null,
+     },
+     deliveryInfo: {
+       type: String,
+       trim: true,
+       maxlength: 500,
+       default: null,
+     },
+     showPhone: {
+       type: Boolean,
+       default: true,
+     },
+     region: {
+       type: String,
+       trim: true,
+       default: null,
+     },
+     tags: [{
+       type: String,
+       trim: true,
+     }],
++    baseLocation: {
++      lat: { type: Number },
++      lng: { type: Number },
++      address: { type: String, trim: true, default: null },
++    },
+   },
+   {
+     timestamps: true,
+   }
+ );
+ 
+ sellerProfileSchema.index({ name: 'text', description: 'text' });
+ sellerProfileSchema.index({ 'geo': '2dsphere' });
+ sellerProfileSchema.index({ subscribersCount: -1 });
+ sellerProfileSchema.index({ 'ratings.score': -1 });
+ sellerProfileSchema.index({ createdAt: -1 });
+ 
+ sellerProfileSchema.statics.generateSlug = async function(name) {
+   const baseSlug = name
+     .toLowerCase()
+     .replace(/[^a-zа-яё0-9\s]/gi, '')
+     .replace(/\s+/g, '-')
+     .substring(0, 30);
+   
+   let slug = baseSlug;
+   let counter = 1;
+   
+   while (await this.findOne({ slug })) {
+     slug = `${baseSlug}-${counter}`;
+     counter++;

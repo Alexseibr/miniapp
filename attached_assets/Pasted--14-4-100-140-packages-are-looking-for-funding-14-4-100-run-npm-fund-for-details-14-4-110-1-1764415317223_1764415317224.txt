@@ -1,0 +1,54 @@
+
+#14 4.100 140 packages are looking for funding
+#14 4.100   run `npm fund` for details
+#14 4.110 
+#14 4.110 10 vulnerabilities (3 low, 4 moderate, 1 high, 2 critical)
+#14 4.110 
+#14 4.110 To address issues that do not require attention, run:
+#14 4.110   npm audit fix
+#14 4.110 
+#14 4.110 To address all issues (including breaking changes), run:
+#14 4.110   npm audit fix --force
+#14 4.110 
+#14 4.110 Run `npm audit` for details.
+#14 DONE 4.2s
+
+#15 exporting to image
+#15 exporting layers
+#15 exporting layers 25.4s done
+#15 exporting manifest sha256:49c71d46c5c03fd549dbebcbf428e5de7ac347d9813f5f02656718668b77d346 0.0s done
+#15 exporting config sha256:97239d42779f897a57cf8d0f0c51b6b975c63917556043500ae0856a2c3320c0 0.0s done
+#15 exporting attestation manifest sha256:3c56d8b1fd8f56c2dc5ad558428891ec8823f26ec010c1f44edc292581092a69 0.0s done
+#15 exporting manifest list sha256:862824bbf33b43c741e965c6acdfddcf65e0ffd57e579a6a58e53f958d08b51c
+#15 exporting manifest list sha256:862824bbf33b43c741e965c6acdfddcf65e0ffd57e579a6a58e53f958d08b51c 0.0s done
+#15 naming to docker.io/library/ketmar-app:latest done
+#15 unpacking to docker.io/library/ketmar-app:latest
+#15 unpacking to docker.io/library/ketmar-app:latest 20.9s done
+#15 DONE 46.5s
+
+#16 resolving provenance for metadata file
+#16 DONE 0.0s
+ ketmar-app  Built
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 4/4
+ ✔ Network ketmar_ketmar-net  Created                                                               0.1s 
+ ✔ Container ketmar-mongo     Healthy                                                              34.0s 
+ ✔ Container ketmar-redis     Healthy                                                              33.5s 
+ ✔ Container ketmar-app       Started                                                              31.8s 
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+IMPORTANT! Eviction policy is allkeys-lru. It should be "noeviction"
+root@server-strqxk:/var/www/ketmar# 
+root@server-strqxk:/var/www/ketmar# 

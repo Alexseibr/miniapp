@@ -28,6 +28,9 @@ export type Ad = {
   location?: AdLocation;
   photos?: string[];
   sellerTelegramId?: number;
+  city?: string;
+  district?: string;
+  geoLabel?: string;
 };
 
 const API_BASE_URL =

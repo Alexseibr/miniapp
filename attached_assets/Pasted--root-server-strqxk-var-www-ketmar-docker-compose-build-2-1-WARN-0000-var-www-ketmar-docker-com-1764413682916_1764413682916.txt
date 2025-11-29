@@ -1,0 +1,110 @@
+
+root@server-strqxk:/var/www/ketmar# docker compose build 2>&1
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Building 21.6s (13/14)                                                                                                              
+ => [internal] load local bake definitions                                                                                         0.0s
+ => => reading from stdin 469B                                                                                                     0.0s
+ => [internal] load build definition from Dockerfile                                                                               0.0s
+ => => transferring dockerfile: 866B                                                                                               0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                  0.2s
+ => [internal] load .dockerignore                                                                                                  0.0s
+ => => transferring context: 593B                                                                                                  0.0s
+ => [internal] load build context                                                                                                  0.1s
+ => => transferring context: 60.51kB                                                                                               0.0s
+ => [1/9] FROM docker.io/library/node:20-alpine@sha256:16858294071a56ffd4cce9f17b57136cc39e41507b40e245b4f8e906f7a19463            0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:16858294071a56ffd4cce9f17b57136cc39e41507b40e245b4f8e906f7a19463            0.0s
+ => CACHED [2/9] WORKDIR /app                                                                                                      0.0s
+ => CACHED [3/9] RUN apk add --no-cache python3 make g++ vips-dev                                                                  0.0s
+ => CACHED [4/9] COPY package*.json ./                                                                                             0.0s
+ => CACHED [5/9] RUN npm ci                                                                                                        0.0s
+ => CACHED [6/9] COPY . .                                                                                                          0.0s
+ => CACHED [7/9] RUN npm run build                                                                                                 0.0s
+ => ERROR [8/9] RUN cd miniapp && npm install && npm run build                                                                    21.1s
+------                                                                                                                                  
+ > [8/9] RUN cd miniapp && npm install && npm run build:                                                                                
+15.69                                                                                                                                   
+15.69 added 214 packages, and audited 215 packages in 15s                                                                               
+15.69                                                                                                                                   
+15.69 36 packages are looking for funding                                                                                               
+15.70   run `npm fund` for details
+15.71 
+15.71 2 moderate severity vulnerabilities
+15.71 
+15.71 To address all issues (including breaking changes), run:
+15.71   npm audit fix --force
+15.71 
+15.71 Run `npm audit` for details.
+15.93 
+15.93 > ketmar-miniapp@1.0.0 build
+15.93 > vite build
+15.93 
+16.22 vite v5.4.21 building for production...
+16.31 transforming...
+16.77 
+16.77 warn - The `content` option in your Tailwind CSS configuration is missing or empty.
+16.77 warn - Configure your content sources or your generated CSS will be missing styles.
+16.77 warn - https://tailwindcss.com/docs/content-configuration
+20.38 ✓ 1746 modules transformed.
+20.39 x Build failed in 4.14s
+20.39 error during build:
+20.39 [vite:load-fallback] Could not load /app/miniapp/src/components/ui/textarea (imported by src/pages/MyShopPage.tsx): ENOENT: no such file or directory, open '/app/miniapp/src/components/ui/textarea'
+20.39     at async open (node:internal/fs/promises:639:25)
+20.39     at async Object.readFile (node:internal/fs/promises:1246:14)
+20.39     at async Object.load (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65357:25)
+20.39     at async PluginDriver.hookFirstAndGetPlugin (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22333:28)
+20.39     at async file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:21333:33
+20.39     at async Queue.work (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22561:32)
+------
+Dockerfile:25
+
+--------------------
+
+  23 |     
+
+  24 |     # Build MiniApp
+
+  25 | >>> RUN cd miniapp && npm install && npm run build
+
+  26 |     
+
+  27 |     # Remove dev dependencies after build
+
+--------------------
+
+failed to solve: process "/bin/sh -c cd miniapp && npm install && npm run build" did not complete successfully: exit code: 1
+
+root@server-strqxk:/var/www/ketmar# св
+-bash: св: command not found
+root@server-strqxk:/var/www/ketmar# cd
+root@server-strqxk:~# cat > /var/www/ketmar/miniapp/src/components/ui/textarea.tsx << 'EOF'
+import * as React from "react"
+import { cn } from "@/lib/utils"
+
+export interface TextareaProps
+  extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}
+
+const Textarea = React.forwardRef<HTMLTextAreaElement, TextareaProps>(
+  ({ className, ...props }, ref) => {
+    return (
+      <textarea
+        className={cn(
+          "flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+          className
+        )}
+        ref={ref}
+        {...props}
+      />
+    )
+  }
+)
+Textarea.displayName = "Textarea"
+
+export { Textarea }
+EOF
+
+# Пересобрать
+docker compose build 2>&1 | tail -60
+no configuration file provided: not found
+root@server-strqxk:~# docker compose build 2>&1 | tail -60
+no configuration file provided: not found
+root@server-strqxk:~# 

@@ -1,20 +1,8 @@
 import crypto from 'crypto';
-import * as config from '../config/config.js';
 import User from '../models/User.js';
 
 const DEFAULT_TTL_SECONDS = Number(process.env.TELEGRAM_INITDATA_TTL || 60 * 60 * 24); // 24 часа по умолчанию
-
-function buildDataCheckString(searchParams) {
-  const pairs = [];
-  for (const [key, value] of searchParams.entries()) {
-    if (key === 'hash') {
-      continue;
-    }
-    pairs.push(`${key}=${value}`);
-  }
-  pairs.sort();
-  return pairs.join('\n');
-}
+const BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || process.env.BOT_TOKEN;
 
 function safeJsonParse(value) {
   if (typeof value !== 'string') {
@@ -26,6 +14,66 @@ function safeJsonParse(value) {
   } catch (error) {
     console.warn('Failed to parse Telegram initData JSON field', { value, error: error.message });
     return undefined;
+  }
+}
+
+/**
+ * Validates Telegram WebApp initData signature using HMAC-SHA256
+ * According to Telegram docs: https://core.telegram.org/bots/webapps#validating-data-received-via-the-mini-app
+ */
+function verifyTelegramSignature(rawInitData, hash) {
+  if (!BOT_TOKEN) {
+    console.warn('[TelegramAuth] BOT_TOKEN not configured, signature validation skipped');
+    return true; // Skip validation if no token (development mode)
+  }
+
+  try {
+    const searchParams = new URLSearchParams(rawInitData);
+    
+    // Remove hash from params and sort remaining params alphabetically
+    const dataCheckArr = [];
+    for (const [key, value] of searchParams.entries()) {
+      if (key !== 'hash') {
+        dataCheckArr.push(`${key}=${value}`);
+      }
+    }
+    dataCheckArr.sort();
+    
+    // Create data-check-string
+    const dataCheckString = dataCheckArr.join('\n');
+    
+    // Create secret key: HMAC_SHA256(bot_token, "WebAppData")
+    const secretKey = crypto
+      .createHmac('sha256', 'WebAppData')
+      .update(BOT_TOKEN)
+      .digest();
+    
+    // Calculate hash: HMAC_SHA256(data_check_string, secret_key)
+    const calculatedHash = crypto
+      .createHmac('sha256', secretKey)
+      .update(dataCheckString)
+      .digest('hex');
+    
+    // Compare hashes (constant-time comparison to prevent timing attacks)
+    const hashBuffer = Buffer.from(hash, 'hex');
+    const calculatedBuffer = Buffer.from(calculatedHash, 'hex');
+    
+    // Ensure both buffers have the same length before comparison
+    if (hashBuffer.length !== calculatedBuffer.length) {
+      console.warn('[TelegramAuth] Hash length mismatch');
+      return false;
+    }
+    
+    const isValid = crypto.timingSafeEqual(hashBuffer, calculatedBuffer);
+    
+    if (!isValid) {
+      console.warn('[TelegramAuth] Signature mismatch');
+    }
+    
+    return isValid;
+  } catch (error) {
+    console.error('[TelegramAuth] Signature verification error:', error.message);
+    return false;
   }
 }
 
@@ -41,12 +89,9 @@ export function validateTelegramInitData(rawInitData) {
     return { ok: false, error: 'hash parameter is missing in initData' };
   }
 
-  const dataCheckString = buildDataCheckString(searchParams);
-  const secretKey = crypto.createHash('sha256').update(config.botToken).digest();
-  const computedHash = crypto.createHmac('sha256', secretKey).update(dataCheckString).digest('hex');
-
-  if (computedHash !== hash) {
-    return { ok: false, error: 'Invalid Telegram signature' };
+  // Validate Telegram signature (HMAC-SHA256)
+  if (!verifyTelegramSignature(rawInitData, hash)) {
+    return { ok: false, error: 'Invalid signature' };
   }
 
   const authDate = Number(searchParams.get('auth_date'));

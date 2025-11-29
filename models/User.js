@@ -19,13 +19,38 @@ const FavoriteSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const AuthProviderSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['telegram', 'sms', 'email', 'google', 'apple', 'app'],
+      required: true,
+    },
+    providerId: String,
+    linkedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 const userSchema = new mongoose.Schema(
   {
     telegramId: {
       type: Number,
-      required: true,
-      unique: true,
-      index: true,
+    },
+    appUserId: {
+      type: String,
+    },
+    authProviders: {
+      type: [AuthProviderSchema],
+      default: [],
+    },
+    mergedFrom: [{
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+    }],
+    mergedInto: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
     },
     favoritesCount: {
       type: Number,
@@ -57,7 +82,7 @@ const userSchema = new mongoose.Schema(
     },
     role: {
       type: String,
-      enum: ['user', 'moderator', 'admin', 'seller'],
+      enum: ['user', 'moderator', 'admin', 'super_admin', 'seller'],
       default: 'user',
     },
     isModerator: {
@@ -89,6 +114,41 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    isBlocked: {
+      type: Boolean,
+      default: false,
+    },
+    blockReason: {
+      type: String,
+      trim: true,
+    },
+    sellerRating: {
+      avgScore: {
+        type: Number,
+        default: 0,
+        min: 0,
+        max: 5,
+      },
+      totalVotes: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lowScoreCount: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      fraudFlags: {
+        type: Number,
+        default: 0,
+        min: 0,
+      },
+      lastRatedAt: {
+        type: Date,
+        default: null,
+      },
+    },
     favorites: {
       type: [FavoriteSchema],
       default: [],
@@ -102,5 +162,12 @@ const userSchema = new mongoose.Schema(
 userSchema.index({ username: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ 'favorites.adId': 1 });
+userSchema.index({ phone: 1 }, { unique: true, sparse: true });
+userSchema.index({ telegramId: 1 }, { 
+  unique: true, 
+  partialFilterExpression: { telegramId: { $exists: true, $type: 'number' } }
+});
+userSchema.index({ appUserId: 1 }, { unique: true, sparse: true });
+userSchema.index({ 'authProviders.type': 1 });
 
 export default mongoose.model('User', userSchema);

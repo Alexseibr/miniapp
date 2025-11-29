@@ -1,0 +1,45 @@
+Summary:
+  Upgrading: 0, Installing: 3, Removing: 0, Not Upgrading: 0
+  Download size: 15.1 MB
+  Space needed: 62.0 MB / 43.1 GB available
+
+Get:1 http://deb.debian.org/debian bookworm/main amd64 liblzo2-2 amd64 2.10-2 [56.9 kB]
+Get:2 http://deb.debian.org/debian bookworm/main amd64 squashfs-tools amd64 1:4.5.1-1 [183 kB]
+Get:3 http://deb.debian.org/debian bookworm/main amd64 snapd amd64 2.57.6-1+b6 [14.9 MB]
+Fetched 15.1 MB in 1s (15.6 MB/s)
+Selecting previously unselected package liblzo2-2:amd64.
+(Reading database ... 47383 files and directories currently installed.)
+Preparing to unpack .../liblzo2-2_2.10-2_amd64.deb ...
+Unpacking liblzo2-2:amd64 (2.10-2) ...
+Selecting previously unselected package squashfs-tools.
+Preparing to unpack .../squashfs-tools_1%3a4.5.1-1_amd64.deb ...
+Unpacking squashfs-tools (1:4.5.1-1) ...
+Selecting previously unselected package snapd.
+Preparing to unpack .../snapd_2.57.6-1+b6_amd64.deb ...
+Unpacking snapd (2.57.6-1+b6) ...
+Setting up liblzo2-2:amd64 (2.10-2) ...
+Setting up squashfs-tools (1:4.5.1-1) ...
+Setting up snapd (2.57.6-1+b6) ...
+Created symlink '/etc/systemd/system/multi-user.target.wants/snapd.aa-prompt-listener.service' → '/usr/lib/systemd/system/snapd.aa-prompt-listener.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/snapd.apparmor.service' → '/usr/lib/systemd/system/snapd.apparmor.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/snapd.recovery-chooser-trigger.service' → '/usr/lib/systemd/system/snapd.recovery-chooser-trigger.service'.
+Created symlink '/etc/systemd/system/multi-user.target.wants/snapd.seeded.service' → '/usr/lib/systemd/system/snapd.seeded.service'.
+Created symlink '/etc/systemd/system/cloud-final.service.wants/snapd.seeded.service' → '/usr/lib/systemd/system/snapd.seeded.service'.
+Unit /usr/lib/systemd/system/snapd.seeded.service is added as a dependency to a non-existent unit cloud-final.service.
+Created symlink '/etc/systemd/system/multi-user.target.wants/snapd.service' → '/usr/lib/systemd/system/snapd.service'.
+Created symlink '/etc/systemd/system/sockets.target.wants/snapd.socket' → '/usr/lib/systemd/system/snapd.socket'.
+Processing triggers for man-db (2.13.1-1) ...
+Processing triggers for dbus (1.16.2-2) ...
+Processing triggers for libc-bin (2.41-12) ...
+2025-11-28T23:32:48+03:00 INFO Waiting for automatic snapd restart...
+Warning: /snap/bin was not found in your $PATH. If you've not restarted your session since you
+         installed snapd, try doing that. Please see https://forum.snapcraft.io/t/9469 for more
+         details.
+
+core 16-2.61.4-20250626 from Canonical✓ installed
+Warning: /snap/bin was not found in your $PATH. If you've not restarted your session since you
+         installed snapd, try doing that. Please see https://forum.snapcraft.io/t/9469 for more
+         details.
+
+certbot 5.1.0 from Certbot Project (certbot-eff✓) installed
+root@server-strqxk:/var/www/ketmar# 

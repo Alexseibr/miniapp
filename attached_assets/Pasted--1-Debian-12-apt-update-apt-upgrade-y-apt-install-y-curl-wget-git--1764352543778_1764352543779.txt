@@ -1,0 +1,310 @@
+🧩 Часть 1 — Подготовка сервера Debian 12
+apt update && apt upgrade -y
+apt install -y curl wget git ufw nano htop unzip ca-certificates lsb-release gnupg
+
+⚙ Node.js 20
+curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+apt install -y nodejs
+
+🐳 Docker + Docker Compose
+curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /usr/share/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker.gpg] \
+https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
+> /etc/apt/sources.list.d/docker.list
+
+apt update
+apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+curl -L "https://github.com/docker/compose/releases/download/v2.24.0/docker-compose-$(uname -s)-$(uname -m)" \
+-o /usr/local/bin/docker-compose
+chmod +x /usr/local/bin/docker-compose
+
+🍃 MongoDB 7
+curl -fsSL https://pgp.mongodb.com/server-7.0.asc | \
+gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+
+echo "deb [ signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] \
+https://repo.mongodb.org/apt/debian bookworm/mongodb-org/7.0 main" \
+> /etc/apt/sources.list.d/mongodb-org-7.0.list
+
+apt update
+apt install -y mongodb-org
+systemctl enable mongod
+systemctl start mongod
+
+🔴 Redis
+apt install -y redis-server
+sed -i 's/supervised no/supervised systemd/' /etc/redis/redis.conf
+systemctl restart redis-server
+systemctl enable redis-server
+
+🔐 Firewall
+ufw allow 22
+ufw allow 80
+ufw allow 443
+ufw enable
+
+🌐 Nginx
+apt install -y nginx
+systemctl enable nginx
+systemctl start nginx
+
+🧩 Часть 2 — Развёртывание проекта structure
+mkdir -p /var/www/ketmar
+cd /var/www/ketmar
+
+
+Ожидаемая структура:
+
+/var/www/ketmar
+  ├─ backend/
+  ├─ frontend/
+  └─ docker-compose.yml
+
+
+Если код в GitHub, выполнить:
+
+git clone https://github.com/YOUR_REPO.git project
+mv project/backend ./backend
+mv project/frontend ./frontend
+rm -rf project
+
+🧩 Часть 3 — Dockerfile для backend
+
+/var/www/ketmar/backend/Dockerfile
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install --only=production || npm install
+
+COPY . .
+
+ENV PORT=3000
+EXPOSE 3000
+
+CMD ["npm", "run", "start"]
+
+🧩 Часть 4 — Dockerfile для frontend (Vite/React)
+
+/var/www/ketmar/frontend/Dockerfile
+
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY package*.json ./
+RUN npm install
+COPY . .
+RUN npm run build
+
+FROM nginx:alpine
+COPY --from=build /app/dist /usr/share/nginx/html
+EXPOSE 80
+CMD ["nginx", "-g", "daemon off;"]
+
+🧩 Часть 5 — docker-compose.yml
+
+/var/www/ketmar/docker-compose.yml
+
+version: "3.9"
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: ketmar-mongo
+    restart: always
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ketmar_root
+      MONGO_INITDB_ROOT_PASSWORD: super_secure_pass
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - ketmar-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: ketmar-redis
+    restart: always
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - ketmar-net
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ketmar-api
+    restart: always
+    env_file:
+      - ./backend/.env
+    environment:
+      MONGO_URL: "mongodb://ketmar_root:super_secure_pass@mongo:27017/ketmar?authSource=admin"
+      REDIS_URL: "redis://redis:6379/0"
+      NODE_ENV: "production"
+    depends_on:
+      - mongo
+      - redis
+    ports:
+      - "3000:3000"
+    networks:
+      - ketmar-net
+
+  web:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ketmar-web
+    restart: always
+    env_file:
+      - ./frontend/.env
+    ports:
+      - "5173:80"
+    depends_on:
+      - api
+    networks:
+      - ketmar-net
+
+volumes:
+  mongo_data:
+  redis_data:
+
+networks:
+  ketmar-net:
+    driver: bridge
+
+🧩 Часть 6 — Запуск
+cd /var/www/ketmar
+docker-compose up -d --build
+docker ps
+
+
+Должны подняться:
+
+ketmar-web
+
+ketmar-api
+
+ketmar-mongo
+
+ketmar-redis
+
+🧩 Часть 7 — Настройка домена ketmar.by (Hoster.by)
+В панели hoster.by → DNS:
+
+Заполни A-записи:
+
+app.ketmar.by → YOUR_SERVER_IP
+api.ketmar.by → YOUR_SERVER_IP
+ketmar.by     → YOUR_SERVER_IP
+www.ketmar.by → YOUR_SERVER_IP
+
+
+TTL можно оставить 300–600.
+
+🧩 Часть 8 — Nginx под домены
+1) API — api.ketmar.by
+nano /etc/nginx/sites-available/api.ketmar.by
+
+
+Вставить:
+
+server {
+    listen 80;
+    server_name api.ketmar.by;
+
+    location / {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+
+Активируем:
+
+ln -s /etc/nginx/sites-available/api.ketmar.by /etc/nginx/sites-enabled/
+
+2) Web/Miniapp — app.ketmar.by
+nano /etc/nginx/sites-available/app.ketmar.by
+
+
+Вставить:
+
+server {
+    listen 80;
+    server_name app.ketmar.by;
+
+    location / {
+        proxy_pass http://127.0.0.1:5173;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+
+Активируем:
+
+ln -s /etc/nginx/sites-available/app.ketmar.by /etc/nginx/sites-enabled/
+
+3) Главный домен — ketmar.by
+nano /etc/nginx/sites-available/ketmar.by
+
+
+Вставить:
+
+server {
+    listen 80;
+    server_name ketmar.by www.ketmar.by;
+
+    location / {
+        return 301 https://app.ketmar.by;
+    }
+}
+
+
+Активировать:
+
+ln -s /etc/nginx/sites-available/ketmar.by /etc/nginx/sites-enabled/
+
+Проверка + перезапуск Nginx
+nginx -t
+systemctl reload nginx
+
+🧩 Часть 9 — HTTPS сертификаты (Let’s Encrypt)
+
+Установка:
+
+apt install -y certbot python3-certbot-nginx
+
+
+Выдача:
+
+certbot --nginx -d api.ketmar.by
+certbot --nginx -d app.ketmar.by
+certbot --nginx -d ketmar.by -d www.ketmar.by
+
+🎉 Готово!
+
+Теперь у тебя:
+
+API работает по → https://api.ketmar.by
+
+MiniApp/web работает → https://app.ketmar.by
+
+Главный домен ketmar.by редиректит → app.ketmar.by
+
+Все сервисы развёрнуты в Docker
+
+MongoDB + Redis подняты
+
+HTTPS установлен
+
+Сервер Production-ready

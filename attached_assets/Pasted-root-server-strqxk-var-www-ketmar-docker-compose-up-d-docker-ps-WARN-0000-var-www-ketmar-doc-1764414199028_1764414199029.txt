@@ -1,0 +1,11 @@
+root@server-strqxk:/var/www/ketmar# docker compose up -d && docker ps
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 4/4
+ ✔ Network ketmar_ketmar-net  Created                                                                                                                                                                                                                                                                                                                                  0.0s 
+ ✔ Container ketmar-redis     Healthy                                                                                                                                                                                                                                                                                                                                 31.1s 
+ ✔ Container ketmar-mongo     Healthy                                                                                                                                                                                                                                                                                                                                 31.6s 
+ ✔ Container ketmar-app       Started                                                                                                                                                                                                                                                                                                                                 31.7s 
+CONTAINER ID   IMAGE            COMMAND                  CREATED          STATUS                                     PORTS                        NAMES
+0668c595af6b   ketmar-app       "docker-entrypoint.s…"   32 seconds ago   Up Less than a second (health: starting)   127.0.0.1:3000->3000/tcp     ketmar-app
+46c48bcf7e73   redis:7-alpine   "docker-entrypoint.s…"   32 seconds ago   Up 31 seconds (healthy)                    127.0.0.1:6379->6379/tcp     ketmar-redis
+1240b9e0703e   mongo:7          "docker-entrypoint.s…"   32 seconds ago   Up 31 seconds (healthy)                    127.0.0.1:27017->27017/tcp   ketmar-mongo

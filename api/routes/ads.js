@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import Ad from '../../models/Ad.js';
+import Category from '../../models/Category.js';
 import { haversineDistanceKm } from '../../utils/distance.js';
 import { buildAdQuery } from '../../utils/queryBuilder.js';
 import { notifySubscribers } from '../../services/notifications.js';
@@ -10,6 +11,12 @@ import { validateCreateAd } from '../../middleware/validateCreateAd.js';
 import requireInternalAuth from '../../middleware/internalAuth.js';
 import { findMatchingSubscriptions, sendSubscriptionNotifications } from '../../services/subscriptionNotifications.js';
 import { bot } from '../../telegram/bot.js';
+import BrandDetectionService from '../../services/BrandDetectionService.js';
+import AdLifecycleService from '../../services/AdLifecycleService.js';
+import SearchAlertService from '../../services/SearchAlertService.js';
+import DigitalTwinNotificationService from '../../services/DigitalTwinNotificationService.js';
+import FastMarketScoringService from '../../services/FastMarketScoringService.js';
+import eventBus, { Events } from '../../shared/events/eventBus.js';
 
 const router = Router();
 
@@ -40,6 +47,27 @@ const CATEGORY_LIFETIME_RULES = {
 };
 
 const DEFAULT_EXTENSION_DAYS = 7;
+
+let hiddenCategorySlugsCache = null;
+let hiddenCategoryCacheTime = 0;
+const HIDDEN_CATEGORY_CACHE_DURATION = 5 * 60 * 1000;
+
+async function getHiddenCategorySlugs() {
+  const now = Date.now();
+  if (hiddenCategorySlugsCache && (now - hiddenCategoryCacheTime) < HIDDEN_CATEGORY_CACHE_DURATION) {
+    return hiddenCategorySlugsCache;
+  }
+  
+  try {
+    const hiddenCategories = await Category.find({ visible: false }, { slug: 1 }).lean();
+    hiddenCategorySlugsCache = hiddenCategories.map(c => c.slug);
+    hiddenCategoryCacheTime = now;
+    return hiddenCategorySlugsCache;
+  } catch (error) {
+    console.error('Error fetching hidden categories:', error);
+    return hiddenCategorySlugsCache || [];
+  }
+}
 
 function normalizeSeasonCode(code) {
   if (typeof code !== 'string') {
@@ -315,6 +343,36 @@ router.get('/by-ids', async (req, res, next) => {
   }
 });
 
+/**
+ * GET /api/ads/search
+ * 
+ * Универсальный endpoint для поиска объявлений с поддержкой geo-фильтрации.
+ * Использует MongoDB $geoNear агрегацию для эффективного геопоиска.
+ * 
+ * @route GET /api/ads/search
+ * @param {string} [q] - Текстовый поиск по title, description, attributes
+ * @param {string} [categoryId] - Фильтр по категории
+ * @param {string} [subcategoryId] - Фильтр по подкатегории
+ * @param {number} [priceMin] - Минимальная цена
+ * @param {number} [priceMax] - Максимальная цена
+ * @param {string} [deliveryType] - Тип доставки: pickup_only, delivery_only, delivery_and_pickup
+ * @param {boolean} [deliveryAvailable] - Фильтр: доставка доступна на расстояние до покупателя
+ * @param {number} [buyerLat] - Широта покупателя (для geo-поиска)
+ * @param {number} [buyerLng] - Долгота покупателя (для geo-поиска)
+ * @param {number} [maxDistanceKm] - Максимальное расстояние от покупателя (км)
+ * @param {string} [seasonCode] - Фильтр по сезонному коду
+ * @param {string} [sort] - Сортировка: distance, price_asc, price_desc, popular, newest, oldest
+ * @param {number} [limit=20] - Количество результатов (макс: 100)
+ * @param {number} [offset=0] - Смещение для пагинации
+ * 
+ * @returns {Object} { items: Ad[], total: number, hasMore: boolean }
+ * @returns {Object[]} items - Массив объявлений (с distanceKm при geo-поиске)
+ * @returns {number} total - Общее количество найденных объявлений
+ * @returns {boolean} hasMore - Есть ли ещё результаты
+ * 
+ * @throws {400} Если deliveryAvailable=true но нет buyerLat/buyerLng
+ * @throws {500} При ошибке сервера
+ */
 router.get('/search', async (req, res, next) => {
   try {
     const {
@@ -329,6 +387,7 @@ router.get('/search', async (req, res, next) => {
       buyerLng,
       maxDistanceKm,
       seasonCode,
+      sort,
       limit = 20,
       offset = 0,
     } = req.query;
@@ -338,8 +397,28 @@ router.get('/search', async (req, res, next) => {
       moderationStatus: 'approved',
     };
 
+    // Получаем скрытые категории для фильтрации
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    
+    // Проверяем что запрашиваемые категории не скрыты
+    if (categoryId && hiddenSlugs.includes(categoryId)) {
+      return res.json({ items: [], total: 0, message: 'Категория недоступна' });
+    }
+    if (subcategoryId && hiddenSlugs.includes(subcategoryId)) {
+      return res.json({ items: [], total: 0, message: 'Подкатегория недоступна' });
+    }
+    
     if (categoryId) baseFilter.categoryId = categoryId;
     if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+
+    // Исключаем объявления из скрытых категорий (быстрый маркет)
+    // Только если не указаны конкретные категории
+    if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+      baseFilter.$and = [
+        { categoryId: { $nin: hiddenSlugs } },
+        { subcategoryId: { $nin: hiddenSlugs } },
+      ];
+    }
 
     const normalizedSeason = normalizeSeasonCode(seasonCode);
     if (normalizedSeason) {
@@ -478,7 +557,24 @@ router.get('/search', async (req, res, next) => {
       });
     }
 
-    pipeline.push({ $sort: hasGeo ? { distance: 1, createdAt: -1 } : { createdAt: -1 } });
+    let sortStage = {};
+    if (sort === 'price_asc' || sort === 'cheapest') {
+      sortStage = { price: 1, createdAt: -1 };
+    } else if (sort === 'price_desc' || sort === 'expensive') {
+      sortStage = { price: -1, createdAt: -1 };
+    } else if (sort === 'newest' || sort === 'date_desc') {
+      sortStage = { createdAt: -1 };
+    } else if (sort === 'oldest' || sort === 'date_asc') {
+      sortStage = { createdAt: 1 };
+    } else if (sort === 'popular') {
+      sortStage = { views: -1, createdAt: -1 };
+    } else if (hasGeo && (sort === 'distance' || !sort)) {
+      sortStage = { distance: 1, createdAt: -1 };
+    } else {
+      sortStage = { createdAt: -1 };
+    }
+
+    pipeline.push({ $sort: sortStage });
 
     if (hasGeo) {
       pipeline.push({
@@ -557,10 +653,216 @@ router.get('/near', async (req, res) => {
   }
 });
 
-// GET /api/ads/nearby
+/**
+ * GET /api/ads/nearby
+ * 
+ * Geo-поиск объявлений в заданном радиусе от координат пользователя.
+ * Использует haversine-формулу для расчета расстояний.
+ * 
+ * @route GET /api/ads/nearby
+ * @param {number} lat - Широта точки поиска (обязательно)
+ * @param {number} lng - Долгота точки поиска (обязательно)
+ * @param {number} [radiusKm=10] - Радиус поиска в километрах (мин: 0.1, макс: 100)
+ * @param {string} [categoryId] - Фильтр по категории
+ * @param {string} [subcategoryId] - Фильтр по подкатегории
+ * @param {number} [limit=50] - Количество результатов (макс: 200)
+ * @param {number} [minPrice] - Минимальная цена
+ * @param {number} [maxPrice] - Максимальная цена
+ * @param {string} [sort] - Сортировка: distance (по умолчанию), cheapest, expensive, popular
+ * 
+ * @returns {Object} { items: Ad[] } - Массив объявлений с полем distanceKm
+ * @throws {400} Если lat/lng не указаны или невалидны
+ * @throws {500} При ошибке сервера
+ */
 router.get('/nearby', async (req, res, next) => {
   try {
     const { lat, lng, radiusKm, categoryId, subcategoryId, limit, minPrice, maxPrice, sort } = req.query;
+
+    // Валидация обязательных параметров
+    if (lat === undefined || lng === undefined) {
+      return res.status(400).json({ error: 'lat и lng обязательны' });
+    }
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+
+    if (!Number.isFinite(latNumber) || !Number.isFinite(lngNumber)) {
+      return res.status(400).json({ error: 'lat и lng должны быть числами' });
+    }
+
+    // Валидация и нормализация radiusKm (мин: 0.1км, макс: 100км, дефолт: 10км)
+    const MIN_RADIUS_KM = 0.1;
+    const MAX_RADIUS_KM = 100;
+    const DEFAULT_RADIUS_KM = 10;
+    
+    const radiusNumber = Number(radiusKm);
+    let finalRadiusKm = DEFAULT_RADIUS_KM;
+    
+    if (Number.isFinite(radiusNumber) && radiusNumber > 0) {
+      finalRadiusKm = Math.max(MIN_RADIUS_KM, Math.min(radiusNumber, MAX_RADIUS_KM));
+    }
+
+    // Валидация и нормализация limit (макс: 200, дефолт: 50)
+    const limitNumber = Number(limit);
+    const finalLimit =
+      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
+
+    // Базовый фильтр: только активные и одобренные объявления с координатами и фото
+    const baseFilter = {
+      status: 'active',
+      moderationStatus: 'approved',
+      'location.lat': { $ne: null },
+      'location.lng': { $ne: null },
+      'photos.0': { $exists: true },
+    };
+
+    // Получаем скрытые категории для фильтрации
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    
+    // Проверяем что запрашиваемые категории не скрыты
+    if (categoryId && hiddenSlugs.includes(categoryId)) {
+      return res.json({ items: [], total: 0, radiusKm: finalRadiusKm });
+    }
+    if (subcategoryId && hiddenSlugs.includes(subcategoryId)) {
+      return res.json({ items: [], total: 0, radiusKm: finalRadiusKm });
+    }
+    
+    // Дополнительные фильтры
+    if (categoryId) baseFilter.categoryId = categoryId;
+    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+
+    // Исключаем объявления из скрытых категорий (быстрый маркет)
+    // Только если не указаны конкретные категории
+    if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+      baseFilter.$and = [
+        { categoryId: { $nin: hiddenSlugs } },
+        { subcategoryId: { $nin: hiddenSlugs } },
+      ];
+    }
+
+    // Фильтр по цене
+    const minPriceNumber = Number(minPrice);
+    const maxPriceNumber = Number(maxPrice);
+    if (Number.isFinite(minPriceNumber) && minPriceNumber >= 0) {
+      baseFilter.price = { ...baseFilter.price, $gte: minPriceNumber };
+    }
+    if (Number.isFinite(maxPriceNumber) && maxPriceNumber >= 0) {
+      baseFilter.price = { ...baseFilter.price, $lte: maxPriceNumber };
+    }
+
+    // Получаем кандидатов (берём больше, чем нужно, т.к. будем фильтровать по радиусу)
+    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
+    const candidates = await Ad.find(baseFilter)
+      .sort({ createdAt: -1 })
+      .limit(fetchLimit);
+
+    const userPoint = { lat: latNumber, lng: lngNumber };
+    const itemsWithinRadius = [];
+
+    // Расчёт расстояний и фильтрация по радиусу
+    for (const ad of candidates) {
+      const adPoint = extractAdCoordinates(ad);
+      if (!adPoint) {
+        continue;
+      }
+
+      // Haversine-формула для расчёта расстояния в км
+      const distanceKm = haversineDistanceKm(userPoint, adPoint);
+      if (distanceKm == null || distanceKm > finalRadiusKm) {
+        continue;
+      }
+
+      const plain =
+        typeof ad.toObject === 'function'
+          ? ad.toObject({ getters: true, virtuals: false })
+          : { ...ad };
+
+      // Добавляем distanceKm с округлением до 1 знака после запятой
+      plain.distanceKm = Number(distanceKm.toFixed(1));
+      itemsWithinRadius.push(plain);
+    }
+
+    // Добавляем fastMarketScore ко всем объявлениям
+    const userLocation = { lat: latNumber, lng: lngNumber };
+    const scoredItems = await FastMarketScoringService.scoreAndSortAds(
+      itemsWithinRadius.map(item => ({ ...item, _id: item._id.toString() })),
+      userLocation
+    );
+
+    // Сортировка результатов
+    if (sort === 'cheapest') {
+      scoredItems.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
+    } else if (sort === 'expensive') {
+      scoredItems.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
+    } else if (sort === 'distance') {
+      scoredItems.sort((a, b) => a.distanceKm - b.distanceKm);
+    } else if (sort === 'newest') {
+      scoredItems.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else {
+      // По умолчанию: по fastMarketScore (умная сортировка)
+      // Уже отсортированы в scoreAndSortAds
+    }
+
+    // Fallback: если нет объявлений в радиусе, показываем последние по стране
+    if (scoredItems.length === 0) {
+      const countryFilter = {
+        status: 'active',
+        moderationStatus: 'approved',
+        'photos.0': { $exists: true },
+      };
+      
+      if (categoryId) countryFilter.categoryId = categoryId;
+      if (subcategoryId) countryFilter.subcategoryId = subcategoryId;
+      
+      if (!categoryId && !subcategoryId && hiddenSlugs.length > 0) {
+        countryFilter.$and = [
+          { categoryId: { $nin: hiddenSlugs } },
+          { subcategoryId: { $nin: hiddenSlugs } },
+        ];
+      }
+      
+      const countryAds = await Ad.find(countryFilter)
+        .sort({ createdAt: -1 })
+        .limit(finalLimit);
+      
+      const fallbackItems = countryAds.map(ad => {
+        const plain = typeof ad.toObject === 'function'
+          ? ad.toObject({ getters: true, virtuals: false })
+          : { ...ad };
+        plain.distanceKm = null;
+        plain.isFallback = true;
+        return plain;
+      });
+      
+      return res.json({ 
+        items: fallbackItems, 
+        fallback: true,
+        message: 'Показаны объявления по всей стране'
+      });
+    }
+
+    return res.json({ items: scoredItems.slice(0, finalLimit) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/ads/nearby-stats
+ * 
+ * Статистика объявлений по категориям в заданном радиусе.
+ * Возвращает количество объявлений для каждой категории.
+ * 
+ * @route GET /api/ads/nearby-stats
+ * @param {number} lat - Широта точки поиска (обязательно)
+ * @param {number} lng - Долгота точки поиска (обязательно)
+ * @param {number} [radiusKm=10] - Радиус поиска в километрах
+ * 
+ * @returns {Object} { stats: CategoryStat[], total: number }
+ */
+router.get('/nearby-stats', async (req, res, next) => {
+  try {
+    const { lat, lng, radiusKm = 10 } = req.query;
 
     if (lat === undefined || lng === undefined) {
       return res.status(400).json({ error: 'lat и lng обязательны' });
@@ -574,11 +876,9 @@ router.get('/nearby', async (req, res, next) => {
     }
 
     const radiusNumber = Number(radiusKm);
-    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 ? radiusNumber : 10;
-
-    const limitNumber = Number(limit);
-    const finalLimit =
-      Number.isFinite(limitNumber) && limitNumber > 0 ? Math.min(limitNumber, 200) : 50;
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 
+      ? Math.min(radiusNumber, 100) 
+      : 10;
 
     const baseFilter = {
       status: 'active',
@@ -587,57 +887,166 @@ router.get('/nearby', async (req, res, next) => {
       'location.lng': { $ne: null },
     };
 
-    if (categoryId) baseFilter.categoryId = categoryId;
-    if (subcategoryId) baseFilter.subcategoryId = subcategoryId;
+    // Используем $geoNear агрегацию для подсчёта по категориям
+    const pipeline = [
+      {
+        $geoNear: {
+          near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+          distanceField: 'distanceMeters',
+          maxDistance: finalRadiusKm * 1000,
+          spherical: true,
+          query: baseFilter,
+          key: 'location.geo',
+        },
+      },
+      {
+        $group: {
+          _id: '$categoryId',
+          count: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { count: -1 },
+      },
+    ];
 
-    const minPriceNumber = Number(minPrice);
-    const maxPriceNumber = Number(maxPrice);
-    if (Number.isFinite(minPriceNumber) && minPriceNumber >= 0) {
-      baseFilter.price = { ...baseFilter.price, $gte: minPriceNumber };
+    const results = await Ad.aggregate(pipeline);
+
+    // Форматируем результаты
+    const stats = results.map(item => ({
+      categoryId: item._id,
+      count: item.count,
+    }));
+
+    // Общее количество объявлений
+    const total = stats.reduce((sum, item) => sum + item.count, 0);
+
+    return res.json({ stats, total, radiusKm: finalRadiusKm });
+  } catch (error) {
+    next(error);
+  }
+});
+
+/**
+ * GET /api/ads/category-facets
+ * 
+ * Получение количества объявлений по подкатегориям для заданной категории.
+ * Возвращает фасеты с подсчётом объявлений в каждой подкатегории.
+ * 
+ * @route GET /api/ads/category-facets
+ * @param {string} categorySlug - Slug родительской категории (обязательно)
+ * @param {number} [lat] - Широта точки поиска (опционально, для geo-фильтрации)
+ * @param {number} [lng] - Долгота точки поиска (опционально, для geo-фильтрации)
+ * @param {number} [radiusKm=20] - Радиус поиска в километрах
+ * 
+ * @returns {Object[]} Массив фасетов { subcategoryId, subcategorySlug, title, adsCount }
+ */
+router.get('/category-facets', async (req, res, next) => {
+  try {
+    const { categorySlug, lat, lng, radiusKm = 20 } = req.query;
+
+    if (!categorySlug) {
+      return res.status(400).json({ error: 'categorySlug обязателен' });
     }
-    if (Number.isFinite(maxPriceNumber) && maxPriceNumber >= 0) {
-      baseFilter.price = { ...baseFilter.price, $lte: maxPriceNumber };
+
+    // Проверяем скрытые категории
+    const hiddenSlugs = await getHiddenCategorySlugs();
+    if (hiddenSlugs.includes(categorySlug)) {
+      return res.json([]);
     }
 
-    const fetchLimit = Math.max(finalLimit * 3, finalLimit);
-    const candidates = await Ad.find(baseFilter)
-      .sort({ createdAt: -1 })
-      .limit(fetchLimit);
-
-    const userPoint = { lat: latNumber, lng: lngNumber };
-    const itemsWithinRadius = [];
-
-    for (const ad of candidates) {
-      const adPoint = extractAdCoordinates(ad);
-      if (!adPoint) {
-        continue;
-      }
-
-      const distanceKm = haversineDistanceKm(userPoint, adPoint);
-      if (distanceKm == null || distanceKm > finalRadiusKm) {
-        continue;
-      }
-
-      const plain =
-        typeof ad.toObject === 'function'
-          ? ad.toObject({ getters: true, virtuals: false })
-          : { ...ad };
-
-      plain.distanceKm = Number(distanceKm.toFixed(1));
-      itemsWithinRadius.push(plain);
+    // Находим категорию и её подкатегории
+    const category = await Category.findOne({ slug: categorySlug }).lean();
+    if (!category) {
+      return res.json([]);
     }
 
-    if (sort === 'cheapest') {
-      itemsWithinRadius.sort((a, b) => (a.price ?? Infinity) - (b.price ?? Infinity));
-    } else if (sort === 'expensive') {
-      itemsWithinRadius.sort((a, b) => (b.price ?? -Infinity) - (a.price ?? -Infinity));
-    } else if (sort === 'popular') {
-      itemsWithinRadius.sort((a, b) => (b.views ?? 0) - (a.views ?? 0));
+    // Получаем все подкатегории этой категории (исключая скрытые)
+    const subcategories = await Category.find({ 
+      parentId: category._id,
+      slug: { $nin: hiddenSlugs },
+    }).lean();
+
+    if (subcategories.length === 0) {
+      return res.json([]);
+    }
+
+    const subcategorySlugs = subcategories.map(s => s.slug);
+
+    const latNumber = Number(lat);
+    const lngNumber = Number(lng);
+    const radiusNumber = Number(radiusKm);
+    const hasGeo = Number.isFinite(latNumber) && Number.isFinite(lngNumber);
+    const finalRadiusKm = Number.isFinite(radiusNumber) && radiusNumber > 0 
+      ? Math.min(radiusNumber, 100) 
+      : 20;
+
+    const baseFilter = {
+      status: 'active',
+      moderationStatus: 'approved',
+      subcategoryId: { $in: subcategorySlugs },
+    };
+
+    let pipeline = [];
+
+    if (hasGeo) {
+      pipeline = [
+        {
+          $geoNear: {
+            near: { type: 'Point', coordinates: [lngNumber, latNumber] },
+            distanceField: 'distanceMeters',
+            maxDistance: finalRadiusKm * 1000,
+            spherical: true,
+            query: baseFilter,
+            key: 'location.geo',
+          },
+        },
+        {
+          $group: {
+            _id: '$subcategoryId',
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { count: -1 },
+        },
+      ];
     } else {
-      itemsWithinRadius.sort((a, b) => a.distanceKm - b.distanceKm);
+      pipeline = [
+        { $match: baseFilter },
+        {
+          $group: {
+            _id: '$subcategoryId',
+            count: { $sum: 1 },
+          },
+        },
+        {
+          $sort: { count: -1 },
+        },
+      ];
     }
 
-    return res.json({ items: itemsWithinRadius.slice(0, finalLimit) });
+    const results = await Ad.aggregate(pipeline);
+
+    // Маппинг результатов с названиями подкатегорий
+    // Используем slug как единый идентификатор для консистентности с API фильтрации
+    const countMap = new Map(results.map(item => [item._id, item.count]));
+    
+    // Формируем фасеты для всех подкатегорий (включая те, что без объявлений)
+    const facets = subcategories.map(subcat => ({
+      subcategoryId: subcat.slug,  // Используем slug как ID для совместимости с API
+      subcategorySlug: subcat.slug,
+      title: subcat.name,
+      adsCount: countMap.get(subcat.slug) || 0,
+    }));
+
+    // Сортируем: сначала с объявлениями, потом по алфавиту
+    facets.sort((a, b) => {
+      if (a.adsCount !== b.adsCount) return b.adsCount - a.adsCount;
+      return a.title.localeCompare(b.title, 'ru');
+    });
+
+    return res.json(facets);
   } catch (error) {
     next(error);
   }
@@ -960,7 +1369,7 @@ router.post('/:id/liveSpot/off', async (req, res, next) => {
 router.post('/bulk/update-status', async (req, res) => {
   try {
     const { adIds, status } = req.body || {};
-    const allowedStatuses = new Set(['active', 'hidden', 'archived']);
+    const allowedStatuses = new Set(['active', 'hidden', 'archived', 'paused', 'draft']);
 
     if (!Array.isArray(adIds) || adIds.length === 0) {
       return res.status(400).json({ error: 'adIds must be a non-empty array' });
@@ -1162,6 +1571,24 @@ router.post('/', validateCreateAd, async (req, res, next) => {
 
     const ad = await Ad.create(payload);
     
+    setImmediate(async () => {
+      try {
+        await BrandDetectionService.updateBrandStats(ad, 1);
+      } catch (error) {
+        console.error('[BrandDetection] Error updating brand stats:', error);
+      }
+    });
+
+    // Emit AD_CREATED event for mobile push notifications
+    if (ad.status === 'active' && ad.moderationStatus === 'approved') {
+      eventBus.safeEmit(Events.AD_CREATED, {
+        adId: ad._id.toString(),
+        userId: ad.userId?.toString(),
+        categoryId: ad.categoryId,
+        location: ad.location,
+      });
+    }
+    
     if (ad.moderationStatus === 'approved') {
       setImmediate(async () => {
         try {
@@ -1171,6 +1598,30 @@ router.post('/', validateCreateAd, async (req, res, next) => {
           }
         } catch (error) {
           console.error('Error sending subscription notifications:', error);
+        }
+      });
+
+      setImmediate(async () => {
+        try {
+          await DigitalTwinNotificationService.processNewAd(ad);
+        } catch (error) {
+          console.error('[DigitalTwin] Error processing new ad:', error);
+        }
+      });
+
+      setImmediate(async () => {
+        try {
+          const sendNotification = async (telegramId, message, type) => {
+            if (bot && telegramId) {
+              await bot.telegram.sendMessage(telegramId, message, { parse_mode: 'HTML' });
+            }
+          };
+          const notified = await SearchAlertService.notifyMatchingUsers(ad, sendNotification);
+          if (notified.length > 0) {
+            console.log(`[SearchAlert] Notified ${notified.length} users about new ad: ${ad.title}`);
+          }
+        } catch (error) {
+          console.error('[SearchAlert] Error notifying users:', error);
         }
       });
     }
@@ -1296,9 +1747,30 @@ router.post('/:id/live-spot', async (req, res, next) => {
 router.delete('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const ad = await updateAdStatus(id, 'archived');
+    const { permanent, sellerTelegramId } = req.query;
+    
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ message: 'Объявление не найдено' });
+    }
 
-    res.json({ message: 'Объявление архивировано', ad });
+    // Проверяем права: только владелец может удалять своё объявление
+    if (sellerTelegramId) {
+      const sellerId = Number(sellerTelegramId);
+      if (ad.sellerTelegramId !== sellerId) {
+        return res.status(403).json({ message: 'Нет прав для удаления этого объявления' });
+      }
+    }
+
+    if (permanent === 'true') {
+      // Полное удаление из базы данных
+      await Ad.findByIdAndDelete(id);
+      res.json({ message: 'Объявление удалено навсегда', deleted: true });
+    } else {
+      // Архивирование (мягкое удаление)
+      const archivedAd = await updateAdStatus(id, 'archived');
+      res.json({ message: 'Объявление архивировано', ad: archivedAd });
+    }
   } catch (error) {
     if (error.message === 'Ad not found') {
       return res.status(404).json({ message: 'Объявление не найдено' });
@@ -1353,6 +1825,130 @@ router.patch('/:id/status', async (req, res) => {
   }
 });
 
+router.post('/:id/boost', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, boostLevel = 1, durationHours = 24 } = req.body;
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'sellerTelegramId is required' 
+      });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Объявление не найдено' 
+      });
+    }
+
+    if (ad.sellerTelegramId !== Number(sellerTelegramId)) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Нет прав для этого объявления' 
+      });
+    }
+
+    const validBoostLevels = [1, 2, 3];
+    const level = Math.min(Math.max(boostLevel, 1), 3);
+    
+    ad.boostLevel = level;
+    ad.boostedAt = new Date();
+    ad.boostExpiresAt = new Date(Date.now() + durationHours * 60 * 60 * 1000);
+    
+    await ad.save();
+
+    return res.json({
+      success: true,
+      data: {
+        ad,
+        boostLevel: level,
+        expiresAt: ad.boostExpiresAt,
+      },
+      message: `Объявление поднято на уровень ${level}`,
+    });
+  } catch (error) {
+    console.error('[Ads] Boost error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка при поднятии объявления' 
+    });
+  }
+});
+
+router.post('/:id/premium-card', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { sellerTelegramId, badge } = req.body;
+
+    if (!sellerTelegramId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'sellerTelegramId is required' 
+      });
+    }
+
+    const ad = await Ad.findById(id);
+    if (!ad) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Объявление не найдено' 
+      });
+    }
+
+    if (ad.sellerTelegramId !== Number(sellerTelegramId)) {
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Нет прав для этого объявления' 
+      });
+    }
+
+    const validBadges = ['top_seller', 'eco', 'premium', 'fresh'];
+    const selectedBadge = validBadges.includes(badge) ? badge : 'premium';
+    
+    ad.isPremiumCard = true;
+    ad.premiumBadge = selectedBadge;
+    
+    await ad.save();
+
+    return res.json({
+      success: true,
+      data: { ad },
+      message: 'Премиум-карточка активирована',
+    });
+  } catch (error) {
+    console.error('[Ads] Premium card error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Ошибка при активации премиум-карточки' 
+    });
+  }
+});
+
+router.get('/:id/similar', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { limit = 6 } = req.query;
+    
+    const aiGateway = require('../../services/ai/AiGateway');
+    const result = await aiGateway.getSimilarAds({
+      adId: id,
+      limit: parseInt(limit)
+    });
+    
+    return res.json(result);
+  } catch (error) {
+    console.error('[Ads] Similar ads error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Ошибка получения похожих объявлений'
+    });
+  }
+});
+
 router.get('/trending', async (req, res, next) => {
   try {
     const { cityCode, limit = 20, offset = 0 } = req.query;
@@ -1384,6 +1980,340 @@ router.get('/trending', async (req, res, next) => {
     });
   } catch (error) {
     next(error);
+  }
+});
+
+router.post('/bulk', async (req, res) => {
+  try {
+    const { items } = req.body;
+    const sellerTelegramId = getSellerIdFromRequest(req);
+
+    if (!sellerTelegramId) {
+      return res.status(401).json({ error: 'Seller ID required' });
+    }
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ error: 'Items array is required' });
+    }
+
+    if (items.length > 10) {
+      return res.status(400).json({ error: 'Maximum 10 items per request' });
+    }
+
+    const results = { created: 0, errors: [], ads: [] };
+
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      
+      try {
+        if (!item.title || !item.title.trim()) {
+          results.errors.push(`Item ${i + 1}: Title is required`);
+          continue;
+        }
+        
+        if (!item.price || item.price <= 0) {
+          results.errors.push(`Item ${i + 1}: Valid price is required`);
+          continue;
+        }
+
+        const ad = new Ad({
+          title: item.title.trim(),
+          description: item.description?.trim() || '',
+          price: item.price,
+          currency: 'RUB',
+          unitType: item.unit || 'piece',
+          quantity: item.quantity || 1,
+          categoryId: item.categoryId || 'farmer-market',
+          subcategoryId: item.categoryId || 'farmer-other',
+          photos: item.images || [],
+          sellerTelegramId,
+          isFarmerAd: true,
+          status: 'active',
+          moderationStatus: 'pending',
+          createdAt: new Date(),
+        });
+
+        await ad.save();
+        results.created++;
+        results.ads.push({ _id: ad._id, title: ad.title });
+      } catch (itemError) {
+        results.errors.push(`Item ${i + 1}: ${itemError.message}`);
+      }
+    }
+
+    res.json(results);
+  } catch (error) {
+    console.error('Bulk upload error:', error);
+    res.status(500).json({ error: 'Failed to process bulk upload' });
+  }
+});
+
+// ========== Analytics Tracking Endpoints ==========
+
+const trackingRateLimit = new Map();
+const RATE_LIMIT_WINDOW_MS = 5000;
+const RATE_LIMIT_MAX_REQUESTS = 10;
+
+function checkRateLimit(identifier, action) {
+  const key = `${identifier}:${action}`;
+  const now = Date.now();
+  const record = trackingRateLimit.get(key);
+  
+  if (!record) {
+    trackingRateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (now > record.resetAt) {
+    trackingRateLimit.set(key, { count: 1, resetAt: now + RATE_LIMIT_WINDOW_MS });
+    return true;
+  }
+  
+  if (record.count >= RATE_LIMIT_MAX_REQUESTS) {
+    return false;
+  }
+  
+  record.count++;
+  return true;
+}
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, record] of trackingRateLimit.entries()) {
+    if (now > record.resetAt) {
+      trackingRateLimit.delete(key);
+    }
+  }
+}, 60000);
+
+router.post('/:id/track-impression', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'impression')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    const now = new Date();
+    const update = {
+      $inc: { impressionsTotal: 1, impressionsToday: 1 },
+      $set: { lastShownAt: now },
+    };
+    
+    const ad = await Ad.findById(id).select('firstShownAt');
+    if (!ad) {
+      return res.status(404).json({ error: 'Ad not found' });
+    }
+    
+    if (!ad.firstShownAt) {
+      update.$set.firstShownAt = now;
+    }
+    
+    await Ad.findByIdAndUpdate(id, update);
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[track-impression]', error.message);
+    res.status(500).json({ error: 'Failed to track impression' });
+  }
+});
+
+router.post('/:id/track-view', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'view')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    const now = new Date();
+    await Ad.findByIdAndUpdate(id, {
+      $inc: { viewsTotal: 1, viewsToday: 1, views: 1 },
+      $set: { lastViewedAt: now },
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[track-view]', error.message);
+    res.status(500).json({ error: 'Failed to track view' });
+  }
+});
+
+router.post('/:id/track-contact', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'contact')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    await Ad.findByIdAndUpdate(id, {
+      $inc: { contactClicks: 1 },
+    });
+    
+    res.json({ success: true });
+  } catch (error) {
+    console.error('[track-contact]', error.message);
+    res.status(500).json({ error: 'Failed to track contact click' });
+  }
+});
+
+router.post('/:id/contact-reveal', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const clientId = req.headers['x-forwarded-for'] || req.ip || 'unknown';
+    
+    if (!checkRateLimit(clientId, 'contact')) {
+      return res.status(429).json({ error: 'Too many requests' });
+    }
+    
+    const ad = await Ad.findByIdAndUpdate(
+      id,
+      { $inc: { contactRevealCount: 1 } },
+      { new: true, select: 'contactRevealCount' }
+    );
+    
+    if (!ad) {
+      return res.status(404).json({ error: 'Ad not found' });
+    }
+    
+    res.json({ success: true, contactRevealCount: ad.contactRevealCount });
+  } catch (error) {
+    console.error('[contact-reveal]', error.message);
+    res.status(500).json({ error: 'Failed to track contact reveal' });
+  }
+});
+
+router.post('/:id/extend', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sellerId = getSellerIdFromRequest(req);
+    
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+    
+    const ad = await AdLifecycleService.extendAd(id, sellerId);
+    
+    res.json({
+      success: true,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        status: ad.status,
+        expiresAt: ad.expiresAt,
+        lifetimeType: ad.lifetimeType,
+      },
+      message: 'Объявление успешно продлено',
+    });
+  } catch (error) {
+    console.error('[extend-ad]', error.message);
+    const status = error.message.includes('не найдено') ? 404 : 
+                   error.message.includes('прав') ? 403 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+router.post('/:id/archive', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sellerId = getSellerIdFromRequest(req);
+    
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+    
+    const ad = await AdLifecycleService.archiveAd(id, sellerId);
+    
+    res.json({
+      success: true,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        status: ad.status,
+      },
+      message: 'Объявление архивировано',
+    });
+  } catch (error) {
+    console.error('[archive-ad]', error.message);
+    const status = error.message.includes('не найдено') ? 404 : 
+                   error.message.includes('прав') ? 403 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+router.post('/:id/sold-out', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const sellerId = getSellerIdFromRequest(req);
+    const { isSoldOut = true } = req.body;
+    
+    if (!sellerId) {
+      return res.status(400).json({ error: 'sellerTelegramId обязателен' });
+    }
+    
+    const ad = await AdLifecycleService.markSoldOut(id, sellerId, isSoldOut);
+    
+    res.json({
+      success: true,
+      ad: {
+        _id: ad._id,
+        title: ad.title,
+        status: ad.status,
+        isSoldOut: ad.isSoldOut,
+      },
+      message: isSoldOut ? 'Товар помечен как распроданный' : 'Товар снова в наличии',
+    });
+  } catch (error) {
+    console.error('[sold-out-ad]', error.message);
+    const status = error.message.includes('не найдено') ? 404 : 
+                   error.message.includes('прав') ? 403 : 500;
+    res.status(status).json({ error: error.message });
+  }
+});
+
+router.get('/:id/lifecycle-info', async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const ad = await Ad.findById(id).select(
+      'title status lifetimeType expiresAt scheduledAt repeatMode repeatUntil isSoldOut createdAt'
+    ).lean();
+    
+    if (!ad) {
+      return res.status(404).json({ error: 'Объявление не найдено' });
+    }
+    
+    const now = new Date();
+    let daysLeft = null;
+    let isExpired = false;
+    
+    if (ad.expiresAt) {
+      const diff = new Date(ad.expiresAt) - now;
+      daysLeft = Math.ceil(diff / (24 * 60 * 60 * 1000));
+      isExpired = diff <= 0;
+    }
+    
+    res.json({
+      _id: ad._id,
+      title: ad.title,
+      status: ad.status,
+      lifetimeType: ad.lifetimeType,
+      expiresAt: ad.expiresAt,
+      scheduledAt: ad.scheduledAt,
+      repeatMode: ad.repeatMode,
+      repeatUntil: ad.repeatUntil,
+      isSoldOut: ad.isSoldOut,
+      createdAt: ad.createdAt,
+      daysLeft,
+      isExpired,
+    });
+  } catch (error) {
+    console.error('[lifecycle-info]', error.message);
+    res.status(500).json({ error: 'Ошибка получения информации' });
   }
 });
 

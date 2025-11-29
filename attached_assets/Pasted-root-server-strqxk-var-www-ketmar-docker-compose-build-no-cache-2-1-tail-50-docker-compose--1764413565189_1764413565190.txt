@@ -1,0 +1,58 @@
+root@server-strqxk:/var/www/ketmar# docker compose build --no-cache 2>&1 | tail -50
+
+docker compose build --no-cache 2>&1 | tail -50
+docker compose build 2>&1
+#13 17.67 > vite build
+#13 17.67 
+#13 17.97 vite v5.4.21 building for production...
+#13 18.09 transforming...
+#13 18.69 
+#13 18.69 warn - The `content` option in your Tailwind CSS configuration is missing or empty.
+#13 18.69 warn - Configure your content sources or your generated CSS will be missing styles.
+#13 18.69 warn - https://tailwindcss.com/docs/content-configuration
+#13 22.45 ✓ 1744 modules transformed.
+#13 22.46 x Build failed in 4.44s
+#13 22.46 error during build:
+#13 22.46 [vite:load-fallback] Could not load /app/miniapp/src/components/ui/textarea (imported by src/pages/MyShopPage.tsx): ENOENT: no such file or directory, open '/app/miniapp/src/components/ui/textarea'
+#13 22.46     at async open (node:internal/fs/promises:639:25)
+#13 22.46     at async Object.readFile (node:internal/fs/promises:1246:14)
+#13 22.46     at async Object.load (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65357:25)
+#13 22.46     at async PluginDriver.hookFirstAndGetPlugin (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22333:28)
+#13 22.46     at async file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:21333:33
+#13 22.46     at async Queue.work (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22561:32)
+#13 ERROR: process "/bin/sh -c cd miniapp && npm install && npm run build" did not complete successfully: exit code: 1
+------
+ > [8/9] RUN cd miniapp && npm install && npm run build:
+22.45 ✓ 1744 modules transformed.
+22.46 x Build failed in 4.44s
+22.46 error during build:
+22.46 [vite:load-fallback] Could not load /app/miniapp/src/components/ui/textarea (imported by src/pages/MyShopPage.tsx): ENOENT: no such file or directory, open '/app/miniapp/src/components/ui/textarea'
+22.46     at async open (node:internal/fs/promises:639:25)
+22.46     at async Object.readFile (node:internal/fs/promises:1246:14)
+22.46     at async Object.load (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:65357:25)
+22.46     at async PluginDriver.hookFirstAndGetPlugin (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22333:28)
+22.46     at async file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:21333:33
+22.46     at async Queue.work (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22561:32)
+------
+Dockerfile:25
+
+--------------------
+
+  23 |     
+
+  24 |     # Build MiniApp
+
+  25 | >>> RUN cd miniapp && npm install && npm run build
+
+  26 |     
+
+  27 |     # Remove dev dependencies after build
+
+--------------------
+
+failed to solve: process "/bin/sh -c cd miniapp && npm install && npm run build" did not complete successfully: exit code: 1
+
+root@server-strqxk:/var/www/ketmar# 
+root@server-strqxk:/var/www/ketmar# docker compose build --no-cache 2>&1 | tail -50
+docker compose build 2>&1
+

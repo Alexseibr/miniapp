@@ -1,0 +1,1069 @@
+diff --git a/api/routes/my-shop.js b/api/routes/my-shop.js
+new file mode 100644
+index 0000000000000000000000000000000000000000..93a52874320f2b5161b58d81546661029443e62e
+--- /dev/null
++++ b/api/routes/my-shop.js
+@@ -0,0 +1,253 @@
++import { Router } from 'express';
++import { authMiddleware } from '../../middleware/auth.js';
++import SellerProfile from '../../models/SellerProfile.js';
++import Ad from '../../models/Ad.js';
++
++const router = Router();
++
++async function ensureProfile(user) {
++  let profile = await SellerProfile.findOne({ userId: user._id });
++
++  if (!profile) {
++    const fallbackName = user.username || user.firstName || 'Мой магазин';
++    const slug = await SellerProfile.generateSlug(fallbackName);
++
++    profile = new SellerProfile({
++      userId: user._id,
++      telegramId: user.telegramId,
++      slug,
++      name: fallbackName,
++      phone: user.phone || null,
++      telegramUsername: user.username || null,
++      showPhone: true,
++    });
++
++    await profile.save();
++  }
++
++  return profile;
++}
++
++function mapStatus(ad, now) {
++  if (ad.status === 'draft') return 'draft';
++  if (ad.status === 'expired' || (ad.expiresAt && ad.expiresAt <= now)) {
++    return 'expired';
++  }
++  return 'active';
++}
++
++router.get('/profile', authMiddleware, async (req, res) => {
++  try {
++    const profile = await ensureProfile(req.currentUser);
++
++    return res.json({
++      success: true,
++      profile: {
++        id: profile._id,
++        name: profile.name,
++        description: profile.description,
++        address: profile.address,
++        instagram: profile.instagram,
++        phone: profile.phone,
++        messengers: profile.messengers || {},
++        telegramUsername: profile.telegramUsername,
++      },
++    });
++  } catch (error) {
++    console.error('[MyShop] Failed to load profile', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++router.put('/profile', authMiddleware, async (req, res) => {
++  try {
++    const profile = await ensureProfile(req.currentUser);
++
++    const allowedFields = [
++      'name',
++      'description',
++      'address',
++      'instagram',
++      'phone',
++      'messengers',
++    ];
++
++    allowedFields.forEach((field) => {
++      if (req.body[field] !== undefined) {
++        profile[field] = req.body[field];
++      }
++    });
++
++    if (req.body.messengers) {
++      profile.messengers = {
++        ...(profile.messengers?.toObject?.()
++          ? profile.messengers.toObject()
++          : profile.messengers || {}),
++        ...req.body.messengers,
++      };
++    }
++
++    if (req.body.name && req.body.name !== profile.name) {
++      profile.slug = await SellerProfile.generateSlug(req.body.name);
++    }
++
++    await profile.save();
++
++    return res.json({
++      success: true,
++      profile: {
++        id: profile._id,
++        name: profile.name,
++        description: profile.description,
++        address: profile.address,
++        instagram: profile.instagram,
++        phone: profile.phone,
++        messengers: profile.messengers || {},
++        telegramUsername: profile.telegramUsername,
++      },
++    });
++  } catch (error) {
++    console.error('[MyShop] Failed to update profile', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++router.get('/products', authMiddleware, async (req, res) => {
++  try {
++    const now = new Date();
++    const profile = await ensureProfile(req.currentUser);
++    const { status, limit = 20, offset = 0 } = req.query;
++
++    const numericLimit = Math.min(parseInt(limit) || 20, 100);
++    const numericOffset = parseInt(offset) || 0;
++
++    const baseFilter = { sellerTelegramId: profile.telegramId };
++    let statusFilter = {};
++
++    if (status === 'draft') {
++      statusFilter = { status: 'draft' };
++    } else if (status === 'expired') {
++      statusFilter = {
++        $or: [
++          { status: 'expired' },
++          { expiresAt: { $lte: now } },
++        ],
++      };
++    } else if (status === 'active') {
++      statusFilter = {
++        status: { $in: ['active', 'scheduled'] },
++        $or: [
++          { expiresAt: null },
++          { expiresAt: { $gt: now } },
++        ],
++      };
++    }
++
++    const [items, total, draftCount, expiredCount, activeCount] = await Promise.all([
++      Ad.find({ ...baseFilter, ...statusFilter })
++        .sort({ createdAt: -1 })
++        .skip(numericOffset)
++        .limit(numericLimit)
++        .select('title price currency status photos previewUrl description categoryId expiresAt createdAt')
++        .lean(),
++      Ad.countDocuments({ ...baseFilter, ...statusFilter }),
++      Ad.countDocuments({ ...baseFilter, status: 'draft' }),
++      Ad.countDocuments({
++        ...baseFilter,
++        $or: [
++          { status: 'expired' },
++          { expiresAt: { $lte: now } },
++        ],
++      }),
++      Ad.countDocuments({
++        ...baseFilter,
++        status: { $in: ['active', 'scheduled'] },
++        $or: [
++          { expiresAt: null },
++          { expiresAt: { $gt: now } },
++        ],
++      }),
++    ]);
++
++    const responseItems = items.map((ad) => ({
++      id: ad._id,
++      title: ad.title,
++      price: ad.price,
++      currency: ad.currency,
++      status: mapStatus(ad, now),
++      preview: ad.photos?.[0] || ad.previewUrl || null,
++      description: ad.description,
++      categoryId: ad.categoryId,
++      expiresAt: ad.expiresAt,
++      createdAt: ad.createdAt,
++    }));
++
++    return res.json({
++      success: true,
++      items: responseItems,
++      total,
++      limit: numericLimit,
++      offset: numericOffset,
++      counts: {
++        active: activeCount,
++        draft: draftCount,
++        expired: expiredCount,
++      },
++    });
++  } catch (error) {
++    console.error('[MyShop] Failed to load products', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++router.get('/stats', authMiddleware, async (req, res) => {
++  try {
++    const now = new Date();
++    const profile = await ensureProfile(req.currentUser);
++    const baseFilter = { sellerTelegramId: profile.telegramId };
++
++    const [totalProducts, activeProducts, expiredProducts, aggregates] = await Promise.all([
++      Ad.countDocuments(baseFilter),
++      Ad.countDocuments({
++        ...baseFilter,
++        status: { $in: ['active', 'scheduled'] },
++        $or: [
++          { expiresAt: null },
++          { expiresAt: { $gt: now } },
++        ],
++      }),
++      Ad.countDocuments({
++        ...baseFilter,
++        $or: [
++          { status: 'expired' },
++          { expiresAt: { $lte: now } },
++        ],
++      }),
++      Ad.aggregate([
++        { $match: baseFilter },
++        {
++          $group: {
++            _id: null,
++            totalViews: { $sum: { $ifNull: ['$viewsTotal', 0] } },
++            totalFavorites: { $sum: { $ifNull: ['$favoritesCount', 0] } },
++          },
++        },
++      ]),
++    ]);
++
++    const stats = {
++      totalProducts,
++      activeProducts,
++      expiredProducts,
++      totalViews: aggregates[0]?.totalViews || 0,
++      totalFavorites: aggregates[0]?.totalFavorites || 0,
++    };
++
++    return res.json({ success: true, stats });
++  } catch (error) {
++    console.error('[MyShop] Failed to load stats', error);
++    return res.status(500).json({ success: false, error: 'server_error' });
++  }
++});
++
++export default router;
+diff --git a/api/server.js b/api/server.js
+index a3e488ba68d6f8c0f830dd0cfd5819dcfa339b03..60bbe58722524f98d490ec4e4080a3a14e26629f 100644
+--- a/api/server.js
++++ b/api/server.js
+@@ -26,50 +26,51 @@ import uploadsRoutes from './routes/uploads.js';
+ import mediaRoutes from './routes/media.js';
+ import geoRoutes from './routes/geo.js';
+ import pricingRoutes from './routes/pricing.js';
+ import farmerRoutes from './routes/farmer.js';
+ import farmerSubscriptionsRoutes from './routes/farmer-subscriptions.js';
+ import globalSearchRoutes from './routes/globalSearch.js';
+ import trendsRoutes from './routes/trends.js';
+ import aiRoutes from './routes/ai.js';
+ import recommendationsRoutes from './routes/recommendations.js';
+ import geoIntelligenceRoutes from './routes/geoIntelligence.js';
+ import sellerProfileRoutes from './routes/seller-profile.js';
+ import sellerSubscriptionsRoutes from './routes/seller-subscriptions.js';
+ import sellerReviewsRoutes from './routes/seller-reviews.js';
+ import sellerAnalyticsRoutes from './routes/seller-analytics.js';
+ import twinRoutes from './routes/twin.js';
+ import dynamicPriceRoutes from './routes/dynamicPrice.js';
+ import sellerTwinRoutes from './routes/sellerTwin.js';
+ import queuesRoutes from './routes/queues.js';
+ import feedRoutes from './routes/feed.js';
+ import autoCategorizationRoutes from './routes/autoCategorization.js';
+ import storeProAnalyticsRoutes from './routes/store-pro-analytics.js';
+ import campaignAnalyticsRoutes from './routes/campaign-analytics.js';
+ import ratingRoutes from './routes/rating.js';
+ import adminRatingRoutes from './routes/admin-rating.js';
+ import devicesRoutes from './routes/devices.js';
++import myShopRoutes from './routes/my-shop.js';
+ 
+ const app = express();
+ 
+ // Compression middleware (gzip)
+ app.use(compression({
+   filter: (req, res) => {
+     if (req.headers['x-no-compression']) {
+       return false;
+     }
+     return compression.filter(req, res);
+   },
+   threshold: 1024,
+   level: 6,
+ }));
+ 
+ // Middleware
+ app.use(express.json());
+ app.use(express.urlencoded({ extended: true }));
+ 
+ // Базовые маршруты
+ app.get('/api', (_req, res) => {
+   res.json({
+     message: 'KETMAR API',
+     version: '1.0.0',
+     endpoints: {
+@@ -124,27 +125,28 @@ app.use('/api/media', mediaRoutes);
+ app.use('/api/geo', geoRoutes);
+ app.use('/api/pricing', pricingRoutes);
+ app.use('/api/farmer', farmerRoutes);
+ app.use('/api/farmer/subscriptions', farmerSubscriptionsRoutes);
+ app.use('/api/search', globalSearchRoutes);
+ app.use('/api/trends', trendsRoutes);
+ app.use('/api/ai', aiRoutes);
+ app.use('/api/recommendations', recommendationsRoutes);
+ app.use('/api/geo-intelligence', geoIntelligenceRoutes);
+ app.use('/api/seller-profile', sellerProfileRoutes);
+ app.use('/api/seller/subscribe', sellerSubscriptionsRoutes);
+ app.use('/api/seller', sellerReviewsRoutes);
+ app.use('/api/seller-analytics', sellerAnalyticsRoutes);
+ app.use('/api/twin', twinRoutes);
+ app.use('/api/dynamic-price', dynamicPriceRoutes);
+ app.use('/api/seller-twin', sellerTwinRoutes);
+ app.use('/api/queues', queuesRoutes);
+ app.use('/api/feed', feedRoutes);
+ app.use('/api/auto-categorize', autoCategorizationRoutes);
+ app.use('/api/store/pro-analytics', storeProAnalyticsRoutes);
+ app.use('/api/campaign-analytics', campaignAnalyticsRoutes);
+ app.use('/api/campaigns', campaignAnalyticsRoutes);
+ app.use('/api/rating', ratingRoutes);
+ app.use('/api/admin/rating', adminAuth, adminRatingRoutes);
+ app.use('/api/devices', devicesRoutes);
++app.use('/api/my-shop', myShopRoutes);
+ 
+ export default app;
+diff --git a/miniapp/src/App.tsx b/miniapp/src/App.tsx
+index 57eef8948489d528ea90519532582a9f81145f40..40865e90c7010685ae500743db2f299691e140a1 100644
+--- a/miniapp/src/App.tsx
++++ b/miniapp/src/App.tsx
+@@ -34,50 +34,51 @@ const FarmerFeedPage = lazy(() => import('@/pages/FarmerFeedPage'));
+ const BulkFarmerUploadPage = lazy(() => import('@/pages/BulkFarmerUploadPage'));
+ const FarmerAnalyticsPage = lazy(() => import('@/pages/FarmerAnalyticsPage'));
+ const FarmerCabinetPage = lazy(() => import('@/pages/FarmerCabinetPage'));
+ const AllCategoriesPage = lazy(() => import('@/pages/AllCategoriesPage'));
+ const GeoMapPage = lazy(() => import('@/pages/GeoMapPage'));
+ const GeoFeedScreen = lazy(() => import('@/pages/GeoFeedScreen'));
+ const SellerStorePage = lazy(() => import('@/pages/SellerStorePage'));
+ const SellerDashboardPage = lazy(() => import('@/pages/SellerDashboardPage'));
+ const SellerAnalyticsPage = lazy(() => import('@/pages/SellerAnalyticsPage'));
+ const TwinPage = lazy(() => import('@/pages/TwinPage'));
+ const TwinChatPage = lazy(() => import('@/pages/TwinChatPage'));
+ const DynamicPricingPage = lazy(() => import('@/pages/DynamicPricingPage'));
+ const SellerTwinPage = lazy(() => import('@/pages/SellerTwinPage'));
+ const ForYouFeedPage = lazy(() => import('@/pages/ForYouFeedPage'));
+ const SearchPage = lazy(() => import('@/pages/SearchPage'));
+ const SearchResultsPage = lazy(() => import('@/pages/SearchResultsPage'));
+ const CategoryResultsPage = lazy(() => import('@/pages/CategoryResultsPage'));
+ const StoreCabinetPage = lazy(() => import('@/pages/StoreCabinetPage'));
+ const StoreProAnalyticsPage = lazy(() => import('@/pages/StoreProAnalyticsPage'));
+ const CampaignsListPage = lazy(() => import('@/pages/CampaignsListPage'));
+ const CampaignPage = lazy(() => import('@/pages/CampaignPage'));
+ const CampaignAnalyticsPage = lazy(() => import('@/pages/CampaignAnalyticsPage'));
+ const NeonDemoPage = lazy(() => import('@/pages/NeonDemoPage'));
+ const AuthScreen = lazy(() => import('@/components/AuthScreen'));
+ const ShopEntryScreen = lazy(() => import('@/screens/ShopEntryScreen'));
++const MyShopPage = lazy(() => import('@/pages/MyShopPage'));
+ 
+ export default function App() {
+   const location = useLocation();
+   const initialize = useUserStore((state) => state.initialize);
+   const submitPhone = useUserStore((state) => state.submitPhone);
+   const skipPhoneRequest = useUserStore((state) => state.skipPhoneRequest);
+   const userStatus = useUserStore((state) => state.status);
+   const user = useUserStore((state) => state.user);
+   const refreshLocationOnAppStart = useGeoStore((state) => state.refreshLocationOnAppStart);
+   const [isInitialized, setIsInitialized] = useState(false);
+   
+   const platform = detectPlatform();
+   
+   useRoutePrefetch();
+ 
+   useEffect(() => {
+     const initApp = async () => {
+       try {
+         console.log('🚀 Initializing KETMAR Market MiniApp...');
+         console.log(`📱 Platform detected: ${platform}`);
+         
+         if (platform === 'telegram') {
+           const tg = getTelegramWebApp();
+           if (tg) {
+             console.log('✅ Telegram WebApp SDK found');
+@@ -224,50 +225,55 @@ export default function App() {
+               <Route path="/campaigns/:campaignCode" element={<CampaignPage />} />
+               <Route path="/for-you" element={<ForYouFeedPage />} />
+               <Route path="/neon-demo" element={<NeonDemoPage />} />
+ 
+               {/* Private routes - require authentication */}
+               <Route path="/create" element={
+                 <PrivateRoute>
+                   <CreateAdPage />
+                 </PrivateRoute>
+               } />
+               <Route path="/favorites" element={
+                 <PrivateRoute>
+                   <FavoritesPage />
+                 </PrivateRoute>
+               } />
+               <Route path="/profile" element={
+                 <PrivateRoute>
+                   <ProfilePage />
+                 </PrivateRoute>
+               } />
+               <Route path="/shop-entry" element={
+                 <PrivateRoute>
+                   <ShopEntryScreen />
+                 </PrivateRoute>
+               } />
++              <Route path="/my-shop" element={
++                <PrivateRoute>
++                  <MyShopPage />
++                </PrivateRoute>
++              } />
+               <Route path="/orders" element={
+                 <PrivateRoute>
+                   <OrdersPage />
+                 </PrivateRoute>
+               } />
+               <Route path="/my-ads" element={
+                 <PrivateRoute>
+                   <MyAdsPage />
+                 </PrivateRoute>
+               } />
+               <Route path="/ads/create" element={
+                 <PrivateRoute>
+                   <CreateAdPage />
+                 </PrivateRoute>
+               } />
+               <Route path="/chats" element={
+                 <PrivateRoute>
+                   <ConversationsPage />
+                 </PrivateRoute>
+               } />
+               <Route path="/chat/:conversationId" element={
+                 <PrivateRoute>
+                   <ChatPage />
+                 </PrivateRoute>
+               } />
+diff --git a/miniapp/src/api/myShop.ts b/miniapp/src/api/myShop.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..7c33f92714207ff4b8bc33cf262d1a5400da0206
+--- /dev/null
++++ b/miniapp/src/api/myShop.ts
+@@ -0,0 +1,36 @@
++import http from './http';
++import type {
++  MyShopProduct,
++  MyShopProductsResponse,
++  MyShopProfile,
++  MyShopStats,
++} from '@/types/myShop';
++
++export async function getMyShopProducts(status?: 'active' | 'draft' | 'expired') {
++  const response = await http.get<MyShopProductsResponse>('/api/my-shop/products', {
++    params: { status },
++  });
++  return response.data;
++}
++
++export async function getMyShopStats() {
++  const response = await http.get<{ success: boolean; stats: MyShopStats }>('/api/my-shop/stats');
++  return response.data;
++}
++
++export async function getMyShopProfile() {
++  const response = await http.get<{ success: boolean; profile: MyShopProfile }>(
++    '/api/my-shop/profile',
++  );
++  return response.data;
++}
++
++export async function updateMyShopProfile(payload: Partial<MyShopProfile>) {
++  const response = await http.put<{ success: boolean; profile: MyShopProfile }>(
++    '/api/my-shop/profile',
++    payload,
++  );
++  return response.data;
++}
++
++export type { MyShopProduct, MyShopProfile, MyShopStats };
+diff --git a/miniapp/src/pages/MyShopPage.tsx b/miniapp/src/pages/MyShopPage.tsx
+new file mode 100644
+index 0000000000000000000000000000000000000000..5c89ada9827c5333f22bddc360f923f7167ac08a
+--- /dev/null
++++ b/miniapp/src/pages/MyShopPage.tsx
+@@ -0,0 +1,436 @@
++import { useEffect, useMemo, useState, type ReactNode } from 'react';
++import { useNavigate } from 'react-router-dom';
++import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
++import {
++  ArrowLeft,
++  BadgePercent,
++  CheckCircle2,
++  Package,
++  Plus,
++  Sparkles,
++  Store,
++  TrendingUp,
++  UserRound,
++} from 'lucide-react';
++import { Button } from '@/components/ui/button';
++import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
++import { Badge } from '@/components/ui/badge';
++import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
++import { Input } from '@/components/ui/input';
++import { Label } from '@/components/ui/label';
++import { Textarea } from '@/components/ui/textarea';
++import { useToast } from '@/hooks/use-toast';
++import { getThumbnailUrl, NO_PHOTO_PLACEHOLDER } from '@/constants/placeholders';
++import {
++  getMyShopProducts,
++  getMyShopProfile,
++  getMyShopStats,
++  updateMyShopProfile,
++} from '@/api/myShop';
++import type { MyShopProduct, MyShopProfile } from '@/types/myShop';
++
++const statusLabels: Record<MyShopProduct['status'], { label: string; color: string }> = {
++  active: { label: 'Активно', color: 'bg-emerald-100 text-emerald-700' },
++  draft: { label: 'Черновик', color: 'bg-amber-100 text-amber-700' },
++  expired: { label: 'Истекло', color: 'bg-slate-100 text-slate-700' },
++};
++
++export default function MyShopPage() {
++  const navigate = useNavigate();
++  const { toast } = useToast();
++  const queryClient = useQueryClient();
++  const [activeTab, setActiveTab] = useState<'products' | 'stats' | 'profile'>('products');
++  const [statusFilter, setStatusFilter] = useState<'active' | 'draft' | 'expired'>('active');
++  const [showProModal, setShowProModal] = useState(false);
++  const [profileForm, setProfileForm] = useState<Partial<MyShopProfile>>({});
++
++  const productsQuery = useQuery({
++    queryKey: ['my-shop-products', statusFilter],
++    queryFn: () => getMyShopProducts(statusFilter),
++  });
++
++  const statsQuery = useQuery({
++    queryKey: ['my-shop-stats'],
++    queryFn: getMyShopStats,
++  });
++
++  const profileQuery = useQuery({
++    queryKey: ['my-shop-profile'],
++    queryFn: getMyShopProfile,
++  });
++
++  useEffect(() => {
++    if (profileQuery.data?.profile) {
++      setProfileForm(profileQuery.data.profile);
++    }
++  }, [profileQuery.data?.profile]);
++
++  const updateProfileMutation = useMutation({
++    mutationFn: updateMyShopProfile,
++    onSuccess: () => {
++      queryClient.invalidateQueries({ queryKey: ['my-shop-profile'] });
++      toast({ title: 'Изменения сохранены' });
++    },
++    onError: () => {
++      toast({ title: 'Не удалось сохранить профиль', variant: 'destructive' });
++    },
++  });
++
++  const counts = useMemo(
++    () => productsQuery.data?.counts || { active: 0, draft: 0, expired: 0 },
++    [productsQuery.data?.counts],
++  );
++
++  const products = productsQuery.data?.items || [];
++  const stats = statsQuery.data?.stats;
++  const profile = profileQuery.data?.profile;
++
++  const handleProfileChange = (field: keyof MyShopProfile, value: string | null) => {
++    setProfileForm((prev) => ({ ...prev, [field]: value }));
++  };
++
++  const handleMessengerChange = (field: 'telegram' | 'viber' | 'whatsapp', value: string) => {
++    setProfileForm((prev) => ({
++      ...prev,
++      messengers: {
++        ...(prev.messengers || {}),
++        [field]: value,
++      },
++    }));
++  };
++
++  const handleSaveProfile = () => {
++    updateProfileMutation.mutate(profileForm);
++  };
++
++  return (
++    <div className="min-h-screen bg-background pb-24">
++      <header className="sticky top-0 z-20 bg-background/90 backdrop-blur border-b">
++        <div className="flex items-center gap-3 px-4 py-3">
++          <Button
++            variant="ghost"
++            size="icon"
++            onClick={() => navigate(-1)}
++            aria-label="Назад"
++          >
++            <ArrowLeft className="h-5 w-5" />
++          </Button>
++          <div className="flex flex-col">
++            <div className="flex items-center gap-2">
++              <Store className="h-5 w-5 text-primary" />
++              <h1 className="text-lg font-semibold">Мой магазин</h1>
++            </div>
++            <p className="text-xs text-muted-foreground">Управление товарами и статистикой</p>
++          </div>
++        </div>
++        <div className="px-4 pb-2 pt-1">
++          <Tabs
++            value={activeTab}
++            onValueChange={(value) => setActiveTab(value as typeof activeTab)}
++            className="w-full"
++          >
++            <TabsList className="grid w-full grid-cols-3">
++              <TabsTrigger value="products">Товары</TabsTrigger>
++              <TabsTrigger value="stats">Статистика</TabsTrigger>
++              <TabsTrigger value="profile">Профиль магазина</TabsTrigger>
++            </TabsList>
++          </Tabs>
++        </div>
++      </header>
++
++      <main className="px-4 pt-4">
++        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as typeof activeTab)}>
++          <TabsContent value="products" className="space-y-4">
++            <div className="flex items-center justify-between gap-2">
++              <h2 className="text-base font-semibold">Мои товары</h2>
++              <Button size="sm" onClick={() => navigate('/ads/create')}>
++                <Plus className="h-4 w-4 mr-1" />
++                Добавить
++              </Button>
++            </div>
++
++            <div className="flex gap-2 overflow-x-auto">
++              {(
++                [
++                  { id: 'active', label: `Активные (${counts.active})` },
++                  { id: 'draft', label: `Черновики (${counts.draft})` },
++                  { id: 'expired', label: `Истекшие (${counts.expired})` },
++                ] as const
++              ).map((filter) => (
++                <Button
++                  key={filter.id}
++                  size="sm"
++                  variant={statusFilter === filter.id ? 'default' : 'outline'}
++                  onClick={() => setStatusFilter(filter.id)}
++                >
++                  {filter.label}
++                </Button>
++              ))}
++            </div>
++
++            {productsQuery.isLoading ? (
++              <div className="grid gap-3">
++                {[1, 2, 3].map((item) => (
++                  <Card key={item} className="p-4 animate-pulse bg-muted" />
++                ))}
++              </div>
++            ) : products.length === 0 ? (
++              <Card>
++                <CardContent className="py-10 text-center text-muted-foreground">
++                  Пока нет товаров в этом статусе
++                </CardContent>
++              </Card>
++            ) : (
++              <div className="space-y-3">
++                {products.map((product) => (
++                  <Card key={product.id} className="shadow-sm">
++                    <CardContent className="flex gap-3 p-4">
++                      <div className="h-20 w-20 overflow-hidden rounded-lg bg-muted">
++                        <img
++                          src={product.preview ? getThumbnailUrl(product.preview) : NO_PHOTO_PLACEHOLDER}
++                          alt={product.title}
++                          className="h-full w-full object-cover"
++                          loading="lazy"
++                        />
++                      </div>
++                      <div className="flex-1 min-w-0">
++                        <div className="flex items-center justify-between gap-2">
++                          <h3 className="text-sm font-semibold leading-tight line-clamp-2">
++                            {product.title}
++                          </h3>
++                          <Badge className={statusLabels[product.status].color}>
++                            {statusLabels[product.status].label}
++                          </Badge>
++                        </div>
++                        <p className="mt-1 text-primary font-semibold">
++                          {product.price.toLocaleString()} {product.currency || '₽'}
++                        </p>
++                        {product.description && (
++                          <p className="mt-1 text-xs text-muted-foreground line-clamp-2">
++                            {product.description}
++                          </p>
++                        )}
++                        <div className="mt-2 text-xs text-muted-foreground">
++                          Обновлено: {product.createdAt ? new Date(product.createdAt).toLocaleDateString() : '—'}
++                        </div>
++                      </div>
++                    </CardContent>
++                  </Card>
++                ))}
++              </div>
++            )}
++
++            <Button
++              className="fixed bottom-24 right-4 h-14 w-14 rounded-full shadow-lg"
++              onClick={() => navigate('/ads/create')}
++              aria-label="Добавить объявление"
++            >
++              <Plus className="h-6 w-6" />
++            </Button>
++          </TabsContent>
++
++          <TabsContent value="stats" className="space-y-4">
++            <div className="flex items-center justify-between gap-2">
++              <div>
++                <p className="text-sm text-muted-foreground">Мои показатели</p>
++                <h2 className="text-lg font-semibold">Статистика товаров</h2>
++              </div>
++              <Button variant="outline" size="sm" onClick={() => setShowProModal(true)}>
++                <Sparkles className="h-4 w-4 mr-1" />
++                PRO-аналитика (скоро)
++              </Button>
++            </div>
++
++            {statsQuery.isLoading ? (
++              <div className="grid grid-cols-2 gap-3">
++                {[1, 2, 3, 4].map((item) => (
++                  <Card key={item} className="h-24 animate-pulse bg-muted" />
++                ))}
++              </div>
++            ) : (
++              <div className="grid grid-cols-2 gap-3">
++                <StatCard
++                  title="Товаров всего"
++                  value={stats?.totalProducts ?? 0}
++                  icon={<Package className="h-4 w-4 text-primary" />}
++                />
++                <StatCard
++                  title="Активные"
++                  value={stats?.activeProducts ?? 0}
++                  icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
++                />
++                <StatCard
++                  title="Истекшие"
++                  value={stats?.expiredProducts ?? 0}
++                  icon={<BadgePercent className="h-4 w-4 text-amber-600" />}
++                />
++                <StatCard
++                  title="Просмотры"
++                  value={stats?.totalViews ?? 0}
++                  icon={<TrendingUp className="h-4 w-4 text-blue-600" />}
++                />
++                <StatCard
++                  title="В избранном"
++                  value={stats?.totalFavorites ?? 0}
++                  icon={<Sparkles className="h-4 w-4 text-purple-600" />}
++                />
++              </div>
++            )}
++
++            {showProModal && (
++              <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/50 px-4">
++                <Card className="max-w-sm w-full">
++                  <CardHeader>
++                    <CardTitle className="flex items-center gap-2">
++                      <Sparkles className="h-5 w-5 text-primary" />
++                      PRO-кабинет в разработке
++                    </CardTitle>
++                  </CardHeader>
++                  <CardContent className="space-y-4">
++                    <p className="text-sm text-muted-foreground">
++                      Скоро здесь появится расширенная аналитика по рынку, конкурентам и рекомендации.
++                    </p>
++                    <Button className="w-full" onClick={() => setShowProModal(false)}>
++                      Понятно
++                    </Button>
++                  </CardContent>
++                </Card>
++              </div>
++            )}
++          </TabsContent>
++
++          <TabsContent value="profile" className="space-y-4">
++            <div className="flex items-center gap-3">
++              <UserRound className="h-5 w-5 text-primary" />
++              <div>
++                <p className="text-sm text-muted-foreground">Основная информация</p>
++                <h2 className="text-lg font-semibold">Профиль магазина</h2>
++              </div>
++            </div>
++
++            <Card>
++              <CardContent className="space-y-4 p-4">
++                <div className="grid gap-3">
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-name">Название магазина</Label>
++                    <Input
++                      id="shop-name"
++                      value={profileForm.name || ''}
++                      onChange={(e) => handleProfileChange('name', e.target.value)}
++                      placeholder="Ваше название"
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-description">Описание магазина</Label>
++                    <Textarea
++                      id="shop-description"
++                      value={profileForm.description || ''}
++                      onChange={(e) => handleProfileChange('description', e.target.value)}
++                      placeholder="Расскажите о товарах и преимуществах"
++                      rows={3}
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-address">Адрес</Label>
++                    <Input
++                      id="shop-address"
++                      value={profileForm.address || ''}
++                      onChange={(e) => handleProfileChange('address', e.target.value)}
++                      placeholder="Город, улица, дом"
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-instagram">Instagram</Label>
++                    <Input
++                      id="shop-instagram"
++                      value={profileForm.instagram || ''}
++                      onChange={(e) => handleProfileChange('instagram', e.target.value)}
++                      placeholder="@username или ссылка"
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-phone">Телефон</Label>
++                    <Input
++                      id="shop-phone"
++                      value={profileForm.phone || ''}
++                      onChange={(e) => handleProfileChange('phone', e.target.value)}
++                      placeholder="+7 (999) 123-45-67"
++                    />
++                  </div>
++                </div>
++
++                <div className="grid gap-3 sm:grid-cols-2">
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-telegram">Telegram</Label>
++                    <Input
++                      id="shop-telegram"
++                      value={profileForm.messengers?.telegram || ''}
++                      onChange={(e) => handleMessengerChange('telegram', e.target.value)}
++                      placeholder="@username"
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-whatsapp">WhatsApp</Label>
++                    <Input
++                      id="shop-whatsapp"
++                      value={profileForm.messengers?.whatsapp || ''}
++                      onChange={(e) => handleMessengerChange('whatsapp', e.target.value)}
++                      placeholder="Номер или ссылка"
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label htmlFor="shop-viber">Viber</Label>
++                    <Input
++                      id="shop-viber"
++                      value={profileForm.messengers?.viber || ''}
++                      onChange={(e) => handleMessengerChange('viber', e.target.value)}
++                      placeholder="Номер или ссылка"
++                    />
++                  </div>
++                  <div className="space-y-1">
++                    <Label>Telegram username</Label>
++                    <Input value={profile?.telegramUsername || ''} disabled />
++                  </div>
++                </div>
++
++                <Button
++                  className="w-full"
++                  onClick={handleSaveProfile}
++                  disabled={updateProfileMutation.isPending || profileQuery.isLoading}
++                >
++                  {updateProfileMutation.isPending ? 'Сохранение…' : 'Сохранить'}
++                </Button>
++              </CardContent>
++            </Card>
++          </TabsContent>
++        </Tabs>
++      </main>
++    </div>
++  );
++}
++
++function StatCard({
++  title,
++  value,
++  icon,
++}: {
++  title: string;
++  value: number | string;
++  icon: ReactNode;
++}) {
++  return (
++    <Card>
++      <CardContent className="p-4">
++        <div className="flex items-center justify-between">
++          <div>
++            <p className="text-xs text-muted-foreground">{title}</p>
++            <div className="text-2xl font-semibold mt-1">{value}</div>
++          </div>
++          <div className="h-10 w-10 rounded-full bg-muted flex items-center justify-center">
++            {icon}
++          </div>
++        </div>
++      </CardContent>
++    </Card>
++  );
++}
+diff --git a/miniapp/src/types/myShop.ts b/miniapp/src/types/myShop.ts
+new file mode 100644
+index 0000000000000000000000000000000000000000..989d9a384c946fb4cdf66ee83663d63f974b8ddb
+--- /dev/null
++++ b/miniapp/src/types/myShop.ts
+@@ -0,0 +1,51 @@
++export type MyShopProductStatus = 'active' | 'draft' | 'expired';
++
++export interface MessengerContacts {
++  telegram?: string | null;
++  viber?: string | null;
++  whatsapp?: string | null;
++}
++
++export interface MyShopProduct {
++  id: string;
++  title: string;
++  price: number;
++  currency?: string;
++  status: MyShopProductStatus;
++  preview?: string | null;
++  description?: string | null;
++  categoryId?: string;
++  expiresAt?: string | null;
++  createdAt?: string | null;
++}
++
++export interface MyShopProductsResponse {
++  items: MyShopProduct[];
++  total: number;
++  limit: number;
++  offset: number;
++  counts: {
++    active: number;
++    draft: number;
++    expired: number;
++  };
++}
++
++export interface MyShopStats {
++  totalProducts: number;
++  activeProducts: number;
++  expiredProducts: number;
++  totalViews?: number;
++  totalFavorites?: number;
++}
++
++export interface MyShopProfile {
++  id: string;
++  name: string;
++  description?: string | null;
++  address?: string | null;
++  instagram?: string | null;
++  phone?: string | null;
++  messengers?: MessengerContacts;
++  telegramUsername?: string | null;
++}
+diff --git a/models/SellerProfile.js b/models/SellerProfile.js
+index 45f8e7891e353c806281daba3a63fb8e3c95b0e1..deb647b660928e4c2ebd17f8ab35ed7f81e58dd3 100644
+--- a/models/SellerProfile.js
++++ b/models/SellerProfile.js
+@@ -97,50 +97,67 @@ const sellerProfileSchema = new mongoose.Schema(
+       type: String,
+       trim: true,
+       maxlength: 1000,
+       default: null,
+     },
+     isFarmer: {
+       type: Boolean,
+       default: false,
+       index: true,
+     },
+     instagram: {
+       type: String,
+       trim: true,
+       default: null,
+     },
+     telegramUsername: {
+       type: String,
+       trim: true,
+       default: null,
+     },
+     phone: {
+       type: String,
+       trim: true,
+       default: null,
+     },
++    messengers: {
++      telegram: {
++        type: String,
++        trim: true,
++        default: null,
++      },
++      viber: {
++        type: String,
++        trim: true,
++        default: null,
++      },
++      whatsapp: {
++        type: String,
++        trim: true,
++        default: null,
++      },
++    },
+     address: {
+       type: String,
+       trim: true,
+       maxlength: 200,
+       default: null,
+     },
+     geo: {
+       type: GeoPointSchema,
+       default: null,
+     },
+     city: {
+       type: String,
+       trim: true,
+       default: null,
+     },
+     cityCode: {
+       type: String,
+       trim: true,
+       lowercase: true,
+       index: true,
+       default: null,
+     },
+     ratings: {
+       type: RatingsSchema,
+       default: () => ({ score: 0, count: 0 }),

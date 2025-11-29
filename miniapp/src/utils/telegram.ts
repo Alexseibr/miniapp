@@ -87,9 +87,14 @@ export function formatDistance(distanceKm: number | null | undefined): string {
     return '';
   }
 
-  if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)}м`;
+  if (distanceKm < 0.1) {
+    return '< 100 м';
   }
 
-  return `${distanceKm.toFixed(1)}км`;
+  if (distanceKm < 1) {
+    return `${Math.round(distanceKm * 100) * 10} м`;
+  }
+
+  return `${distanceKm.toFixed(1)} км`;
 }
+

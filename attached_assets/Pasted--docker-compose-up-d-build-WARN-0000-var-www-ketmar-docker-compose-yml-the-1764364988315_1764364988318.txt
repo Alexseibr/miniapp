@@ -1,0 +1,68 @@
+# Пересобрать с нуля
+docker compose up -d --build
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 4/4
+ ✔ Container ketmar-app       Removed                                                                                                                                10.4s 
+ ✔ Container ketmar-redis     Removed                                                                                                                                 0.5s 
+ ✔ Container ketmar-mongo     Removed                                                                                                                                 0.4s 
+ ✔ Network ketmar_ketmar-net  Removed                                                                                                                                 0.2s 
+Deleted Images:
+untagged: sha256:38c8b286b47899b90f73ebca2e52cecb6a141e3330f05169308a1978b10c2e0f
+deleted: sha256:38c8b286b47899b90f73ebca2e52cecb6a141e3330f05169308a1978b10c2e0f
+deleted: sha256:b42689c579ee91bc47671fa4a45de91fe39f030606b542560f6ffa73d725b387
+deleted: sha256:3cefc129f57d564436f48555e3fb01a858f02d46206300b015150362f09f58a0
+untagged: ketmar-app:latest
+deleted: sha256:32266f4f885e42870d2b63df6a7d308407f6488f66649dd59584900df625ca35
+deleted: sha256:7458fb73f84d7c18e4c2794c05b2895f747c72751c3640985b4e3296a30aeb8e
+deleted: sha256:5338d38d4958b27950e8ca53db0e39dea79b3449622bbb479f681de7a470fbe9
+untagged: mongo:7
+deleted: sha256:542095b9517562dbbd4dd061a19459168237eb5f26841ac0e56c89ebb2eb4173
+deleted: sha256:95ff8735d34ac4eadd80c86135774ea0a15931163e6462f399857cf5bb20897a
+deleted: sha256:5536252aad1798b990d05f046ecd0b786c4aa05c4597e2c0637cf407ff83f51e
+untagged: redis:7-alpine
+deleted: sha256:ee64a64eaab618d88051c3ade8f6352d11531fcf79d9a4818b9b183d8c1d18ba
+deleted: sha256:4706ecab5371690fecfdd782268929c94ad5b5ce9ce0b35bfdfe191c4ad17851
+deleted: sha256:0aee8a08a4509640029b3dcd2b55d9b1529994b9be897eb4cde35d4a39f74af1
+
+Deleted build cache objects:
+kly236ttfr9dc2r8hq314vcew
+32xhmqfvxi9fq1a6qc6ucu2qj
+d8frvcnb7kt0ne4i914otyx3x
+mrmucrxuajybeis0q048z3kso
+ww0ebydmgll3hbllzryxptxeb
+vrsn5wulwnfuatr0mlf560onb
+2nxsix4evapol1q4c36jp4yti
+jobmxmhkdvinhieakkp1lbicr
+rt6u2pxmesfuzoan61wkinkw6
+nhld2wcoyqbzr37ji2jcpf78x
+u3ujahet7cyeyyk52xd0w50gv
+icjawoeygckojzyhmr2fv89hu
+pht1tyqxlgvhvr68i0ifw7zae
+mvsyy8mj0ihwganrxk4js80cs
+za731fmpcqa2kufjdl52pdjyv
+7xavlz1jxx9k8wlc9y2g56sxf
+n45dk3nktrf78a3cxatlpa6fy
+pjh9u6jto89zyk1mz788xwuqd
+jfg9fu5w4n9xxgm1g08w6brdj
+1xugio3b5m4d1asma0vz578i6
+8vmjszji62xen5x2yqaxpoid4
+vxvmjr3hftghwgmxsdw4wpm68
+9yexh951axtymjzos3v529rwe
+qgh5n562y4bjn884prplvk7t2
+vphtpucqsckh0ngh5z97l8xwx
+rnvphe5l351iq65nvpuxvgi74
+74g8gvouc5om4ylee8pftlh5t
+ic69vruokb19dvux4rr0jt8f7
+tt9hi0rgc7teywxmkig8h1mhb
+tggeh5mia0mzbmizyj3fsqflz
+69d8wn5qpln2buf90pd5pfwdz
+lygbynwn9c325gyw082st04zi
+yphu0sytdb0etx0rxu5tntnoy
+
+Total reclaimed space: 6.978GB
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 2/2
+ ! redis       Interrupted                                                                                                                                           11.5s 
+ ✘ mongo Error failed to resolve reference "docker.io/library/mongo:7": failed to do request: Head "https://registry-1.docker.io/v2/library/mongo/man...             11.5s 
+Error response from daemon: failed to resolve reference "docker.io/library/mongo:7": failed to do request: Head "https://registry-1.docker.io/v2/library/mongo/manifests/7": net/http: TLS handshake timeout
+root@server-strqxk:/var/www/ketmar# 

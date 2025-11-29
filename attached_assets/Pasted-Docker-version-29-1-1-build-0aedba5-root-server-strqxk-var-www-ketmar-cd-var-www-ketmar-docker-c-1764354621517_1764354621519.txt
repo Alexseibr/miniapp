@@ -1,0 +1,28 @@
+Docker version 29.1.1, build 0aedba5
+root@server-strqxk:/var/www/ketmar# cd /var/www/ketmar
+docker compose up -d --build
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 20/22
+ ⠼ mongo [⣿⣿⣷⣿⣿⣿⣿⣿⣿⣿] 250.6MB / 282.2MB Pulling                                                                                                                      11.5s 
+   ✔ 897d7bc84cb2 Download complete                                                                                                                                   0.7s 
+   ✔ 211ac2b07d3c Pull complete                                                                                                                                       0.7s 
+   ⠙ 4afb2761a021 Downloading     [============================================>      ]  220.2MB/247.9MB                                                              8.1s 
+   ✔ 7e49dc6156b0 Pull complete                                                                                                                                       3.2s 
+   ✔ 9985892e237f Pull complete                                                                                                                                       0.7s 
+   ✔ 9d2241e4f0ab Pull complete                                                                                                                                       0.8s 
+   ✔ 049450a11439 Pull complete                                                                                                                                       3.4s 
+   ✔ a901f9c6e182 Pull complete                                                                                                                                       3.3s 
+   ✔ bce9988cd94d Download complete                                                                                                                                   0.0s 
+   ✔ 6ae501915f39 Download complete                                                                                                                                   0.1s 
+ ✔ redis Pulled                                                                                                                                                       8.5s 
+   ✔ 60c57c0072ef Pull complete                                                                                                                                       0.8s 
+   ✔ fc4343b4accd Pull complete                                                                                                                                       2.1s 
+   ✔ d75b3becd998 Pull complete                                                                                                                                       0.8s 
+   ✔ f637881d1138 Pull complete                                                                                                                                       2.0s 
+   ✔ c70aae7b5e0d Pull complete                                                                                                                                       2.4s 
+   ✔ 232f7549c9b0 Pull complete                                                                                                                                       0.9s 
+   ✔ 380e8aa8b1fd Pull complete                                                                                                                                       2.2s 
+   ✔ 4f4fb700ef54 Pull complete                                                                                                                                       0.9s 
+   ✔ 95050f4fb536 Download complete                                                                                                                                   0.0s 
+   ✔ 5f8375faf7cb Download complete                                                                                                                                   0.0s 
+

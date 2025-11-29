@@ -9,6 +9,12 @@ export function useGeo(syncWithBackend = true) {
   const requestLocation = useGeoStore((state) => state.requestLocation);
   const setRadius = useGeoStore((state) => state.setRadius);
   const radiusKm = useGeoStore((state) => state.radiusKm);
+  const cityName = useGeoStore((state) => state.cityName);
+  const setCityName = useGeoStore((state) => state.setCityName);
+  const setCoords = useGeoStore((state) => state.setCoords);
+  const hasCompletedOnboarding = useGeoStore((state) => state.hasCompletedOnboarding);
+  const completeOnboarding = useGeoStore((state) => state.completeOnboarding);
+  const resetGeo = useGeoStore((state) => state.resetGeo);
 
   useEffect(() => {
     if (syncWithBackend && coords) {
@@ -21,26 +27,70 @@ export function useGeo(syncWithBackend = true) {
     status,
     error,
     radiusKm,
+    cityName,
+    hasCompletedOnboarding,
     requestLocation,
     setRadius,
+    setCityName,
+    setCoords,
+    completeOnboarding,
+    resetGeo,
   };
 }
 
-export function formatDistance(distanceKm?: number) {
-  if (distanceKm == null) return '';
-  if (distanceKm < 1) {
-    return `${Math.round(distanceKm * 1000)} м`;
+export function formatDistance(distanceKm?: number): string {
+  if (distanceKm == null || isNaN(distanceKm)) return '';
+
+  if (distanceKm < 0.1) {
+    return '< 100 м';
   }
-  return `${distanceKm.toFixed(1)} км`;
+
+  if (distanceKm < 1) {
+    const meters = Math.round(distanceKm * 100) * 10;
+    return `${meters} м`;
+  }
+
+  const value = Number(distanceKm.toFixed(1));
+  return `${value} км`;
 }
 
 export function formatCityDistance(city?: string | null, distanceKm?: number) {
   const cityPart = city || '';
-  const distancePart = distanceKm != null
-    ? (distanceKm < 1
-        ? `${Math.round(distanceKm * 1000)} м от вас`
-        : `${distanceKm.toFixed(1)} км от вас`)
-    : '';
+  let distancePart = '';
+  
+  if (distanceKm != null) {
+    if (distanceKm < 0.1) {
+      distancePart = '< 100 м';
+    } else if (distanceKm < 1) {
+      const meters = Math.round(distanceKm * 100) * 10;
+      distancePart = `${meters} м`;
+    } else {
+      distancePart = `${distanceKm.toFixed(1)} км`;
+    }
+  }
   
   return [cityPart, distancePart].filter(Boolean).join(' • ');
+}
+
+export function formatRadiusLabel(km: number): string {
+  if (km < 1) {
+    return `${Math.round(km * 1000)} м`;
+  }
+  return `${km} км`;
+}
+
+export function isCoordinateString(str: string | undefined | null): boolean {
+  if (!str) return false;
+  return /^-?\d+\.\d+,\s*-?\d+\.\d+$/.test(str.trim());
+}
+
+export function getLocationDisplayText(
+  city?: string | null,
+  geoLabel?: string | null,
+  defaultText = 'Беларусь'
+): string {
+  const safeCity = city && !isCoordinateString(city) ? city : '';
+  const safeGeoLabel = geoLabel && !isCoordinateString(geoLabel) ? geoLabel : '';
+  
+  return safeGeoLabel || safeCity || defaultText;
 }

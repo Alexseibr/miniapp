@@ -1,6 +1,7 @@
 // services/adUpdateService.js
 import Ad from '../models/Ad.js';
 import * as notificationService from './notificationService.js';
+import DigitalTwinNotificationService from './DigitalTwinNotificationService.js';
 
 async function updateAdPrice(adId, newPrice) {
   const ad = await Ad.findById(adId);
@@ -22,6 +23,16 @@ async function updateAdPrice(adId, newPrice) {
   await ad.save();
 
   await notificationService.handlePriceChange(ad, oldPrice, newPrice);
+
+  if (oldPrice > newPrice) {
+    setImmediate(async () => {
+      try {
+        await DigitalTwinNotificationService.processPriceDrop(ad, oldPrice, newPrice);
+      } catch (error) {
+        console.error('[DigitalTwin] Error processing price drop:', error);
+      }
+    });
+  }
 
   return ad;
 }

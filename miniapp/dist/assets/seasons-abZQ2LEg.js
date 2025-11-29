@@ -1,1 +1,0 @@
-import{h as a}from"./index-D-Q9YDns.js";async function o(){return(await a.get("/api/seasons")).data}async function r(s,e={}){return(await a.get(`/api/seasons/${s}/ads`,{params:e})).data}export{r as a,o as f};

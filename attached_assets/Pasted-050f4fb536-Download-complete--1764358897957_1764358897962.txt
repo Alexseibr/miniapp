@@ -1,0 +1,29 @@
+050f4fb536 Download complete                                                                                                                                   0.0s 
+   ✔ 5f8375faf7cb Download complete                                                                                                                                   0.0s 
+[+] Building 131.8s (7/13)                                                                                                                                                 
+ => [internal] load local bake definitions                                                                                                                            0.0s
+ => => reading from stdin 469B                                                                                                                                        0.0s
+[+] Building 1125.3s (7/13)                                                                                                                                                
+ => [internal] load local bake definitions                                                                                                                            0.0s
+ => => reading from stdin 469B                                                                                                                                        0.0s
+ => [internal] load build definition from Dockerfile                                                                                                                  0.1s
+ => => transferring dockerfile: 796B                                                                                                                                  0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                                                                     2.6s
+ => [internal] load .dockerignore                      Read from remote host 178.172.201.243: Operation timed out                                                     0.0s
+Connection to 178.172.201.243 closed.                                                                                                                                 0.0s
+client_loop: send disconnect: Broken pipealpine@sha256:16858294071a56ffd4cce9f17b57136cc39e41507b40e245b4f8e906f7a19463                                               3.4s
+alexseishevshenco@MacBook-Pro-Alexsei ~ % roou
+zsh: command not found: roou
+alexseishevshenco@MacBook-Pro-Alexsei ~ % root
+zsh: command not found: root
+alexseishevshenco@MacBook-Pro-Alexsei ~ % 
+
+
+
+
+
+
+
+
+
+

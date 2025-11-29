@@ -1,0 +1,70 @@
+root@server-strqxk:/var/www/ketmar# docker compose ps
+docker network inspect ketmar_ketmar-net
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+NAME           IMAGE            COMMAND                  SERVICE   CREATED         STATUS                             PORTS
+ketmar-app     ketmar-app       "docker-entrypoint.s…"   app       6 minutes ago   Up 13 seconds (health: starting)   127.0.0.1:3000->3000/tcp
+ketmar-mongo   mongo:7          "docker-entrypoint.s…"   mongo     6 minutes ago   Up 3 minutes (healthy)             
+ketmar-redis   redis:7-alpine   "docker-entrypoint.s…"   redis     6 minutes ago   Up 6 minutes (healthy)             127.0.0.1:6379->6379/tcp
+[
+    {
+        "Name": "ketmar_ketmar-net",
+        "Id": "2bab36f840239ced5bbc67e28c07063d2ac8f0d602087210a611ed1a745244c8",
+        "Created": "2025-11-28T23:22:06.537932008+03:00",
+        "Scope": "local",
+        "Driver": "bridge",
+        "EnableIPv4": true,
+        "EnableIPv6": false,
+        "IPAM": {
+            "Driver": "default",
+            "Options": null,
+            "Config": [
+                {
+                    "Subnet": "172.18.0.0/16",
+                    "IPRange": "",
+                    "Gateway": "172.18.0.1"
+                }
+            ]
+        },
+        "Internal": false,
+        "Attachable": false,
+        "Ingress": false,
+        "ConfigFrom": {
+            "Network": ""
+        },
+        "ConfigOnly": false,
+        "Options": {},
+        "Labels": {
+            "com.docker.compose.config-hash": "ec83d9644034a25d7bd684bba59a98f8141164c5ab624fc6033b296df7c78e83",
+            "com.docker.compose.network": "ketmar-net",
+            "com.docker.compose.project": "ketmar",
+            "com.docker.compose.version": "2.40.3"
+        },
+        "Containers": {
+            "6830816d303d1acb2c7c954ed8aa74c145ea895e4c7c5d8e0afd3af999882817": {
+                "Name": "ketmar-app",
+                "EndpointID": "df42fbc7be0c9d4880d4f1070b2153b7fb56c880251888c2339861ca8d6dc646",
+                "MacAddress": "1a:e5:41:b8:f6:ef",
+                "IPv4Address": "172.18.0.2/16",
+                "IPv6Address": ""
+            },
+            "f0787f695ed0d53a3b7f607794c2c399942c063250d6f94568ba2d8da783ef0d": {
+                "Name": "ketmar-redis",
+                "EndpointID": "f94566776097f066b98c819d19b289fb1392adc63da4d3b11ba7a6604d8778e1",
+                "MacAddress": "86:ae:7c:89:4d:0c",
+                "IPv4Address": "172.18.0.3/16",
+                "IPv6Address": ""
+            }
+        },
+        "Status": {
+            "IPAM": {
+                "Subnets": {
+                    "172.18.0.0/16": {
+                        "IPsInUse": 5,
+                        "DynamicIPsAvailable": 65531
+                    }
+                }
+            }
+        }
+    }
+]
+root@server-strqxk:/var/www/ketmar# 

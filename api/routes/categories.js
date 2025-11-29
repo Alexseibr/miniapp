@@ -1,6 +1,10 @@
 import { Router } from 'express';
 import Category from '../../models/Category.js';
 import asyncHandler from '../middleware/asyncHandler.js';
+import categoryMatchingService from '../services/categoryMatching.js';
+import CategorySuggestService from '../../services/CategorySuggestService.js';
+import CategoryDynamicVisibilityService from '../../services/CategoryDynamicVisibilityService.js';
+import BrandDetectionService from '../../services/BrandDetectionService.js';
 
 const router = Router();
 
@@ -39,36 +43,373 @@ function buildTree(categories) {
     slug: node.slug,
     name: node.name,
     icon: node.icon,
+    icon3d: node.icon3d,
+    level: node.level,
+    isLeaf: node.isLeaf,
     description: node.description,
     parentSlug: node.parentSlug,
+    visible: node.visible !== false,
+    slowCategory: node.slowCategory || false,
     subcategories: node.subcategories.map(stripInternal),
   });
 
   return roots.map(stripInternal);
 }
 
+function filterVisibleCategories(tree) {
+  return tree
+    .filter(node => node.visible !== false)
+    .map(node => ({
+      ...node,
+      subcategories: filterVisibleCategories(node.subcategories || [])
+    }));
+}
+
+let cachedVisibleTree = null;
+let visibleCacheTimestamp = 0;
+
 router.get(
   '/',
-  asyncHandler(async (_req, res) => {
+  asyncHandler(async (req, res) => {
     const now = Date.now();
+    // Поддержка обоих параметров: all=true и includeAll=true
+    const showAll = req.query.all === 'true' || req.query.includeAll === 'true';
     
-    // Используем кеш, если он свежий
-    if (cachedTree && (now - cacheTimestamp) < CACHE_DURATION) {
-      res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
-      res.set('X-Cache', 'HIT');
-      return res.json(cachedTree);
+    if (showAll) {
+      if (cachedTree && (now - cacheTimestamp) < CACHE_DURATION) {
+        res.set('Cache-Control', 'public, max-age=300');
+        res.set('X-Cache', 'HIT');
+        return res.json(cachedTree);
+      }
+      
+      const categories = await Category.find().sort({ sortOrder: 1, slug: 1 });
+      const tree = buildTree(categories);
+      
+      cachedTree = tree;
+      cacheTimestamp = now;
+      
+      res.set('Cache-Control', 'public, max-age=300');
+      res.set('X-Cache', 'MISS');
+      return res.json(tree);
     }
     
-    // Загружаем из БД и обновляем кеш
-    const categories = await Category.find().sort({ sortOrder: 1, slug: 1 });
+    if (cachedVisibleTree && (now - visibleCacheTimestamp) < CACHE_DURATION) {
+      res.set('Cache-Control', 'public, max-age=300');
+      res.set('X-Cache', 'HIT');
+      return res.json(cachedVisibleTree);
+    }
+    
+    const categories = await Category.find({ visible: { $ne: false } }).sort({ sortOrder: 1, slug: 1 });
     const tree = buildTree(categories);
+    const visibleTree = filterVisibleCategories(tree);
     
-    cachedTree = tree;
-    cacheTimestamp = now;
+    cachedVisibleTree = visibleTree;
+    visibleCacheTimestamp = now;
     
-    res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
+    res.set('Cache-Control', 'public, max-age=300');
     res.set('X-Cache', 'MISS');
-    res.json(tree);
+    res.json(visibleTree);
+  })
+);
+
+// POST endpoint для автоподбора категории по заголовку/описанию
+// Теперь с возможностью авто-создания подкатегорий
+router.post(
+  '/suggest',
+  asyncHandler(async (req, res) => {
+    const { title, description, autoCreate = false } = req.body;
+
+    if (!title || typeof title !== 'string' || title.trim().length < 3) {
+      return res.json({ bestMatch: null, alternatives: [] });
+    }
+
+    try {
+      const result = await CategorySuggestService.suggest(title, description || '');
+      
+      if (result.bestMatch && result.bestMatch.categoryId) {
+        return res.json(result);
+      }
+      
+      if (autoCreate) {
+        const AutoCategorizationService = (await import('../../services/AutoCategorizationService.js')).default;
+        const autoResult = await AutoCategorizationService.autoCategorizeAd({
+          title: title.trim(),
+          description: description?.trim() || ''
+        });
+        
+        return res.json({
+          bestMatch: {
+            categoryId: autoResult.categoryId,
+            categoryName: autoResult.categoryName,
+            categorySlug: autoResult.categorySlug,
+            subcategoryId: autoResult.subcategoryId,
+            subcategoryName: autoResult.subcategoryName,
+            subcategorySlug: autoResult.subcategorySlug,
+            confidence: autoResult.confidence,
+            source: autoResult.source,
+            matchedKeywords: [],
+            createdSubcategory: autoResult.createdSubcategory
+          },
+          alternatives: autoResult.alternatives || []
+        });
+      }
+      
+      return res.json(result);
+    } catch (error) {
+      console.error('Category suggest error:', error);
+      res.status(500).json({ 
+        error: 'Failed to suggest category',
+        bestMatch: null, 
+        alternatives: [] 
+      });
+    }
+  })
+);
+
+// GET endpoint для умного подбора категорий (legacy)
+router.get(
+  '/suggest',
+  asyncHandler(async (req, res) => {
+    const { query } = req.query;
+
+    // Валидация
+    if (!query || typeof query !== 'string' || query.trim().length === 0) {
+      return res.status(422).json({ 
+        ok: false, 
+        error: 'Query parameter is required and must be non-empty string' 
+      });
+    }
+
+    if (query.length > 200) {
+      return res.status(422).json({
+        ok: false,
+        error: 'Query too long (max 200 characters)'
+      });
+    }
+
+    try {
+      const matches = await categoryMatchingService.scoreCandidates(query);
+
+      // Обогащаем результаты полными путями и top-level родителями
+      const enrichedMatches = await Promise.all(
+        matches.map(async (match) => {
+          const displayPath = await categoryMatchingService.buildCategoryPath(match.category.slug);
+          const topLevelParentSlug = await categoryMatchingService.findTopLevelParent(match.category.slug);
+          const directSubcategorySlug = await categoryMatchingService.findDirectSubcategory(match.category.slug);
+          
+          return {
+            slug: match.category.slug,
+            name: match.category.name,
+            icon3d: match.category.icon3d,
+            level: match.category.level,
+            isLeaf: match.category.isLeaf,
+            parentSlug: match.category.parentSlug,
+            topLevelParentSlug,
+            directSubcategorySlug,
+            score: match.score,
+            matchType: match.matchType,
+            disambiguationReason: match.reason,
+            displayPath: displayPath.join(' → ')
+          };
+        })
+      );
+
+      res.set('Cache-Control', 'public, max-age=300'); // 5 минут на клиенте
+      res.json({
+        ok: true,
+        query,
+        matches: enrichedMatches,
+        count: enrichedMatches.length
+      });
+    } catch (error) {
+      console.error('Category suggestion error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to suggest categories'
+      });
+    }
+  })
+);
+
+router.get(
+  '/visible',
+  asyncHandler(async (req, res) => {
+    const { lat, lng, radiusKm = '3', scope = 'local', categorySlug } = req.query;
+
+    const coords =
+      lat && lng
+        ? {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+          }
+        : null;
+
+    const radius = Math.min(Math.max(parseFloat(radiusKm) || 3, 0.1), 200);
+    const scopeType = scope === 'country' ? 'country' : 'local';
+
+    try {
+      if (categorySlug) {
+        const result = await CategoryDynamicVisibilityService.getVisibleSubcategories(
+          categorySlug,
+          coords,
+          radius,
+          scopeType
+        );
+
+        res.set('Cache-Control', 'public, max-age=60');
+        return res.json({
+          ok: true,
+          ...result,
+        });
+      }
+
+      const tree = await CategoryDynamicVisibilityService.getVisibleCategoryTree(
+        coords,
+        radius,
+        scopeType
+      );
+
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({
+        ok: true,
+        ...tree,
+      });
+    } catch (error) {
+      console.error('Visible categories error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch visible categories',
+      });
+    }
+  })
+);
+
+router.get(
+  '/:slug/visibility',
+  asyncHandler(async (req, res) => {
+    const { slug } = req.params;
+    const { lat, lng, radiusKm = '3' } = req.query;
+
+    const coords =
+      lat && lng
+        ? {
+            lat: parseFloat(lat),
+            lng: parseFloat(lng),
+          }
+        : null;
+
+    const radius = Math.min(Math.max(parseFloat(radiusKm) || 3, 0.1), 200);
+
+    try {
+      const result = await CategoryDynamicVisibilityService.shouldShowSubcategory(
+        slug,
+        coords,
+        radius
+      );
+
+      res.json({
+        ok: true,
+        slug,
+        ...result,
+      });
+    } catch (error) {
+      console.error('Category visibility check error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to check category visibility',
+      });
+    }
+  })
+);
+
+router.get(
+  '/brands',
+  asyncHandler(async (req, res) => {
+    const { categoryId, categorySlug, lat, lng, radiusKm, citySlug, scope = 'local' } = req.query;
+
+    try {
+      let brands = [];
+
+      if (categoryId) {
+        brands = await BrandDetectionService.getVisibleBrands(categoryId, {
+          lat: lat ? parseFloat(lat) : undefined,
+          lng: lng ? parseFloat(lng) : undefined,
+          radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
+          citySlug,
+          scope,
+        });
+      } else if (categorySlug) {
+        brands = await BrandDetectionService.getVisibleBrandsBySlug(categorySlug, {
+          lat: lat ? parseFloat(lat) : undefined,
+          lng: lng ? parseFloat(lng) : undefined,
+          radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
+          citySlug,
+          scope,
+        });
+      } else {
+        return res.status(400).json({
+          ok: false,
+          error: 'categoryId or categorySlug is required',
+        });
+      }
+
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({
+        ok: true,
+        brands: brands.map(b => ({
+          brandKey: b.brandKey,
+          name: b.brand,
+          icon: b.icon,
+          count: b.countCountry,
+          countLocal: b.countByCity?.[citySlug] || 0,
+        })),
+        total: brands.length,
+      });
+    } catch (error) {
+      console.error('Brands API error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch brands',
+      });
+    }
+  })
+);
+
+router.get(
+  '/:slug/brands',
+  asyncHandler(async (req, res) => {
+    const { slug } = req.params;
+    const { lat, lng, radiusKm, citySlug, scope = 'local' } = req.query;
+
+    try {
+      const brands = await BrandDetectionService.getVisibleBrandsBySlug(slug, {
+        lat: lat ? parseFloat(lat) : undefined,
+        lng: lng ? parseFloat(lng) : undefined,
+        radiusKm: radiusKm ? parseFloat(radiusKm) : undefined,
+        citySlug,
+        scope,
+      });
+
+      res.set('Cache-Control', 'public, max-age=60');
+      res.json({
+        ok: true,
+        categorySlug: slug,
+        brands: brands.map(b => ({
+          brandKey: b.brandKey,
+          name: b.brand,
+          icon: b.icon,
+          count: b.countCountry,
+          countLocal: b.countByCity?.[citySlug] || 0,
+        })),
+        total: brands.length,
+      });
+    } catch (error) {
+      console.error('Category brands API error:', error);
+      res.status(500).json({
+        ok: false,
+        error: 'Failed to fetch category brands',
+      });
+    }
   })
 );
 

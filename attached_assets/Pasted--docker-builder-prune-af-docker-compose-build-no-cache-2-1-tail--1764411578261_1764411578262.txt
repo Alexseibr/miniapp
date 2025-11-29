@@ -1,0 +1,99 @@
+
+# Пересобрать с очисткой кэша
+docker builder prune -af
+docker compose build --no-cache 2>&1 | tail -80
+50:# attached_assets/
+ID						RECLAIMABLE	SIZE		LAST ACCESSED
+0kszsr5lau0pgweve10ynrj72               	true 		663.6kB   	2 minutes ago
+xaiy86i1u9f0ersyq8rjl9f06*              	true 	8.192kB   	2 minutes ago
+yyhkh2udny81v9li4yat7kwuh*              	true 	8.192kB   	2 minutes ago
+0bkrt89amg7e30kfqaua5qrq2*              	true 	7.471MB   	2 minutes ago
+u4xl1opqxqj3cdtv98v1n5om6               	true 	7.475MB   	13 hours ago
+6kl2ah5lt214l8p0m92l79n19               	true 	646.7MB   	13 hours ago
+0molc2bkqr58pbd0j7sqpkx2v               	true 	483.3kB   	13 hours ago
+x9ng7tavmkbqnt7826uq18ung               	true 	499.6MB   	13 hours ago
+ue8fk1ntc38p063rmgd524prp               	true 	8.192kB   	13 hours ago
+brxeqcfvg771t4iaerdl0c86b               	true 	20.93kB   	13 hours ago
+muc0w0v5e2q5z2trpkbv7hpuf               	true 	6.733MB   	13 hours ago
+ljnxs0nwgoi8yiw60k26alk55               	true 	171.8MB   	13 hours ago
+1ndkr9smkbflc94fm8w1r8v2l               	true 	12.79MB   	13 hours ago
+Total:	1.354GB
+#12 8.211 ../dist/public/assets/index-CC_-AqMp.css   75.25 kB │ gzip:  12.40 kB
+#12 8.211 ../dist/public/assets/index-C8181YRR.js   504.65 kB │ gzip: 158.92 kB
+#12 8.211 
+#12 8.211 (!) Some chunks are larger than 500 kB after minification. Consider:
+#12 8.211 - Using dynamic import() to code-split the application
+#12 8.211 - Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+#12 8.211 - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+#12 8.212 ✓ built in 7.42s
+#12 8.293 
+#12 8.293   dist/index.js  4.7kb
+#12 8.293 
+#12 8.293 ⚡ Done in 6ms
+#12 DONE 8.3s
+
+#13 [8/9] RUN cd miniapp && npm install && npm run build
+#13 17.68 
+#13 17.68 added 214 packages, and audited 215 packages in 17s
+#13 17.68 
+#13 17.68 36 packages are looking for funding
+#13 17.68   run `npm fund` for details
+#13 17.69 
+#13 17.69 2 moderate severity vulnerabilities
+#13 17.69 
+#13 17.69 To address all issues (including breaking changes), run:
+#13 17.69   npm audit fix --force
+#13 17.69 
+#13 17.69 Run `npm audit` for details.
+#13 17.92 
+#13 17.92 > ketmar-miniapp@1.0.0 build
+#13 17.92 > vite build
+#13 17.92 
+#13 18.23 vite v5.4.21 building for production...
+#13 18.33 transforming...
+#13 18.78 
+#13 18.78 warn - The `content` option in your Tailwind CSS configuration is missing or empty.
+#13 18.78 warn - Configure your content sources or your generated CSS will be missing styles.
+#13 18.78 warn - https://tailwindcss.com/docs/content-configuration
+#13 21.89 ✓ 1671 modules transformed.
+#13 21.90 x Build failed in 3.63s
+#13 21.90 error during build:
+#13 21.90 [vite:asset] Could not load /app/attached_assets/generated_images/farmer_market_vegetables_icon.png (imported by src/pages/HomePage.tsx): ENOENT: no such file or directory, open '/app/attached_assets/generated_images/farmer_market_vegetables_icon.png'
+#13 21.90     at async open (node:internal/fs/promises:639:25)
+#13 21.90     at async Object.readFile (node:internal/fs/promises:1246:14)
+#13 21.90     at async fileToBuiltUrl (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:20428:19)
+#13 21.90     at async Object.load (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:20328:17)
+#13 21.90     at async PluginDriver.hookFirstAndGetPlugin (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22333:28)
+#13 21.90     at async file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:21333:33
+#13 21.90     at async Queue.work (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22561:32)
+#13 ERROR: process "/bin/sh -c cd miniapp && npm install && npm run build" did not complete successfully: exit code: 1
+------
+ > [8/9] RUN cd miniapp && npm install && npm run build:
+21.90 x Build failed in 3.63s
+21.90 error during build:
+21.90 [vite:asset] Could not load /app/attached_assets/generated_images/farmer_market_vegetables_icon.png (imported by src/pages/HomePage.tsx): ENOENT: no such file or directory, open '/app/attached_assets/generated_images/farmer_market_vegetables_icon.png'
+21.90     at async open (node:internal/fs/promises:639:25)
+21.90     at async Object.readFile (node:internal/fs/promises:1246:14)
+21.90     at async fileToBuiltUrl (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:20428:19)
+21.90     at async Object.load (file:///app/miniapp/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:20328:17)
+21.90     at async PluginDriver.hookFirstAndGetPlugin (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22333:28)
+21.90     at async file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:21333:33
+21.90     at async Queue.work (file:///app/miniapp/node_modules/rollup/dist/es/shared/node-entry.js:22561:32)
+------
+Dockerfile:25
+
+--------------------
+
+  23 |     
+
+  24 |     # Build MiniApp
+
+  25 | >>> RUN cd miniapp && npm install && npm run build
+
+  26 |     
+
+  27 |     # Remove dev dependencies after build
+
+--------------------
+
+failed to solve: process "/bin/sh -c cd miniapp && npm install && npm run build" did not complete successfully: exit code: 1

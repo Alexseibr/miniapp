@@ -1,0 +1,352 @@
+Ты — senior backend+frontend разработчик (Node.js + TS + MongoDB + React) в проекте KETMAR Market.
+
+Нужно сделать **самообучающийся подбор категории по тексту объявления**, без ручного редактирования словаря в админке.
+
+Идея:
+
+- Каждый опубликованный (или сохранённый как черновик) Ad = обучающий пример:
+  - title + description → categoryId + subcategoryId.
+- Мы автоматически собираем статистику:
+  - какие слова чаще всего встречаются в какой категории.
+- При новом объявлении:
+  - по словам из title+description считаем “очки” для каждой категории,
+  - выбираем лучшую категорию и предлагаем её пользователю.
+- Никакой ручной работы админа: словарь растёт сам по мере использования.
+
+Сделай по шагам.
+
+========================================
+1. МОДЕЛЬ ДЛЯ СТАТИСТИКИ СЛОВ ПО КАТЕГОРИЯМ
+========================================
+
+Создай коллекцию `CategoryWordStats`:
+
+```ts
+interface CategoryWordStats {
+  _id: ObjectId;
+  categoryId: ObjectId;        // ссылка на Category (можно также subcategoryId)
+  word: string;                // нормализованное слово
+  count: number;               // сколько раз встречалось в объявлениях этой категории
+  lastUpdatedAt: Date;
+}
+Индексы:
+
+ts
+Копировать код
+CategoryWordStatsSchema.index({ categoryId: 1, word: 1 }, { unique: true });
+CategoryWordStatsSchema.index({ word: 1 });
+Опционально, если нужно учитывать подкатегорию, можно добавить поле subcategoryId и делать индекс по { subcategoryId, word }.
+
+========================================
+2. НОРМАЛИЗАЦИЯ ТЕКСТА И ТОКЕНОВ
+Сделай helper normalizeAndTokenize(text: string): string[], который:
+
+приводить текст к нижнему регистру,
+
+заменяет ё → е,
+
+удаляет все спецсимволы, оставляет буквы/цифры/пробелы,
+
+режет по пробелам,
+
+фильтрует:
+
+слова длиной < 3 символов,
+
+стоп-слова (частицы, предлоги: "и", "в", "на", "для", "по", "с", "из", "под", "за", "от", "к", "что", "это", "такой", "продам" и т.п.).
+
+Пример:
+
+ts
+Копировать код
+const STOP_WORDS = new Set([
+  'и','в','на','под','над','из','по','от','до','с','за','что','это','такой',
+  'продам','куплю','сдам','сдаю','сдается','обмен','обменяю','продаю','отдам'
+]);
+
+function normalizeAndTokenize(text: string): string[] {
+  return text
+    .toLowerCase()
+    .replace(/ё/g, 'е')
+    .replace(/[^a-z0-9а-я\s]/gi, ' ')
+    .split(/\s+/)
+    .filter(w => w.length >= 3 && !STOP_WORDS.has(w));
+}
+========================================
+3. ОБУЧЕНИЕ: ОБНОВЛЕНИЕ СТАТИСТИКИ ПРИ СОХРАНЕНИИ ОБЪЯВЛЕНИЯ
+Каждый раз, когда объявление:
+
+проходит путь до сохранения (создание или обновление),
+
+и у него есть финальные categoryId / subcategoryId,
+
+нужно:
+
+Получить текст:
+
+ts
+Копировать код
+const text = `${ad.title ?? ''} ${ad.description ?? ''}`;
+const words = normalizeAndTokenize(text);
+Для каждого уникального слова из words:
+
+увеличить count для пары (categoryId, word).
+
+Важно: считать слова без весов (каждое слово 1 раз на объявление), чтобы одно объявление не дублировало десяток раз.
+
+Реализация:
+
+ts
+Копировать код
+const uniqueWords = Array.from(new Set(words));
+
+for (const word of uniqueWords) {
+  await CategoryWordStats.updateOne(
+    { categoryId: ad.categoryId, word },
+    {
+      $inc: { count: 1 },
+      $set: { lastUpdatedAt: new Date() },
+    },
+    { upsert: true }
+  );
+}
+Опционально, если учитываем subcategoryId — либо другая коллекция, либо добавляем поле subcategoryId в тот же документ и используем его как часть ключа.
+
+========================================
+4. ПРЕДСКАЗАНИЕ: СЕРВИС suggestCategoryByText НА ОСНОВЕ СТАТИСТИКИ
+Сделай сервис CategorySuggestService, который использует накопленную статистику.
+
+ts
+Копировать код
+class CategorySuggestService {
+  constructor(
+    private categoryWordStatsModel: Model<CategoryWordStats>,
+    private categoryRepository: CategoryRepository,
+  ) {}
+
+  async suggestByText(text: string): Promise<SuggestedCategoryResult> {
+    const words = normalizeAndTokenize(text);
+    if (!words.length) {
+      return { bestMatch: null, suggestions: [] };
+    }
+
+    const uniqueWords = Array.from(new Set(words));
+
+    // 1. Находим все записи CategoryWordStats по этим словам
+    const stats = await this.categoryWordStatsModel.find({
+      word: { $in: uniqueWords },
+    }).lean();
+
+    if (!stats.length) {
+      return { bestMatch: null, suggestions: [] };
+    }
+
+    // 2. Накопим score по categoryId
+    const scoreByCategory = new Map<string, number>();
+
+    for (const s of stats) {
+      const key = s.categoryId.toString();
+      // вес слова = log(1 + count) чтобы частые слова давали больше, но не бесконечно
+      const wordWeight = Math.log(1 + s.count);
+      const prev = scoreByCategory.get(key) ?? 0;
+      scoreByCategory.set(key, prev + wordWeight);
+    }
+
+    // 3. Преобразуем в массив и отсортируем по score
+    const scoredCategories = Array.from(scoreByCategory.entries())
+      .map(([categoryId, score]) => ({ categoryId, score }))
+      .sort((a, b) => b.score - a.score);
+
+    // 4. Ограничим topN (например 3) и поднимем реальные категории
+    const topN = 3;
+    const top = scoredCategories.slice(0, topN);
+
+    const categories = await this.categoryRepository.findByIds(
+      top.map(t => t.categoryId),
+    );
+
+    const suggestions = top.map(t => {
+      const cat = categories.find(c => c._id.toString() === t.categoryId);
+      return {
+        categoryId: t.categoryId,
+        categoryName: cat?.name ?? 'Категория',
+        score: t.score,
+      };
+    });
+
+    if (!suggestions.length) {
+      return { bestMatch: null, suggestions: [] };
+    }
+
+    const best = suggestions[0];
+    const totalScore = scoredCategories.reduce((acc, s) => acc + s.score, 0);
+    const confidence = best.score / totalScore;
+
+    return {
+      bestMatch: {
+        categoryId: best.categoryId,
+        categoryName: best.categoryName,
+        confidence,
+      },
+      suggestions,
+    };
+  }
+}
+Тип результата:
+
+ts
+Копировать код
+interface SuggestedCategoryResult {
+  bestMatch: {
+    categoryId: string;
+    categoryName: string;
+    confidence: number; // 0..1
+  } | null;
+  suggestions: Array<{
+    categoryId: string;
+    categoryName: string;
+    score: number;
+  }>;
+}
+========================================
+5. API: /api/categories/suggest (ОБНОВЛЁННЫЙ)
+Создай/обнови endpoint:
+
+POST /api/categories/suggest
+
+Body:
+
+json
+Копировать код
+{
+  "title": "Продам iPhone 15 Pro 512 ГБ",
+  "description": "Идеальное состояние",
+  "limit": 3
+}
+Логика:
+
+Склеить текст: text = (title + " " + description).trim().
+
+Если текст слишком короткий (< 3 символов) → вернуть пустой результат.
+
+Вызвать CategorySuggestService.suggestByText(text).
+
+Вернуть JSON для фронта:
+
+json
+Копировать код
+{
+  "bestMatch": {
+    "categoryId": "64...",
+    "categoryName": "Электроника",
+    "confidence": 0.82
+  },
+  "alternatives": [
+    {
+      "categoryId": "65...",
+      "categoryName": "Бытовая техника",
+      "score": 2.3
+    }
+  ]
+}
+Дополнительно:
+Если раньше был rule-based словарь — можно комбинировать:
+
+scoreTotal = alpha * scoreRuleBased + beta * scoreStats,
+где alpha и beta — коэффициенты.
+Но для первого приближения можно оставить только статистику.
+
+========================================
+6. СИГНАЛЫ ОБУЧЕНИЯ ИЗ ПОВЕДЕНИЯ ПОЛЬЗОВАТЕЛЯ
+Важно: мы хотим, чтобы система самообучалась, когда пользователь:
+
+принимает предложенную категорию,
+
+или меняет категорию на другую.
+
+Для этого:
+
+Когда фронт вызывает /api/categories/suggest, можно вернуть ещё suggestionId (генерируем uuid на бэке и храним в памяти/Redis или просто не хранить – упрощённый вариант).
+
+При финальном сохранении объявления, фронт может прислать:
+
+json
+Копировать код
+{
+  "title": "...",
+  "description": "...",
+  "categoryId": "...",
+  "suggestionMeta": {
+    "suggestedCategoryId": "...",   // что мы предложили
+    "accepted": true | false
+  }
+}
+Упрощённый вариант (без suggestionId):
+
+если suggestedCategoryId === final categoryId → считаем, что подсказка была верной,
+
+если suggestedCategoryId !== final categoryId → пользователь “переобучил” систему.
+
+В любом случае мы в пункте 3 уже обновляем статистику по финальной категории, так что:
+
+система по умолчанию всё равно учится на том, что люди выбрали в итоге,
+
+дополнительные “награды/штрафы” можно не делать.
+
+========================================
+7. FRONTEND: ИНТЕГРАЦИЯ (КРАТКО)
+Фронт остаётся почти такой же, как в предыдущем промте про подсказки, но:
+
+теперь подсказки приходят с backend, основанные на статистике,
+
+UI показывает блок под заголовком:
+
+«Мы подобрали категорию: Электроника»
+
+Кнопки: “Применить” / “Выбрать другую”.
+
+При нажатии “Применить”:
+
+проставляем categoryId в форме,
+
+сохраняем suggestedCategoryId в локальном стейте, чтобы при сохранении отправить его в suggestionMeta.
+
+========================================
+8. ЧИСТКА СТАРОЙ/МУСОРНОЙ СТАТИСТИКИ
+Чтобы статистика не разрасталась бесконечно:
+
+раз в N дней (cron/worker) можно:
+
+удалять записи CategoryWordStats, у которых count меньше, чем 2–3, и lastUpdatedAt старше, чем X дней (например, 90),
+
+это уберёт единичные “случайные” слова/ошибки.
+
+Псевдокод:
+
+ts
+Копировать код
+await CategoryWordStats.deleteMany({
+  count: { $lte: 2 },
+  lastUpdatedAt: { $lt: thresholdDate },
+});
+========================================
+9. ФИНАЛЬНЫЙ ОТЧЁТ ПО ИЗМЕНЕНИЯМ
+После реализации выведи:
+
+Backend:
+
+models/CategoryWordStats.ts — новая модель статистики слов.
+
+services/CategorySuggestService.ts — логика подсказки категорий по тексту.
+
+routes/categoriesSuggestRoute.ts — endpoint /api/categories/suggest.
+
+изменения в AdService (или контроллере), где при сохранении объявлений обновляются статистики.
+
+Frontend:
+
+изменения в шаге “Детали объявления” (UI подсказки категории, запрос к /api/categories/suggest под заголовком).
+
+отправка suggestionMeta при сохранении объявления.
+
+Кратко опиши, какие поля в Ad и CategoryWordStats нужно добавить в миграциях

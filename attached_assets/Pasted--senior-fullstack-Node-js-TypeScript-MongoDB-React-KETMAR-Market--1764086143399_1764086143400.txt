@@ -1,0 +1,432 @@
+Ты — senior fullstack (Node.js + TypeScript + MongoDB + React) в проекте KETMAR Market.
+
+Задача: сильно упростить выбор категории/подкатегории при подаче объявления.
+
+Сейчас:
+- Пользователь сам вручную выбирает категорию и подкатегорию из длинного списка.
+- Это неудобно: долго искать, особенно на мобиле.
+
+Мы хотим:
+
+1) Пользователь вводит заголовок объявления (и часть описания), например:
+   - «Продам iPhone 15 Pro 512 ГБ»
+   - «Продам 2-комнатную квартиру в центре Бреста»
+   - «Продам телевизор LG 55 дюймов»
+   - «Деревянные евроокна, установка»
+
+2) Система автоматически:
+   - предлагает подходящую категорию + подкатегорию,
+   - показывает её в UI как подсказку:
+     - «Мы определили: Электроника → Телефоны и планшеты»
+     - «Мы определили: Недвижимость → Квартиры → 2-комнатные»
+
+3) Пользователь одним тапом может:
+   - **принять** подсказку (категория/подкатегория автоматически выставляются),
+   - или **выбрать другую категорию вручную** (старая механика остаётся).
+
+4) Логика должна работать “по словам”:
+   - если в тексте есть признаки телефона, ноутбука, телевизора, стиралки, квартиры и т.п.,
+   - мы подбираем **лучшую** категорию по словарю/правилам,
+   - но не навязываем — только предлагаем.
+
+Сделай решение в два слоя:
+
+- backend-сервис `CategorySuggestService`,
+- фронтовая интеграция на шаге “Детали объявления” (название/категория/подкатегория/цена).
+
+====================================
+1. BACKEND: Модель категорий и словарь ключевых слов
+====================================
+
+Предположим, что у нас уже есть коллекция категорий вида:
+
+```ts
+interface Category {
+  _id: ObjectId;
+  slug: string;         // 'electronics', 'real-estate', ...
+  name: string;         // 'Электроника'
+  parentId?: ObjectId;  // null для корневых
+  // ...
+}
+И подкатегории — те же Category с parentId.
+
+Нужно добавить "словарь" ключевых слов, который поможет сопоставлять текст → категория.
+
+Сделай конфиг, например categoryKeywordsConfig.ts:
+
+ts
+Копировать код
+interface CategoryKeywordRule {
+  categorySlug: string;      // 'electronics'
+  subcategorySlug?: string;  // 'phones-tablets', 'tv', 'laptops', ...
+  keywords: string[];        // слова/фразы, по которым это правило срабатывает
+  weight?: number;           // сила правила (по умолчанию 1)
+}
+
+export const CATEGORY_KEYWORD_RULES: CategoryKeywordRule[] = [
+  // Телефоны / планшеты
+  {
+    categorySlug: 'electronics',
+    subcategorySlug: 'phones-tablets',
+    keywords: [
+      'iphone', 'айфон',
+      'смартфон', 'телефон',
+      'android', 'андроид',
+      'samsung', 'xiaomi', 'redmi', 'realme', 'huawei', 'honor'
+    ],
+    weight: 3
+  },
+  // Ноутбуки
+  {
+    categorySlug: 'electronics',
+    subcategorySlug: 'laptops',
+    keywords: [
+      'ноутбук', 'laptop', 'macbook', 'игровой ноут'
+    ],
+    weight: 3
+  },
+  // Телевизоры
+  {
+    categorySlug: 'electronics',
+    subcategorySlug: 'tv',
+    keywords: [
+      'телевизор', 'tv', 'lg tv', 'samsung tv', 'smart tv'
+    ],
+    weight: 3
+  },
+  // Недвижимость → Квартиры → 2-комнатные
+  {
+    categorySlug: 'real-estate',
+    subcategorySlug: 'flats-2-room',
+    keywords: [
+      '2к', 'двухкомнатная', 'двух комнатная', '2-комнатная', '2 комнатная'
+    ],
+    weight: 4
+  },
+  // Недвижимость → Квартиры → 1-комнатные
+  {
+    categorySlug: 'real-estate',
+    subcategorySlug: 'flats-1-room',
+    keywords: [
+      '1к', 'однокомнатная', '1-комнатная', '1 комнатная'
+    ],
+    weight: 4
+  },
+  // Окна / двери
+  {
+    categorySlug: 'home-repair',
+    subcategorySlug: 'windows-doors',
+    keywords: [
+      'окна', 'евроокна', 'пластиковые окна',
+      'двери', 'межкомнатные двери', 'входные двери'
+    ],
+    weight: 3
+  },
+  // и так далее по ключевым нашим категориям...
+];
+Это может быть простой массив в коде.
+
+====================================
+2. BACKEND: Сервис CategorySuggestService
+Сделай сервис CategorySuggestService:
+
+ts
+Копировать код
+class CategorySuggestService {
+  constructor(private categoryRepository: CategoryRepository) {}
+
+  suggestCategoryByText(text: string): SuggestedCategoryResult {
+    // 1. Нормализуем текст: приводим к нижнему регистру,
+    //    убираем лишние символы, разбиваем на слова.
+    const normalized = this.normalize(text);
+
+    // 2. Для каждого правила из CATEGORY_KEYWORD_RULES считаем "очки":
+    //    если keyword встречается в тексте, добавляем rule.weight.
+    const scores: Array<{
+      categorySlug: string;
+      subcategorySlug?: string;
+      score: number;
+    }> = [];
+
+    for (const rule of CATEGORY_KEYWORD_RULES) {
+      let ruleScore = 0;
+      for (const kw of rule.keywords) {
+        if (normalized.includes(kw)) {
+          ruleScore += rule.weight ?? 1;
+        }
+      }
+      if (ruleScore > 0) {
+        scores.push({
+          categorySlug: rule.categorySlug,
+          subcategorySlug: rule.subcategorySlug,
+          score: ruleScore,
+        });
+      }
+    }
+
+    if (!scores.length) {
+      return { suggestions: [], bestMatch: null };
+    }
+
+    // 3. Сортируем по score по убыванию
+    scores.sort((a, b) => b.score - a.score);
+
+    // 4. Берём top-N (например 3) и возвращаем их как список suggestion'ов
+    const suggestions = scores.slice(0, 3).map((s) => ({
+      categorySlug: s.categorySlug,
+      subcategorySlug: s.subcategorySlug,
+      score: s.score,
+    }));
+
+    const best = suggestions[0];
+
+    // Можно добавить "confidence", например score / суммарный score
+    const totalScore = scores.reduce((acc, s) => acc + s.score, 0);
+    const confidence = best.score / totalScore;
+
+    return {
+      bestMatch: {
+        categorySlug: best.categorySlug,
+        subcategorySlug: best.subcategorySlug,
+        confidence,
+      },
+      suggestions,
+    };
+  }
+
+  private normalize(txt: string): string {
+    return txt
+      .toLowerCase()
+      .replace(/ё/g, 'е')
+      .replace(/[^a-z0-9а-яё\s]/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+}
+Тип результата:
+
+ts
+Копировать код
+interface SuggestedCategoryResult {
+  bestMatch: {
+    categorySlug: string;
+    subcategorySlug?: string;
+    confidence: number; // от 0 до 1
+  } | null;
+  suggestions: Array<{
+    categorySlug: string;
+    subcategorySlug?: string;
+    score: number;
+  }>;
+}
+====================================
+3. BACKEND: Эндпоинт /api/categories/suggest
+Создай endpoint:
+
+POST /api/categories/suggest
+
+Body:
+
+json
+Копировать код
+{
+  "title": "Продам iPhone 15 Pro 512 ГБ",
+  "description": "Состояние отличное, полный комплект..."
+}
+Логика:
+
+Склеить строку для анализа:
+
+ts
+Копировать код
+const { title, description } = req.body;
+const text = `${title ?? ''} ${description ?? ''}`.trim();
+Если text пустой → вернуть пустой список { bestMatch: null, suggestions: [] }.
+
+Вызвать CategorySuggestService.suggestCategoryByText(text).
+
+По slug’ам найти реальные Category в базе и вернуть удобный для фронта формат:
+
+json
+Копировать код
+{
+  "bestMatch": {
+    "categoryId": "64...",
+    "categoryName": "Электроника",
+    "subcategoryId": "65...",
+    "subcategoryName": "Телефоны и планшеты",
+    "confidence": 0.8
+  },
+  "alternatives": [
+    {
+      "categoryId": "64...",
+      "categoryName": "Электроника",
+      "subcategoryId": "66...",
+      "subcategoryName": "Ноутбуки",
+      "score": 3
+    }
+  ]
+}
+Порог уверенности:
+
+если confidence < 0.3 — можно не предлагать автоподстановку, но всё равно вернуть, чтобы UI решал.
+
+====================================
+4. FRONTEND: Интеграция на шаге “Детали объявления”
+На фронте есть шаг “Подача объявления → Детали” с полями:
+
+Категория (select),
+
+Подкатегория (select),
+
+Цена,
+
+Описание.
+
+Нужно:
+
+Подключить debounce-запрос к /api/categories/suggest по вводу заголовка (и при желании описания).
+
+Показать под полем заголовка маленький блок-подсказку:
+
+«Мы подобрали для вас: Электроника → Телефоны и планшеты»
+
+Кнопки:
+
+“Применить” (автозаполнить категорию/подкатегорию),
+
+“Выбрать другую” (просто закрыть подсказку, оставить ручной выбор).
+
+4.1. Отправка запроса с debounce
+
+На шаге, где вводится заголовок (скорее всего предыдущий шаг или сразу на деталях):
+
+при изменении title:
+
+ts
+Копировать код
+useEffect(() => {
+  if (!title || title.length < 3) {
+    setCategorySuggestion(null);
+    return;
+  }
+
+  const handler = setTimeout(async () => {
+    const resp = await api.post('/api/categories/suggest', {
+      title,
+      description, // можно тоже передать
+    });
+    setCategorySuggestion(resp.data.bestMatch);
+    setCategoryAlternatives(resp.data.alternatives);
+  }, 500); // debounce 500ms
+
+  return () => clearTimeout(handler);
+}, [title, description]);
+4.2. UI-подсказка
+
+Под полем «Заголовок» и над полями выбора категории:
+
+tsx
+Копировать код
+{categorySuggestion && !categoryLocked && (
+  <SuggestionCard>
+    <div>Мы подобрали категорию:</div>
+    <div className="suggestion-main">
+      {categorySuggestion.categoryName}
+      {categorySuggestion.subcategoryName && (
+        <> → {categorySuggestion.subcategoryName}</>
+      )}
+    </div>
+    <div className="suggestion-actions">
+      <Button variant="primary" size="small" onClick={applySuggestion}>
+        Применить
+      </Button>
+      <Button variant="ghost" size="small" onClick={dismissSuggestion}>
+        Выбрать другую
+      </Button>
+    </div>
+  </SuggestionCard>
+)}
+applySuggestion:
+
+выставляет в форме categoryId и subcategoryId,
+
+устанавливает categoryLocked = true (чтобы не спамить подсказкой после),
+
+скрывает блок подсказки.
+
+dismissSuggestion:
+
+просто скрывает подсказку,
+
+categoryLocked = true (чтобы не мешать пользователю, если он выбрал вручную).
+
+При ручной смене категории/подкатегории:
+
+тоже ставим categoryLocked = true, чтобы больше не показывать подсказку по этому объявлению.
+
+====================================
+5. UX-СЦЕНАРИИ, КОТОРЫЕ ДОЛЖНЫ РАБОТАТЬ
+Проверь следующие примеры:
+
+Ввожу заголовок:
+
+«Продам iPhone 15 Pro 512 ГБ»
+
+Под подсказкой появляется:
+
+Электроника → Телефоны и планшеты
+
+Нажимаю «Применить» → поля категории/подкатегории заполняются.
+
+Ввожу:
+
+«Продам 2-комнатную квартиру в центре Бреста»
+
+Под подсказкой:
+
+Недвижимость → Квартиры → 2-комнатные (если есть такой уровень)
+
+Если у нас нет отдельного уровня 2-комнатности — хотя бы «Недвижимость → Квартиры».
+
+Нажимаю «Применить» → селекты заполнены.
+
+Ввожу:
+
+«Телевизор LG 55 дюймов»
+
+Под подсказкой:
+
+Электроника → Телевизоры.
+
+Ввожу что-то странное:
+
+«Продам камень в огород» (или неизвестный текст)
+
+bestMatch имеет низкую confidence → подсказка или не показывается, или предлагается общая категория (на твоё усмотрение, но главное — не навязчивая).
+
+Пользователь всё равно может:
+
+открыть селектор категории,
+
+пройти деревом вручную и выбрать любую другую категориию — логика подсказок ему не мешает.
+
+====================================
+6. ФИНАЛЬНЫЙ ОТЧЁТ ПО ИЗМЕНЕНИЯМ
+В конце выведи:
+
+Какие backend-файлы созданы/изменены:
+
+services/CategorySuggestService.ts — логика разбора текста по ключевым словам.
+
+config/categoryKeywordsConfig.ts — словарь ключевых слов для категорий.
+
+routes/categoriesSuggestRoute.ts или аналог — эндпоинт /api/categories/suggest.
+
+Какие frontend-файлы:
+
+AdCreateDetailsStep.tsx или аналог — интеграция подсказок, отображение блока «Мы подобрали категорию».
+
+api/categories.ts — клиент для вызова /api/categories/suggest.
+
+Кратко опиши, как добавить новые правила в словарь (например, для автомобилей, бытовой техники, услуг и т.д.).

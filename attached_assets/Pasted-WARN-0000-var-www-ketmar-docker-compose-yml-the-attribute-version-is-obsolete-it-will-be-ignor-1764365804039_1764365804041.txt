@@ -1,0 +1,59 @@
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Running 4/4
+ ✔ Container ketmar-app       Removed                                                                                                                                10.4s 
+ ✔ Container ketmar-mongo     Removed                                                                                                                                 0.4s 
+ ✔ Container ketmar-redis     Removed                                                                                                                                 0.6s 
+ ✔ Network ketmar_ketmar-net  Removed                                                                                                                                 0.3s 
+Untagged: ketmar-app:latest
+Deleted: sha256:f5a2f31345a4c4f1fa4441e1003adc7d3bd3397963e73740e8e8abd89aa362be
+#13 0.817 npm error Clean install a project
+#13 0.817 npm error
+#13 0.817 npm error Usage:
+#13 0.817 npm error npm ci
+#13 0.817 npm error
+#13 0.817 npm error Options:
+#13 0.817 npm error [--install-strategy <hoisted|nested|shallow|linked>] [--legacy-bundling]
+#13 0.817 npm error [--global-style] [--omit <dev|optional|peer> [--omit <dev|optional|peer> ...]]
+#13 0.817 npm error [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
+#13 0.817 npm error [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
+#13 0.817 npm error [--no-bin-links] [--no-fund] [--dry-run]
+#13 0.817 npm error [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+#13 0.817 npm error [-ws|--workspaces] [--include-workspace-root] [--install-links]
+#13 0.817 npm error
+#13 0.817 npm error aliases: clean-install, ic, install-clean, isntall-clean
+#13 0.817 npm error
+#13 0.817 npm error Run "npm help ci" for more info
+#13 0.820 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-28T21_36_12_935Z-debug-0.log
+#13 ERROR: process "/bin/sh -c cd miniapp && npm ci && npm run build" did not complete successfully: exit code: 1
+------
+ > [8/9] RUN cd miniapp && npm ci && npm run build:
+0.817 npm error [--include <prod|dev|optional|peer> [--include <prod|dev|optional|peer> ...]]
+0.817 npm error [--strict-peer-deps] [--foreground-scripts] [--ignore-scripts] [--no-audit]
+0.817 npm error [--no-bin-links] [--no-fund] [--dry-run]
+0.817 npm error [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
+0.817 npm error [-ws|--workspaces] [--include-workspace-root] [--install-links]
+0.817 npm error
+0.817 npm error aliases: clean-install, ic, install-clean, isntall-clean
+0.817 npm error
+0.817 npm error Run "npm help ci" for more info
+0.820 npm error A complete log of this run can be found in: /root/.npm/_logs/2025-11-28T21_36_12_935Z-debug-0.log
+------
+Dockerfile:24
+
+--------------------
+
+  22 |     
+
+  23 |     # Build MiniApp
+
+  24 | >>> RUN cd miniapp && npm ci && npm run build
+
+  25 |     
+
+  26 |     # Remove dev dependencies after build
+
+--------------------
+
+failed to solve: process "/bin/sh -c cd miniapp && npm ci && npm run build" did not complete successfully: exit code: 1
+
+root@server-strqxk:/var/www/ketmar# 

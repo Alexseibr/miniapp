@@ -1,0 +1,37 @@
+Linux server-strqxk.localdomain 6.12.57+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.57-1 (2025-11-05) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory          # 1. Скачайте архив ketmar-deploy.tar.gz из Replit
+# 2. Загрузите на сервер1. Скачайте архив ketmar-deploy.tar.gz из 
+scp ketmar-deploy.tar.gz root@178.172.201.243:/var/www/
+scp ketmar-deploy.tar.gz root@178.172.201.243:/var/www/
+# 3. На сервере
+ssh root@178.172.201.243
+cd /var/www && mkdir ketmar && cd ketmar
+tar -xzf ../ketmar-deploy.tar.gzd ketmar
+cp .env.production.example .env.production
+nano .env.production  # заполнить секретыn
+docker compose up -d --buildлнить секреты
+scp: stat local "ketmar-deploy.tar.gz": No such file or directory
+root@178.172.201.243's password: 
+Linux server-strqxk.localdomain 6.12.57+deb13-amd64 #1 SMP PREEMPT_DYNAMIC Debian 6.12.57-1 (2025-11-05) x86_64
+
+The programs included with the Debian GNU/Linux system are free software;
+the exact distribution terms for each program are described in the
+individual files in /usr/share/doc/*/copyright.
+
+Debian GNU/Linux comes with ABSOLUTELY NO WARRANTY, to the extent
+permitted by applicable law.
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+-bash: warning: setlocale: LC_CTYPE: cannot change locale (UTF-8): No such file or directory
+root@server-strqxk:~# 

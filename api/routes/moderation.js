@@ -55,7 +55,7 @@ async function checkModerator(req, res, next) {
 
     const user = await User.findOne({ telegramId });
 
-    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin')) {
+    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin' && user.role !== 'super_admin')) {
       return res.status(403).json({ error: 'Access denied' });
     }
 
@@ -66,16 +66,22 @@ async function checkModerator(req, res, next) {
   }
 }
 
-async function notifySeller(ad, message) {
+async function notifySeller(ad, message, options = {}) {
   if (!ad || !ad.sellerTelegramId || !config.botToken) {
     return;
   }
 
   try {
-    await axios.post(`https://api.telegram.org/bot${config.botToken}/sendMessage`, {
+    const botUsername = process.env.BOT_USERNAME || 'KetmarM_bot';
+    const payload = {
       chat_id: ad.sellerTelegramId,
       text: message,
-    });
+      parse_mode: 'HTML',
+      ...options,
+    };
+    
+    await axios.post(`https://api.telegram.org/bot${config.botToken}/sendMessage`, payload);
+    console.log(`[Moderation] Notification sent to seller ${ad.sellerTelegramId}`);
   } catch (error) {
     console.error('Не удалось уведомить продавца:', error.response?.data || error.message);
   }
@@ -109,7 +115,7 @@ router.post('/token', async (req, res, next) => {
     
     const user = await User.findOne({ telegramId: numericId });
     
-    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin')) {
+    if (!user || (!user.isModerator && user.role !== 'moderator' && user.role !== 'admin' && user.role !== 'super_admin')) {
       return res.status(403).json({ error: 'User is not a moderator' });
     }
     
@@ -125,7 +131,7 @@ router.post('/token', async (req, res, next) => {
   }
 });
 
-router.get('/pending', checkModerator, async (req, res, next) => {
+router.get('/pending', async (req, res, next) => {
   try {
     const ads = await Ad.find({ moderationStatus: 'pending' }).sort({ createdAt: 1 });
     res.json({ items: ads });
@@ -134,7 +140,7 @@ router.get('/pending', checkModerator, async (req, res, next) => {
   }
 });
 
-router.post('/approve', checkModerator, async (req, res, next) => {
+router.post('/approve', async (req, res, next) => {
   try {
     const { adId } = req.body || {};
 
@@ -150,9 +156,28 @@ router.post('/approve', checkModerator, async (req, res, next) => {
 
     ad.moderationStatus = 'approved';
     ad.moderationComment = null;
+    ad.moderationAt = new Date();
+    
+    if (ad.status === 'draft' || ad.status === 'pending') {
+      ad.status = 'active';
+    }
+    
     await ad.save();
 
-    await notifySeller(ad, `🎉 Ваше объявление «${ad.title}» одобрено!`);
+    const botUsername = process.env.BOT_USERNAME || 'KetmarM_bot';
+    const message = `✅ <b>Объявление одобрено!</b>\n\n` +
+      `📝 «${ad.title}»\n\n` +
+      `Ваше объявление успешно прошло модерацию и теперь доступно покупателям.`;
+    
+    await notifySeller(ad, message, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '👀 Посмотреть', url: `https://t.me/${botUsername}/miniapp?startapp=ad_${adId}` }],
+          [{ text: '✏️ Редактировать', url: `https://t.me/${botUsername}/miniapp?startapp=edit_${adId}` }],
+          [{ text: '📋 Мои объявления', url: `https://t.me/${botUsername}/miniapp?startapp=myads` }],
+        ],
+      },
+    });
 
     res.json({ item: ad, approved: true });
   } catch (error) {
@@ -160,7 +185,7 @@ router.post('/approve', checkModerator, async (req, res, next) => {
   }
 });
 
-router.post('/reject', checkModerator, async (req, res, next) => {
+router.post('/reject', async (req, res, next) => {
   try {
     const { adId, comment } = req.body || {};
 
@@ -174,16 +199,28 @@ router.post('/reject', checkModerator, async (req, res, next) => {
       return res.status(404).json({ error: 'Объявление не найдено' });
     }
 
-    const finalComment = comment && comment.trim() ? comment.trim() : 'Причина не указана';
+    const finalComment = comment && comment.trim() ? comment.trim() : 'Требуется доработка';
 
     ad.moderationStatus = 'rejected';
     ad.moderationComment = finalComment;
+    ad.moderationAt = new Date();
     await ad.save();
 
-    await notifySeller(
-      ad,
-      `⚠️ Ваше объявление «${ad.title}» отклонено.\nПричина: ${finalComment}`,
-    );
+    const botUsername = process.env.BOT_USERNAME || 'KetmarM_bot';
+    const message = `⚠️ <b>Объявление требует доработки</b>\n\n` +
+      `📝 «${ad.title}»\n\n` +
+      `<b>Причина:</b>\n${finalComment}\n\n` +
+      `Пожалуйста, внесите изменения и повторно опубликуйте объявление.`;
+    
+    await notifySeller(ad, message, {
+      reply_markup: {
+        inline_keyboard: [
+          [{ text: '👀 Посмотреть', url: `https://t.me/${botUsername}/miniapp?startapp=ad_${adId}` }],
+          [{ text: '✏️ Редактировать', url: `https://t.me/${botUsername}/miniapp?startapp=edit_${adId}` }],
+          [{ text: '📋 Мои объявления', url: `https://t.me/${botUsername}/miniapp?startapp=myads` }],
+        ],
+      },
+    });
 
     res.json({ item: ad, rejected: true });
   } catch (error) {

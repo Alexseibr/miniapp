@@ -1,0 +1,47 @@
+CONTAINER ID   IMAGE            COMMAND                  CREATED          STATUS                                     PORTS                        NAMES
+0668c595af6b   ketmar-app       "docker-entrypoint.s…"   32 seconds ago   Up Less than a second (health: starting)   127.0.0.1:3000->3000/tcp     ketmar-app
+46c48bcf7e73   redis:7-alpine   "docker-entrypoint.s…"   32 seconds ago   Up 31 seconds (healthy)                    127.0.0.1:6379->6379/tcp     ketmar-redis
+1240b9e0703e   mongo:7          "docker-entrypoint.s…"   32 seconds ago   Up 31 seconds (healthy)                    127.0.0.1:27017->27017/tcp   ketmar-mongo
+root@server-strqxk:/var/www/ketmar# docker logs ketmar-app --tail 30
+[DemandWorker] All cron jobs scheduled successfully
+[PriceWatcher] Started - price checks every 10 minutes
+[PriceWatcher] Daily alerts at 9:00, 14:00, 19:00
+[FavoriteNotification] Started - smart notifications enabled
+[FavoriteNotification] Price/status checks every 5 min
+[FavoriteNotification] Similar ads check at 10:00 and 18:00
+[FavoriteNotification] Seller nudges at 12:00
+[FarmerDemandWorker] Starting demand aggregation worker...
+[FarmerDemandWorker] Cron job scheduled - runs every hour
+[FarmerSuggestionWorker] Starting suggestion worker...
+[FarmerSuggestionWorker] Cron jobs scheduled - generate every hour, send every 5 min
+ℹ️  REDIS_URL не настроен - система очередей отключена
+✅ Error handlers зарегистрированы
+
+✨ Все сервисы успешно запущены!
+
+📋 Доступные команды бота:
+   /start - Приветствие
+   /myid - Узнать свой Telegram ID
+   /categories - Список категорий
+   /new_test_ad - Создать тестовое объявление
+
+[HotSearchWorker] Running initial aggregation...
+[HotSearchWorker] Starting hot search aggregation...
+[HotSearchService] Aggregating hot searches for last 6 hours...
+[HotSearchService] Found 0 hot search candidates
+[HotSearchService] Created: 0, Updated: 0
+[HotSearchWorker] Aggregation complete: 0 hot searches processed
+[HotSearchService] Cleaned up 0 old search logs
+[HotSearchWorker] Hot search aggregation finished successfully
+root@server-strqxk:/var/www/ketmar# curl -s https://app.ketmar.by/miniapp | head -20
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Redirecting</title>
+</head>
+<body>
+<pre>Redirecting to /miniapp/</pre>
+</body>
+</html>
+root@server-strqxk:/var/www/ketmar# 

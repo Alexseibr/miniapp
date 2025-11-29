@@ -39,7 +39,7 @@ export default function SeasonViewPage() {
         Здесь будут объявления сезона {code}. Карточки ниже обновятся, когда появятся новые позиции.
       </p>
       {ads.length ? (
-        <div className="grid" style={{ gridTemplateColumns: '1fr' }}>
+        <div className="ads-grid">
           {ads.map((ad) => (
             <AdCard key={ad._id} ad={ad} />
           ))}

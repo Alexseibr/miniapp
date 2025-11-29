@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+
+# Build outputs (will be created during build)
+dist/
+
+# Git
+.git/
+.gitignore
+
+# Development
+*.log
+logs/
+.env
+.env.local
+.env.development
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+*.md
+!README.md
+docs/
+reports/
+
+# Test files
+*.test.js
+*.spec.js
+__tests__/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Attached assets - needed for MiniApp build
+# attached_assets/
+
+# Backup files
+*.tar.gz
+*.zip
+*.bak
+
+# Replit specific
+.replit
+replit.nix
+.cache/

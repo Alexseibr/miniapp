@@ -1,4 +1,4 @@
-export type UserRole = 'buyer' | 'seller' | 'both' | 'moderator' | 'admin' | 'user';
+export type UserRole = 'buyer' | 'seller' | 'both' | 'moderator' | 'admin' | 'super_admin' | 'user';
 
 export interface TelegramProfile {
   id: number;
@@ -34,6 +34,10 @@ export interface CategoryNode {
   slug: string;
   description?: string;
   icon?: string;
+  icon3d?: string | null;
+  level?: number;
+  isLeaf?: boolean;
+  parentSlug?: string | null;
   sortOrder?: number;
   subcategories?: CategoryNode[];
 }
@@ -41,6 +45,14 @@ export interface CategoryNode {
 export interface DeliveryOption {
   type?: string | null;
   radiusKm?: number | null;
+}
+
+export interface PriceBadgeData {
+  hasMarketData: boolean;
+  marketLevel: 'below' | 'fair' | 'above' | 'unknown';
+  diffPercent?: number | null;
+  avgPrice?: number | null;
+  windowDays?: number | null;
 }
 
 export interface AdPreview {
@@ -54,6 +66,7 @@ export interface AdPreview {
   subcategoryId: string;
   sellerTelegramId: number;
   city?: string | null;
+  geoLabel?: string | null;
   status?: string;
   seasonCode?: string | null;
   favoritesCount?: number;
@@ -68,22 +81,56 @@ export interface AdPreview {
     lng?: number;
   } | null;
   createdAt?: string;
+  priceBadge?: PriceBadgeData | null;
 }
 
 export interface Ad extends AdPreview {
-  moderationStatus?: 'pending' | 'approved' | 'rejected';
+  moderationStatus?: 'pending' | 'approved' | 'rejected' | 'scheduled';
+  moderationComment?: string | null;
   lifetimeDays: number;
   validUntil?: string;
   updatedAt?: string;
   views?: number;
+  viewsTotal?: number;
+  impressionsTotal?: number;
+  contactClicks?: number;
+  sellerName?: string;
+  publishAt?: string | Date | null;
+  contactPhone?: string | null;
+  contactUsername?: string | null;
+  contactInstagram?: string | null;
+  isFreeGiveaway?: boolean;
+  giveawaySubcategoryId?: string | null;
 }
 
 export interface FavoriteItem {
   adId: string;
-  ad?: AdPreview;
+  ad?: AdPreview & {
+    oldPrice?: number | null;
+    priceChangePercent?: number | null;
+    sellerType?: 'private' | 'farmer' | 'shop' | null;
+    categoryName?: string | null;
+    isUnavailable?: boolean;
+  };
   createdAt: string;
   lastKnownPrice?: number | null;
   lastKnownStatus?: string | null;
+  notifyOnPriceChange?: boolean;
+  notifyOnStatusChange?: boolean;
+}
+
+export interface BuyerProfile {
+  averageBudget: number;
+  preferredCategories: string[];
+  preferredRadius: number;
+  preferredSellerType: 'private' | 'farmer' | 'shop' | 'any';
+  totalFavorites: number;
+  activeSegment: 'A' | 'B' | 'C';
+}
+
+export interface SimilarAd extends AdPreview {
+  matchScore?: number;
+  priceAdvantage?: number;
 }
 
 export interface AdsResponse {
@@ -92,6 +139,49 @@ export interface AdsResponse {
   total?: number;
   totalPages?: number;
   items: AdPreview[];
+}
+
+export interface FeedItem {
+  _id: string;
+  title: string;
+  description?: string;
+  images?: string[];
+  photos?: string[];
+  previewUrl?: string;
+  city: string;
+  district: string;
+  geoLabel?: string;
+  geo: {
+    type: string;
+    coordinates: [number, number];
+  } | null;
+  categoryId: string;
+  subcategoryId?: string;
+  createdAt: string;
+  price: number;
+  currency: string;
+  distanceMeters: number;
+  sellerName?: string;
+  sellerUsername?: string;
+}
+
+export interface FeedResponse {
+  items: FeedItem[];
+  nextCursor: string | null;
+  hasMore: boolean;
+  radiusKm: number;
+  total: number;
+}
+
+export type FeedEventType = 'impression' | 'view_open' | 'like' | 'dislike' | 'scroll_next' | 'scroll_prev';
+
+export interface FeedEvent {
+  adId: string;
+  eventType: FeedEventType;
+  dwellTimeMs?: number;
+  positionIndex?: number;
+  radiusKm?: number;
+  meta?: Record<string, unknown>;
 }
 
 export interface SeasonInfo {
@@ -144,4 +234,15 @@ export interface OrderSummary {
   createdAt?: string;
   seasonCode?: string | null;
   items: OrderItemSummary[];
+}
+
+export interface CategoryStat {
+  categoryId: string;
+  count: number;
+}
+
+export interface NearbyStatsResponse {
+  stats: CategoryStat[];
+  total: number;
+  radiusKm: number;
 }

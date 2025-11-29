@@ -1,18 +1,29 @@
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { Route, Routes, useLocation, Navigate } from 'react-router-dom';
 import { useEffect, useState, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
-import BottomTabs from '@/components/BottomTabs';
-import HomePage from '@/pages/HomePage';
+import AppLayout from '@/components/layout/AppLayout';
+import PrivateRoute from '@/components/PrivateRoute';
+import PhoneAuthRequest from '@/components/PhoneAuthRequest';
+import PageLoader from '@/components/PageLoader';
+import ErrorBoundary from '@/components/ErrorBoundary';
+import { Toaster } from '@/components/ui/Toaster';
 import { useUserStore } from '@/store/useUserStore';
+import useGeoStore from '@/store/useGeoStore';
 import { getTelegramWebApp } from '@/utils/telegram';
 import { queryClient } from '@/lib/queryClient';
+import { prefetchCriticalData } from '@/utils/prefetch';
+import { useRoutePrefetch } from '@/hooks/useRoutePrefetch';
+import { initWebVitals } from '@/utils/webVitals';
 import { Loader2 } from 'lucide-react';
+import { PlatformProvider } from '@/platform/PlatformProvider';
+import { detectPlatform } from '@/platform/platformDetection';
 
+const HomePage = lazy(() => import('@/pages/HomePage'));
+const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
 const FeedPage = lazy(() => import('@/pages/FeedPage'));
 const FavoritesPage = lazy(() => import('@/pages/FavoritesPage'));
 const ProfilePage = lazy(() => import('@/pages/ProfilePage'));
 const CategoryPage = lazy(() => import('@/pages/CategoryPage'));
-const SubcategoryPage = lazy(() => import('@/pages/SubcategoryPage'));
 const AdPage = lazy(() => import('@/pages/AdPage'));
 const OrdersPage = lazy(() => import('@/pages/OrdersPage'));
 const SeasonsPage = lazy(() => import('@/pages/SeasonsPage'));
@@ -21,24 +32,63 @@ const MyAdsPage = lazy(() => import('@/pages/MyAdsPage'));
 const CreateAdPage = lazy(() => import('@/pages/CreateAdPage'));
 const ConversationsPage = lazy(() => import('@/pages/ConversationsPage'));
 const ChatPage = lazy(() => import('@/pages/ChatPage'));
+const FarmerFeedPage = lazy(() => import('@/pages/FarmerFeedPage'));
+const BulkFarmerUploadPage = lazy(() => import('@/pages/BulkFarmerUploadPage'));
+const FarmerAnalyticsPage = lazy(() => import('@/pages/FarmerAnalyticsPage'));
+const AllCategoriesPage = lazy(() => import('@/pages/AllCategoriesPage'));
+const GeoMapPage = lazy(() => import('@/pages/GeoMapPage'));
+const GeoFeedScreen = lazy(() => import('@/pages/GeoFeedScreen'));
+const SellerStorePage = lazy(() => import('@/pages/SellerStorePage'));
+const SellerDashboardPage = lazy(() => import('@/pages/SellerDashboardPage'));
+const SellerAnalyticsPage = lazy(() => import('@/pages/SellerAnalyticsPage'));
+const TwinPage = lazy(() => import('@/pages/TwinPage'));
+const TwinChatPage = lazy(() => import('@/pages/TwinChatPage'));
+const DynamicPricingPage = lazy(() => import('@/pages/DynamicPricingPage'));
+const SellerTwinPage = lazy(() => import('@/pages/SellerTwinPage'));
+const ForYouFeedPage = lazy(() => import('@/pages/ForYouFeedPage'));
+const SearchPage = lazy(() => import('@/pages/SearchPage'));
+const SearchResultsPage = lazy(() => import('@/pages/SearchResultsPage'));
+const CategoryResultsPage = lazy(() => import('@/pages/CategoryResultsPage'));
+const ShopCabinetPage = lazy(() => import('@/pages/ShopCabinetPage'));
+const StoreProAnalyticsPage = lazy(() => import('@/pages/StoreProAnalyticsPage'));
+const CampaignsListPage = lazy(() => import('@/pages/CampaignsListPage'));
+const CampaignPage = lazy(() => import('@/pages/CampaignPage'));
+const CampaignAnalyticsPage = lazy(() => import('@/pages/CampaignAnalyticsPage'));
+const NeonDemoPage = lazy(() => import('@/pages/NeonDemoPage'));
+const AuthScreen = lazy(() => import('@/components/AuthScreen'));
+const AdminSellersPage = lazy(() => import('@/pages/AdminSellersPage'));
+const AdminShopRequestsPage = lazy(() => import('@/pages/AdminShopRequestsPage'));
+const AdminModerationPage = lazy(() => import('@/pages/AdminModerationPage'));
+const AdminCategoryProposalsPage = lazy(() => import('@/pages/AdminCategoryProposalsPage'));
+const ShopCreationWizardPage = lazy(() => import('@/pages/ShopCreationWizardPage'));
+const MyShopPage = lazy(() => import('@/pages/MyShopPage'));
+const StoryCreatorPage = lazy(() => import('@/pages/StoryCreatorPage'));
+const GiveawayFeedPage = lazy(() => import('@/pages/GiveawayFeedPage'));
+const CreateGiveawayAdPage = lazy(() => import('@/pages/CreateGiveawayAdPage'));
 
 export default function App() {
   const location = useLocation();
   const initialize = useUserStore((state) => state.initialize);
+  const submitPhone = useUserStore((state) => state.submitPhone);
+  const skipPhoneRequest = useUserStore((state) => state.skipPhoneRequest);
+  const userStatus = useUserStore((state) => state.status);
+  const user = useUserStore((state) => state.user);
+  const refreshLocationOnAppStart = useGeoStore((state) => state.refreshLocationOnAppStart);
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  const platform = detectPlatform();
+  
+  useRoutePrefetch();
 
   useEffect(() => {
     const initApp = async () => {
-      try {
-        console.log('🚀 Initializing KETMAR Market MiniApp...');
-        
-        // Проверка Telegram WebApp SDK
+      console.log('🚀 Initializing KETMAR Market MiniApp...');
+      console.log(`📱 Platform detected: ${platform}`);
+      
+      if (platform === 'telegram') {
         const tg = getTelegramWebApp();
         if (tg) {
           console.log('✅ Telegram WebApp SDK found');
-          console.log('📱 Platform:', (tg as any).platform);
-          console.log('🎨 Theme:', (tg as any).colorScheme);
-          
           tg.ready();
           tg.expand();
           
@@ -46,42 +96,75 @@ export default function App() {
             (tg as any).enableClosingConfirmation();
           }
           
-          // Обработка deep link из Telegram (startapp параметр)
           const startParam = (tg as any).initDataUnsafe?.start_param;
           if (startParam) {
             console.log('📱 Deep link detected:', startParam);
             handleDeepLink(startParam);
           }
-        } else {
-          console.warn('⚠️ Telegram WebApp SDK not available - running in browser mode');
         }
+      }
 
-        // Инициализация пользователя
+      try {
         await initialize();
-        console.log('✅ User store initialized');
+      } catch (err) {
+        console.error('❌ User initialization failed:', err);
+      }
+      
+      setIsInitialized(true);
+      console.log('✅ App initialization complete');
+      
+      const runDeferredTasks = () => {
+        prefetchCriticalData().catch(console.error);
         
-        setIsInitialized(true);
-        console.log('✅ App initialization complete');
-      } catch (error) {
-        console.error('❌ App initialization error:', error);
-        setIsInitialized(true); // Показываем приложение даже при ошибке
+        console.log('📍 Запрашиваем геолокацию в фоне...');
+        refreshLocationOnAppStart().catch((err) => {
+          console.warn('📍 Не удалось получить геолокацию:', err);
+        });
+        
+        if (typeof window !== 'undefined') {
+          initWebVitals();
+        }
+      };
+      
+      if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(runDeferredTasks, { timeout: 3000 });
+      } else {
+        setTimeout(runDeferredTasks, 100);
       }
     };
 
     initApp();
-  }, [initialize]);
+  }, [initialize, refreshLocationOnAppStart, platform]);
   
-  // Обработка deep link из бота
   function handleDeepLink(startParam: string) {
-    // Формат: season_short_term_rental, category_realty_rent_daily и т.д.
     if (startParam.startsWith('season_')) {
       const seasonCode = startParam.replace('season_', '');
-      // Перенаправляем на FeedPage с фильтром по сезону
       window.location.href = `/feed?season=${encodeURIComponent(seasonCode)}`;
     } else if (startParam.startsWith('category_')) {
       const categoryId = startParam.replace('category_', '');
-      // Перенаправляем на FeedPage с фильтром по категории
       window.location.href = `/feed?categoryId=${encodeURIComponent(categoryId)}`;
+    } else if (startParam.startsWith('store_')) {
+      const storeSlug = startParam.replace('store_', '');
+      window.location.href = `/store/${encodeURIComponent(storeSlug)}`;
+    } else if (startParam === 'twin') {
+      window.location.href = `/twin`;
+    } else if (startParam.startsWith('pricing_')) {
+      const adId = startParam.replace('pricing_', '');
+      window.location.href = `/dynamic-pricing/${encodeURIComponent(adId)}`;
+    } else if (startParam.startsWith('ad_')) {
+      const adId = startParam.replace('ad_', '');
+      window.location.href = `/ads/${encodeURIComponent(adId)}`;
+    } else if (startParam === 'favorites') {
+      window.location.href = `/favorites`;
+    } else if (startParam === 'seller-twin') {
+      window.location.href = `/seller-twin`;
+    } else if (startParam === 'dynamic-price') {
+      window.location.href = `/dynamic-pricing`;
+    } else if (startParam === 'farmer_demand') {
+      window.location.href = `/farmer/demand`;
+    } else if (startParam.startsWith('create_farmer_')) {
+      const productKey = startParam.replace('create_farmer_', '');
+      window.location.href = `/create?category=farmer-market&product=${encodeURIComponent(productKey)}`;
     }
   }
 
@@ -107,43 +190,210 @@ export default function App() {
     );
   }
 
+  if (platform === 'telegram' && userStatus === 'need_phone') {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <PhoneAuthRequest 
+          onPhoneReceived={submitPhone}
+          onSkip={skipPhoneRequest}
+        />
+      </QueryClientProvider>
+    );
+  }
+
   return (
     <QueryClientProvider client={queryClient}>
-      <div className="app-shell">
-        <main>
-          <Suspense fallback={
-            <div style={{
-              display: 'flex',
-              justifyContent: 'center',
-              alignItems: 'center',
-              height: '100vh',
-              background: '#FFFFFF'
-            }}>
-              <Loader2 className="w-8 h-8 animate-spin text-gray-600" />
-            </div>
-          }>
+      <PlatformProvider>
+        <AppLayout>
+          <Suspense fallback={<PageLoader />}>
             <Routes>
+              {/* Public routes */}
               <Route path="/" element={<HomePage />} />
-              <Route path="/category/:slug" element={<SubcategoryPage />} />
-              <Route path="/feed" element={<FeedPage />} />
-              <Route path="/favorites" element={<FavoritesPage />} />
-              <Route path="/profile" element={<ProfilePage />} />
-              <Route path="/orders" element={<OrdersPage />} />
+              <Route path="/auth" element={<AuthScreen />} />
+              <Route path="/search" element={<SearchPage />} />
+              <Route path="/search/results" element={<SearchResultsPage />} />
+              <Route path="/category/:slug" element={<CategoryResultsPage />} />
+              <Route path="/subcategory/:slug" element={<SubcategoryPage />} />
+              <Route path="/feed" element={<ErrorBoundary><FeedPage /></ErrorBoundary>} />
               <Route path="/seasons" element={<SeasonsPage />} />
               <Route path="/seasons/:code" element={<SeasonViewPage />} />
               <Route path="/categories/:slug" element={<CategoryPage />} />
               <Route path="/ads/:id" element={<AdPage />} />
-              <Route path="/my-ads" element={<MyAdsPage />} />
-              <Route path="/ads/create" element={<CreateAdPage />} />
-              <Route path="/chats" element={<ConversationsPage />} />
-              <Route path="/chat/:conversationId" element={<ChatPage />} />
+              <Route path="/all-categories" element={<AllCategoriesPage />} />
+              <Route path="/map" element={<GeoMapPage />} />
+              <Route path="/geo-feed" element={<GeoFeedScreen />} />
+              <Route path="/store/:id" element={<SellerStorePage />} />
+              <Route path="/farmer-feed" element={<FarmerFeedPage />} />
+              <Route path="/category/darom" element={<GiveawayFeedPage />} />
+              <Route path="/giveaways" element={<GiveawayFeedPage />} />
+              <Route path="/campaigns" element={<CampaignsListPage />} />
+              <Route path="/campaigns/:campaignCode" element={<CampaignPage />} />
+              <Route path="/for-you" element={<ForYouFeedPage />} />
+              <Route path="/neon-demo" element={<NeonDemoPage />} />
+
+              {/* Private routes - require authentication */}
+              <Route path="/create" element={
+                <PrivateRoute>
+                  <CreateAdPage />
+                </PrivateRoute>
+              } />
+              <Route path="/favorites" element={
+                <PrivateRoute>
+                  <FavoritesPage />
+                </PrivateRoute>
+              } />
+              <Route path="/profile" element={
+                <PrivateRoute>
+                  <ProfilePage />
+                </PrivateRoute>
+              } />
+              <Route path="/orders" element={
+                <PrivateRoute>
+                  <OrdersPage />
+                </PrivateRoute>
+              } />
+              <Route path="/my-ads" element={
+                <PrivateRoute>
+                  <MyAdsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/ads/create" element={
+                <PrivateRoute>
+                  <CreateAdPage />
+                </PrivateRoute>
+              } />
+              <Route path="/chats" element={
+                <PrivateRoute>
+                  <ConversationsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/chat/:conversationId" element={
+                <PrivateRoute>
+                  <ChatPage />
+                </PrivateRoute>
+              } />
+              <Route path="/farmer/bulk-upload" element={
+                <PrivateRoute>
+                  <BulkFarmerUploadPage />
+                </PrivateRoute>
+              } />
+              <Route path="/farmer/analytics" element={
+                <PrivateRoute>
+                  <FarmerAnalyticsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/farmer/cabinet" element={
+                <Navigate to="/seller/cabinet" replace />
+              } />
+              <Route path="/seller/dashboard" element={
+                <PrivateRoute>
+                  <SellerDashboardPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/cabinet" element={
+                <PrivateRoute>
+                  <ShopCabinetPage />
+                </PrivateRoute>
+              } />
+              <Route path="/my-shop" element={
+                <PrivateRoute>
+                  <MyShopPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/cabinet/pro-analytics" element={
+                <PrivateRoute>
+                  <StoreProAnalyticsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/analytics" element={
+                <PrivateRoute>
+                  <SellerAnalyticsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/twin" element={
+                <PrivateRoute>
+                  <TwinPage />
+                </PrivateRoute>
+              } />
+              <Route path="/twin/chat" element={
+                <PrivateRoute>
+                  <TwinChatPage />
+                </PrivateRoute>
+              } />
+              <Route path="/dynamic-pricing" element={
+                <PrivateRoute>
+                  <DynamicPricingPage />
+                </PrivateRoute>
+              } />
+              <Route path="/dynamic-pricing/:adId" element={
+                <PrivateRoute>
+                  <DynamicPricingPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller-twin" element={
+                <PrivateRoute>
+                  <SellerTwinPage />
+                </PrivateRoute>
+              } />
+              <Route path="/seller/stories" element={
+                <PrivateRoute>
+                  <StoryCreatorPage />
+                </PrivateRoute>
+              } />
+              <Route path="/campaigns/:campaignCode/analytics" element={
+                <PrivateRoute>
+                  <CampaignAnalyticsPage />
+                </PrivateRoute>
+              } />
+
+              {/* Admin Routes */}
+              <Route path="/admin/sellers" element={
+                <PrivateRoute>
+                  <AdminSellersPage />
+                </PrivateRoute>
+              } />
+              <Route path="/admin/farmers" element={
+                <PrivateRoute>
+                  <AdminSellersPage />
+                </PrivateRoute>
+              } />
+              <Route path="/admin/shop-requests" element={
+                <PrivateRoute>
+                  <AdminShopRequestsPage />
+                </PrivateRoute>
+              } />
+              <Route path="/admin/moderation" element={
+                <PrivateRoute>
+                  <AdminModerationPage />
+                </PrivateRoute>
+              } />
+              <Route path="/admin/category-proposals" element={
+                <PrivateRoute>
+                  <AdminCategoryProposalsPage />
+                </PrivateRoute>
+              } />
+              
+              {/* Shop Creation Wizard */}
+              <Route path="/create-shop" element={
+                <PrivateRoute>
+                  <ShopCreationWizardPage />
+                </PrivateRoute>
+              } />
+
+              {/* Giveaway Creation */}
+              <Route path="/create-giveaway" element={
+                <PrivateRoute>
+                  <CreateGiveawayAdPage />
+                </PrivateRoute>
+              } />
+
+              {/* Fallback */}
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>
           </Suspense>
-        </main>
-
-        <BottomTabs />
-      </div>
+        </AppLayout>
+        <Toaster />
+      </PlatformProvider>
     </QueryClientProvider>
   );
 }

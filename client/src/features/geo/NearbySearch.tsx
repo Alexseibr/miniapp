@@ -214,7 +214,7 @@ export function NearbySearch() {
                     <div className="text-right space-y-1 min-w-[140px]">
                       {typeof ad.price === "number" && (
                         <p className="text-2xl font-bold text-green-600">
-                          {ad.price} {ad.currency ?? "BYN"}
+                          {ad.price} руб.
                         </p>
                       )}
                       {typeof ad.distanceKm === "number" && (
@@ -230,16 +230,15 @@ export function NearbySearch() {
                     </div>
                   </div>
 
-                  {ad.location && ad.location.lat && ad.location.lng && (
-                    <p className="text-xs text-muted-foreground">
-                      Координаты объявления: {ad.location.lat.toFixed(4)}, {" "}
-                      {ad.location.lng.toFixed(4)}
-                    </p>
+                  {(ad.city || ad.district || ad.geoLabel) && (
+                    <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <MapPin className="h-3 w-3" />
+                      <span>{ad.city || ad.district || ad.geoLabel}</span>
+                      {ad.district && ad.city && ad.district !== ad.city && (
+                        <span className="text-xs">({ad.district})</span>
+                      )}
+                    </div>
                   )}
-
-                  <p className="text-xs text-muted-foreground">
-                    TODO: заменить ссылку на реального продавца в Telegram WebApp
-                  </p>
                 </CardContent>
               </Card>
             ))}

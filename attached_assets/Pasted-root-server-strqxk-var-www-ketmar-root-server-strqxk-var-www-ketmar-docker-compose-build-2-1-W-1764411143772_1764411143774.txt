@@ -1,0 +1,22 @@
+root@server-strqxk:/var/www/ketmar# 
+root@server-strqxk:/var/www/ketmar# docker compose build 2>&1
+WARN[0000] /var/www/ketmar/docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion 
+[+] Building 6.1s (12/14)                                                                                                          
+ => [internal] load local bake definitions                                                                                    0.0s
+ => => reading from stdin 469B                                                                                                0.0s
+ => [internal] load build definition from Dockerfile                                                                          0.0s
+ => => transferring dockerfile: 866B                                                                                          0.0s
+ => [internal] load metadata for docker.io/library/node:20-alpine                                                             0.5s
+ => [internal] load .dockerignore                                                                                             0.0s
+ => => transferring context: 591B                                                                                             0.0s
+ => [1/9] FROM docker.io/library/node:20-alpine@sha256:16858294071a56ffd4cce9f17b57136cc39e41507b40e245b4f8e906f7a19463       0.0s
+ => => resolve docker.io/library/node:20-alpine@sha256:16858294071a56ffd4cce9f17b57136cc39e41507b40e245b4f8e906f7a19463       0.0s
+ => [internal] load build context                                                                                             0.0s
+ => => transferring context: 38.54kB                                                                                          0.0s
+ => CACHED [2/9] WORKDIR /app                                                                                                 0.0s
+ => CACHED [3/9] RUN apk add --no-cache python3 make g++ vips-dev                                                             0.0s
+ => CACHED [4/9] COPY package*.json ./                                                                                        0.0s
+ => CACHED [5/9] RUN npm ci                                                                                                   0.0s
+ => CACHED [6/9] COPY . .                                                                                                     0.0s
+ => CACHED [7/9] RUN npm run build                                                                                            0.0s
+ => [8/9] RUN cd miniapp && npm install && npm run build   

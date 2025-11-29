@@ -55,7 +55,7 @@ function registerSeasonHandlers(bot, { apiUrl } = {}) {
       }
 
       const lines = items.slice(0, 5).map((ad, index) => {
-        const price = typeof ad.price === 'number' ? `${ad.price} ${ad.currency || 'BYN'}` : '—';
+        const price = typeof ad.price === 'number' ? `${ad.price} руб.` : '—';
         const distance = ad.distanceKm != null ? `${ad.distanceKm} км` : '—';
         return (
           `${index + 1}. ${ad.title}\n` +

@@ -31,8 +31,7 @@ const formatItems = (items) => {
   return items
     .map((item) => {
       const total = item.price * item.quantity;
-      const currency = item.currency || 'BYN';
-      return `• ${escapeText(item.title)} — ${item.quantity} шт. × ${item.price} ${currency} = ${total} ${currency}`;
+      return `• ${escapeText(item.title)} — ${item.quantity} шт. × ${item.price} руб. = ${total} руб.`;
     })
     .join('\n');
 };
@@ -64,13 +63,11 @@ async function notifySellers(order, bot) {
   for (const [sellerId, items] of grouped.entries()) {
     const itemsBlock = formatItems(items);
     const sellerTotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-    const currency = items[0]?.currency || 'BYN';
-
     const message =
       `📦 *Новый заказ* #${order._id}\n\n` +
       (buyerInfo ? `${buyerInfo}\n\n` : '') +
       `Позиции:\n${itemsBlock}\n\n` +
-      `💰 Сумма для вас: ${sellerTotal} ${currency}` +
+      `💰 Сумма для вас: ${sellerTotal} руб.` +
       commentBlock +
       seasonBlock;
 

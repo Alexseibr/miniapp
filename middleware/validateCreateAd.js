@@ -1,4 +1,6 @@
 import Season from '../models/Season.js';
+import SellerProfile from '../models/SellerProfile.js';
+import reverseGeocodingService from '../services/ReverseGeocodingService.js';
 
 const ALLOWED_DELIVERY_TYPES = ['pickup_only', 'delivery_only', 'delivery_and_pickup'];
 const CATEGORY_DEFAULT_LIFETIME = {
@@ -112,6 +114,7 @@ async function validateCreateAd(req, res, next) {
     if (!sellerTelegramId) {
       return res.status(400).json({ error: 'Поле sellerTelegramId обязательно' });
     }
+    const sellerProfile = await SellerProfile.findOne({ telegramId: sellerTelegramId }).lean();
 
     let deliveryType = null;
     if (payload.deliveryType != null) {
@@ -134,6 +137,28 @@ async function validateCreateAd(req, res, next) {
         return res.status(400).json({ error: 'deliveryRadiusKm должно быть положительным числом' });
       }
       deliveryRadiusKm = parsedRadius;
+    }
+
+    const wantsDelivery = Boolean(payload.hasDelivery);
+    if (wantsDelivery && (!sellerProfile || !sellerProfile.canDeliver)) {
+      return res.status(400).json({ error: 'Доставка доступна только продавцам с активированным магазином' });
+    }
+
+    const deliveryPriceOverride = payload.deliveryPriceOverride != null
+      ? Number(payload.deliveryPriceOverride)
+      : null;
+    if (deliveryPriceOverride != null && (!Number.isFinite(deliveryPriceOverride) || deliveryPriceOverride < 0)) {
+      return res.status(400).json({ error: 'deliveryPriceOverride должно быть неотрицательным числом' });
+    }
+
+    const maxDailyQuantity = payload.maxDailyQuantity != null ? Number(payload.maxDailyQuantity) : null;
+    if (maxDailyQuantity != null && (!Number.isFinite(maxDailyQuantity) || maxDailyQuantity < 0)) {
+      return res.status(400).json({ error: 'maxDailyQuantity должно быть неотрицательным числом' });
+    }
+
+    const availableQuantity = payload.availableQuantity != null ? Number(payload.availableQuantity) : null;
+    if (availableQuantity != null && (!Number.isFinite(availableQuantity) || availableQuantity < 0)) {
+      return res.status(400).json({ error: 'availableQuantity должно быть неотрицательным числом' });
     }
 
     let attributes = {};
@@ -163,6 +188,27 @@ async function validateCreateAd(req, res, next) {
           .map((photo) => photo.trim())
       : [];
 
+    let previewUrl = null;
+    if (photos.length > 0) {
+      const firstPhoto = photos[0];
+      
+      if (firstPhoto.startsWith('data:')) {
+        previewUrl = null;
+      } else if (firstPhoto.startsWith('/api/media/') && !firstPhoto.includes('..')) {
+        const baseUrl = firstPhoto.split('?')[0];
+        previewUrl = `${baseUrl}?w=600&q=75&f=webp`;
+      } else if (firstPhoto.startsWith('http://') || firstPhoto.startsWith('https://')) {
+        try {
+          const url = new URL(firstPhoto);
+          if (url.hostname && !url.hostname.includes('..')) {
+            previewUrl = `/api/media/proxy?url=${encodeURIComponent(firstPhoto)}&w=600&q=75&f=webp`;
+          }
+        } catch {
+          previewUrl = null;
+        }
+      }
+    }
+
     let seasonCode = null;
     if (payload.seasonCode) {
       try {
@@ -178,7 +224,43 @@ async function validateCreateAd(req, res, next) {
     }
     lifetimeDays = Math.min(lifetimeDays, MAX_LIFETIME_DAYS);
 
-    const validUntil = calculateValidUntil(new Date(), lifetimeDays);
+    const allowedContactTypes = ['telegram_phone', 'telegram_username', 'instagram', 'none'];
+    const contactType = payload.contactType && allowedContactTypes.includes(payload.contactType)
+      ? payload.contactType
+      : 'none';
+
+    let publishAt = null;
+    if (payload.publishAt) {
+      const parsedPublishAt = new Date(payload.publishAt);
+      if (Number.isFinite(parsedPublishAt.getTime()) && parsedPublishAt > new Date()) {
+        publishAt = parsedPublishAt;
+      }
+    }
+
+    const baseDate = publishAt || new Date();
+    const adjustedValidUntil = calculateValidUntil(baseDate, lifetimeDays);
+
+    let resolvedCity = payload.city ? normalizeString(payload.city) : null;
+    let resolvedGeoLabel = payload.geoLabel ? normalizeString(payload.geoLabel) : null;
+
+    if (location) {
+      const cityIsCoords = reverseGeocodingService.isCoordinateString(resolvedCity);
+      const geoLabelIsCoords = reverseGeocodingService.isCoordinateString(resolvedGeoLabel);
+      const needsGeocode = !resolvedCity || !resolvedGeoLabel || cityIsCoords || geoLabelIsCoords;
+
+      if (needsGeocode) {
+        try {
+          const geoData = await reverseGeocodingService.reverseGeocode(location.lat, location.lng);
+          if (geoData) {
+            resolvedCity = geoData.city || resolvedCity;
+            resolvedGeoLabel = geoData.geoLabel || resolvedGeoLabel;
+            console.log(`[validateCreateAd] Resolved location: ${resolvedGeoLabel}`);
+          }
+        } catch (geoError) {
+          console.warn('[validateCreateAd] Geocoding failed:', geoError.message);
+        }
+      }
+    }
 
     const sanitized = {
       title,
@@ -186,19 +268,36 @@ async function validateCreateAd(req, res, next) {
       categoryId,
       subcategoryId,
       price,
-      currency: normalizeString(payload.currency) || 'BYN',
+      currency: normalizeString(payload.currency) || 'RUB',
       photos,
+      previewUrl,
       attributes,
       sellerTelegramId,
-      city: payload.city ? normalizeString(payload.city) : null,
+      city: resolvedCity,
+      geoLabel: resolvedGeoLabel,
+      contactType,
+      contactPhone: payload.contactPhone ? normalizeString(payload.contactPhone) : null,
+      contactUsername: payload.contactUsername ? normalizeString(payload.contactUsername) : null,
+      contactInstagram: payload.contactInstagram ? normalizeString(payload.contactInstagram) : null,
       deliveryType,
       deliveryRadiusKm,
+      hasDelivery: wantsDelivery,
+      deliveryPriceOverride: wantsDelivery ? deliveryPriceOverride : undefined,
+      maxDailyQuantity: wantsDelivery && maxDailyQuantity != null ? maxDailyQuantity : undefined,
+      availableQuantity: wantsDelivery && availableQuantity != null
+        ? availableQuantity
+        : wantsDelivery && maxDailyQuantity != null
+          ? maxDailyQuantity
+          : undefined,
+      storeId: wantsDelivery && sellerProfile?._id ? sellerProfile._id : undefined,
+      shopProfileId: wantsDelivery && sellerProfile?._id ? sellerProfile._id : undefined,
       location,
       seasonCode,
       lifetimeDays,
-      validUntil,
-      moderationStatus: 'pending',
-      status: 'active',
+      validUntil: adjustedValidUntil,
+      moderationStatus: publishAt ? 'scheduled' : 'approved',
+      status: publishAt ? 'scheduled' : 'active',
+      publishAt,
       deliveryOptions: Array.isArray(payload.deliveryOptions)
         ? payload.deliveryOptions.filter((option) => typeof option === 'string' && option.trim())
         : undefined,
@@ -220,6 +319,9 @@ async function validateCreateAd(req, res, next) {
     }
     if (!sanitized.deliveryOptions || !sanitized.deliveryOptions.length) {
       delete sanitized.deliveryOptions;
+    }
+    if (!sanitized.publishAt) {
+      delete sanitized.publishAt;
     }
 
     req.validatedAdPayload = sanitized;

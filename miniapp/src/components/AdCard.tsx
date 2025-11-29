@@ -1,25 +1,74 @@
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Truck, MapPin } from 'lucide-react';
-import FavoriteButton from './FavoriteButton';
-import { AdPreview } from '@/types';
+import { Heart, MapPin, Package } from 'lucide-react';
+import { useUserStore, useIsFavorite } from '@/store/useUserStore';
+import { AdPreview, PriceBadgeData } from '@/types';
 import { formatCityDistance } from '@/utils/geo';
-import { formatRelativeTime } from '@/utils/time';
-import { useCartStore } from '@/store/cart';
+import { Swiper, SwiperSlide } from 'swiper/react';
+import { Pagination } from 'swiper/modules';
+import 'swiper/css';
+import 'swiper/css/pagination';
+import { trackImpression } from '@/api/ads';
+import { NO_PHOTO_PLACEHOLDER, getThumbnailUrl } from '@/constants/placeholders';
+import { generateSrcSet, generateAdCardSizes } from '@/utils/imageOptimization';
+import useFormatPrice from '@/hooks/useFormatPrice';
 
 interface AdCardProps {
   ad: AdPreview;
   onSelect?: (ad: AdPreview) => void;
   showActions?: boolean;
+  priceBrief?: PriceBadgeData | null;
 }
 
-const NO_PHOTO_PLACEHOLDER =
-  "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300' viewBox='0 0 400 300'><rect width='400' height='300' fill='%23f1f5f9'/><text x='50%' y='50%' dominant-baseline='middle' text-anchor='middle' fill='%2394a3b8' font-size='20' font-family='Inter, sans-serif'>Нет фото</text></svg>";
-
-export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps) {
+export default function AdCard({ ad, onSelect }: AdCardProps) {
   const navigate = useNavigate();
-  const addItem = useCartStore((state) => state.addItem);
+  const [currentPhotoIndex, setCurrentPhotoIndex] = useState(0);
+  const cardRef = useRef<HTMLElement>(null);
+  const toggleFavorite = useUserStore((state) => state.toggleFavorite);
+  const isFavorite = useIsFavorite(ad._id);
+  const [pending, setPending] = useState(false);
+  const { formatCard } = useFormatPrice();
   
-  const previewImage = (ad.photos && ad.photos.length > 0 ? ad.photos[0] : null) || NO_PHOTO_PLACEHOLDER;
+  const rawPhotos = ad.photos && ad.photos.length > 0 ? ad.photos : [];
+  const photos = rawPhotos.length > 0 
+    ? rawPhotos.map(p => getThumbnailUrl(p)) 
+    : [NO_PHOTO_PLACEHOLDER];
+
+  useEffect(() => {
+    const element = cardRef.current;
+    if (!element) return;
+
+    let visibilityTimer: ReturnType<typeof setTimeout> | null = null;
+    let hasTracked = false;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && !hasTracked) {
+            visibilityTimer = setTimeout(() => {
+              if (!hasTracked) {
+                trackImpression(ad._id);
+                hasTracked = true;
+                observer.unobserve(element);
+              }
+            }, 1000);
+          } else if (!entry.isIntersecting && visibilityTimer) {
+            clearTimeout(visibilityTimer);
+            visibilityTimer = null;
+          }
+        });
+      },
+      { threshold: 0.5 }
+    );
+
+    observer.observe(element);
+    return () => {
+      if (visibilityTimer) {
+        clearTimeout(visibilityTimer);
+      }
+      observer.disconnect();
+    };
+  }, [ad._id]);
 
   const handleCardClick = () => {
     if (onSelect) {
@@ -29,222 +78,203 @@ export default function AdCard({ ad, onSelect, showActions = true }: AdCardProps
     }
   };
 
-  const handleAddToCart = (event: React.MouseEvent) => {
-    event.stopPropagation();
-    addItem({
-      adId: ad._id,
-      title: ad.title,
-      price: ad.price,
-      quantity: 1,
-      sellerTelegramId: ad.sellerTelegramId,
-      photo: ad.photos && ad.photos.length > 0 ? ad.photos[0] : undefined,
-    });
+  const handleFavoriteClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (pending) return;
+    setPending(true);
+    try {
+      await toggleFavorite(ad._id);
+    } finally {
+      setPending(false);
+    }
   };
 
-  const handleContactSeller = (event: React.MouseEvent) => {
-    event.stopPropagation();
-  };
+  const isFree = ad.price === 0;
 
   return (
     <article
-      className="card"
+      ref={cardRef}
       onClick={handleCardClick}
       role="button"
       tabIndex={0}
       data-testid={`ad-card-${ad._id}`}
-      style={{
-        cursor: 'pointer',
-        transition: 'all 150ms cubic-bezier(0.4, 0, 0.2, 1)',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '12px',
-      }}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           handleCardClick();
         }
       }}
+      style={{
+        background: '#FFFFFF',
+        borderRadius: 16,
+        overflow: 'hidden',
+        cursor: 'pointer',
+      }}
     >
-      <div style={{ position: 'relative', width: '100%', overflow: 'hidden', borderRadius: 'var(--radius-md)' }}>
-        <img
-          src={previewImage}
-          alt={ad.title}
-          loading="lazy"
-          decoding="async"
-          data-testid={`ad-image-${ad._id}`}
-          style={{
-            width: '100%',
-            height: '200px',
-            objectFit: 'cover',
-            display: 'block',
+      {/* Image Container */}
+      <div 
+        style={{
+          position: 'relative',
+          aspectRatio: '1',
+          background: '#F5F6F8',
+          overflow: 'hidden',
+          borderRadius: 16,
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <Swiper
+          modules={[Pagination]}
+          pagination={{ 
+            clickable: true,
+            dynamicBullets: true,
           }}
-        />
-        <div
-          style={{
-            position: 'absolute',
-            top: '8px',
-            right: '8px',
-            zIndex: 10,
+          style={{ width: '100%', height: '100%' }}
+          onSlideChange={(swiper) => setCurrentPhotoIndex(swiper.activeIndex)}
+          onClick={(swiper, e) => {
+            e.stopPropagation();
+          }}
+          onTap={(swiper, e) => {
+            e.stopPropagation();
           }}
         >
-          <FavoriteButton adId={ad._id} />
-        </div>
+          {photos.map((photo, index) => {
+            const isPlaceholder = photo.startsWith('data:');
+            return (
+              <SwiperSlide key={index}>
+                {!isPlaceholder ? (
+                  <img
+                    src={photo}
+                    srcSet={generateSrcSet(photo)}
+                    sizes={generateAdCardSizes()}
+                    alt={`${ad.title} - фото ${index + 1}`}
+                    loading="lazy"
+                    decoding="async"
+                    data-testid={`ad-image-${ad._id}-${index}`}
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'cover',
+                    }}
+                    onClick={handleCardClick}
+                  />
+                ) : (
+                  <div 
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      background: '#F5F6F8',
+                    }}
+                    onClick={handleCardClick}
+                  >
+                    <Package size={32} color="#9CA3AF" />
+                  </div>
+                )}
+              </SwiperSlide>
+            );
+          })}
+        </Swiper>
+        
+        {/* Favorite Button - Heart in circle */}
+        <button
+          onClick={handleFavoriteClick}
+          disabled={pending}
+          data-testid={`button-favorite-${ad._id}`}
+          style={{
+            position: 'absolute',
+            top: 8,
+            right: 8,
+            zIndex: 10,
+            width: 32,
+            height: 32,
+            background: 'rgba(255, 255, 255, 0.95)',
+            borderRadius: '50%',
+            border: 'none',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: pending ? 'wait' : 'pointer',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <Heart
+            size={18}
+            fill={isFavorite ? '#EF4444' : 'none'}
+            color={isFavorite ? '#EF4444' : '#9CA3AF'}
+            strokeWidth={2}
+          />
+        </button>
+        
+        {/* Photo Counter */}
+        {photos.length > 1 && (
+          <div 
+            style={{
+              position: 'absolute',
+              bottom: 8,
+              right: 8,
+              background: 'rgba(0, 0, 0, 0.5)',
+              padding: '4px 8px',
+              borderRadius: 10,
+              fontSize: 11,
+              fontWeight: 500,
+              color: '#FFFFFF',
+              zIndex: 10,
+            }}
+            data-testid={`photo-counter-${ad._id}`}
+          >
+            {currentPhotoIndex + 1}/{photos.length}
+          </div>
+        )}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {/* Content */}
+      <div style={{ padding: '12px 4px 8px' }}>
+        {/* Price */}
+        <p
+          data-testid={`ad-price-${ad._id}`}
+          style={{ 
+            margin: '0 0 4px',
+            fontSize: 16,
+            fontWeight: 700,
+            color: '#1F2937',
+          }}
+        >
+          {formatCard(ad.price, isFree)}
+        </p>
+
+        {/* Title */}
         <h3
           data-testid={`ad-title-${ad._id}`}
           style={{
-            margin: 0,
-            fontSize: '15px',
-            fontWeight: 600,
-            color: 'var(--color-primary)',
+            margin: '0 0 4px',
+            fontSize: 13,
+            fontWeight: 400,
+            color: '#6B7280',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
             display: '-webkit-box',
             WebkitLineClamp: 2,
             WebkitBoxOrient: 'vertical',
-            lineHeight: '1.4',
+            lineHeight: 1.4,
           }}
         >
           {ad.title}
         </h3>
 
-        <p
-          data-testid={`ad-category-${ad._id}`}
-          style={{
-            margin: 0,
-            fontSize: '13px',
-            color: 'var(--color-secondary)',
-          }}
-        >
-          {ad.categoryId}
-          {ad.subcategoryId ? ` / ${ad.subcategoryId}` : ''}
-        </p>
-
-        {ad.description && (
-          <p
-            data-testid={`ad-description-${ad._id}`}
-            style={{
-              margin: 0,
-              fontSize: '14px',
-              color: 'var(--color-secondary)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              display: '-webkit-box',
-              WebkitLineClamp: 2,
-              WebkitBoxOrient: 'vertical',
-              lineHeight: '1.4',
-            }}
-          >
-            {ad.description.slice(0, 100)}
-            {ad.description.length > 100 ? '…' : ''}
-          </p>
-        )}
-
-        <p
-          data-testid={`ad-price-${ad._id}`}
-          style={{
-            margin: 0,
-            fontSize: '18px',
-            fontWeight: 700,
-            color: 'var(--color-primary)',
-          }}
-        >
-          {ad.price.toLocaleString('ru-RU')} {ad.currency || 'BYN'}
-        </p>
-
-        {(ad.city || ad.distanceKm != null) && (
+        {/* Location */}
+        {ad.city && (
           <p
             data-testid={`ad-location-${ad._id}`}
-            style={{
+            style={{ 
               margin: 0,
-              fontSize: '13px',
-              color: 'var(--color-secondary-light)',
+              fontSize: 12,
+              color: '#9CA3AF',
             }}
           >
-            {formatCityDistance(ad.city, ad.distanceKm)}
+            {ad.city}
           </p>
-        )}
-
-        {ad.createdAt && (
-          <p
-            data-testid={`ad-time-${ad._id}`}
-            style={{
-              margin: 0,
-              fontSize: '12px',
-              color: 'var(--color-secondary-light)',
-            }}
-          >
-            Опубликовано {formatRelativeTime(ad.createdAt)}
-          </p>
-        )}
-
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginTop: '4px' }}>
-          {ad.deliveryType && ad.deliveryType !== 'pickup_only' && (
-            <span
-              className="badge"
-              data-testid={`ad-delivery-badge-${ad._id}`}
-              style={{
-                background: 'var(--color-info-bg)',
-                color: 'var(--color-info)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <Truck size={14} />
-              Доставка
-            </span>
-          )}
-          {ad.isLiveSpot && (
-            <span
-              className="badge"
-              data-testid={`ad-livespot-badge-${ad._id}`}
-              style={{
-                background: 'var(--color-warning-bg)',
-                color: 'var(--color-warning)',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-              }}
-            >
-              <MapPin size={14} />
-              На ярмарке
-            </span>
-          )}
-        </div>
-
-        {showActions && (
-          <div style={{ display: 'flex', gap: '8px', marginTop: '8px', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="secondary"
-              onClick={handleAddToCart}
-              data-testid={`button-add-to-cart-${ad._id}`}
-              style={{ flex: 1, minWidth: '140px' }}
-            >
-              В корзину
-            </button>
-            <a
-              className="secondary"
-              href={`tg://user?id=${ad.sellerTelegramId}`}
-              onClick={handleContactSeller}
-              data-testid={`button-contact-seller-${ad._id}`}
-              style={{
-                flex: 1,
-                minWidth: '140px',
-                textAlign: 'center',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              Продавцу
-            </a>
-          </div>
         )}
       </div>
     </article>

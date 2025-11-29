@@ -1,0 +1,290 @@
+{
+  "apple": {
+    "name": "Apple",
+    "keywords": ["iphone", "apple", "ipad", "mac", "macbook", "airpods", "imac", "apple watch", "ipod"],
+    "icon": "🍎",
+    "categories": ["smartphones", "tablets", "laptops", "headphones", "smartwatches", "computers"]
+  },
+  "samsung": {
+    "name": "Samsung",
+    "keywords": ["samsung", "galaxy", "galaxys", "galaxya", "galaxyz", "galaxyfold"],
+    "icon": "📱",
+    "categories": ["smartphones", "tablets", "tv", "refrigerators", "washing-machines", "headphones", "monitors"]
+  },
+  "xiaomi": {
+    "name": "Xiaomi",
+    "keywords": ["xiaomi", "redmi", "poco", "mi", "miui"],
+    "icon": "📱",
+    "categories": ["smartphones", "tablets", "headphones", "smartwatches", "scooters", "vacuum-cleaners"]
+  },
+  "huawei": {
+    "name": "Huawei",
+    "keywords": ["huawei", "honor", "mate", "p30", "p40", "p50"],
+    "icon": "📱",
+    "categories": ["smartphones", "tablets", "laptops", "smartwatches"]
+  },
+  "lg": {
+    "name": "LG",
+    "keywords": ["lg", "lgк", "lg к"],
+    "icon": "📺",
+    "categories": ["tv", "refrigerators", "washing-machines", "air-conditioners", "monitors"]
+  },
+  "bosch": {
+    "name": "Bosch",
+    "keywords": ["bosch", "бош"],
+    "icon": "🔧",
+    "categories": ["washing-machines", "refrigerators", "dishwashers", "tools", "vacuum-cleaners"]
+  },
+  "sony": {
+    "name": "Sony",
+    "keywords": ["sony", "playstation", "ps4", "ps5", "xperia", "сони"],
+    "icon": "🎮",
+    "categories": ["tv", "headphones", "gaming", "cameras", "smartphones"]
+  },
+  "jbl": {
+    "name": "JBL",
+    "keywords": ["jbl"],
+    "icon": "🔊",
+    "categories": ["headphones", "speakers", "audio"]
+  },
+  "beats": {
+    "name": "Beats",
+    "keywords": ["beats", "beatssolo", "beatsstudio"],
+    "icon": "🎧",
+    "categories": ["headphones"]
+  },
+  "hisense": {
+    "name": "Hisense",
+    "keywords": ["hisense", "хайсенс"],
+    "icon": "📺",
+    "categories": ["tv", "refrigerators"]
+  },
+  "philips": {
+    "name": "Philips",
+    "keywords": ["philips", "филипс"],
+    "icon": "💡",
+    "categories": ["tv", "grooming", "kitchen", "lighting"]
+  },
+  "asus": {
+    "name": "ASUS",
+    "keywords": ["asus", "rog", "zenbook", "vivobook", "асус"],
+    "icon": "💻",
+    "categories": ["laptops", "monitors", "graphics-cards", "motherboards", "smartphones"]
+  },
+  "lenovo": {
+    "name": "Lenovo",
+    "keywords": ["lenovo", "thinkpad", "ideapad", "legion", "леново"],
+    "icon": "💻",
+    "categories": ["laptops", "tablets", "monitors", "smartphones"]
+  },
+  "hp": {
+    "name": "HP",
+    "keywords": ["hp", "hewlett", "pavilion", "omen", "envy"],
+    "icon": "💻",
+    "categories": ["laptops", "printers", "monitors"]
+  },
+  "dell": {
+    "name": "Dell",
+    "keywords": ["dell", "alienware", "inspiron", "xps"],
+    "icon": "💻",
+    "categories": ["laptops", "monitors", "computers"]
+  },
+  "acer": {
+    "name": "Acer",
+    "keywords": ["acer", "aspire", "predator", "nitro", "асер"],
+    "icon": "💻",
+    "categories": ["laptops", "monitors"]
+  },
+  "msi": {
+    "name": "MSI",
+    "keywords": ["msi"],
+    "icon": "🎮",
+    "categories": ["laptops", "graphics-cards", "motherboards", "monitors"]
+  },
+  "audi": {
+    "name": "Audi",
+    "keywords": ["audi", "ауди", "a3", "a4", "a5", "a6", "a7", "a8", "q3", "q5", "q7", "q8", "rs", "s-line"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "bmw": {
+    "name": "BMW",
+    "keywords": ["bmw", "бмв", "бэха", "бумер", "m3", "m4", "m5", "x1", "x3", "x5", "x6", "x7"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "mercedes": {
+    "name": "Mercedes-Benz",
+    "keywords": ["mercedes", "мерседес", "мерс", "benz", "amg", "c-class", "e-class", "s-class", "glc", "gle", "gls"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "volkswagen": {
+    "name": "Volkswagen",
+    "keywords": ["volkswagen", "vw", "фольксваген", "фольц", "golf", "passat", "tiguan", "polo", "touareg", "jetta"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "toyota": {
+    "name": "Toyota",
+    "keywords": ["toyota", "тойота", "camry", "corolla", "rav4", "land cruiser", "prado", "yaris", "prius"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "honda": {
+    "name": "Honda",
+    "keywords": ["honda", "хонда", "civic", "accord", "cr-v", "hr-v", "pilot"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "hyundai": {
+    "name": "Hyundai",
+    "keywords": ["hyundai", "хёндай", "хендай", "хюндай", "tucson", "santa fe", "solaris", "creta", "elantra"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "kia": {
+    "name": "Kia",
+    "keywords": ["kia", "киа", "sportage", "rio", "ceed", "optima", "sorento", "seltos"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "renault": {
+    "name": "Renault",
+    "keywords": ["renault", "рено", "duster", "logan", "sandero", "kaptur", "arkana", "megane"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "ford": {
+    "name": "Ford",
+    "keywords": ["ford", "форд", "focus", "mondeo", "kuga", "explorer", "mustang", "fiesta"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "skoda": {
+    "name": "Skoda",
+    "keywords": ["skoda", "шкода", "octavia", "rapid", "kodiaq", "karoq", "superb", "fabia"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "lada": {
+    "name": "LADA",
+    "keywords": ["lada", "лада", "ваз", "vaz", "vesta", "веста", "granta", "гранта", "priora", "приора", "niva", "нива", "калина", "kalina"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "geely": {
+    "name": "Geely",
+    "keywords": ["geely", "джили", "atlas", "coolray", "tugella", "emgrand"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "chery": {
+    "name": "Chery",
+    "keywords": ["chery", "чери", "tiggo", "arrizo"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "haval": {
+    "name": "Haval",
+    "keywords": ["haval", "хавал", "хавейл", "jolion", "f7", "h6", "h9"],
+    "icon": "🚗",
+    "categories": ["cars", "auto"]
+  },
+  "nike": {
+    "name": "Nike",
+    "keywords": ["nike", "найк", "air max", "jordan", "air force"],
+    "icon": "👟",
+    "categories": ["shoes", "clothing", "sports"]
+  },
+  "adidas": {
+    "name": "Adidas",
+    "keywords": ["adidas", "адидас", "yeezy", "ultraboost", "superstar", "stan smith"],
+    "icon": "👟",
+    "categories": ["shoes", "clothing", "sports"]
+  },
+  "dyson": {
+    "name": "Dyson",
+    "keywords": ["dyson", "дайсон"],
+    "icon": "🧹",
+    "categories": ["vacuum-cleaners", "hair-dryers", "fans"]
+  },
+  "electrolux": {
+    "name": "Electrolux",
+    "keywords": ["electrolux", "электролюкс"],
+    "icon": "🔌",
+    "categories": ["washing-machines", "refrigerators", "vacuum-cleaners", "dishwashers"]
+  },
+  "siemens": {
+    "name": "Siemens",
+    "keywords": ["siemens", "сименс"],
+    "icon": "🔧",
+    "categories": ["washing-machines", "refrigerators", "dishwashers", "coffee-machines"]
+  },
+  "whirlpool": {
+    "name": "Whirlpool",
+    "keywords": ["whirlpool", "вирпул"],
+    "icon": "🔌",
+    "categories": ["washing-machines", "refrigerators", "dishwashers"]
+  },
+  "indesit": {
+    "name": "Indesit",
+    "keywords": ["indesit", "индезит"],
+    "icon": "🔌",
+    "categories": ["washing-machines", "refrigerators", "dishwashers"]
+  },
+  "beko": {
+    "name": "Beko",
+    "keywords": ["beko", "беко"],
+    "icon": "🔌",
+    "categories": ["washing-machines", "refrigerators", "dishwashers"]
+  },
+  "atlant": {
+    "name": "ATLANT",
+    "keywords": ["atlant", "атлант"],
+    "icon": "❄️",
+    "categories": ["refrigerators", "washing-machines"]
+  },
+  "gorenje": {
+    "name": "Gorenje",
+    "keywords": ["gorenje", "горенье"],
+    "icon": "🔌",
+    "categories": ["washing-machines", "refrigerators", "stoves"]
+  },
+  "canon": {
+    "name": "Canon",
+    "keywords": ["canon", "кенон", "eos"],
+    "icon": "📷",
+    "categories": ["cameras", "printers"]
+  },
+  "nikon": {
+    "name": "Nikon",
+    "keywords": ["nikon", "никон"],
+    "icon": "📷",
+    "categories": ["cameras"]
+  },
+  "gopro": {
+    "name": "GoPro",
+    "keywords": ["gopro", "гопро", "hero"],
+    "icon": "📷",
+    "categories": ["cameras", "action-cameras"]
+  },
+  "dji": {
+    "name": "DJI",
+    "keywords": ["dji", "mavic", "phantom", "osmo"],
+    "icon": "🚁",
+    "categories": ["drones", "cameras"]
+  },
+  "nintendo": {
+    "name": "Nintendo",
+    "keywords": ["nintendo", "нинтендо", "switch"],
+    "icon": "🎮",
+    "categories": ["gaming", "consoles"]
+  },
+  "xbox": {
+    "name": "Xbox",
+    "keywords": ["xbox", "хбокс", "иксбокс"],
+    "icon": "🎮",
+    "categories": ["gaming", "consoles"]
+  }
+}

@@ -1,0 +1,2269 @@
+{
+  "timestamp": "2025-11-24T08:11:32.501Z",
+  "generatedBy": "KETMAR Market Category System",
+  "summary": {
+    "totalCategories": 111,
+    "leafCategories": 92,
+    "nonLeafCategories": 19,
+    "levels": {
+      "1": 14,
+      "2": 81,
+      "3": 13,
+      "4": 3
+    },
+    "with3DIcons": 111,
+    "without3DIcons": 0,
+    "iconCoverage": "100.0%",
+    "totalTestAds": 360,
+    "categoriesWithAds": 92
+  },
+  "categories": [
+    {
+      "slug": "avto-zapchasti",
+      "name": "Авто и запчасти",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/auto_parts_car_icon.webp",
+      "children": 7,
+      "hasIcon": true
+    },
+    {
+      "slug": "bytovaya-tehnika",
+      "name": "Бытовая техника",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/appliances_icon.webp",
+      "children": 4,
+      "hasIcon": true
+    },
+    {
+      "slug": "dom-sad",
+      "name": "Дом и сад",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/home_garden_icon.webp",
+      "children": 6,
+      "hasIcon": true
+    },
+    {
+      "slug": "zhivotnye",
+      "name": "Животные",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/pets_animals_icon.webp",
+      "children": 6,
+      "hasIcon": true
+    },
+    {
+      "slug": "krasota-zdorove-tovary",
+      "name": "Красота и здоровье",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/beauty_health_icon.webp",
+      "children": 3,
+      "hasIcon": true
+    },
+    {
+      "slug": "nedvizhimost",
+      "name": "Недвижимость",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/real_estate_house_icon.webp",
+      "children": 7,
+      "hasIcon": true
+    },
+    {
+      "slug": "odezhda-obuv",
+      "name": "Одежда и обувь",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/clothes_fashion_icon.webp",
+      "children": 7,
+      "hasIcon": true
+    },
+    {
+      "slug": "puteshestviya",
+      "name": "Путешествия",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/travel_airplane_icon.webp",
+      "children": 5,
+      "hasIcon": true
+    },
+    {
+      "slug": "rabota",
+      "name": "Работа",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/jobs_briefcase_icon.webp",
+      "children": 2,
+      "hasIcon": true
+    },
+    {
+      "slug": "remont-stroyka",
+      "name": "Ремонт и стройка",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/construction_repair_icon.webp",
+      "children": 6,
+      "hasIcon": true
+    },
+    {
+      "slug": "tovary-dlya-detey",
+      "name": "Товары для детей",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/kids_baby_icon.webp",
+      "children": 5,
+      "hasIcon": true
+    },
+    {
+      "slug": "uslugi",
+      "name": "Услуги",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/services_tools_icon.webp",
+      "children": 9,
+      "hasIcon": true
+    },
+    {
+      "slug": "hobbi-sport-turizm",
+      "name": "Хобби, спорт и туризм",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/hobby_sport_icon.webp",
+      "children": 7,
+      "hasIcon": true
+    },
+    {
+      "slug": "elektronika",
+      "name": "Электроника",
+      "level": 1,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/electronics_devices_icon.webp",
+      "children": 6,
+      "hasIcon": true
+    },
+    {
+      "slug": "aviabilety",
+      "name": "Авиабилеты",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/flight_tickets_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "avtobusnye-bilety",
+      "name": "Автобусные билеты",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/bus_tickets_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "avtoelektronika",
+      "name": "Автоэлектроника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/car_electronics_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "akvarium-rybki",
+      "name": "Аквариум и рыбки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/aquarium_and_fish_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "aksessuary",
+      "name": "Аксессуары",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/fashion_accessories_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "realty_rent",
+      "name": "Аренда",
+      "level": 2,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/rental_properties_icon.webp",
+      "children": 2,
+      "hasIcon": true
+    },
+    {
+      "slug": "audio-tehnika",
+      "name": "Аудиотехника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/audio_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "biznes-uslugi",
+      "name": "Бизнес услуги",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/business_services_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "vakansii",
+      "name": "Вакансии",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/job_vacancies_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "velosipedy",
+      "name": "Велосипеды",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/bicycles_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "garazhi-mashinomesta",
+      "name": "Гаражи и машиноместа",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/garages_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "gostinitsy-oteli",
+      "name": "Гостиницы и отели",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/hotels_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "gruzovye-avtomobili",
+      "name": "Грузовые автомобили",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/trucks_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "dveri-okna",
+      "name": "Двери и окна",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/doors_and_windows_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "dekor-tekstil",
+      "name": "Декор и текстиль",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/decor_and_textiles_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "detskaya-mebel",
+      "name": "Детская мебель",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/children's_furniture_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "detskaya-obuv",
+      "name": "Детская обувь",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/children's_shoes_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "detskaya-odezhda",
+      "name": "Детская одежда",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/children's_clothing_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "detskoe-pitanie",
+      "name": "Детское питание",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/baby_food_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "doma-dachi-kottedzhi",
+      "name": "Дома, дачи, коттеджи",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/houses_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "drugie-zhivotnye",
+      "name": "Другие животные",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/other_animals_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "zhd-bilety",
+      "name": "Ж/д билеты",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/train_tickets_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "zhenskaya-obuv",
+      "name": "Женская обувь",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/women_shoes_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "zhenskaya-odezhda",
+      "name": "Женская одежда",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/women_clothing_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "zapchasti-aksessuary",
+      "name": "Запчасти и аксессуары",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/spare_parts_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "igrushki",
+      "name": "Игрушки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/toys_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "igry-igrovye-pristavki",
+      "name": "Игры и игровые приставки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/gaming_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "instrument",
+      "name": "Инструмент",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/tools_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "kvartiry",
+      "name": "Квартиры",
+      "level": 2,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "children": 4,
+      "hasIcon": true
+    },
+    {
+      "slug": "klimaticheskaya-tehnika",
+      "name": "Климатическая техника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/climate_control_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "kollektsionirovanie",
+      "name": "Коллекционирование",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/collectibles_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "kolyaski-avtokresla",
+      "name": "Коляски и автокресла",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/baby_stroller_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "kommercheskaya-nedvizhimost",
+      "name": "Коммерческая недвижимость",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/commercial_real_estate_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "komnaty",
+      "name": "Комнаты",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/rooms_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "kosmetika-parfyumeriya",
+      "name": "Косметика и парфюмерия",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/beauty_cosmetics_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "koshki",
+      "name": "Кошки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/cats_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "krasota-zdorove",
+      "name": "Красота и здоровье",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/beauty_and_health_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "krupnaya-bytovaya-tehnika",
+      "name": "Крупная бытовая техника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/appliances_washing_machine_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "legkovye-avtomobili",
+      "name": "Легковые автомобили",
+      "level": 2,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/cars_3d_icon.webp",
+      "children": 5,
+      "hasIcon": true
+    },
+    {
+      "slug": "mebel",
+      "name": "Мебель",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/furniture_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "medtekhnika-optika",
+      "name": "Медтехника и оптика",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/medical_equipment_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "melkaya-bytovaya-tehnika",
+      "name": "Мелкая бытовая техника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/small_appliances_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "mototehnika",
+      "name": "Мототехника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/motorcycles_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "muzhskaya-obuv",
+      "name": "Мужская обувь",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/men's_shoes_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "muzhskaya-odezhda",
+      "name": "Мужская одежда",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/men_clothing_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "muzykalnye-instrumenty",
+      "name": "Музыкальные инструменты",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/musical_instruments_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "nedvizhimost-za-rubezhom",
+      "name": "Недвижимость за рубежом",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/real_estate_abroad_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "noutbuki-kompyutery",
+      "name": "Ноутбуки и компьютеры",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/laptops_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "obuchenie-kursy",
+      "name": "Обучение и курсы",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/education_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "otdelochnye-materialy",
+      "name": "Отделочные материалы",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/paint_tools_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "oxota-rybalka",
+      "name": "Охота и рыбалка",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/hunting_and_fishing_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "posuda-kuhonnye-prinadlezhnosti",
+      "name": "Посуда и кухонные принадлежности",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/dishes_kitchenware_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "prazdniki-meropriyatiya",
+      "name": "Праздники и мероприятия",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/holidays_events_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "produkty-pitaniya",
+      "name": "Продукты питания",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/food_products_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "ptitsy",
+      "name": "Птицы",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/birds_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "rasteniya",
+      "name": "Растения",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/plants_gardening_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "rezyume",
+      "name": "Резюме",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/resume_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "santehnika",
+      "name": "Сантехника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/plumbing_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "sobaki",
+      "name": "Собаки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/dogs_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "spetstekhnika",
+      "name": "Спецтехника",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/special_equipment_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "sport-otdyh",
+      "name": "Спорт и отдых",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/sports_recreation_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "stroitelnye-materialy",
+      "name": "Строительные материалы",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/building_materials_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "stroitelstvo-remont",
+      "name": "Строительство и ремонт",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/construction_services_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "tv-foto-video",
+      "name": "ТВ, фото и видео",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/tv_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "telefony-planshety",
+      "name": "Телефоны и планшеты",
+      "level": 2,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/smartphones_3d_icon.webp",
+      "children": 2,
+      "hasIcon": true
+    },
+    {
+      "slug": "tehnika-dlya-kuhni",
+      "name": "Техника для кухни",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/kitchen_appliances_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "tovary-dlya-zhivotnykh",
+      "name": "Товары для животных",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/pet_supplies_products_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "tovary-dlya-kompyutera",
+      "name": "Товары для компьютера",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/computer_accessories_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "tovary-dlya-novorozhdjonnykh",
+      "name": "Товары для новорождённых",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/newborn_products_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "tovary-dlya-sada",
+      "name": "Товары для сада",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/garden_supplies_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "transportnye-uslugi",
+      "name": "Транспортные услуги",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/transport_services_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "trenazhjery",
+      "name": "Тренажёры",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/exercise_equipment_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "turizm",
+      "name": "Туризм",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/tourism_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "tury",
+      "name": "Туры",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/tours_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "uslugi-nyani-sidelki",
+      "name": "Услуги няни и сиделки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/nanny_caregiver_services_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "uslugi-po-domu",
+      "name": "Услуги по дому",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/home_services_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "ukhod-za-telom-volosami",
+      "name": "Уход за телом и волосами",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/body_hair_care_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "uchastki",
+      "name": "Участки",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/land_plots_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "foto-video-uslugi",
+      "name": "Фото и видео услуги",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/photo_video_services_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "shiny-diski",
+      "name": "Шины и диски",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/tires_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "elektroinstrument",
+      "name": "Электроинструмент",
+      "level": 2,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/power_tools_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "1-komnatnye",
+      "name": "1-комнатные",
+      "level": 3,
+      "isLeaf": false,
+      "icon3d": "/attached_assets/generated_images/1-room_apartments_icon.webp",
+      "children": 3,
+      "hasIcon": true
+    },
+    {
+      "slug": "2-komnatnye",
+      "name": "2-комнатные",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/2-room_apartments_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "3-komnatnye",
+      "name": "3-комнатные",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/3-room_apartments_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "vnedorozhnik",
+      "name": "Внедорожник",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/suv_vehicles_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "realty_rent_long",
+      "name": "Долгосрочная",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/long-term_rental_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "kupe",
+      "name": "Купе",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/coupe_cars_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "planshety",
+      "name": "Планшеты",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/tablets_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "realty_rent_daily",
+      "name": "Посуточно",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/daily_rentals_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "sedan",
+      "name": "Седан",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/auto_car_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "smartfony",
+      "name": "Смартфоны",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/smartphones_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "studii",
+      "name": "Студии",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "universal",
+      "name": "Универсал",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/auto_car_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "hetchbek",
+      "name": "Хэтчбек",
+      "level": 3,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/auto_car_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "bez-remonta",
+      "name": "Без ремонта",
+      "level": 4,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "novostroyka",
+      "name": "Новостройка",
+      "level": 4,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    },
+    {
+      "slug": "s-remontom",
+      "name": "С ремонтом",
+      "level": 4,
+      "isLeaf": true,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "children": 0,
+      "hasIcon": true
+    }
+  ],
+  "leafCategories": [
+    {
+      "slug": "aviabilety",
+      "name": "Авиабилеты",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/flight_tickets_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "avtobusnye-bilety",
+      "name": "Автобусные билеты",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/bus_tickets_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "avtoelektronika",
+      "name": "Автоэлектроника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/car_electronics_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "akvarium-rybki",
+      "name": "Аквариум и рыбки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/aquarium_and_fish_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "aksessuary",
+      "name": "Аксессуары",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/fashion_accessories_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "audio-tehnika",
+      "name": "Аудиотехника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/audio_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "biznes-uslugi",
+      "name": "Бизнес услуги",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/business_services_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "vakansii",
+      "name": "Вакансии",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/job_vacancies_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "velosipedy",
+      "name": "Велосипеды",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/bicycles_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "garazhi-mashinomesta",
+      "name": "Гаражи и машиноместа",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/garages_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "gostinitsy-oteli",
+      "name": "Гостиницы и отели",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/hotels_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "gruzovye-avtomobili",
+      "name": "Грузовые автомобили",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/trucks_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "dveri-okna",
+      "name": "Двери и окна",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/doors_and_windows_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "dekor-tekstil",
+      "name": "Декор и текстиль",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/decor_and_textiles_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "detskaya-mebel",
+      "name": "Детская мебель",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/children's_furniture_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "detskaya-obuv",
+      "name": "Детская обувь",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/children's_shoes_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "detskaya-odezhda",
+      "name": "Детская одежда",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/children's_clothing_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "detskoe-pitanie",
+      "name": "Детское питание",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/baby_food_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "doma-dachi-kottedzhi",
+      "name": "Дома, дачи, коттеджи",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/houses_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "drugie-zhivotnye",
+      "name": "Другие животные",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/other_animals_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "zhd-bilety",
+      "name": "Ж/д билеты",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/train_tickets_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "zhenskaya-obuv",
+      "name": "Женская обувь",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/women_shoes_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "zhenskaya-odezhda",
+      "name": "Женская одежда",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/women_clothing_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "zapchasti-aksessuary",
+      "name": "Запчасти и аксессуары",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/spare_parts_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "igrushki",
+      "name": "Игрушки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/toys_3d_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "igry-igrovye-pristavki",
+      "name": "Игры и игровые приставки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/gaming_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "instrument",
+      "name": "Инструмент",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/tools_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "klimaticheskaya-tehnika",
+      "name": "Климатическая техника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/climate_control_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "kollektsionirovanie",
+      "name": "Коллекционирование",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/collectibles_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "kolyaski-avtokresla",
+      "name": "Коляски и автокресла",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/baby_stroller_3d_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "kommercheskaya-nedvizhimost",
+      "name": "Коммерческая недвижимость",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/commercial_real_estate_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "komnaty",
+      "name": "Комнаты",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/rooms_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "kosmetika-parfyumeriya",
+      "name": "Косметика и парфюмерия",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/beauty_cosmetics_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "koshki",
+      "name": "Кошки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/cats_3d_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "krasota-zdorove",
+      "name": "Красота и здоровье",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/beauty_and_health_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "krupnaya-bytovaya-tehnika",
+      "name": "Крупная бытовая техника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/appliances_washing_machine_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "mebel",
+      "name": "Мебель",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/furniture_3d_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "medtekhnika-optika",
+      "name": "Медтехника и оптика",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/medical_equipment_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "melkaya-bytovaya-tehnika",
+      "name": "Мелкая бытовая техника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/small_appliances_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "mototehnika",
+      "name": "Мототехника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/motorcycles_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "muzhskaya-obuv",
+      "name": "Мужская обувь",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/men's_shoes_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "muzhskaya-odezhda",
+      "name": "Мужская одежда",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/men_clothing_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "muzykalnye-instrumenty",
+      "name": "Музыкальные инструменты",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/musical_instruments_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "nedvizhimost-za-rubezhom",
+      "name": "Недвижимость за рубежом",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/real_estate_abroad_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "noutbuki-kompyutery",
+      "name": "Ноутбуки и компьютеры",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/laptops_3d_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "obuchenie-kursy",
+      "name": "Обучение и курсы",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/education_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "otdelochnye-materialy",
+      "name": "Отделочные материалы",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/paint_tools_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "oxota-rybalka",
+      "name": "Охота и рыбалка",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/hunting_and_fishing_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "posuda-kuhonnye-prinadlezhnosti",
+      "name": "Посуда и кухонные принадлежности",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/dishes_kitchenware_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "prazdniki-meropriyatiya",
+      "name": "Праздники и мероприятия",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/holidays_events_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "produkty-pitaniya",
+      "name": "Продукты питания",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/food_products_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "ptitsy",
+      "name": "Птицы",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/birds_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "rasteniya",
+      "name": "Растения",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/plants_gardening_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "rezyume",
+      "name": "Резюме",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/resume_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "santehnika",
+      "name": "Сантехника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/plumbing_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "sobaki",
+      "name": "Собаки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/dogs_3d_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "spetstekhnika",
+      "name": "Спецтехника",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/special_equipment_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "sport-otdyh",
+      "name": "Спорт и отдых",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/sports_recreation_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "stroitelnye-materialy",
+      "name": "Строительные материалы",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/building_materials_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "stroitelstvo-remont",
+      "name": "Строительство и ремонт",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/construction_services_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tv-foto-video",
+      "name": "ТВ, фото и видео",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/tv_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tehnika-dlya-kuhni",
+      "name": "Техника для кухни",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/kitchen_appliances_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tovary-dlya-zhivotnykh",
+      "name": "Товары для животных",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/pet_supplies_products_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tovary-dlya-kompyutera",
+      "name": "Товары для компьютера",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/computer_accessories_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tovary-dlya-novorozhdjonnykh",
+      "name": "Товары для новорождённых",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/newborn_products_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tovary-dlya-sada",
+      "name": "Товары для сада",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/garden_supplies_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "transportnye-uslugi",
+      "name": "Транспортные услуги",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/transport_services_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "trenazhjery",
+      "name": "Тренажёры",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/exercise_equipment_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "turizm",
+      "name": "Туризм",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/tourism_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "tury",
+      "name": "Туры",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/tours_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "uslugi-nyani-sidelki",
+      "name": "Услуги няни и сиделки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/nanny_caregiver_services_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "uslugi-po-domu",
+      "name": "Услуги по дому",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/home_services_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "ukhod-za-telom-volosami",
+      "name": "Уход за телом и волосами",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/body_hair_care_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "uchastki",
+      "name": "Участки",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/land_plots_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "foto-video-uslugi",
+      "name": "Фото и видео услуги",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/photo_video_services_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "shiny-diski",
+      "name": "Шины и диски",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/tires_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "elektroinstrument",
+      "name": "Электроинструмент",
+      "level": 2,
+      "icon3d": "/attached_assets/generated_images/power_tools_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "2-komnatnye",
+      "name": "2-комнатные",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/2-room_apartments_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "3-komnatnye",
+      "name": "3-комнатные",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/3-room_apartments_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "vnedorozhnik",
+      "name": "Внедорожник",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/suv_vehicles_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "realty_rent_long",
+      "name": "Долгосрочная",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/long-term_rental_icon.webp",
+      "testAdsCreated": 6
+    },
+    {
+      "slug": "kupe",
+      "name": "Купе",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/coupe_cars_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "planshety",
+      "name": "Планшеты",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/tablets_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "realty_rent_daily",
+      "name": "Посуточно",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/daily_rentals_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "sedan",
+      "name": "Седан",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/auto_car_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "smartfony",
+      "name": "Смартфоны",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/smartphones_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "studii",
+      "name": "Студии",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "universal",
+      "name": "Универсал",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/auto_car_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "hetchbek",
+      "name": "Хэтчбек",
+      "level": 3,
+      "icon3d": "/attached_assets/generated_images/auto_car_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "bez-remonta",
+      "name": "Без ремонта",
+      "level": 4,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "novostroyka",
+      "name": "Новостройка",
+      "level": 4,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "testAdsCreated": 3
+    },
+    {
+      "slug": "s-remontom",
+      "name": "С ремонтом",
+      "level": 4,
+      "icon3d": "/attached_assets/generated_images/apartments_3d_icon.webp",
+      "testAdsCreated": 3
+    }
+  ],
+  "nonLeafCategories": [
+    {
+      "slug": "avto-zapchasti",
+      "name": "Авто и запчасти",
+      "level": 1,
+      "children": 7
+    },
+    {
+      "slug": "bytovaya-tehnika",
+      "name": "Бытовая техника",
+      "level": 1,
+      "children": 4
+    },
+    {
+      "slug": "dom-sad",
+      "name": "Дом и сад",
+      "level": 1,
+      "children": 6
+    },
+    {
+      "slug": "zhivotnye",
+      "name": "Животные",
+      "level": 1,
+      "children": 6
+    },
+    {
+      "slug": "krasota-zdorove-tovary",
+      "name": "Красота и здоровье",
+      "level": 1,
+      "children": 3
+    },
+    {
+      "slug": "nedvizhimost",
+      "name": "Недвижимость",
+      "level": 1,
+      "children": 7
+    },
+    {
+      "slug": "odezhda-obuv",
+      "name": "Одежда и обувь",
+      "level": 1,
+      "children": 7
+    },
+    {
+      "slug": "puteshestviya",
+      "name": "Путешествия",
+      "level": 1,
+      "children": 5
+    },
+    {
+      "slug": "rabota",
+      "name": "Работа",
+      "level": 1,
+      "children": 2
+    },
+    {
+      "slug": "remont-stroyka",
+      "name": "Ремонт и стройка",
+      "level": 1,
+      "children": 6
+    },
+    {
+      "slug": "tovary-dlya-detey",
+      "name": "Товары для детей",
+      "level": 1,
+      "children": 5
+    },
+    {
+      "slug": "uslugi",
+      "name": "Услуги",
+      "level": 1,
+      "children": 9
+    },
+    {
+      "slug": "hobbi-sport-turizm",
+      "name": "Хобби, спорт и туризм",
+      "level": 1,
+      "children": 7
+    },
+    {
+      "slug": "elektronika",
+      "name": "Электроника",
+      "level": 1,
+      "children": 6
+    },
+    {
+      "slug": "realty_rent",
+      "name": "Аренда",
+      "level": 2,
+      "children": 2
+    },
+    {
+      "slug": "kvartiry",
+      "name": "Квартиры",
+      "level": 2,
+      "children": 4
+    },
+    {
+      "slug": "legkovye-avtomobili",
+      "name": "Легковые автомобили",
+      "level": 2,
+      "children": 5
+    },
+    {
+      "slug": "telefony-planshety",
+      "name": "Телефоны и планшеты",
+      "level": 2,
+      "children": 2
+    },
+    {
+      "slug": "1-komnatnye",
+      "name": "1-комнатные",
+      "level": 3,
+      "children": 3
+    }
+  ],
+  "testAdsSample": [
+    {
+      "title": "Джинсы Levi's женские 27/32 скинни",
+      "categorySlug": "zhenskaya-odezhda",
+      "price": 65,
+      "city": "Могилёв",
+      "photos": []
+    },
+    {
+      "title": "Земля 25 соток сельхозназначение д.Ждановичи",
+      "categorySlug": "uchastki",
+      "price": 28000,
+      "city": "Витебск",
+      "photos": []
+    },
+    {
+      "title": "Участок 8 соток СНТ с домиком 20км от Минска",
+      "categorySlug": "uchastki",
+      "price": 18000,
+      "city": "Гомель",
+      "photos": []
+    },
+    {
+      "title": "Квадроцикл BRP Can-Am Outlander 450",
+      "categorySlug": "mototehnika",
+      "price": 8500,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Барабанная установка Pearl Export 5 барабанов",
+      "categorySlug": "muzykalnye-instrumenty",
+      "price": 1200,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Кровать двуспальная с матрасом 160x200",
+      "categorySlug": "mebel",
+      "price": 420,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Перфоратор Bosch GBH 2-28 SDS-plus",
+      "categorySlug": "instrument",
+      "price": 320,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Комбинезон зимний Reima 110см",
+      "categorySlug": "detskaya-odezhda",
+      "price": 120,
+      "city": "Гомель",
+      "photos": []
+    },
+    {
+      "title": "Прогулочная коляска Yoyo+ 6м+, чёрная рама",
+      "categorySlug": "kolyaski-avtokresla",
+      "price": 520,
+      "city": "Могилёв",
+      "photos": []
+    },
+    {
+      "title": "Тестовое объявление с городом",
+      "categorySlug": "services",
+      "price": 100,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Квартира 2-комнатная в центре",
+      "categorySlug": "realty_rent_long",
+      "price": 800,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Квартира 2-комнатная в центре",
+      "categorySlug": "realty_rent_long",
+      "price": 800,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Тестовое объявление с городом",
+      "categorySlug": "phones",
+      "price": 500,
+      "city": null,
+      "photos": []
+    },
+    {
+      "title": "Квартира 2-комнатная в центре",
+      "categorySlug": "realty_rent_long",
+      "price": 800,
+      "city": null,
+      "photos": [
+        "https://placehold.co/600x400/png"
+      ]
+    },
+    {
+      "title": "iPhone 13 Pro 128GB",
+      "categorySlug": "phones",
+      "price": 1200,
+      "city": null,
+      "photos": [
+        "https://placehold.co/400x400/png"
+      ]
+    },
+    {
+      "title": "iPhone 13 Pro 128GB",
+      "categorySlug": "phones",
+      "price": 1200,
+      "city": null,
+      "photos": [
+        "https://placehold.co/400x400/png"
+      ]
+    },
+    {
+      "title": "Тестовое объявление от Aлексей",
+      "categorySlug": "berries",
+      "price": 299,
+      "city": null,
+      "photos": []
+    },
+    {
+      "title": "Скамья для жима регулируемая с стойками",
+      "categorySlug": "trenazhjery",
+      "price": 280,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Духовой шкаф Bosch встраиваемый электро",
+      "categorySlug": "tehnika-dlya-kuhni",
+      "price": 650,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Volkswagen Passat B8 2.0 TDI DSG 2019",
+      "categorySlug": "sedan",
+      "price": 28000,
+      "city": "Могилёв",
+      "photos": []
+    },
+    {
+      "title": "Сервиз столовый Luminarc 46 предметов",
+      "categorySlug": "posuda-kuhonnye-prinadlezhnosti",
+      "price": 85,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Палатка зимняя автомат для рыбалки",
+      "categorySlug": "oxota-rybalka",
+      "price": 180,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Туфли кожаные классические Ecco 44",
+      "categorySlug": "muzhskaya-obuv",
+      "price": 120,
+      "city": "Могилёв",
+      "photos": []
+    },
+    {
+      "title": "Audi A5 Coupe 2.0 TFSI Quattro 2020",
+      "categorySlug": "kupe",
+      "price": 52000,
+      "city": "Гомель",
+      "photos": []
+    },
+    {
+      "title": "koshki в хорошем состоянии",
+      "categorySlug": "koshki",
+      "price": 180,
+      "city": "Могилёв",
+      "photos": []
+    },
+    {
+      "title": "Комната 18м² в 3-комнатной квартире",
+      "categorySlug": "komnaty",
+      "price": 250,
+      "city": "Гомель",
+      "photos": []
+    },
+    {
+      "title": "Шторы блэкаут 2 полотна 3м серые",
+      "categorySlug": "dekor-tekstil",
+      "price": 85,
+      "city": "Гомель",
+      "photos": []
+    },
+    {
+      "title": "Минск-Варшава автобус, 2 места",
+      "categorySlug": "avtobusnye-bilety",
+      "price": 45,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "LEGO Technic Bugatti Chiron 42083, новый",
+      "categorySlug": "igrushki",
+      "price": 450,
+      "city": "Гомель",
+      "photos": []
+    },
+    {
+      "title": "Jeep Wrangler Rubicon 2020 год",
+      "categorySlug": "vnedorozhnik",
+      "price": 75000,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Сниму квартиру семья без животных платежеспособные",
+      "categorySlug": "realty_rent_long",
+      "price": 0,
+      "city": "Витебск",
+      "photos": []
+    },
+    {
+      "title": "Курицы несушки молодки 15 штук",
+      "categorySlug": "ptitsy",
+      "price": 120,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Квартира посуточно 1-комнатная центр Минска",
+      "categorySlug": "realty_rent_daily",
+      "price": 70,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Глюкометр Accu-Chek с тест-полосками",
+      "categorySlug": "medtekhnika-optika",
+      "price": 45,
+      "city": "Минск",
+      "photos": []
+    },
+    {
+      "title": "Видеосъемка мероприятий 4K монтаж клип",
+      "categorySlug": "foto-video-uslugi",
+      "price": 350,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Сапоги зимние Ecco Gore-Tex 39 размер",
+      "categorySlug": "zhenskaya-obuv",
+      "price": 180,
+      "city": "Брест",
+      "photos": []
+    },
+    {
+      "title": "Билет скоростной поезд Минск-Вильнюс",
+      "categorySlug": "zhd-bilety",
+      "price": 42,
+      "city": "Могилёв",
+      "photos": []
+    },
+    {
+      "title": "Резюме программист Python/Django 3 года",
+      "categorySlug": "rezyume",
+      "price": 0,
+      "city": "Витебск",
+      "photos": []
+    },
+    {
+      "title": "Коляска прогулочная Yoya складная компактная",
+      "categorySlug": "kolyaski-avtokresla",
+      "price": 220,
+      "city": "Гродно",
+      "photos": []
+    },
+    {
+      "title": "Смесь детская Nutrilon Premium 3, 6 банок",
+      "categorySlug": "detskoe-pitanie",
+      "price": 180,
+      "city": "Витебск",
+      "photos": []
+    },
+    {
+      "title": "Тестовое объявление от A.A",
+      "categorySlug": "berries",
+      "price": 299,
+      "city": null,
+      "photos": []
+    },
+    {
+      "title": "Пока",
+      "categorySlug": "cars",
+      "price": 64,
+      "city": null,
+      "photos": []
+    },
+    {
+      "title": "Розы у Кремля (одобрено)",
+      "categorySlug": "tulips_single",
+      "price": 200,
+      "city": null,
+      "photos": [
+        "https://example.com/roses.jpg"
+      ]
+    },
+    {
+      "title": "Отличная квартирка",
+      "categorySlug": "rent_flat",
+      "price": 150,
+      "city": null,
+      "photos": []
+    },
+    {
+      "title": "Выпечка на Красной Площади",
+      "categorySlug": "cakes",
+      "price": 80,
+      "city": null,
+      "photos": [
+        "https://example.com/bakery.jpg"
+      ]
+    },
+    {
+      "title": "Ягоды на ВДНХ",
+      "categorySlug": "berries_fresh",
+      "price": 300,
+      "city": null,
+      "photos": [
+        "https://example.com/berries.jpg"
+      ]
+    },
+    {
+      "title": "Тюльпаны у метро Таганская",
+      "categorySlug": "tulips_single",
+      "price": 150,
+      "city": null,
+      "photos": [
+        "https://example.com/tulips.jpg"
+      ]
+    },
+    {
+      "title": "Ягоды на ВДНХ",
+      "categorySlug": "berries_fresh",
+      "price": 300,
+      "city": null,
+      "photos": [
+        "https://example.com/berries.jpg"
+      ]
+    },
+    {
+      "title": "Тюльпаны у метро Таганская",
+      "categorySlug": "tulips_single",
+      "price": 150,
+      "city": null,
+      "photos": [
+        "https://example.com/tulips.jpg"
+      ]
+    },
+    {
+      "title": "Тестовое объявление от A.A",
+      "categorySlug": "berries",
+      "price": 299,
+      "city": null,
+      "photos": []
+    }
+  ],
+  "adsByCategory": {
+    "aviabilety": 3,
+    "avtobusnye-bilety": 3,
+    "avtoelektronika": 3,
+    "akvarium-rybki": 3,
+    "aksessuary": 3,
+    "audio-tehnika": 3,
+    "biznes-uslugi": 3,
+    "vakansii": 3,
+    "velosipedy": 3,
+    "garazhi-mashinomesta": 3,
+    "gostinitsy-oteli": 3,
+    "gruzovye-avtomobili": 3,
+    "dveri-okna": 3,
+    "dekor-tekstil": 3,
+    "detskaya-mebel": 3,
+    "detskaya-obuv": 3,
+    "detskaya-odezhda": 3,
+    "detskoe-pitanie": 3,
+    "doma-dachi-kottedzhi": 3,
+    "drugie-zhivotnye": 3,
+    "zhd-bilety": 3,
+    "zhenskaya-obuv": 3,
+    "zhenskaya-odezhda": 3,
+    "zapchasti-aksessuary": 3,
+    "igrushki": 6,
+    "igry-igrovye-pristavki": 3,
+    "instrument": 3,
+    "klimaticheskaya-tehnika": 3,
+    "kollektsionirovanie": 3,
+    "kolyaski-avtokresla": 6,
+    "kommercheskaya-nedvizhimost": 3,
+    "komnaty": 3,
+    "kosmetika-parfyumeriya": 3,
+    "koshki": 6,
+    "krasota-zdorove": 3,
+    "krupnaya-bytovaya-tehnika": 3,
+    "mebel": 6,
+    "medtekhnika-optika": 3,
+    "melkaya-bytovaya-tehnika": 3,
+    "mototehnika": 3,
+    "muzhskaya-obuv": 3,
+    "muzhskaya-odezhda": 3,
+    "muzykalnye-instrumenty": 3,
+    "nedvizhimost-za-rubezhom": 3,
+    "noutbuki-kompyutery": 6,
+    "obuchenie-kursy": 3,
+    "otdelochnye-materialy": 3,
+    "oxota-rybalka": 3,
+    "posuda-kuhonnye-prinadlezhnosti": 3,
+    "prazdniki-meropriyatiya": 3,
+    "produkty-pitaniya": 3,
+    "ptitsy": 3,
+    "rasteniya": 3,
+    "rezyume": 3,
+    "santehnika": 3,
+    "sobaki": 6,
+    "spetstekhnika": 3,
+    "sport-otdyh": 3,
+    "stroitelnye-materialy": 3,
+    "stroitelstvo-remont": 3,
+    "tv-foto-video": 3,
+    "tehnika-dlya-kuhni": 3,
+    "tovary-dlya-zhivotnykh": 3,
+    "tovary-dlya-kompyutera": 3,
+    "tovary-dlya-novorozhdjonnykh": 3,
+    "tovary-dlya-sada": 3,
+    "transportnye-uslugi": 3,
+    "trenazhjery": 3,
+    "turizm": 3,
+    "tury": 3,
+    "uslugi-nyani-sidelki": 3,
+    "uslugi-po-domu": 3,
+    "ukhod-za-telom-volosami": 3,
+    "uchastki": 3,
+    "foto-video-uslugi": 3,
+    "shiny-diski": 3,
+    "elektroinstrument": 3,
+    "2-komnatnye": 3,
+    "3-komnatnye": 3,
+    "vnedorozhnik": 3,
+    "realty_rent_long": 6,
+    "kupe": 3,
+    "planshety": 3,
+    "realty_rent_daily": 3,
+    "sedan": 3,
+    "smartfony": 3,
+    "studii": 3,
+    "universal": 3,
+    "hetchbek": 3,
+    "bez-remonta": 3,
+    "novostroyka": 3,
+    "s-remontom": 3
+  },
+  "levelBreakdown": [
+    {
+      "level": 1,
+      "count": 14,
+      "percentage": "12.6%"
+    },
+    {
+      "level": 2,
+      "count": 81,
+      "percentage": "73.0%"
+    },
+    {
+      "level": 3,
+      "count": 13,
+      "percentage": "11.7%"
+    },
+    {
+      "level": 4,
+      "count": 3,
+      "percentage": "2.7%"
+    }
+  ]
+}
